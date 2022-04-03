@@ -1,0 +1,30 @@
+{
+  "name": "@api3/airnode-protocol-v1",
+  "license": "MIT",
+  "version": "0.1.0",
+  "private": false,
+  "scripts": {
+    "build": "hardhat compile",
+    "lint": "eslint . --ext .js && solhint ./**/*.sol",
+    "prettier": "prettier --write \"./**/*.{json,js,md,sol}\"",
+    "test": "hardhat test --parallel",
+    "test:extended": "EXTENDED_TEST=TRUE hardhat test --parallel",
+    "test:coverage": "hardhat coverage",
+    "test:gas": "REPORT_GAS=TRUE hardhat test"
+  },
+  "devDependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.0.4",
+    "@nomiclabs/hardhat-waffle": "^2.0.2",
+    "@openzeppelin/contracts": "^4.4.2",
+    "chai": "^4.3.6",
+    "eslint": "^8.12.0",
+    "ethereum-waffle": "^3.4.0",
+    "ethers": "^5.5.4",
+    "hardhat": "^2.8.3",
+    "hardhat-gas-reporter": "^1.0.8",
+    "prettier": "^2.6.0",
+    "prettier-plugin-solidity": "^1.0.0-beta.19",
+    "solhint": "^3.3.7",
+    "solidity-coverage": "^0.7.20"
+  }
+}
