@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.9;
+pragma solidity ^0.8.0;
 
 /// @title Contract to be inherited by contracts that will derive
 /// AccessControlRegistry roles
