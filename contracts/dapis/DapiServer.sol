@@ -455,17 +455,18 @@ contract DapiServer is
     }
 
     /// @notice Updates the dAPI that is specified by the beacon IDs and
-    /// returns if this update was justified according to the update threshold
+    /// returns if this update was justified according to the deviation
+    /// threshold
     /// @dev This method does not allow the caller to indirectly read a dAPI,
     /// which is why it does not require the sender to be a void signer with
     /// zero address. This allows the implementation of incentive mechanisms
     /// that rewards keepers that trigger valid dAPI updates.
     /// @param beaconIds Beacon IDs
-    /// @param updateThresholdInPercentage Update threshold in percentage where
-    /// 100% is represented as `HUNDRED_PERCENT`
+    /// @param deviationThresholdInPercentage Deviation threshold in percentage
+    /// where 100% is represented as `HUNDRED_PERCENT`
     function updateDapiWithBeaconsAndReturnCondition(
         bytes32[] memory beaconIds,
-        uint256 updateThresholdInPercentage
+        uint256 deviationThresholdInPercentage
     ) public override returns (bool) {
         bytes32 dapiId = keccak256(abi.encode(beaconIds));
         DataPoint memory initialDataPoint = dataPoints[dapiId];
@@ -476,7 +477,7 @@ contract DapiServer is
                 initialDataPoint.value,
                 dataPoints[dapiId].value
             ) >=
-            updateThresholdInPercentage ||
+            deviationThresholdInPercentage ||
             (initialDataPoint.timestamp == 0 && updatedDataPoint.timestamp > 0);
     }
 
@@ -835,15 +836,15 @@ contract DapiServer is
     /// @notice Called privately to decode the condition parameters
     /// @param conditionParameters Condition parameters (a `uint256` encoded in
     /// contract ABI)
-    /// @return updateThresholdInPercentage Update threshold in percentage
-    /// where 100% is represented as `HUNDRED_PERCENT`
+    /// @return deviationThresholdInPercentage Deviation threshold in
+    /// percentage where 100% is represented as `HUNDRED_PERCENT`
     function decodeConditionParameters(bytes calldata conditionParameters)
         private
         pure
-        returns (uint256 updateThresholdInPercentage)
+        returns (uint256 deviationThresholdInPercentage)
     {
         require(conditionParameters.length == 32, "Incorrect parameter length");
-        updateThresholdInPercentage = abi.decode(
+        deviationThresholdInPercentage = abi.decode(
             conditionParameters,
             (uint256)
         );

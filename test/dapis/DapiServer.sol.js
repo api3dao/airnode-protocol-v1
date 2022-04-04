@@ -127,7 +127,7 @@ describe('DapiServer', function () {
     beaconId = hre.ethers.utils.keccak256(
       hre.ethers.utils.solidityPack(['address', 'bytes32'], [airnodeAddress, templateId])
     );
-    // Update threshold is 10%
+    // Deviation threshold is 10%
     beaconUpdateSubscriptionConditionParameters = hre.ethers.utils.defaultAbiCoder.encode(
       ['uint256'],
       [(await dapiServer.HUNDRED_PERCENT()).div(10)]
@@ -212,7 +212,7 @@ describe('DapiServer', function () {
       dapiBeaconIds[ind] = dapiBeaconId;
     }
     dapiId = hre.ethers.utils.keccak256(hre.ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [dapiBeaconIds]));
-    // Update threshold is 5%
+    // Deviation threshold is 5%
     dapiUpdateSubscriptionConditionParameters = hre.ethers.utils.defaultAbiCoder.encode(
       ['uint256'],
       [(await dapiServer.HUNDRED_PERCENT()).div(20)]
