@@ -654,7 +654,6 @@ contract DapiServer is
         override
     {
         require(dapiName != bytes32(0), "dAPI name zero");
-        require(dataFeedId != bytes32(0), "Data feed ID zero");
         require(
             msg.sender == manager ||
                 IAccessControlRegistry(accessControlRegistry).hasRole(

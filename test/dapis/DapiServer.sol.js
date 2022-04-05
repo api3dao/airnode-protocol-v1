@@ -2918,11 +2918,23 @@ describe('DapiServer', function () {
         });
       });
       context('Data feed ID is zero', function () {
-        it('reverts', async function () {
-          const dapiName = hre.ethers.utils.formatBytes32String('My dAPI');
-          await expect(
-            dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, hre.ethers.constants.HashZero)
-          ).to.be.revertedWith('Data feed ID zero');
+        context('Sender is dAPI name setter', function () {
+          it('sets dAPI name', async function () {
+            const dapiName = hre.ethers.utils.formatBytes32String('My dAPI');
+            await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSetId);
+            await expect(dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, hre.ethers.constants.HashZero))
+              .to.emit(dapiServer, 'SetDapiName')
+              .withArgs(dapiName, hre.ethers.constants.HashZero, roles.dapiNameSetter.address);
+            expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(hre.ethers.constants.HashZero);
+          });
+        });
+        context('Sender is not dAPI name setter', function () {
+          it('reverts', async function () {
+            const dapiName = hre.ethers.utils.formatBytes32String('My dAPI');
+            await expect(
+              dapiServer.connect(roles.randomPerson).setDapiName(dapiName, hre.ethers.constants.HashZero)
+            ).to.be.revertedWith('Sender cannot set dAPI name');
+          });
         });
       });
     });
