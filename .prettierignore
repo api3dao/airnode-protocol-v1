@@ -5,3 +5,9 @@ cache
 coverage
 coverage.json
 gas_report
+
+**/credentials.json
+
+dist
+
+.idea
