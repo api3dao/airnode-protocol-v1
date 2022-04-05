@@ -10,7 +10,6 @@
     "dist"
   ],
   "scripts": {
-    "postinstall": "yarn build",
     "install": "yarn build",
     "build": "yarn clean && yarn build:contracts && yarn build:tsc",
     "build:contracts": "hardhat compile",
@@ -22,10 +21,10 @@
     "lint:eslint": "eslint . --ext .js,.ts",
     "prettier:check": "prettier --check \"./**/*.{js,ts,md,json}\"",
     "prettier:write": "prettier --write \"./**/*.{js,ts,md,json}\"",
-    "test": "NODE_OPTIONS='--max-old-space-size=8192' hardhat test",
-    "test:extended": "EXTENDED_TEST=TRUE NODE_OPTIONS='--max-old-space-size=8192' hardhat test",
-    "test:coverage": "NODE_OPTIONS='--max-old-space-size=8192' hardhat coverage",
-    "test:gas": "NODE_OPTIONS='--max-old-space-size=8192' REPORT_GAS=TRUE hardhat test"
+    "test": "hardhat test --parallel",
+    "test:extended": "EXTENDED_TEST=TRUE hardhat test --parallel",
+    "test:coverage": "hardhat coverage",
+    "test:gas": "REPORT_GAS=TRUE hardhat test"
   },
   "devDependencies": {},
   "dependencies": {
