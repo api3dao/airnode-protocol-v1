@@ -1,17 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/utils/Multicall.sol";
 import "../whitelist/Whitelist.sol";
 import "./interfaces/IRequesterAuthorizer.sol";
 
 /// @title Abstract contract to be inherited by Authorizer contracts that
 /// temporarily or permanently whitelist requesters for Airnode–endpoint pairs
-abstract contract RequesterAuthorizer is
-    Multicall,
-    Whitelist,
-    IRequesterAuthorizer
-{
+abstract contract RequesterAuthorizer is Whitelist, IRequesterAuthorizer {
     /// @notice Extends the expiration of the temporary whitelist of
     /// `requester` for the `airnode`–`endpointId` pair and emits an event
     /// @param airnode Airnode address
