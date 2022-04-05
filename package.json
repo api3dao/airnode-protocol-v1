@@ -1,7 +1,7 @@
 {
   "name": "@api3/airnode-protocol-v1",
   "license": "MIT",
-  "version": "0.3.1",
+  "version": "0.1.0",
   "private": false,
   "main": "dist/index",
   "files": [
@@ -27,8 +27,7 @@
     "test:coverage": "NODE_OPTIONS='--max-old-space-size=8192' hardhat coverage",
     "test:gas": "NODE_OPTIONS='--max-old-space-size=8192' REPORT_GAS=TRUE hardhat test"
   },
-  "devDependencies": {
-  },
+  "devDependencies": {},
   "dependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.2",
     "@nomiclabs/hardhat-waffle": "^2.0.1",
