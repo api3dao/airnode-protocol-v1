@@ -10,19 +10,19 @@ contract MockDapiReader is DapiReader {
         setDapiServer(_dapiServer);
     }
 
-    function exposedReadWithDataPointId(bytes32 dataPointId)
+    function exposedReadWithDataFeedId(bytes32 dataFeedId)
         external
         view
         returns (int224 value, uint32 timestamp)
     {
-        return IBaseDapiServer(dapiServer).readWithDataPointId(dataPointId);
+        return IBaseDapiServer(dapiServer).readWithDataFeedId(dataFeedId);
     }
 
-    function exposedReadWithName(bytes32 name)
+    function exposedReadWithDapiName(bytes32 dapiName)
         external
         view
         returns (int224 value, uint32 timestamp)
     {
-        return IBaseDapiServer(dapiServer).readWithName(name);
+        return IBaseDapiServer(dapiServer).readWithDapiName(dapiName);
     }
 }

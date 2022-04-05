@@ -7,14 +7,14 @@ describe('DapiReader', function () {
   let dapiServer1, dapiServer2, dapiReader;
   let dapiServerAdminRoleDescription = 'DapiServer admin';
   let beaconId, beaconValue, beaconTimestamp;
-  const name = hre.ethers.utils.formatBytes32String('My beacon');
+  const dapiName = hre.ethers.utils.formatBytes32String('My beacon');
 
   beforeEach(async () => {
     const accounts = await hre.ethers.getSigners();
     roles = {
       deployer: accounts[0],
       manager: accounts[1],
-      nameSetter: accounts[2],
+      dapiNameSetter: accounts[2],
       airnode: accounts[3],
     };
     const accessControlRegistryFactory = await hre.ethers.getContractFactory('AccessControlRegistry', roles.deployer);
@@ -47,7 +47,7 @@ describe('DapiReader', function () {
     beaconId = hre.ethers.utils.keccak256(
       hre.ethers.utils.solidityPack(['address', 'bytes32'], [airnodeAddress, templateId])
     );
-    await dapiServer1.connect(roles.manager).setName(name, beaconId);
+    await dapiServer1.connect(roles.manager).setDapiName(dapiName, beaconId);
     beaconValue = 123;
     beaconTimestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
     const data = hre.ethers.utils.defaultAbiCoder.encode(['int256'], [beaconValue]);
@@ -84,35 +84,37 @@ describe('DapiReader', function () {
     });
   });
 
-  describe('readWithDataPointId', function () {
+  describe('readWithDataFeedId', function () {
     context('DapiReader is whitelisted', function () {
-      it('reads with data point ID', async function () {
+      it('reads with data feed ID', async function () {
         await dapiServer1.connect(roles.manager).setIndefiniteWhitelistStatus(beaconId, dapiReader.address, true);
-        const dataPoint = await dapiReader.exposedReadWithDataPointId(beaconId);
-        expect(dataPoint.value).to.equal(beaconValue);
-        expect(dataPoint.timestamp).to.equal(beaconTimestamp);
+        const dataFeed = await dapiReader.exposedReadWithDataFeedId(beaconId);
+        expect(dataFeed.value).to.equal(beaconValue);
+        expect(dataFeed.timestamp).to.equal(beaconTimestamp);
       });
     });
     context('DapiReader is not whitelisted', function () {
-      it('reads with data point ID', async function () {
-        await expect(dapiReader.exposedReadWithDataPointId(beaconId)).to.be.revertedWith('Sender cannot read');
+      it('reads with data feed ID', async function () {
+        await expect(dapiReader.exposedReadWithDataFeedId(beaconId)).to.be.revertedWith('Sender cannot read');
       });
     });
   });
 
-  describe('readWithName', function () {
+  describe('readWithDapiName', function () {
     context('DapiReader is whitelisted', function () {
-      it('reads with name', async function () {
-        const nameHash = hre.ethers.utils.keccak256(hre.ethers.utils.defaultAbiCoder.encode(['bytes32'], [name]));
-        await dapiServer1.connect(roles.manager).setIndefiniteWhitelistStatus(nameHash, dapiReader.address, true);
-        const dataPoint = await dapiReader.exposedReadWithName(name);
-        expect(dataPoint.value).to.equal(beaconValue);
-        expect(dataPoint.timestamp).to.equal(beaconTimestamp);
+      it('reads with dAPI name', async function () {
+        const dapiNameHash = hre.ethers.utils.keccak256(
+          hre.ethers.utils.defaultAbiCoder.encode(['bytes32'], [dapiName])
+        );
+        await dapiServer1.connect(roles.manager).setIndefiniteWhitelistStatus(dapiNameHash, dapiReader.address, true);
+        const dataFeed = await dapiReader.exposedReadWithDapiName(dapiName);
+        expect(dataFeed.value).to.equal(beaconValue);
+        expect(dataFeed.timestamp).to.equal(beaconTimestamp);
       });
     });
     context('DapiReader is not whitelisted', function () {
-      it('reads with data point ID', async function () {
-        await expect(dapiReader.exposedReadWithName(name)).to.be.revertedWith('Sender cannot read');
+      it('reads with data feed ID', async function () {
+        await expect(dapiReader.exposedReadWithDapiName(dapiName)).to.be.revertedWith('Sender cannot read');
       });
     });
   });

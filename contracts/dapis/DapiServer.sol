@@ -7,25 +7,28 @@ import "./Median.sol";
 import "./interfaces/IDapiServer.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-/// @title Contract that serves Beacons and dAPIs based on the Airnode protocol
-/// @notice A Beacon is a live data point addressed by an ID, which is derived
+/// @title Contract that serves Beacons, Beacon sets and dAPIs based on the
+/// Airnode protocol
+/// @notice A Beacon is a live data feed addressed by an ID, which is derived
 /// from an Airnode address and a template ID. This is suitable where the more
 /// recent data point is always more favorable, e.g., in the context of an
 /// asset price data feed. Beacons can also be seen as one-Airnode data feeds
-/// that can be used individually or combined to build dAPIs.
+/// that can be used individually or combined to build Beacon sets. dAPIs are
+/// an abstraction layer over Beacons and Beacon sets.
 /// @dev DapiServer is a PSP requester contract. Unlike RRP, which is
 /// implemented as a central contract, PSP implementation is built into the
 /// requester for optimization. Accordingly, the checks that are not required
 /// are omitted. Some examples:
-/// - While executing a PSP beacon update, the condition is not verified
-/// because beacon updates where the condition returns `false` (i.e., the
+/// - While executing a PSP Beacon update, the condition is not verified
+/// because Beacon updates where the condition returns `false` (i.e., the
 /// on-chain value is already close to the actual value) are not harmful, and
 /// are even desirable.
-/// - PSP dAPI update subscription IDs are not verified, as the Airnode/relayer
-/// cannot be made to "misreport a dAPI update" by spoofing a subscription ID.
-/// - While executing a PSP dAPI update, even the signature is not checked
-/// because this is a purely keeper job that does not require off-chain data.
-/// Similar to beacon updates, any dAPI update is welcome.
+/// - PSP Beacon set update subscription IDs are not verified, as the
+/// Airnode/relayer cannot be made to "misreport a Beacon set update" by
+/// spoofing a subscription ID.
+/// - While executing a PSP Beacon set update, even the signature is not
+/// checked because this is a purely keeper job that does not require off-chain
+/// data. Similar to Beacon updates, any Beacon set update is welcome.
 contract DapiServer is
     WhitelistWithManager,
     AirnodeRequester,
@@ -37,7 +40,7 @@ contract DapiServer is
     // Airnodes serve their fulfillment data along with timestamps. This
     // contract casts the reported data to `int224` and the timestamp to
     // `uint32`, which works until year 2106.
-    struct DataPoint {
+    struct DataFeed {
         int224 value;
         uint32 timestamp;
     }
@@ -46,9 +49,9 @@ contract DapiServer is
     string public constant override UNLIMITED_READER_ROLE_DESCRIPTION =
         "Unlimited reader";
 
-    /// @notice Name setter role description
-    string public constant override NAME_SETTER_ROLE_DESCRIPTION =
-        "Name setter";
+    /// @notice dAPI name setter role description
+    string public constant override DAPI_NAME_SETTER_ROLE_DESCRIPTION =
+        "dAPI name setter";
 
     /// @notice Number that represents 100%
     /// @dev 10^8 (and not a larger number) is chosen to avoid overflows in
@@ -60,8 +63,8 @@ contract DapiServer is
     /// @notice Unlimited reader role
     bytes32 public immutable override unlimitedReaderRole;
 
-    /// @notice Name setter role
-    bytes32 public immutable override nameSetterRole;
+    /// @notice dAPI name setter role
+    bytes32 public immutable override dapiNameSetterRole;
 
     /// @notice If a sponsor has permitted an account to request RRP-based
     /// updates at this contract
@@ -69,16 +72,16 @@ contract DapiServer is
         public
         override sponsorToRrpBeaconUpdateRequesterToPermissionStatus;
 
-    /// @notice ID of the beacon that the subscription is registered to update
+    /// @notice ID of the Beacon that the subscription is registered to update
     mapping(bytes32 => bytes32) public override subscriptionIdToBeaconId;
 
-    mapping(bytes32 => DataPoint) private dataPoints;
+    mapping(bytes32 => DataFeed) private dataFeeds;
 
     mapping(bytes32 => bytes32) private requestIdToBeaconId;
 
     mapping(bytes32 => bytes32) private subscriptionIdToHash;
 
-    mapping(bytes32 => bytes32) private nameHashToDataPointId;
+    mapping(bytes32 => bytes32) private dapiNameHashToDataFeedId;
 
     /// @dev Reverts if the sender is not permitted to request an RRP-based
     /// update with the sponsor and is not the sponsor
@@ -115,9 +118,9 @@ contract DapiServer is
             _deriveAdminRole(manager),
             keccak256(abi.encodePacked(UNLIMITED_READER_ROLE_DESCRIPTION))
         );
-        nameSetterRole = _deriveRole(
+        dapiNameSetterRole = _deriveRole(
             _deriveAdminRole(manager),
-            keccak256(abi.encodePacked(NAME_SETTER_ROLE_DESCRIPTION))
+            keccak256(abi.encodePacked(DAPI_NAME_SETTER_ROLE_DESCRIPTION))
         );
     }
 
@@ -125,7 +128,7 @@ contract DapiServer is
 
     /// @notice Called by the sponsor to set the update request permission
     /// status of an account
-    /// @param rrpBeaconUpdateRequester RRP-based beacon update requester
+    /// @param rrpBeaconUpdateRequester RRP-based Beacon update requester
     /// address
     /// @param status Permission status
     function setRrpBeaconUpdatePermissionStatus(
@@ -318,7 +321,7 @@ contract DapiServer is
         require(msg.sender == address(0), "Sender not zero address");
         bytes32 beaconId = subscriptionIdToBeaconId[subscriptionId];
         require(beaconId != bytes32(0), "Subscription not registered");
-        DataPoint storage beacon = dataPoints[beaconId];
+        DataFeed storage beacon = dataFeeds[beaconId];
         return
             calculateUpdateInPercentage(
                 beacon.value,
@@ -329,7 +332,7 @@ contract DapiServer is
     }
 
     /// @notice Called by the Airnode/relayer using the sponsor wallet to
-    /// fulfill the beacon update subscription
+    /// fulfill the Beacon update subscription
     /// @dev There is no need to verify that `conditionPspBeaconUpdate()`
     /// returns `true` because any Beacon update is a good Beacon update
     /// @param subscriptionId Subscription ID
@@ -421,79 +424,86 @@ contract DapiServer is
         emit UpdatedBeaconWithSignedData(beaconId, decodedData, timestamp);
     }
 
-    ///                     ~~~PSP dAPI updates~~~
+    ///                     ~~~PSP Beacon set updates~~~
 
-    /// @notice Updates the dAPI that is specified by the beacon IDs
+    /// @notice Updates the Beacon set using the current values of its Beacons
+    /// @dev This function still works if some of the IDs in `beaconIds` belong
+    /// to Beacon sets rather than Beacons. However, this is not the intended
+    /// use.
     /// @param beaconIds Beacon IDs
-    /// @return dapiId dAPI ID
-    function updateDapiWithBeacons(bytes32[] memory beaconIds)
+    /// @return beaconSetId Beacon set ID
+    function updateBeaconSetWithBeacons(bytes32[] memory beaconIds)
         public
         override
-        returns (bytes32 dapiId)
+        returns (bytes32 beaconSetId)
     {
         uint256 beaconCount = beaconIds.length;
         require(beaconCount > 1, "Specified less than two Beacons");
         int256[] memory values = new int256[](beaconCount);
         uint256 accumulatedTimestamp = 0;
         for (uint256 ind = 0; ind < beaconCount; ind++) {
-            DataPoint storage datapoint = dataPoints[beaconIds[ind]];
-            values[ind] = datapoint.value;
-            accumulatedTimestamp += datapoint.timestamp;
+            DataFeed storage dataFeed = dataFeeds[beaconIds[ind]];
+            values[ind] = dataFeed.value;
+            accumulatedTimestamp += dataFeed.timestamp;
         }
         uint32 updatedTimestamp = uint32(accumulatedTimestamp / beaconCount);
-        dapiId = deriveDapiId(beaconIds);
+        beaconSetId = deriveBeaconSetId(beaconIds);
         require(
-            updatedTimestamp >= dataPoints[dapiId].timestamp,
+            updatedTimestamp >= dataFeeds[beaconSetId].timestamp,
             "Updated value outdated"
         );
         int224 updatedValue = int224(median(values));
-        dataPoints[dapiId] = DataPoint({
+        dataFeeds[beaconSetId] = DataFeed({
             value: updatedValue,
             timestamp: updatedTimestamp
         });
-        emit UpdatedDapiWithBeacons(dapiId, updatedValue, updatedTimestamp);
+        emit UpdatedBeaconSetWithBeacons(
+            beaconSetId,
+            updatedValue,
+            updatedTimestamp
+        );
     }
 
-    /// @notice Updates the dAPI that is specified by the beacon IDs and
-    /// returns if this update was justified according to the deviation
+    /// @notice Updates the Beacon set using the current values of the Beacons
+    /// and returns if this update was justified according to the deviation
     /// threshold
-    /// @dev This method does not allow the caller to indirectly read a dAPI,
-    /// which is why it does not require the sender to be a void signer with
-    /// zero address. This allows the implementation of incentive mechanisms
-    /// that rewards keepers that trigger valid dAPI updates.
+    /// @dev This method does not allow the caller to indirectly read a Beacon
+    /// set, which is why it does not require the sender to be a void signer
+    /// with zero address. This allows the implementation of incentive
+    /// mechanisms that rewards keepers that trigger valid dAPI updates.
     /// @param beaconIds Beacon IDs
     /// @param deviationThresholdInPercentage Deviation threshold in percentage
     /// where 100% is represented as `HUNDRED_PERCENT`
-    function updateDapiWithBeaconsAndReturnCondition(
+    function updateBeaconSetWithBeaconsAndReturnCondition(
         bytes32[] memory beaconIds,
         uint256 deviationThresholdInPercentage
     ) public override returns (bool) {
-        bytes32 dapiId = keccak256(abi.encode(beaconIds));
-        DataPoint memory initialDataPoint = dataPoints[dapiId];
-        updateDapiWithBeacons(beaconIds);
-        DataPoint storage updatedDataPoint = dataPoints[dapiId];
+        bytes32 beaconSetId = deriveBeaconSetId(beaconIds);
+        DataFeed memory initialBeaconSet = dataFeeds[beaconSetId];
+        updateBeaconSetWithBeacons(beaconIds);
+        DataFeed storage updatedBeaconSet = dataFeeds[beaconSetId];
         return
             calculateUpdateInPercentage(
-                initialDataPoint.value,
-                dataPoints[dapiId].value
+                initialBeaconSet.value,
+                updatedBeaconSet.value
             ) >=
             deviationThresholdInPercentage ||
-            (initialDataPoint.timestamp == 0 && updatedDataPoint.timestamp > 0);
+            (initialBeaconSet.timestamp == 0 && updatedBeaconSet.timestamp > 0);
     }
 
-    /// @notice Returns if the respective dAPI needs to be updated based on the
-    /// condition parameters
+    /// @notice Returns if the respective Beacon set needs to be updated based
+    /// on the condition parameters
     /// @dev The template ID used in the respective Subscription is expected to
     /// be zero, which means the `parameters` field of the Subscription will be
-    /// forwarded to this function as `data`. This field should be the beacon
+    /// forwarded to this function as `data`. This field should be the Beacon
     /// ID array encoded in contract ABI.
     /// @param subscriptionId Subscription ID
-    /// @param data Fulfillment data (array of beacon IDs, i.e., `bytes32[]`
+    /// @param data Fulfillment data (array of Beacon IDs, i.e., `bytes32[]`
     /// encoded in contract ABI)
     /// @param conditionParameters Subscription condition parameters (a
     /// `uint256` encoded in contract ABI)
-    /// @return If the dAPI update subscription should be fulfilled
-    function conditionPspDapiUpdate(
+    /// @return If the Beacon set update subscription should be fulfilled
+    function conditionPspBeaconSetUpdate(
         bytes32 subscriptionId, // solhint-disable-line no-unused-vars
         bytes calldata data,
         bytes calldata conditionParameters
@@ -505,17 +515,17 @@ contract DapiServer is
             "Data length not correct"
         );
         return
-            updateDapiWithBeaconsAndReturnCondition(
+            updateBeaconSetWithBeaconsAndReturnCondition(
                 beaconIds,
                 decodeConditionParameters(conditionParameters)
             );
     }
 
     /// @notice Called by the Airnode/relayer using the sponsor wallet to
-    /// fulfill the dAPI update subscription
-    /// @dev Similar to `conditionPspDapiUpdate()`, if `templateId` of the
+    /// fulfill the Beacon set update subscription
+    /// @dev Similar to `conditionPspBeaconSetUpdate()`, if `templateId` of the
     /// Subscription is zero, its `parameters` field will be forwarded to
-    /// `data` here, which is expect to be contract ABI-encoded array of beacon
+    /// `data` here, which is expect to be contract ABI-encoded array of Beacon
     /// IDs.
     /// It does not make sense for this subscription to be relayed, as there is
     /// no external data being delivered. Nevertheless, this is allowed for the
@@ -523,7 +533,7 @@ contract DapiServer is
     /// Even though the consistency of the arguments are not being checked, if
     /// a standard implementation of Airnode is being used, these can be
     /// expected to be correct. Either way, the assumption is that it does not
-    /// matter for the purposes of a dAPI update subscription.
+    /// matter for the purposes of a Beacon set update subscription.
     /// @param subscriptionId Subscription ID
     /// @param airnode Airnode address
     /// @param relayer Relayer address
@@ -533,7 +543,7 @@ contract DapiServer is
     /// @param signature Subscription ID, timestamp, sponsor wallet address
     /// (and fulfillment data if the relayer is not the Airnode) signed by the
     /// Airnode wallet
-    function fulfillPspDapiUpdate(
+    function fulfillPspBeaconSetUpdate(
         bytes32 subscriptionId, // solhint-disable-line no-unused-vars
         address airnode, // solhint-disable-line no-unused-vars
         address relayer, // solhint-disable-line no-unused-vars
@@ -544,16 +554,16 @@ contract DapiServer is
     ) external override {
         require(
             keccak256(data) ==
-                updateDapiWithBeacons(abi.decode(data, (bytes32[]))),
+                updateBeaconSetWithBeacons(abi.decode(data, (bytes32[]))),
             "Data length not correct"
         );
     }
 
-    ///                     ~~~Signed data dAPI updates~~~
+    ///                     ~~~Signed data Beacon set updates~~~
 
-    /// @notice Updates a dAPI using data signed by the respective Airnodes
-    /// without requiring a request or subscription. The beacons for which the
-    /// signature is omitted will be read from the storage.
+    /// @notice Updates a Beacon set using data signed by the respective
+    /// Airnodes without requiring a request or subscription. The Beacons for
+    /// which the signature is omitted will be read from the storage.
     /// @param airnodes Airnode addresses
     /// @param templateIds Template IDs
     /// @param timestamps Timestamps used in the signatures
@@ -561,14 +571,14 @@ contract DapiServer is
     /// Beacon)
     /// @param signatures Template ID, a timestamp and the response data signed
     /// by the respective Airnode address per Beacon
-    /// @return dapiId dAPI ID
-    function updateDapiWithSignedData(
+    /// @return beaconSetId Beacon set ID
+    function updateBeaconSetWithSignedData(
         address[] memory airnodes,
         bytes32[] memory templateIds,
         uint256[] memory timestamps,
         bytes[] memory data,
         bytes[] memory signatures
-    ) external override returns (bytes32 dapiId) {
+    ) external override returns (bytes32 beaconSetId) {
         uint256 beaconCount = airnodes.length;
         require(
             beaconCount == templateIds.length &&
@@ -608,106 +618,115 @@ contract DapiServer is
                     airnodes[ind],
                     templateIds[ind]
                 );
-                DataPoint storage dataPoint = dataPoints[beaconId];
-                values[ind] = dataPoint.value;
-                accumulatedTimestamp += dataPoint.timestamp;
+                DataFeed storage dataFeed = dataFeeds[beaconId];
+                values[ind] = dataFeed.value;
+                accumulatedTimestamp += dataFeed.timestamp;
                 beaconIds[ind] = beaconId;
             }
         }
-        dapiId = deriveDapiId(beaconIds);
+        beaconSetId = deriveBeaconSetId(beaconIds);
         uint32 updatedTimestamp = uint32(accumulatedTimestamp / beaconCount);
         require(
-            updatedTimestamp >= dataPoints[dapiId].timestamp,
+            updatedTimestamp >= dataFeeds[beaconSetId].timestamp,
             "Updated value outdated"
         );
         int224 updatedValue = int224(median(values));
-        dataPoints[dapiId] = DataPoint({
+        dataFeeds[beaconSetId] = DataFeed({
             value: updatedValue,
             timestamp: updatedTimestamp
         });
-        emit UpdatedDapiWithSignedData(dapiId, updatedValue, updatedTimestamp);
+        emit UpdatedBeaconSetWithSignedData(
+            beaconSetId,
+            updatedValue,
+            updatedTimestamp
+        );
     }
 
-    /// @notice Sets the data point ID the name points to
-    /// @dev While a data point ID refers to a specific Beacon or dAPI, names
-    /// provide a more abstract interface for convenience. This means a name
-    /// that was pointing at a Beacon can be pointed to a dAPI, then another
-    /// dAPI, etc.
-    /// @param name Human-readable name
-    /// @param dataPointId Data point ID the name will point to
-    function setName(bytes32 name, bytes32 dataPointId) external override {
-        require(name != bytes32(0), "Name zero");
-        require(dataPointId != bytes32(0), "Data point ID zero");
+    /// @notice Sets the data feed ID the dAPI name points to
+    /// @dev While a data feed ID refers to a specific Beacon or Beacon set,
+    /// dAPI names provide a more abstract interface for convenience. This
+    /// means a dAPI name that was pointing to a Beacon can be pointed to a
+    /// Beacon set, then another Beacon set, etc.
+    /// @param dapiName Human-readable dAPI name
+    /// @param dataFeedId Data feed ID the dAPI name will point to
+    function setDapiName(bytes32 dapiName, bytes32 dataFeedId)
+        external
+        override
+    {
+        require(dapiName != bytes32(0), "dAPI name zero");
+        require(dataFeedId != bytes32(0), "Data feed ID zero");
         require(
             msg.sender == manager ||
                 IAccessControlRegistry(accessControlRegistry).hasRole(
-                    nameSetterRole,
+                    dapiNameSetterRole,
                     msg.sender
                 ),
-            "Sender cannot set name"
+            "Sender cannot set dAPI name"
         );
-        nameHashToDataPointId[keccak256(abi.encodePacked(name))] = dataPointId;
-        emit SetName(name, dataPointId, msg.sender);
+        dapiNameHashToDataFeedId[
+            keccak256(abi.encodePacked(dapiName))
+        ] = dataFeedId;
+        emit SetDapiName(dapiName, dataFeedId, msg.sender);
     }
 
-    /// @notice Returns the data point ID the name is set to
-    /// @param name Name
-    /// @return Data point ID
-    function nameToDataPointId(bytes32 name)
+    /// @notice Returns the data feed ID the dAPI name is set to
+    /// @param dapiName dAPI name
+    /// @return Data feed ID
+    function dapiNameToDataFeedId(bytes32 dapiName)
         external
         view
         override
         returns (bytes32)
     {
-        return nameHashToDataPointId[keccak256(abi.encodePacked(name))];
+        return dapiNameHashToDataFeedId[keccak256(abi.encodePacked(dapiName))];
     }
 
-    /// @notice Reads the data point with ID
-    /// @param dataPointId Data point ID
-    /// @return value Data point value
-    /// @return timestamp Data point timestamp
-    function readWithDataPointId(bytes32 dataPointId)
+    /// @notice Reads the data feed with ID
+    /// @param dataFeedId Data feed ID
+    /// @return value Data feed value
+    /// @return timestamp Data feed timestamp
+    function readWithDataFeedId(bytes32 dataFeedId)
         external
         view
         override
         returns (int224 value, uint32 timestamp)
     {
         require(
-            readerCanReadDataPoint(dataPointId, msg.sender),
+            readerCanReadDataFeed(dataFeedId, msg.sender),
             "Sender cannot read"
         );
-        DataPoint storage dataPoint = dataPoints[dataPointId];
-        return (dataPoint.value, dataPoint.timestamp);
+        DataFeed storage dataFeed = dataFeeds[dataFeedId];
+        return (dataFeed.value, dataFeed.timestamp);
     }
 
-    /// @notice Reads the data point with name
-    /// @dev The read data point may belong to a Beacon or dAPI. The reader
-    /// must be whitelisted for the hash of the data point name.
-    /// @param name Data point name
-    /// @return value Data point value
-    /// @return timestamp Data point timestamp
-    function readWithName(bytes32 name)
+    /// @notice Reads the dAPI with name
+    /// @dev The read data feed may belong to a Beacon or dAPI. The reader
+    /// must be whitelisted for the hash of the dAPI name.
+    /// @param dapiName dAPI name
+    /// @return value Data feed value
+    /// @return timestamp Data feed timestamp
+    function readWithDapiName(bytes32 dapiName)
         external
         view
         override
         returns (int224 value, uint32 timestamp)
     {
-        bytes32 nameHash = keccak256(abi.encodePacked(name));
+        bytes32 dapiNameHash = keccak256(abi.encodePacked(dapiName));
         require(
-            readerCanReadDataPoint(nameHash, msg.sender),
+            readerCanReadDataFeed(dapiNameHash, msg.sender),
             "Sender cannot read"
         );
-        DataPoint storage dataPoint = dataPoints[
-            nameHashToDataPointId[nameHash]
+        DataFeed storage dataFeed = dataFeeds[
+            dapiNameHashToDataFeedId[dapiNameHash]
         ];
-        return (dataPoint.value, dataPoint.timestamp);
+        return (dataFeed.value, dataFeed.timestamp);
     }
 
-    /// @notice Returns if a reader can read the data point
-    /// @param dataPointId Data point ID (or data point name hash)
+    /// @notice Returns if a reader can read the data feed
+    /// @param dataFeedId Data feed ID (or dAPI name hash)
     /// @param reader Reader address
-    /// @return If the reader can read the data point
-    function readerCanReadDataPoint(bytes32 dataPointId, address reader)
+    /// @return If the reader can read the data feed
+    function readerCanReadDataFeed(bytes32 dataFeedId, address reader)
         public
         view
         override
@@ -715,7 +734,7 @@ contract DapiServer is
     {
         return
             reader == address(0) ||
-            userIsWhitelisted(dataPointId, reader) ||
+            userIsWhitelisted(dataFeedId, reader) ||
             IAccessControlRegistry(accessControlRegistry).hasRole(
                 unlimitedReaderRole,
                 reader
@@ -723,15 +742,15 @@ contract DapiServer is
     }
 
     /// @notice Returns the detailed whitelist status of the reader for the
-    /// data point
-    /// @param dataPointId Data point ID (or data point name hash)
+    /// data feed
+    /// @param dataFeedId Data feed ID (or dAPI name hash)
     /// @param reader Reader address
     /// @return expirationTimestamp Timestamp at which the whitelisting of the
     /// reader will expire
     /// @return indefiniteWhitelistCount Number of times `reader` was
-    /// whitelisted indefinitely for `dataPointId`
-    function dataPointIdToReaderToWhitelistStatus(
-        bytes32 dataPointId,
+    /// whitelisted indefinitely for `dataFeedId`
+    function dataFeedIdToReaderToWhitelistStatus(
+        bytes32 dataFeedId,
         address reader
     )
         external
@@ -741,27 +760,27 @@ contract DapiServer is
     {
         WhitelistStatus
             storage whitelistStatus = serviceIdToUserToWhitelistStatus[
-                dataPointId
+                dataFeedId
             ][reader];
         expirationTimestamp = whitelistStatus.expirationTimestamp;
         indefiniteWhitelistCount = whitelistStatus.indefiniteWhitelistCount;
     }
 
     /// @notice Returns if an account has indefinitely whitelisted the reader
-    /// for the data point
-    /// @param dataPointId Data point ID (or data point name hash)
+    /// for the data feed
+    /// @param dataFeedId Data feed ID (or dAPI name hash)
     /// @param reader Reader address
     /// @param setter Address of the account that has potentially whitelisted
-    /// the reader for the data point indefinitely
+    /// the reader for the data feed indefinitely
     /// @return indefiniteWhitelistStatus If `setter` has indefinitely
-    /// whitelisted reader for the data point
-    function dataPointIdToReaderToSetterToIndefiniteWhitelistStatus(
-        bytes32 dataPointId,
+    /// whitelisted reader for the data feed
+    function dataFeedIdToReaderToSetterToIndefiniteWhitelistStatus(
+        bytes32 dataFeedId,
         address reader,
         address setter
     ) external view override returns (bool indefiniteWhitelistStatus) {
         indefiniteWhitelistStatus = serviceIdToUserToSetterToIndefiniteWhitelistStatus[
-            dataPointId
+            dataFeedId
         ][reader][setter];
     }
 
@@ -780,17 +799,17 @@ contract DapiServer is
         beaconId = keccak256(abi.encodePacked(airnode, templateId));
     }
 
-    /// @notice Derives the dAPI ID from the beacon IDs
+    /// @notice Derives the Beacon set ID from the Beacon IDs
     /// @dev Notice that `abi.encode()` is used over `abi.encodePacked()`
     /// @param beaconIds Beacon IDs
-    /// @return dapiId dAPI ID
-    function deriveDapiId(bytes32[] memory beaconIds)
+    /// @return beaconSetId Beacon set ID
+    function deriveBeaconSetId(bytes32[] memory beaconIds)
         public
         pure
         override
-        returns (bytes32 dapiId)
+        returns (bytes32 beaconSetId)
     {
-        dapiId = keccak256(abi.encode(beaconIds));
+        beaconSetId = keccak256(abi.encode(beaconIds));
     }
 
     /// @notice Called privately to process the Beacon update
@@ -805,12 +824,12 @@ contract DapiServer is
     ) private returns (int256 updatedBeaconValue) {
         updatedBeaconValue = decodeFulfillmentData(data);
         require(
-            timestamp > dataPoints[beaconId].timestamp,
+            timestamp > dataFeeds[beaconId].timestamp,
             "Fulfillment older than Beacon"
         );
         // Timestamp validity is already checked by `onlyValidTimestamp`, which
         // means it will be small enough to be typecast into `uint32`
-        dataPoints[beaconId] = DataPoint({
+        dataFeeds[beaconId] = DataFeed({
             value: int224(updatedBeaconValue),
             timestamp: uint32(timestamp)
         });
