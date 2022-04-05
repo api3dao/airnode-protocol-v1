@@ -8,12 +8,12 @@ interface IDapiReader {
 /// @dev We use the part of the interface that will persist between
 /// DapiServer versions
 interface IBaseDapiServer {
-    function readWithDataPointId(bytes32 dataPointId)
+    function readWithDataFeedId(bytes32 dataFeedId)
         external
         view
         returns (int224 value, uint32 timestamp);
 
-    function readWithName(bytes32 name)
+    function readWithDapiName(bytes32 dapiName)
         external
         view
         returns (int224 value, uint32 timestamp);
