@@ -10,11 +10,9 @@
     "sourceMap": true,
     "strict": true,
     "target": "es5",
-    // This check doesn't work well in monorepos: https://github.com/microsoft/TypeScript/issues/38538
     "skipLibCheck": true,
     "baseUrl": "./",
-    "outDir": "./dist",
-    "rootDirs": ["./contracts", "./artifacts"]
+    "outDir": "./dist"
   },
   "include": ["./src/**/*"],
   "exclude": ["node_modules"]
