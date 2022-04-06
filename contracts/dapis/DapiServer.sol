@@ -740,6 +740,27 @@ contract DapiServer is
         return (dataFeed.value, dataFeed.timestamp);
     }
 
+    /// @notice Reads the data feed value with dAPI name
+    /// @param dapiName dAPI name
+    /// @return value Data feed value
+    function readDataFeedValueWithDapiName(bytes32 dapiName)
+        external
+        view
+        override
+        returns (int256 value)
+    {
+        bytes32 dapiNameHash = keccak256(abi.encodePacked(dapiName));
+        require(
+            readerCanReadDataFeed(dapiNameHash, msg.sender),
+            "Sender cannot read"
+        );
+        DataFeed storage dataFeed = dataFeeds[
+            dapiNameHashToDataFeedId[dapiNameHash]
+        ];
+        require(dataFeed.timestamp != 0, "Data feed does not exist");
+        return dataFeed.value;
+    }
+
     /// @notice Returns if a reader can read the data feed
     /// @param dataFeedId Data feed ID (or dAPI name hash)
     /// @param reader Reader address

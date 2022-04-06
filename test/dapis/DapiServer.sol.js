@@ -3304,6 +3304,197 @@ describe('DapiServer', function () {
     });
   });
 
+  describe('readDataFeedValueWithDapiName', function () {
+    context('Reader is zero address', function () {
+      context('Data feed is Beacon', function () {
+        context('Beacon is initialized', function () {
+          it('reads Beacon', async function () {
+            const dapiName = hre.ethers.utils.formatBytes32String('My beacon');
+            await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconId);
+            const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
+            await setBeacon(templateId, 123, timestamp);
+            const beaconValue = await dapiServer.connect(voidSignerAddressZero).readDataFeedValueWithDapiName(dapiName);
+            expect(beaconValue).to.be.equal(123);
+          });
+        });
+        context('Beacon is not initialized', function () {
+          it('reverts', async function () {
+            const dapiName = hre.ethers.utils.formatBytes32String('My beacon');
+            await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconId);
+            await expect(
+              dapiServer.connect(voidSignerAddressZero).readDataFeedValueWithDapiName(dapiName)
+            ).to.be.revertedWith('Data feed does not exist');
+          });
+        });
+      });
+      context('Data feed is Beacon set', function () {
+        context('Beacon set is initialized', function () {
+          it('reads Beacon set', async function () {
+            const dapiName = hre.ethers.utils.formatBytes32String('My dAPI');
+            await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSetId);
+            const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
+            await setBeaconSet(
+              airnodeAddress,
+              beaconSetTemplateIds,
+              [123, 456, 789],
+              [timestamp - 2, timestamp, timestamp + 2]
+            );
+            const beaconSetValue = await dapiServer
+              .connect(voidSignerAddressZero)
+              .readDataFeedValueWithDapiName(dapiName);
+            expect(beaconSetValue).to.be.equal(456);
+          });
+        });
+        context('Beacon set is not initialized', function () {
+          it('reverts', async function () {
+            const dapiName = hre.ethers.utils.formatBytes32String('My dAPI');
+            await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSetId);
+            await expect(
+              dapiServer.connect(voidSignerAddressZero).readDataFeedValueWithDapiName(dapiName)
+            ).to.be.revertedWith('Data feed does not exist');
+          });
+        });
+      });
+    });
+    context('Reader is whitelisted', function () {
+      context('Data feed is Beacon', function () {
+        context('Beacon is initialized', function () {
+          it('reads Beacon', async function () {
+            const dapiName = hre.ethers.utils.formatBytes32String('My beacon');
+            await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconId);
+            // Whitelist for the name hash, not the data feed ID
+            const dapiNameHash = hre.ethers.utils.keccak256(
+              hre.ethers.utils.defaultAbiCoder.encode(['bytes32'], [dapiName])
+            );
+            await dapiServer
+              .connect(roles.indefiniteWhitelister)
+              .setIndefiniteWhitelistStatus(dapiNameHash, roles.randomPerson.address, true);
+            const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
+            await setBeacon(templateId, 123, timestamp);
+            const beaconValue = await dapiServer.connect(roles.randomPerson).readDataFeedValueWithDapiName(dapiName);
+            expect(beaconValue).to.be.equal(123);
+          });
+        });
+        context('Beacon is not initialized', function () {
+          it('reverts', async function () {
+            const dapiName = hre.ethers.utils.formatBytes32String('My beacon');
+            await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconId);
+            // Whitelist for the name hash, not the data feed ID
+            const dapiNameHash = hre.ethers.utils.keccak256(
+              hre.ethers.utils.defaultAbiCoder.encode(['bytes32'], [dapiName])
+            );
+            await dapiServer
+              .connect(roles.indefiniteWhitelister)
+              .setIndefiniteWhitelistStatus(dapiNameHash, roles.randomPerson.address, true);
+            await expect(
+              dapiServer.connect(roles.randomPerson).readDataFeedValueWithDapiName(dapiName)
+            ).to.be.revertedWith('Data feed does not exist');
+          });
+        });
+      });
+      context('Data feed is Beacon set', function () {
+        context('Beacon set is initialized', function () {
+          it('reads Beacon set', async function () {
+            const dapiName = hre.ethers.utils.formatBytes32String('My dAPI');
+            await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSetId);
+            // Whitelist for the name hash, not the data feed ID
+            const dapiNameHash = hre.ethers.utils.keccak256(
+              hre.ethers.utils.defaultAbiCoder.encode(['bytes32'], [dapiName])
+            );
+            await dapiServer
+              .connect(roles.indefiniteWhitelister)
+              .setIndefiniteWhitelistStatus(dapiNameHash, roles.randomPerson.address, true);
+            const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
+            await setBeaconSet(
+              airnodeAddress,
+              beaconSetTemplateIds,
+              [123, 456, 789],
+              [timestamp - 2, timestamp, timestamp + 2]
+            );
+            const beaconSetValue = await dapiServer.connect(roles.randomPerson).readDataFeedValueWithDapiName(dapiName);
+            expect(beaconSetValue).to.be.equal(456);
+          });
+        });
+        context('Beacon set is not initialized', function () {
+          it('reverts', async function () {
+            const dapiName = hre.ethers.utils.formatBytes32String('My dAPI');
+            await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSetId);
+            // Whitelist for the name hash, not the data feed ID
+            const dapiNameHash = hre.ethers.utils.keccak256(
+              hre.ethers.utils.defaultAbiCoder.encode(['bytes32'], [dapiName])
+            );
+            await dapiServer
+              .connect(roles.indefiniteWhitelister)
+              .setIndefiniteWhitelistStatus(dapiNameHash, roles.randomPerson.address, true);
+            await expect(
+              dapiServer.connect(roles.randomPerson).readDataFeedValueWithDapiName(dapiName)
+            ).to.be.revertedWith('Data feed does not exist');
+          });
+        });
+      });
+    });
+    context('Reader is unlimited reader', function () {
+      context('Data feed is Beacon', function () {
+        context('Beacon is initialized', function () {
+          it('reads Beacon', async function () {
+            const dapiName = hre.ethers.utils.formatBytes32String('My beacon');
+            await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconId);
+            const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
+            await setBeacon(templateId, 123, timestamp);
+            const beaconValue = await dapiServer.connect(roles.unlimitedReader).readDataFeedValueWithDapiName(dapiName);
+            expect(beaconValue).to.be.equal(123);
+          });
+        });
+        context('Beacon is not initialized', function () {
+          it('reverts', async function () {
+            const dapiName = hre.ethers.utils.formatBytes32String('My beacon');
+            await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconId);
+            await expect(
+              dapiServer.connect(roles.unlimitedReader).readDataFeedValueWithDapiName(dapiName)
+            ).to.be.revertedWith('Data feed does not exist');
+          });
+        });
+      });
+      context('Data feed is Beacon set', function () {
+        context('Beacon set is initialized', function () {
+          it('reads Beacon set', async function () {
+            const dapiName = hre.ethers.utils.formatBytes32String('My dAPI');
+            await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSetId);
+            const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
+            await setBeaconSet(
+              airnodeAddress,
+              beaconSetTemplateIds,
+              [123, 456, 789],
+              [timestamp - 2, timestamp, timestamp + 2]
+            );
+            const beaconSetValue = await dapiServer
+              .connect(roles.unlimitedReader)
+              .readDataFeedValueWithDapiName(dapiName);
+            expect(beaconSetValue).to.be.equal(456);
+          });
+        });
+        context('Beacon set is not initialized', function () {
+          it('reverts', async function () {
+            const dapiName = hre.ethers.utils.formatBytes32String('My dAPI');
+            await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSetId);
+            await expect(
+              dapiServer.connect(roles.unlimitedReader).readDataFeedValueWithDapiName(dapiName)
+            ).to.be.revertedWith('Data feed does not exist');
+          });
+        });
+      });
+    });
+    context('Reader is none of the above', function () {
+      it('reverts', async function () {
+        const dapiName = hre.ethers.utils.formatBytes32String('My beacon');
+        await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconId);
+        await expect(dapiServer.connect(roles.randomPerson).readDataFeedValueWithDapiName(dapiName)).to.be.revertedWith(
+          'Sender cannot read'
+        );
+      });
+    });
+  });
+
   describe('readerCanReadDataFeed', function () {
     context('Reader is zero address', function () {
       it('returns true for all data feeds', async function () {
