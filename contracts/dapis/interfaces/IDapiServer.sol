@@ -73,6 +73,8 @@ interface IDapiServer is IAirnodeRequester {
         uint32 timestamp
     );
 
+    event AddedUnlimitedReader(address indexed unlimitedReader);
+
     event SetDapiName(
         bytes32 indexed dapiName,
         bytes32 dataFeedId,
@@ -168,6 +170,8 @@ interface IDapiServer is IAirnodeRequester {
         bytes[] memory signatures
     ) external returns (bytes32 beaconSetId);
 
+    function addUnlimitedReader(address unlimitedReader) external;
+
     function setDapiName(bytes32 dapiName, bytes32 dataFeedId) external;
 
     function dapiNameToDataFeedId(bytes32 dapiName)
@@ -215,12 +219,6 @@ interface IDapiServer is IAirnodeRequester {
         returns (bytes32 beaconSetId);
 
     // solhint-disable-next-line func-name-mixedcase
-    function UNLIMITED_READER_ROLE_DESCRIPTION()
-        external
-        view
-        returns (string memory);
-
-    // solhint-disable-next-line func-name-mixedcase
     function DAPI_NAME_SETTER_ROLE_DESCRIPTION()
         external
         view
@@ -228,8 +226,6 @@ interface IDapiServer is IAirnodeRequester {
 
     // solhint-disable-next-line func-name-mixedcase
     function HUNDRED_PERCENT() external view returns (uint256);
-
-    function unlimitedReaderRole() external view returns (bytes32);
 
     function dapiNameSetterRole() external view returns (bytes32);
 

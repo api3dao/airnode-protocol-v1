@@ -6,7 +6,7 @@ describe('DapiServer', function () {
   let roles;
   let accessControlRegistry, airnodeProtocol, dapiServer;
   let dapiServerAdminRoleDescription = 'DapiServer admin';
-  let indefiniteWhitelisterRole, unlimitedReaderRole, dapiNameSetterRole;
+  let indefiniteWhitelisterRole, dapiNameSetterRole;
   let airnodeAddress, airnodeWallet, relayerAddress;
   let airnodeRrpSponsorWallet, airnodePspSponsorWallet, relayerRrpSponsorWallet, relayerPspSponsorWallet;
   let voidSignerAddressZero;
@@ -64,17 +64,13 @@ describe('DapiServer', function () {
     await accessControlRegistry
       .connect(roles.manager)
       .grantRole(indefiniteWhitelisterRole, roles.indefiniteWhitelister.address);
-    unlimitedReaderRole = await dapiServer.unlimitedReaderRole();
-    await accessControlRegistry
-      .connect(roles.manager)
-      .initializeRoleAndGrantToSender(adminRole, await dapiServer.UNLIMITED_READER_ROLE_DESCRIPTION());
-    await accessControlRegistry.connect(roles.manager).grantRole(unlimitedReaderRole, roles.unlimitedReader.address);
     dapiNameSetterRole = await dapiServer.dapiNameSetterRole();
     await accessControlRegistry
       .connect(roles.manager)
       .initializeRoleAndGrantToSender(adminRole, await dapiServer.DAPI_NAME_SETTER_ROLE_DESCRIPTION());
     await accessControlRegistry.connect(roles.manager).grantRole(dapiNameSetterRole, roles.dapiNameSetter.address);
 
+    await dapiServer.connect(roles.manager).addUnlimitedReader(roles.unlimitedReader.address);
     await dapiServer.connect(roles.sponsor).setRrpBeaconUpdatePermissionStatus(roles.updateRequester.address, true);
   }
 
@@ -802,14 +798,12 @@ describe('DapiServer', function () {
   describe('constructor', function () {
     context('AirnodeProtocol address is not zero', function () {
       it('constructs', async function () {
-        expect(await dapiServer.UNLIMITED_READER_ROLE_DESCRIPTION()).to.equal('Unlimited reader');
         expect(await dapiServer.DAPI_NAME_SETTER_ROLE_DESCRIPTION()).to.equal('dAPI name setter');
         expect(await dapiServer.HUNDRED_PERCENT()).to.equal(Math.pow(10, 8));
         expect(await dapiServer.accessControlRegistry()).to.equal(accessControlRegistry.address);
         expect(await dapiServer.adminRoleDescription()).to.equal(dapiServerAdminRoleDescription);
         expect(await dapiServer.manager()).to.equal(roles.manager.address);
         expect(await dapiServer.airnodeProtocol()).to.equal(airnodeProtocol.address);
-        expect(await dapiServer.unlimitedReaderRole()).to.equal(unlimitedReaderRole);
         expect(await dapiServer.dapiNameSetterRole()).to.equal(dapiNameSetterRole);
       });
     });
@@ -2891,6 +2885,25 @@ describe('DapiServer', function () {
               Array(4).fill(testUtils.generateRandomBytes())
             )
         ).to.be.revertedWith('Parameter length mismatch');
+      });
+    });
+  });
+
+  describe('addUnlimitedReader', function () {
+    context('Sender is the manager', function () {
+      it('adds unlimited reader', async function () {
+        expect(await dapiServer.unlimitedReaderStatus(roles.randomPerson.address)).to.equal(false);
+        await expect(dapiServer.connect(roles.manager).addUnlimitedReader(roles.randomPerson.address))
+          .to.emit(dapiServer, 'AddedUnlimitedReader')
+          .withArgs(roles.randomPerson.address);
+        expect(await dapiServer.unlimitedReaderStatus(roles.randomPerson.address)).to.equal(true);
+      });
+    });
+    context('Sender is not the manager', function () {
+      it('reverts', async function () {
+        await expect(
+          dapiServer.connect(roles.randomPerson).addUnlimitedReader(roles.randomPerson.address)
+        ).to.be.revertedWith('Sender not manager');
       });
     });
   });

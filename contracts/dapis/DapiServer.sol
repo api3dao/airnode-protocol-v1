@@ -45,10 +45,6 @@ contract DapiServer is
         uint32 timestamp;
     }
 
-    /// @notice Unlimited reader role description
-    string public constant override UNLIMITED_READER_ROLE_DESCRIPTION =
-        "Unlimited reader";
-
     /// @notice dAPI name setter role description
     string public constant override DAPI_NAME_SETTER_ROLE_DESCRIPTION =
         "dAPI name setter";
@@ -60,11 +56,11 @@ contract DapiServer is
     /// overflow.
     uint256 public constant override HUNDRED_PERCENT = 1e8;
 
-    /// @notice Unlimited reader role
-    bytes32 public immutable override unlimitedReaderRole;
-
     /// @notice dAPI name setter role
     bytes32 public immutable override dapiNameSetterRole;
+
+    /// @notice If an account is an unlimited reader
+    mapping(address => bool) public unlimitedReaderStatus;
 
     /// @notice If a sponsor has permitted an account to request RRP-based
     /// updates at this contract
@@ -114,10 +110,6 @@ contract DapiServer is
         )
         AirnodeRequester(_airnodeProtocol)
     {
-        unlimitedReaderRole = _deriveRole(
-            _deriveAdminRole(manager),
-            keccak256(abi.encodePacked(UNLIMITED_READER_ROLE_DESCRIPTION))
-        );
         dapiNameSetterRole = _deriveRole(
             _deriveAdminRole(manager),
             keccak256(abi.encodePacked(DAPI_NAME_SETTER_ROLE_DESCRIPTION))
@@ -642,6 +634,16 @@ contract DapiServer is
         );
     }
 
+    /// @notice Called by the manager to add the unlimited reader indefinitely
+    /// @dev Since the unlimited reader status cannot be revoked, only
+    /// contracts that are adequately restricted should be given this status
+    /// @param unlimitedReader Unlimited reader address
+    function addUnlimitedReader(address unlimitedReader) external override {
+        require(msg.sender == manager, "Sender not manager");
+        unlimitedReaderStatus[unlimitedReader] = true;
+        emit AddedUnlimitedReader(unlimitedReader);
+    }
+
     /// @notice Sets the data feed ID the dAPI name points to
     /// @dev While a data feed ID refers to a specific Beacon or Beacon set,
     /// dAPI names provide a more abstract interface for convenience. This
@@ -735,10 +737,7 @@ contract DapiServer is
         return
             reader == address(0) ||
             userIsWhitelisted(dataFeedId, reader) ||
-            IAccessControlRegistry(accessControlRegistry).hasRole(
-                unlimitedReaderRole,
-                reader
-            );
+            unlimitedReaderStatus[reader];
     }
 
     /// @notice Returns the detailed whitelist status of the reader for the
