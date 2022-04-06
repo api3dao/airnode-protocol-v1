@@ -685,7 +685,7 @@ contract DapiServer is
     /// @param dataFeedId Data feed ID
     /// @return value Data feed value
     /// @return timestamp Data feed timestamp
-    function readWithDataFeedId(bytes32 dataFeedId)
+    function readDataFeedWithId(bytes32 dataFeedId)
         external
         view
         override
@@ -699,13 +699,13 @@ contract DapiServer is
         return (dataFeed.value, dataFeed.timestamp);
     }
 
-    /// @notice Reads the dAPI with name
+    /// @notice Reads the data feed with dAPI name
     /// @dev The read data feed may belong to a Beacon or dAPI. The reader
     /// must be whitelisted for the hash of the dAPI name.
     /// @param dapiName dAPI name
     /// @return value Data feed value
     /// @return timestamp Data feed timestamp
-    function readWithDapiName(bytes32 dapiName)
+    function readDataFeedWithDapiName(bytes32 dapiName)
         external
         view
         override
