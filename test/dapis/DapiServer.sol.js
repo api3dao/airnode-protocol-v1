@@ -3017,7 +3017,7 @@ describe('DapiServer', function () {
         });
       });
     });
-    context('Reader is none of the above', function () {
+    context('Reader is not zero address, whitelisted or unlimited reader', function () {
       context('Data feed is Beacon', function () {
         it('reverts', async function () {
           await expect(dapiServer.connect(roles.randomPerson).readDataFeedWithId(beaconId)).to.be.revertedWith(
@@ -3171,7 +3171,7 @@ describe('DapiServer', function () {
         });
       });
     });
-    context('Reader is none of the above', function () {
+    context('Reader is not zero address, whitelisted or unlimited reader', function () {
       it('reverts', async function () {
         await expect(dapiServer.connect(roles.randomPerson).readDataFeedValueWithId(beaconId)).to.be.revertedWith(
           'Sender cannot read'
@@ -3282,7 +3282,7 @@ describe('DapiServer', function () {
         });
       });
     });
-    context('Reader is none of the above', function () {
+    context('Reader is not zero address, whitelisted or unlimited reader', function () {
       context('dAPI name set to Beacon', function () {
         it('reverts', async function () {
           const dapiName = hre.ethers.utils.formatBytes32String('My beacon');
@@ -3484,7 +3484,7 @@ describe('DapiServer', function () {
         });
       });
     });
-    context('Reader is none of the above', function () {
+    context('Reader is not zero address, whitelisted or unlimited reader', function () {
       it('reverts', async function () {
         const dapiName = hre.ethers.utils.formatBytes32String('My beacon');
         await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconId);
@@ -3521,7 +3521,7 @@ describe('DapiServer', function () {
         ).to.equal(true);
       });
     });
-    context('Reader is none of the above', function () {
+    context('Reader is not zero address, whitelisted or unlimited reader', function () {
       it('returns false for all data feeds', async function () {
         expect(
           await dapiServer.readerCanReadDataFeed(testUtils.generateRandomBytes32(), roles.randomPerson.address)
