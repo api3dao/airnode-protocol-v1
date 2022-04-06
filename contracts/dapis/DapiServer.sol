@@ -699,6 +699,24 @@ contract DapiServer is
         return (dataFeed.value, dataFeed.timestamp);
     }
 
+    /// @notice Reads the data feed value with ID
+    /// @param dataFeedId Data feed ID
+    /// @return value Data feed value
+    function readDataFeedValueWithId(bytes32 dataFeedId)
+        external
+        view
+        override
+        returns (int256 value)
+    {
+        require(
+            readerCanReadDataFeed(dataFeedId, msg.sender),
+            "Sender cannot read"
+        );
+        DataFeed storage dataFeed = dataFeeds[dataFeedId];
+        require(dataFeed.timestamp != 0, "Data feed does not exist");
+        return dataFeed.value;
+    }
+
     /// @notice Reads the data feed with dAPI name
     /// @dev The read data feed may belong to a Beacon or dAPI. The reader
     /// must be whitelisted for the hash of the dAPI name.
