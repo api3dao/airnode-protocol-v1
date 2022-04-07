@@ -654,7 +654,6 @@ contract DapiServer is
         override
     {
         require(dapiName != bytes32(0), "dAPI name zero");
-        require(dataFeedId != bytes32(0), "Data feed ID zero");
         require(
             msg.sender == manager ||
                 IAccessControlRegistry(accessControlRegistry).hasRole(
@@ -716,9 +715,9 @@ contract DapiServer is
             readerCanReadDataFeed(dapiNameHash, msg.sender),
             "Sender cannot read"
         );
-        DataFeed storage dataFeed = dataFeeds[
-            dapiNameHashToDataFeedId[dapiNameHash]
-        ];
+        bytes32 dataFeedId = dapiNameHashToDataFeedId[dapiNameHash];
+        require(dataFeedId != bytes32(0), "dAPI name not set");
+        DataFeed storage dataFeed = dataFeeds[dataFeedId];
         return (dataFeed.value, dataFeed.timestamp);
     }
 

@@ -2918,11 +2918,26 @@ describe('DapiServer', function () {
         });
       });
       context('Data feed ID is zero', function () {
-        it('reverts', async function () {
-          const dapiName = hre.ethers.utils.formatBytes32String('My dAPI');
-          await expect(
-            dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, hre.ethers.constants.HashZero)
-          ).to.be.revertedWith('Data feed ID zero');
+        context('Sender is dAPI name setter', function () {
+          it('sets dAPI name', async function () {
+            const dapiName = hre.ethers.utils.formatBytes32String('My dAPI');
+            await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSetId);
+            await expect(dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, hre.ethers.constants.HashZero))
+              .to.emit(dapiServer, 'SetDapiName')
+              .withArgs(dapiName, hre.ethers.constants.HashZero, roles.dapiNameSetter.address);
+            expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(hre.ethers.constants.HashZero);
+            // Check if we can still set the dAPI name
+            await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSetId);
+            expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(beaconSetId);
+          });
+        });
+        context('Sender is not dAPI name setter', function () {
+          it('reverts', async function () {
+            const dapiName = hre.ethers.utils.formatBytes32String('My dAPI');
+            await expect(
+              dapiServer.connect(roles.randomPerson).setDapiName(dapiName, hre.ethers.constants.HashZero)
+            ).to.be.revertedWith('Sender cannot set dAPI name');
+          });
         });
       });
     });
@@ -3064,6 +3079,14 @@ describe('DapiServer', function () {
           expect(beaconSet.timestamp).to.be.equal(timestamp);
         });
       });
+      context('dAPI name not set', function () {
+        it('reverts', async function () {
+          const dapiName = hre.ethers.utils.formatBytes32String('My beacon');
+          await expect(dapiServer.connect(voidSignerAddressZero).readWithDapiName(dapiName)).to.be.revertedWith(
+            'dAPI name not set'
+          );
+        });
+      });
     });
     context('Reader is whitelisted', function () {
       context('dAPI name set to Beacon', function () {
@@ -3107,6 +3130,21 @@ describe('DapiServer', function () {
           expect(beaconSet.timestamp).to.be.equal(timestamp);
         });
       });
+      context('dAPI name not set', function () {
+        it('reverts', async function () {
+          const dapiName = hre.ethers.utils.formatBytes32String('My beacon');
+          // Whitelist for the dAPI name hash
+          const dapiNameHash = hre.ethers.utils.keccak256(
+            hre.ethers.utils.defaultAbiCoder.encode(['bytes32'], [dapiName])
+          );
+          await dapiServer
+            .connect(roles.indefiniteWhitelister)
+            .setIndefiniteWhitelistStatus(dapiNameHash, roles.randomPerson.address, true);
+          await expect(dapiServer.connect(roles.randomPerson).readWithDapiName(dapiName)).to.be.revertedWith(
+            'dAPI name not set'
+          );
+        });
+      });
     });
     context('Reader is unlimited reader', function () {
       context('dAPI name set to Beacon', function () {
@@ -3136,6 +3174,14 @@ describe('DapiServer', function () {
           expect(beaconSet.timestamp).to.be.equal(timestamp);
         });
       });
+      context('dAPI name not set', function () {
+        it('reverts', async function () {
+          const dapiName = hre.ethers.utils.formatBytes32String('My beacon');
+          await expect(dapiServer.connect(roles.unlimitedReader).readWithDapiName(dapiName)).to.be.revertedWith(
+            'dAPI name not set'
+          );
+        });
+      });
     });
     context('Reader is none of the above', function () {
       context('dAPI name set to Beacon', function () {
@@ -3155,6 +3201,12 @@ describe('DapiServer', function () {
             'Sender cannot read'
           );
         });
+      });
+      it('reverts', async function () {
+        const dapiName = hre.ethers.utils.formatBytes32String('My beacon');
+        await expect(dapiServer.connect(roles.randomPerson).readWithDapiName(dapiName)).to.be.revertedWith(
+          'Sender cannot read'
+        );
       });
     });
   });
