@@ -706,7 +706,7 @@ contract DapiServer is
         external
         view
         override
-        returns (int256 value)
+        returns (int224 value)
     {
         require(
             readerCanReadDataFeed(dataFeedId, msg.sender),
@@ -747,7 +747,7 @@ contract DapiServer is
         external
         view
         override
-        returns (int256 value)
+        returns (int224 value)
     {
         bytes32 dapiNameHash = keccak256(abi.encodePacked(dapiName));
         require(
