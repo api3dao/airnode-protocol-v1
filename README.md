@@ -1,1 +1,1 @@
-# airnode-protocol-v1
+# airnode protocol v1

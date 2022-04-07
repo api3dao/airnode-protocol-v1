@@ -3,28 +3,47 @@
   "license": "MIT",
   "version": "0.1.0",
   "private": false,
+  "main": "dist/index",
+  "files": [
+    "contracts",
+    "dist"
+  ],
   "scripts": {
-    "build": "hardhat compile",
-    "lint": "eslint . --ext .js && solhint ./**/*.sol",
-    "prettier": "prettier --write \"./**/*.{json,js,md,sol}\"",
+    "install": "yarn build",
+    "build": "yarn clean && yarn build:contracts && yarn build:tsc",
+    "build:contracts": "hardhat compile",
+    "build:tsc": "yarn build:contract-dts && yarn build:copy-contract-dts && tsc -p tsconfig.build.json",
+    "build:contract-dts": "yarn typechain --target ethers-v5 --out-dir ./src/contracts \"./artifacts/contracts/**/!(*.dbg).json\"",
+    "build:copy-contract-dts": "copyfiles -u 1 \"src/contracts/**/*.d.ts\" dist/src",
+    "clean": "rimraf -rf ./dist *.tgz src/contracts artifacts cache",
+    "lint": "yarn run prettier:check && yarn run lint:eslint && yarn run lint:solhint",
+    "lint:solhint": "solhint ./contracts/**/*.sol",
+    "lint:eslint": "eslint . --ext .js,.ts",
+    "prettier:check": "prettier --check \"./**/*.{js,ts,md,json,sol}\"",
+    "prettier:write": "prettier --write \"./**/*.{js,ts,md,json,sol}\"",
     "test": "hardhat test --parallel",
     "test:extended": "EXTENDED_TEST=TRUE hardhat test --parallel",
     "test:coverage": "hardhat coverage",
     "test:gas": "REPORT_GAS=TRUE hardhat test"
   },
   "devDependencies": {
-    "@nomiclabs/hardhat-ethers": "^2.0.4",
-    "@nomiclabs/hardhat-waffle": "^2.0.2",
-    "@openzeppelin/contracts": "^4.4.2",
-    "chai": "^4.3.6",
     "eslint": "^8.12.0",
+    "solhint": "^3.3.7"
+  },
+  "dependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.0.2",
+    "@nomiclabs/hardhat-waffle": "^2.0.1",
+    "@openzeppelin/contracts": "^4.4.2",
+    "@typechain/ethers-v5": "^10.0.0",
+    "chai": "^4.3.4",
+    "copyfiles": "^2.4.1",
     "ethereum-waffle": "^3.4.0",
-    "ethers": "^5.5.4",
-    "hardhat": "^2.8.3",
-    "hardhat-gas-reporter": "^1.0.8",
-    "prettier": "^2.6.0",
-    "prettier-plugin-solidity": "^1.0.0-beta.19",
-    "solhint": "^3.3.7",
-    "solidity-coverage": "^0.7.20"
+    "ethers": "^5.4.5",
+    "hardhat": "^2.6.5",
+    "hardhat-gas-reporter": "^1.0.4",
+    "rimraf": "^3.0.2",
+    "solidity-coverage": "^0.7.16",
+    "typechain": "^8.0.0",
+    "typescript": "^4.6.3"
   }
 }
