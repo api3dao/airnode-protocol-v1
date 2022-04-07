@@ -7,10 +7,10 @@ cache
 coverage
 coverage.json
 gas_report
-contracts
 
 **/credentials.json
 
+src/contracts
 dist
 
 .idea

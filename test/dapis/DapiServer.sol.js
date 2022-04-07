@@ -3240,7 +3240,7 @@ describe('DapiServer', function () {
       context('dAPI name not set', function () {
         it('reverts', async function () {
           const dapiName = hre.ethers.utils.formatBytes32String('My beacon');
-          await expect(dapiServer.connect(voidSignerAddressZero).readWithDapiName(dapiName)).to.be.revertedWith(
+          await expect(dapiServer.connect(voidSignerAddressZero).readDataFeedWithDapiName(dapiName)).to.be.revertedWith(
             'dAPI name not set'
           );
         });
@@ -3298,7 +3298,7 @@ describe('DapiServer', function () {
           await dapiServer
             .connect(roles.indefiniteWhitelister)
             .setIndefiniteWhitelistStatus(dapiNameHash, roles.randomPerson.address, true);
-          await expect(dapiServer.connect(roles.randomPerson).readWithDapiName(dapiName)).to.be.revertedWith(
+          await expect(dapiServer.connect(roles.randomPerson).readDataFeedWithDapiName(dapiName)).to.be.revertedWith(
             'dAPI name not set'
           );
         });
@@ -3335,7 +3335,7 @@ describe('DapiServer', function () {
       context('dAPI name not set', function () {
         it('reverts', async function () {
           const dapiName = hre.ethers.utils.formatBytes32String('My beacon');
-          await expect(dapiServer.connect(roles.unlimitedReader).readWithDapiName(dapiName)).to.be.revertedWith(
+          await expect(dapiServer.connect(roles.unlimitedReader).readDataFeedWithDapiName(dapiName)).to.be.revertedWith(
             'dAPI name not set'
           );
         });
@@ -3362,7 +3362,7 @@ describe('DapiServer', function () {
       });
       it('reverts', async function () {
         const dapiName = hre.ethers.utils.formatBytes32String('My beacon');
-        await expect(dapiServer.connect(roles.randomPerson).readWithDapiName(dapiName)).to.be.revertedWith(
+        await expect(dapiServer.connect(roles.randomPerson).readDataFeedWithDapiName(dapiName)).to.be.revertedWith(
           'Sender cannot read'
         );
       });
