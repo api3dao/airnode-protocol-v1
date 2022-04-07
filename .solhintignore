@@ -1,4 +1,15 @@
+# NOTE: Keep in sync with other configuration ignore files
+
 node_modules
 
 artifacts
 cache
+coverage
+coverage.json
+gas_report
+
+**/credentials.json
+
+dist
+
+.idea
