@@ -684,7 +684,7 @@ contract DapiServer is
     /// @param dataFeedId Data feed ID
     /// @return value Data feed value
     /// @return timestamp Data feed timestamp
-    function readWithDataFeedId(bytes32 dataFeedId)
+    function readDataFeedWithId(bytes32 dataFeedId)
         external
         view
         override
@@ -698,13 +698,31 @@ contract DapiServer is
         return (dataFeed.value, dataFeed.timestamp);
     }
 
-    /// @notice Reads the dAPI with name
+    /// @notice Reads the data feed value with ID
+    /// @param dataFeedId Data feed ID
+    /// @return value Data feed value
+    function readDataFeedValueWithId(bytes32 dataFeedId)
+        external
+        view
+        override
+        returns (int224 value)
+    {
+        require(
+            readerCanReadDataFeed(dataFeedId, msg.sender),
+            "Sender cannot read"
+        );
+        DataFeed storage dataFeed = dataFeeds[dataFeedId];
+        require(dataFeed.timestamp != 0, "Data feed does not exist");
+        return dataFeed.value;
+    }
+
+    /// @notice Reads the data feed with dAPI name
     /// @dev The read data feed may belong to a Beacon or dAPI. The reader
     /// must be whitelisted for the hash of the dAPI name.
     /// @param dapiName dAPI name
     /// @return value Data feed value
     /// @return timestamp Data feed timestamp
-    function readWithDapiName(bytes32 dapiName)
+    function readDataFeedWithDapiName(bytes32 dapiName)
         external
         view
         override
@@ -719,6 +737,27 @@ contract DapiServer is
         require(dataFeedId != bytes32(0), "dAPI name not set");
         DataFeed storage dataFeed = dataFeeds[dataFeedId];
         return (dataFeed.value, dataFeed.timestamp);
+    }
+
+    /// @notice Reads the data feed value with dAPI name
+    /// @param dapiName dAPI name
+    /// @return value Data feed value
+    function readDataFeedValueWithDapiName(bytes32 dapiName)
+        external
+        view
+        override
+        returns (int224 value)
+    {
+        bytes32 dapiNameHash = keccak256(abi.encodePacked(dapiName));
+        require(
+            readerCanReadDataFeed(dapiNameHash, msg.sender),
+            "Sender cannot read"
+        );
+        DataFeed storage dataFeed = dataFeeds[
+            dapiNameHashToDataFeedId[dapiNameHash]
+        ];
+        require(dataFeed.timestamp != 0, "Data feed does not exist");
+        return dataFeed.value;
     }
 
     /// @notice Returns if a reader can read the data feed

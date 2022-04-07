@@ -84,7 +84,7 @@ describe('DapiReader', function () {
     });
   });
 
-  describe('readWithDataFeedId', function () {
+  describe('readDataFeedWithId', function () {
     context('DapiReader is whitelisted', function () {
       it('reads with data feed ID', async function () {
         await dapiServer1.connect(roles.manager).setIndefiniteWhitelistStatus(beaconId, dapiReader.address, true);
@@ -100,7 +100,7 @@ describe('DapiReader', function () {
     });
   });
 
-  describe('readWithDapiName', function () {
+  describe('readDataFeedWithDapiName', function () {
     context('DapiReader is whitelisted', function () {
       it('reads with dAPI name', async function () {
         const dapiNameHash = hre.ethers.utils.keccak256(
