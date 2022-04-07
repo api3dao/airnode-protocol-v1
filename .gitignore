@@ -10,6 +10,7 @@ gas_report
 
 **/credentials.json
 
+src/contracts
 dist
 
 .idea
