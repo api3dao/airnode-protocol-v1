@@ -2926,6 +2926,9 @@ describe('DapiServer', function () {
               .to.emit(dapiServer, 'SetDapiName')
               .withArgs(dapiName, hre.ethers.constants.HashZero, roles.dapiNameSetter.address);
             expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(hre.ethers.constants.HashZero);
+            // Check if we can still set the dAPI name
+            await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSetId);
+            expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(beaconSetId);
           });
         });
         context('Sender is not dAPI name setter', function () {
