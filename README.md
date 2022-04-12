@@ -13,15 +13,16 @@ Install the dependencies and build
 
 ```sh
 yarn
+yarn build
 ```
 
 Test the contracts, get test coverage and gas report
 
 ```sh
-yarn run test
-yarn run test:extended
+yarn test
+yarn test:extended
 # Outputs to `./coverage`
-yarn run test:coverage
+yarn test:coverage
 # Outputs to `.gas_report`
-yarn run test:gas
+yarn test:gas
 ```
