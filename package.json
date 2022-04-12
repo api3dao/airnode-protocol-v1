@@ -9,7 +9,6 @@
     "dist"
   ],
   "scripts": {
-    "install": "yarn build",
     "build": "yarn clean && yarn build:contracts && yarn build:tsc",
     "build:contracts": "hardhat compile",
     "build:tsc": "yarn build:contract-dts && yarn build:copy-contract-dts && tsc -p tsconfig.build.json",
@@ -27,23 +26,23 @@
     "test:gas": "REPORT_GAS=TRUE hardhat test"
   },
   "devDependencies": {
-    "eslint": "^8.12.0",
-    "solhint": "^3.3.7"
-  },
-  "dependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.2",
     "@nomiclabs/hardhat-waffle": "^2.0.1",
     "@openzeppelin/contracts": "^4.4.2",
     "@typechain/ethers-v5": "^10.0.0",
     "chai": "^4.3.4",
     "copyfiles": "^2.4.1",
+    "eslint": "^8.12.0",
     "ethereum-waffle": "^3.4.0",
     "ethers": "^5.4.5",
     "hardhat": "^2.6.5",
     "hardhat-gas-reporter": "^1.0.4",
+    "prettier-plugin-solidity": "^1.0.0-beta.19",
     "rimraf": "^3.0.2",
+    "solhint": "^3.3.7",
     "solidity-coverage": "^0.7.16",
     "typechain": "^8.0.0",
     "typescript": "^4.6.3"
-  }
+  },
+  "dependencies": {}
 }
