@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-interface IRequesterAuthorizer {
+import "./IAuthorizerV0.sol";
+
+interface IRequesterAuthorizer is IAuthorizerV0 {
     event ExtendedWhitelistExpiration(
         address indexed airnode,
         bytes32 endpointId,

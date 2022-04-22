@@ -147,6 +147,27 @@ abstract contract RequesterAuthorizer is Whitelist, IRequesterAuthorizer {
             userIsWhitelisted(deriveServiceId(airnode, endpointId), requester);
     }
 
+    /// @notice Verifies the authorization status of a request
+    /// @dev This method has redundant arguments because V0 authorizer
+    /// contracts have to have the same interface and potential authorizer
+    /// contracts may require to access the arguments that are redundant here
+    /// @param requestId Request ID
+    /// @param airnode Airnode address
+    /// @param endpointId Endpoint ID
+    /// @param sponsor Sponsor address
+    /// @param requester Requester address
+    /// @return Authorization status of the request
+    function isAuthorizedV0(
+        bytes32 requestId, // solhint-disable-line no-unused-vars
+        address airnode,
+        bytes32 endpointId,
+        address sponsor, // solhint-disable-line no-unused-vars
+        address requester
+    ) external view override returns (bool) {
+        return
+            userIsWhitelisted(deriveServiceId(airnode, endpointId), requester);
+    }
+
     /// @notice Returns the whitelist status of `requester` for the
     /// `airnode`–`endpointId` pair
     /// @param airnode Airnode address
