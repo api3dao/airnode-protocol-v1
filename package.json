@@ -6,7 +6,8 @@
   "main": "dist/index",
   "files": [
     "contracts",
-    "dist"
+    "dist",
+    "deployments/references.json"
   ],
   "scripts": {
     "build": "yarn clean && yarn build:contracts && yarn build:tsc",
@@ -15,6 +16,8 @@
     "build:contract-dts": "yarn typechain --target ethers-v5 --out-dir ./src/contracts \"./artifacts/contracts/**/!(*.dbg).json\"",
     "build:copy-contract-dts": "copyfiles -u 1 \"src/contracts/**/*.d.ts\" dist/src",
     "clean": "rimraf -rf ./dist *.tgz src/contracts artifacts cache",
+    "deploy:deterministic": "DETERMINISTIC=true hardhat deploy --network $NETWORK",
+    "deploy:undeterministic": "hardhat deploy --network $NETWORK",
     "lint": "yarn run prettier:check && yarn run lint:eslint && yarn run lint:solhint",
     "lint:solhint": "solhint ./contracts/**/*.sol",
     "lint:eslint": "eslint . --ext .js,.ts",
@@ -27,6 +30,7 @@
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.2",
+    "@nomiclabs/hardhat-etherscan": "^3.0.3",
     "@nomiclabs/hardhat-waffle": "^2.0.1",
     "@openzeppelin/contracts": "^4.4.2",
     "@typechain/ethers-v5": "^10.0.0",
@@ -36,6 +40,7 @@
     "ethereum-waffle": "^3.4.0",
     "ethers": "^5.4.5",
     "hardhat": "^2.6.5",
+    "hardhat-deploy": "^0.11.4",
     "hardhat-gas-reporter": "^1.0.4",
     "prettier-plugin-solidity": "^1.0.0-beta.19",
     "rimraf": "^3.0.2",
