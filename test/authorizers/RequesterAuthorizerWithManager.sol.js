@@ -909,4 +909,75 @@ describe('RequesterAuthorizerWithManager', function () {
       });
     });
   });
+
+  describe('isAuthorizedV0', function () {
+    context('Requester is whitelisted indefinitely', function () {
+      context('Requester is whitelisted temporarily', function () {
+        it('returns true', async function () {
+          await requesterAuthorizerWithManager
+            .connect(roles.indefiniteWhitelister)
+            .setIndefiniteWhitelistStatus(airnodeAddress, endpointId, roles.requester.address, true);
+          await requesterAuthorizerWithManager
+            .connect(roles.whitelistExpirationSetter)
+            .setWhitelistExpiration(airnodeAddress, endpointId, roles.requester.address, 2000000000);
+          expect(
+            await requesterAuthorizerWithManager.isAuthorizedV0(
+              testUtils.generateRandomBytes32(),
+              airnodeAddress,
+              endpointId,
+              testUtils.generateRandomAddress(),
+              roles.requester.address
+            )
+          ).to.equal(true);
+        });
+      });
+      context('Requester is not whitelisted temporarily', function () {
+        it('returns true', async function () {
+          await requesterAuthorizerWithManager
+            .connect(roles.indefiniteWhitelister)
+            .setIndefiniteWhitelistStatus(airnodeAddress, endpointId, roles.requester.address, true);
+          expect(
+            await requesterAuthorizerWithManager.isAuthorizedV0(
+              testUtils.generateRandomBytes32(),
+              airnodeAddress,
+              endpointId,
+              testUtils.generateRandomAddress(),
+              roles.requester.address
+            )
+          ).to.equal(true);
+        });
+      });
+    });
+    context('Requester is not whitelisted indefinitely', function () {
+      context('Requester is whitelisted temporarily', function () {
+        it('returns true', async function () {
+          await requesterAuthorizerWithManager
+            .connect(roles.whitelistExpirationSetter)
+            .setWhitelistExpiration(airnodeAddress, endpointId, roles.requester.address, 2000000000);
+          expect(
+            await requesterAuthorizerWithManager.isAuthorizedV0(
+              testUtils.generateRandomBytes32(),
+              airnodeAddress,
+              endpointId,
+              testUtils.generateRandomAddress(),
+              roles.requester.address
+            )
+          ).to.equal(true);
+        });
+      });
+      context('Requester is not whitelisted temporarily', function () {
+        it('returns false', async function () {
+          expect(
+            await requesterAuthorizerWithManager.isAuthorizedV0(
+              testUtils.generateRandomBytes32(),
+              airnodeAddress,
+              endpointId,
+              testUtils.generateRandomAddress(),
+              roles.requester.address
+            )
+          ).to.equal(false);
+        });
+      });
+    });
+  });
 });
