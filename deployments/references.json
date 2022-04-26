@@ -1,0 +1,14 @@
+{
+  "chainNames": {
+    "30": "rsk",
+    "56": "bsc",
+    "137": "polygon",
+    "43114": "avalanche"
+  },
+  "AirnodeProtocol": {
+    "30": "0x73FF8cdEeA2770BA2B8bA1FD000090A7dd598F0b",
+    "56": "0x73FF8cdEeA2770BA2B8bA1FD000090A7dd598F0b",
+    "137": "0x73FF8cdEeA2770BA2B8bA1FD000090A7dd598F0b",
+    "43114": "0x67308748E81E5898566A115D93E6D234dD9aB361"
+  }
+}
