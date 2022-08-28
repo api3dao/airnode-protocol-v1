@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const hre = require('hardhat');
 
 module.exports = async () => {
   const networks = fs
