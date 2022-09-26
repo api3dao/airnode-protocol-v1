@@ -640,11 +640,11 @@ contract DapiServer is
     /// Beacon set, then another Beacon set, etc.
     /// @param dapiName Human-readable dAPI name
     /// @param dataFeedId Data feed ID the dAPI name will point to
-    function setDapiName(string calldata dapiName, bytes32 dataFeedId)
+    function setDapiName(bytes32 dapiName, bytes32 dataFeedId)
         external
         override
     {
-        require(bytes(dapiName).length > 0, "dAPI name empty");
+        require(dapiName != bytes32(0), "dAPI name zero");
         require(
             msg.sender == manager ||
                 IAccessControlRegistry(accessControlRegistry).hasRole(
@@ -662,7 +662,7 @@ contract DapiServer is
     /// @notice Returns the data feed ID the dAPI name is set to
     /// @param dapiName dAPI name
     /// @return Data feed ID
-    function dapiNameToDataFeedId(string calldata dapiName)
+    function dapiNameToDataFeedId(bytes32 dapiName)
         external
         view
         override
@@ -671,25 +671,33 @@ contract DapiServer is
         return dapiNameHashToDataFeedId[keccak256(abi.encodePacked(dapiName))];
     }
 
-    /// @notice Reads the data feed with data feed ID or dAPI name hash
-    /// @param dataFeedIdOrDapiNameHash Data feed ID or dAPI name hash
+    /// @notice Reads the data feed with data feed ID
+    /// @param dataFeedId Data feed ID
     /// @return value Data feed value
     /// @return timestamp Data feed timestamp
-    function readDataFeed(bytes32 dataFeedIdOrDapiNameHash)
+    function readDataFeedWithId(bytes32 dataFeedId)
         external
         view
         override
         returns (int224 value, uint32 timestamp)
     {
-        bytes32 mappedDataFeedId = dapiNameHashToDataFeedId[
-            dataFeedIdOrDapiNameHash
+        DataFeed storage dataFeed = dataFeeds[dataFeedId];
+        return (dataFeed.value, dataFeed.timestamp);
+    }
+
+    /// @notice Reads the data feed with dAPI name hash
+    /// @param dapiNameHash dAPI name hash
+    /// @return value Data feed value
+    /// @return timestamp Data feed timestamp
+    function readDataFeedWithDapiNameHash(bytes32 dapiNameHash)
+        external
+        view
+        override
+        returns (int224 value, uint32 timestamp)
+    {
+        DataFeed storage dataFeed = dataFeeds[
+            dapiNameHashToDataFeedId[dapiNameHash]
         ];
-        DataFeed storage dataFeed;
-        if (mappedDataFeedId != bytes32(0)) {
-            dataFeed = dataFeeds[mappedDataFeedId];
-        } else {
-            dataFeed = dataFeeds[dataFeedIdOrDapiNameHash];
-        }
         return (dataFeed.value, dataFeed.timestamp);
     }
 
