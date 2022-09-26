@@ -2,7 +2,7 @@
 pragma solidity 0.8.9;
 
 import "../utils/ExtendedMulticall.sol";
-import "../whitelist/WhitelistWithManager.sol";
+import "../access-control-registry/AccessControlRegistryAdminnedWithManager.sol";
 import "../protocol/AirnodeRequester.sol";
 import "./Median.sol";
 import "./interfaces/IDapiServer.sol";
@@ -32,7 +32,7 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 /// data. Similar to Beacon updates, any Beacon set update is welcome.
 contract DapiServer is
     ExtendedMulticall,
-    WhitelistWithManager,
+    AccessControlRegistryAdminnedWithManager,
     AirnodeRequester,
     Median,
     IDapiServer
@@ -61,9 +61,6 @@ contract DapiServer is
     /// @notice dAPI name setter role
     bytes32 public immutable override dapiNameSetterRole;
 
-    /// @notice If an account is an unlimited reader
-    mapping(address => bool) public unlimitedReaderStatus;
-
     /// @notice If a sponsor has permitted an account to request RRP-based
     /// updates at this contract
     mapping(address => mapping(address => bool))
@@ -73,7 +70,7 @@ contract DapiServer is
     /// @notice ID of the Beacon that the subscription is registered to update
     mapping(bytes32 => bytes32) public override subscriptionIdToBeaconId;
 
-    mapping(bytes32 => DataFeed) private dataFeeds;
+    mapping(bytes32 => DataFeed) public override dataFeeds;
 
     mapping(bytes32 => bytes32) private requestIdToBeaconId;
 
@@ -105,7 +102,7 @@ contract DapiServer is
         address _manager,
         address _airnodeProtocol
     )
-        WhitelistWithManager(
+        AccessControlRegistryAdminnedWithManager(
             _accessControlRegistry,
             _adminRoleDescription,
             _manager
@@ -636,16 +633,6 @@ contract DapiServer is
         );
     }
 
-    /// @notice Called by the manager to add the unlimited reader indefinitely
-    /// @dev Since the unlimited reader status cannot be revoked, only
-    /// contracts that are adequately restricted should be given this status
-    /// @param unlimitedReader Unlimited reader address
-    function addUnlimitedReader(address unlimitedReader) external override {
-        require(msg.sender == manager, "Sender not manager");
-        unlimitedReaderStatus[unlimitedReader] = true;
-        emit AddedUnlimitedReader(unlimitedReader);
-    }
-
     /// @notice Sets the data feed ID the dAPI name points to
     /// @dev While a data feed ID refers to a specific Beacon or Beacon set,
     /// dAPI names provide a more abstract interface for convenience. This
@@ -684,24 +671,6 @@ contract DapiServer is
         return dapiNameHashToDataFeedId[keccak256(abi.encodePacked(dapiName))];
     }
 
-    /// @notice Reads the data feed with ID
-    /// @param dataFeedId Data feed ID
-    /// @return value Data feed value
-    /// @return timestamp Data feed timestamp
-    function readDataFeedWithId(bytes32 dataFeedId)
-        external
-        view
-        override
-        returns (int224 value, uint32 timestamp)
-    {
-        require(
-            readerCanReadDataFeed(dataFeedId, msg.sender),
-            "Sender cannot read"
-        );
-        DataFeed storage dataFeed = dataFeeds[dataFeedId];
-        return (dataFeed.value, dataFeed.timestamp);
-    }
-
     /// @notice Reads the data feed value with ID
     /// @param dataFeedId Data feed ID
     /// @return value Data feed value
@@ -711,10 +680,6 @@ contract DapiServer is
         override
         returns (int224 value)
     {
-        require(
-            readerCanReadDataFeed(dataFeedId, msg.sender),
-            "Sender cannot read"
-        );
         DataFeed storage dataFeed = dataFeeds[dataFeedId];
         require(dataFeed.timestamp != 0, "Data feed does not exist");
         return dataFeed.value;
@@ -732,12 +697,9 @@ contract DapiServer is
         override
         returns (int224 value, uint32 timestamp)
     {
-        bytes32 dapiNameHash = keccak256(abi.encodePacked(dapiName));
-        require(
-            readerCanReadDataFeed(dapiNameHash, msg.sender),
-            "Sender cannot read"
-        );
-        bytes32 dataFeedId = dapiNameHashToDataFeedId[dapiNameHash];
+        bytes32 dataFeedId = dapiNameHashToDataFeedId[
+            keccak256(abi.encodePacked(dapiName))
+        ];
         require(dataFeedId != bytes32(0), "dAPI name not set");
         DataFeed storage dataFeed = dataFeeds[dataFeedId];
         return (dataFeed.value, dataFeed.timestamp);
@@ -752,75 +714,11 @@ contract DapiServer is
         override
         returns (int224 value)
     {
-        bytes32 dapiNameHash = keccak256(abi.encodePacked(dapiName));
-        require(
-            readerCanReadDataFeed(dapiNameHash, msg.sender),
-            "Sender cannot read"
-        );
         DataFeed storage dataFeed = dataFeeds[
-            dapiNameHashToDataFeedId[dapiNameHash]
+            dapiNameHashToDataFeedId[keccak256(abi.encodePacked(dapiName))]
         ];
         require(dataFeed.timestamp != 0, "Data feed does not exist");
         return dataFeed.value;
-    }
-
-    /// @notice Returns if a reader can read the data feed
-    /// @param dataFeedId Data feed ID (or dAPI name hash)
-    /// @param reader Reader address
-    /// @return If the reader can read the data feed
-    function readerCanReadDataFeed(bytes32 dataFeedId, address reader)
-        public
-        view
-        override
-        returns (bool)
-    {
-        return
-            reader == address(0) ||
-            userIsWhitelisted(dataFeedId, reader) ||
-            unlimitedReaderStatus[reader];
-    }
-
-    /// @notice Returns the detailed whitelist status of the reader for the
-    /// data feed
-    /// @param dataFeedId Data feed ID (or dAPI name hash)
-    /// @param reader Reader address
-    /// @return expirationTimestamp Timestamp at which the whitelisting of the
-    /// reader will expire
-    /// @return indefiniteWhitelistCount Number of times `reader` was
-    /// whitelisted indefinitely for `dataFeedId`
-    function dataFeedIdToReaderToWhitelistStatus(
-        bytes32 dataFeedId,
-        address reader
-    )
-        external
-        view
-        override
-        returns (uint64 expirationTimestamp, uint192 indefiniteWhitelistCount)
-    {
-        WhitelistStatus
-            storage whitelistStatus = serviceIdToUserToWhitelistStatus[
-                dataFeedId
-            ][reader];
-        expirationTimestamp = whitelistStatus.expirationTimestamp;
-        indefiniteWhitelistCount = whitelistStatus.indefiniteWhitelistCount;
-    }
-
-    /// @notice Returns if an account has indefinitely whitelisted the reader
-    /// for the data feed
-    /// @param dataFeedId Data feed ID (or dAPI name hash)
-    /// @param reader Reader address
-    /// @param setter Address of the account that has potentially whitelisted
-    /// the reader for the data feed indefinitely
-    /// @return indefiniteWhitelistStatus If `setter` has indefinitely
-    /// whitelisted reader for the data feed
-    function dataFeedIdToReaderToSetterToIndefiniteWhitelistStatus(
-        bytes32 dataFeedId,
-        address reader,
-        address setter
-    ) external view override returns (bool indefiniteWhitelistStatus) {
-        indefiniteWhitelistStatus = serviceIdToUserToSetterToIndefiniteWhitelistStatus[
-            dataFeedId
-        ][reader][setter];
     }
 
     /// @notice Derives the Beacon ID from the Airnode address and template ID
