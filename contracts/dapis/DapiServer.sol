@@ -821,41 +821,4 @@ contract DapiServer is
             (absoluteDelta * HUNDRED_PERCENT) /
             absoluteInitialValue;
     }
-
-    ///                     ~~~OEV~~~
-
-    // Assume this is properly protected
-    function updateDataFeedVariant(
-        bytes32 dataFeedIdOrDapiNameHash,
-        bytes32 variantId,
-        int224 value,
-        uint32 timestamp
-    ) external {
-        dataFeeds[
-            keccak256(abi.encodePacked(dataFeedIdOrDapiNameHash, variantId))
-        ] = DataFeed({value: value, timestamp: timestamp});
-    }
-
-    function readDataFeedVariant(
-        bytes32 dataFeedIdOrDapiNameHash,
-        bytes32 variantId
-    ) external returns (int224 value, uint32 timestamp) {
-        bytes32 mappedDataFeedId = dapiNameHashToDataFeedId[
-            dataFeedIdOrDapiNameHash
-        ];
-        DataFeed storage dataFeed;
-        if (mappedDataFeedId != bytes32(0)) {
-            dataFeed = dataFeeds[mappedDataFeedId];
-        } else {
-            dataFeed = dataFeeds[dataFeedIdOrDapiNameHash];
-        }
-        DataFeed storage dataFeedVariant = dataFeeds[
-            keccak256(abi.encodePacked(dataFeedIdOrDapiNameHash, variantId))
-        ];
-        if (dataFeedVariant.timestamp > dataFeed.timestamp) {
-            return (dataFeedVariant.value, dataFeedVariant.timestamp);
-        } else {
-            return (dataFeed.value, dataFeed.timestamp);
-        }
-    }
 }
