@@ -175,11 +175,6 @@ interface IDapiServer is IAirnodeRequester {
         view
         returns (bytes32);
 
-    function readDataFeedValue(bytes32 dataFeedIdOrDapiNameHash)
-        external
-        view
-        returns (int224);
-
     function readDataFeed(bytes32 dataFeedIdOrDapiNameHash)
         external
         view
