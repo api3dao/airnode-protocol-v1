@@ -70,7 +70,7 @@ contract DapiServer is
     /// @notice ID of the Beacon that the subscription is registered to update
     mapping(bytes32 => bytes32) public override subscriptionIdToBeaconId;
 
-    mapping(bytes32 => DataFeed) private dataFeeds;
+    mapping(bytes32 => DataFeed) public override dataFeeds;
 
     mapping(bytes32 => bytes32) private requestIdToBeaconId;
 
