@@ -54,6 +54,8 @@ contract OevDataFeedProxy is DataFeedProxy, Median {
             (
                 keccak256(
                     abi.encodePacked(
+                        block.chainid,
+                        address(this),
                         templateId,
                         timestamp,
                         data,
@@ -100,6 +102,8 @@ contract OevDataFeedProxy is DataFeedProxy, Median {
                 (
                     keccak256(
                         abi.encodePacked(
+                            block.chainid,
+                            address(this),
                             templateIds[ind],
                             timestamps[ind],
                             data[ind],
