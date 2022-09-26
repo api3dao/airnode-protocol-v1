@@ -18,7 +18,7 @@ contract DapiProxy {
         metadata = _metadata; // Includes policy hash
     }
 
-    function readDataFeed()
+    function read()
         external
         view
         virtual
