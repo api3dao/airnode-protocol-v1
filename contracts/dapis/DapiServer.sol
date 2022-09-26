@@ -813,4 +813,158 @@ contract DapiServer is
             (absoluteDelta * HUNDRED_PERCENT) /
             absoluteInitialValue;
     }
+
+    ///                     ~~~OEV~~~
+
+    mapping(bytes32 => mapping(bytes32 => DataFeed))
+        public policyHashToIdToDataFeed;
+
+    function updatePolicyBeaconWithSignedData(
+        bytes32 policyHash,
+        address airnode,
+        bytes32 templateId,
+        uint256 timestamp,
+        bytes calldata data,
+        bytes calldata signature
+    ) external onlyValidTimestamp(timestamp) {
+        require(
+            (
+                keccak256(
+                    abi.encodePacked(
+                        policyHash,
+                        templateId,
+                        timestamp,
+                        block.chainid,
+                        address(this),
+                        msg.sender,
+                        data
+                    )
+                ).toEthSignedMessageHash()
+            ).recover(signature) == airnode,
+            "Signature mismatch"
+        );
+        bytes32 beaconId = deriveBeaconId(airnode, templateId);
+        int224 updatedBeaconValue = decodeFulfillmentData(data);
+        require(
+            timestamp >
+                policyHashToIdToDataFeed[policyHash][beaconId].timestamp,
+            "Fulfillment older than Beacon"
+        );
+        // Timestamp validity is already checked by `onlyValidTimestamp`, which
+        // means it will be small enough to be typecast into `uint32`
+        policyHashToIdToDataFeed[policyHash][beaconId] = DataFeed({
+            value: updatedBeaconValue,
+            timestamp: uint32(timestamp)
+        });
+        emit UpdatedBeaconWithSignedData(
+            beaconId,
+            updatedBeaconValue,
+            timestamp
+        );
+    }
+
+    function updatePolicyBeaconSetWithSignedData(
+        bytes32 policyHash,
+        address[] memory airnodes,
+        bytes32[] memory templateIds,
+        uint256[] memory timestamps,
+        bytes[] memory data,
+        bytes[] memory signatures
+    ) external returns (bytes32 beaconSetId) {
+        uint256 beaconCount = airnodes.length;
+        require(
+            beaconCount == templateIds.length &&
+                beaconCount == timestamps.length &&
+                beaconCount == data.length &&
+                beaconCount == signatures.length,
+            "Parameter length mismatch"
+        );
+        require(beaconCount > 1, "Specified less than two Beacons");
+        bytes32[] memory beaconIds = new bytes32[](beaconCount);
+        int256[] memory values = new int256[](beaconCount);
+        uint256 accumulatedTimestamp = 0;
+        for (uint256 ind = 0; ind < beaconCount; ind++) {
+            if (signatures[ind].length != 0) {
+                address airnode = airnodes[ind];
+                uint256 timestamp = timestamps[ind];
+                require(timestampIsValid(timestamp), "Timestamp not valid");
+                require(
+                    (
+                        keccak256(
+                            abi.encodePacked(
+                                templateIds[ind],
+                                timestamp,
+                                data[ind]
+                            )
+                        ).toEthSignedMessageHash()
+                    ).recover(signatures[ind]) == airnode,
+                    "Signature mismatch"
+                );
+                values[ind] = decodeFulfillmentData(data[ind]);
+                // Timestamp validity is already checked, which means it will
+                // be small enough to be typecast into `uint32`
+                accumulatedTimestamp += timestamp;
+                beaconIds[ind] = deriveBeaconId(airnode, templateIds[ind]);
+            } else {
+                bytes32 beaconId = deriveBeaconId(
+                    airnodes[ind],
+                    templateIds[ind]
+                );
+                DataFeed storage dataFeed = dataFeeds[beaconId];
+                values[ind] = dataFeed.value;
+                accumulatedTimestamp += dataFeed.timestamp;
+                beaconIds[ind] = beaconId;
+            }
+        }
+        beaconSetId = deriveBeaconSetId(beaconIds);
+        uint32 updatedTimestamp = uint32(accumulatedTimestamp / beaconCount);
+        require(
+            updatedTimestamp >=
+                policyHashToIdToDataFeed[policyHash][beaconSetId].timestamp,
+            "Updated value outdated"
+        );
+        int224 updatedValue = int224(median(values));
+        policyHashToIdToDataFeed[policyHash][beaconSetId] = DataFeed({
+            value: updatedValue,
+            timestamp: updatedTimestamp
+        });
+        emit UpdatedBeaconSetWithSignedData(
+            beaconSetId,
+            updatedValue,
+            updatedTimestamp
+        );
+    }
+
+    function readPolicyDataFeedWithId(bytes32 policyHash, bytes32 dataFeedId)
+        external
+        view
+        override
+        returns (int224 value, uint32 timestamp)
+    {
+        DataFeed storage dataFeed = dataFeeds[dataFeedId];
+        DataFeed storage policyDataFeed = policyHashToIdToDataFeed[policyHash][
+            dataFeedId
+        ];
+        if (dataFeed.timestamp > policyDataFeed.timestamp) {
+            return (dataFeed.value, dataFeed.timestamp);
+        } else {
+            return (policyDataFeed.value, policyDataFeed.timestamp);
+        }
+    }
+
+    function readPolicyDataFeedWithDapiNameHash(
+        bytes32 policyHash,
+        bytes32 dapiNameHash
+    ) external view override returns (int224 value, uint32 timestamp) {
+        bytes32 dataFeedId = dapiNameHashToDataFeedId[dapiNameHash];
+        DataFeed storage dataFeed = dataFeeds[dataFeedId];
+        DataFeed storage policyDataFeed = policyHashToIdToDataFeed[policyHash][
+            dataFeedId
+        ];
+        if (dataFeed.timestamp > policyDataFeed.timestamp) {
+            return (dataFeed.value, dataFeed.timestamp);
+        } else {
+            return (policyDataFeed.value, policyDataFeed.timestamp);
+        }
+    }
 }

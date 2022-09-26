@@ -220,4 +220,14 @@ interface IDapiServer is IAirnodeRequester {
         external
         view
         returns (int224 value, uint32 timestamp);
+
+    function readPolicyDataFeedWithId(bytes32 policyHash, bytes32 dataFeedId)
+        external
+        view
+        returns (int224 value, uint32 timestamp);
+
+    function readPolicyDataFeedWithDapiNameHash(
+        bytes32 policyHash,
+        bytes32 dapiNameHash
+    ) external view returns (int224 value, uint32 timestamp);
 }
