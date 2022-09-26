@@ -74,7 +74,7 @@ interface IDapiServer is IAirnodeRequester {
     );
 
     event SetDapiName(
-        bytes32 indexed dapiName,
+        string indexed dapiName,
         bytes32 dataFeedId,
         address indexed sender
     );
@@ -168,27 +168,22 @@ interface IDapiServer is IAirnodeRequester {
         bytes[] memory signatures
     ) external returns (bytes32 beaconSetId);
 
-    function setDapiName(bytes32 dapiName, bytes32 dataFeedId) external;
+    function setDapiName(string calldata dapiName, bytes32 dataFeedId) external;
 
-    function dapiNameToDataFeedId(bytes32 dapiName)
+    function dapiNameToDataFeedId(string calldata dapiName)
         external
         view
         returns (bytes32);
 
-    function readDataFeedValueWithId(bytes32 dataFeedId)
+    function readDataFeedValue(bytes32 dataFeedIdOrDapiNameHash)
         external
         view
-        returns (int224 value);
+        returns (int224);
 
-    function readDataFeedWithDapiName(bytes32 dapiName)
+    function readDataFeed(bytes32 dataFeedIdOrDapiNameHash)
         external
         view
         returns (int224 value, uint32 timestamp);
-
-    function readDataFeedValueWithDapiName(bytes32 dapiName)
-        external
-        view
-        returns (int224 value);
 
     function deriveBeaconId(address airnode, bytes32 templateId)
         external
@@ -220,9 +215,4 @@ interface IDapiServer is IAirnodeRequester {
         external
         view
         returns (bytes32);
-
-    function dataFeeds(bytes32 dataFeedId)
-        external
-        view
-        returns (int224 value, uint32 timestamp);
 }

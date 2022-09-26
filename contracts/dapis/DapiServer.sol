@@ -70,7 +70,7 @@ contract DapiServer is
     /// @notice ID of the Beacon that the subscription is registered to update
     mapping(bytes32 => bytes32) public override subscriptionIdToBeaconId;
 
-    mapping(bytes32 => DataFeed) public override dataFeeds;
+    mapping(bytes32 => DataFeed) private dataFeeds;
 
     mapping(bytes32 => bytes32) private requestIdToBeaconId;
 
@@ -640,11 +640,11 @@ contract DapiServer is
     /// Beacon set, then another Beacon set, etc.
     /// @param dapiName Human-readable dAPI name
     /// @param dataFeedId Data feed ID the dAPI name will point to
-    function setDapiName(bytes32 dapiName, bytes32 dataFeedId)
+    function setDapiName(string calldata dapiName, bytes32 dataFeedId)
         external
         override
     {
-        require(dapiName != bytes32(0), "dAPI name zero");
+        require(bytes(dapiName).length > 0, "dAPI name empty");
         require(
             msg.sender == manager ||
                 IAccessControlRegistry(accessControlRegistry).hasRole(
@@ -662,7 +662,7 @@ contract DapiServer is
     /// @notice Returns the data feed ID the dAPI name is set to
     /// @param dapiName dAPI name
     /// @return Data feed ID
-    function dapiNameToDataFeedId(bytes32 dapiName)
+    function dapiNameToDataFeedId(string calldata dapiName)
         external
         view
         override
@@ -671,54 +671,42 @@ contract DapiServer is
         return dapiNameHashToDataFeedId[keccak256(abi.encodePacked(dapiName))];
     }
 
-    /// @notice Reads the data feed value with ID
-    /// @param dataFeedId Data feed ID
+    /// @notice Reads the data feed value with data feed ID or dAPI name hash
+    /// @param dataFeedIdOrDapiNameHash Data feed ID or dAPI name hash
     /// @return value Data feed value
-    function readDataFeedValueWithId(bytes32 dataFeedId)
+    function readDataFeedValue(bytes32 dataFeedIdOrDapiNameHash)
         external
         view
         override
-        returns (int224 value)
+        returns (int224)
     {
-        DataFeed storage dataFeed = dataFeeds[dataFeedId];
-        require(dataFeed.timestamp != 0, "Data feed does not exist");
-        return dataFeed.value;
+        (int224 value, uint32 timestamp) = readDataFeed(
+            dataFeedIdOrDapiNameHash
+        );
+        require(timestamp != 0, "Data feed does not exist");
+        return value;
     }
 
-    /// @notice Reads the data feed with dAPI name
-    /// @dev The read data feed may belong to a Beacon or dAPI. The reader
-    /// must be whitelisted for the hash of the dAPI name.
-    /// @param dapiName dAPI name
+    /// @notice Reads the data feed with data feed ID or dAPI name hash
+    /// @param dataFeedIdOrDapiNameHash Data feed ID or dAPI name hash
     /// @return value Data feed value
     /// @return timestamp Data feed timestamp
-    function readDataFeedWithDapiName(bytes32 dapiName)
-        external
+    function readDataFeed(bytes32 dataFeedIdOrDapiNameHash)
+        public
         view
         override
         returns (int224 value, uint32 timestamp)
     {
-        bytes32 dataFeedId = dapiNameHashToDataFeedId[
-            keccak256(abi.encodePacked(dapiName))
+        bytes32 mappedDataFeedId = dapiNameHashToDataFeedId[
+            dataFeedIdOrDapiNameHash
         ];
-        require(dataFeedId != bytes32(0), "dAPI name not set");
-        DataFeed storage dataFeed = dataFeeds[dataFeedId];
+        DataFeed storage dataFeed;
+        if (mappedDataFeedId != bytes32(0)) {
+            dataFeed = dataFeeds[mappedDataFeedId];
+        } else {
+            dataFeed = dataFeeds[dataFeedIdOrDapiNameHash];
+        }
         return (dataFeed.value, dataFeed.timestamp);
-    }
-
-    /// @notice Reads the data feed value with dAPI name
-    /// @param dapiName dAPI name
-    /// @return value Data feed value
-    function readDataFeedValueWithDapiName(bytes32 dapiName)
-        external
-        view
-        override
-        returns (int224 value)
-    {
-        DataFeed storage dataFeed = dataFeeds[
-            dapiNameHashToDataFeedId[keccak256(abi.encodePacked(dapiName))]
-        ];
-        require(dataFeed.timestamp != 0, "Data feed does not exist");
-        return dataFeed.value;
     }
 
     /// @notice Derives the Beacon ID from the Airnode address and template ID
