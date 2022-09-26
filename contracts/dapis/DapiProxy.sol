@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import "./interfaces/IDapiServer.sol";
 
-contract DataFeedProxy {
+contract DapiProxy {
     address public immutable dapiServer;
     bytes32 public immutable dataFeedIdOrDapiNameHash;
     string public metadata;
