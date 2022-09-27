@@ -225,4 +225,49 @@ interface IDapiServer is IAirnodeRequester {
         external
         view
         returns (bytes32);
+
+    ///                     ~~~OEV~~~
+
+    function updateOwnBeaconWithSignedData(
+        address airnode,
+        bytes32 templateId,
+        uint256 timestamp,
+        bytes calldata data,
+        bytes calldata metadata,
+        bytes calldata signature
+    ) external;
+
+    function updateOwnBeaconSetWithSignedData(
+        address[] memory airnodes,
+        bytes32[] memory templateIds,
+        uint256[] memory timestamps,
+        bytes[] memory data,
+        bytes memory metadata,
+        bytes[] memory signatures
+    ) external returns (bytes32 beaconSetId);
+
+    function readOwnDataFeedWithId(bytes32 dataFeedId)
+        external
+        view
+        returns (
+            int224 ownDataFeedValue,
+            uint32 ownDataFeedTimestamp,
+            int224 baseDataFeedValue,
+            uint32 baseDataFeedTimestamp
+        );
+
+    function readOwnDataFeedWithDapiNameHash(bytes32 dapiNameHash)
+        external
+        view
+        returns (
+            int224 ownDataFeedValue,
+            uint32 ownDataFeedTimestamp,
+            int224 baseDataFeedValue,
+            uint32 baseDataFeedTimestamp
+        );
+
+    function ownedDataFeeds(address owner, bytes32 dataFeedId)
+        external
+        view
+        returns (int224 value, uint32 timestamp);
 }
