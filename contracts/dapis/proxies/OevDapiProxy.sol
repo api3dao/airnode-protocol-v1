@@ -62,6 +62,7 @@ contract OevDapiProxy is DapiProxy, Median {
                     abi.encodePacked(
                         block.chainid,
                         address(this),
+                        msg.sender,
                         templateId,
                         timestamp,
                         data,
@@ -112,6 +113,7 @@ contract OevDapiProxy is DapiProxy, Median {
                         abi.encodePacked(
                             block.chainid,
                             address(this),
+                            msg.sender,
                             templateIds[ind],
                             timestamps[ind],
                             data[ind],
