@@ -36,4 +36,40 @@ contract ExtendedMulticall is Multicall {
     function getBlockBasefee() external view returns (uint256) {
         return block.basefee;
     }
+
+    struct Result {
+        bool success;
+        bytes returnData;
+    }
+
+    event FailedDelegatedcall(
+        bytes data,
+        uint256 timestamp,
+        string errorMessage,
+        address indexed sender
+    );
+
+    function tryMulticall(bytes[] calldata data)
+        external
+        returns (Result[] memory results)
+    {
+        results = new Result[](data.length);
+        for (uint256 i = 0; i < data.length; i++) {
+            (bool success, bytes memory result) = address(this).delegatecall(
+                data[i]
+            );
+            if (!success) {
+                // We do not bubble up the revert string from `callData`
+                emit FailedDelegatedcall(
+                    data[i],
+                    block.timestamp,
+                    "low-level delegate call failed",
+                    msg.sender
+                );
+            }
+
+            results[i] = Result(success, result);
+        }
+        return results;
+    }
 }

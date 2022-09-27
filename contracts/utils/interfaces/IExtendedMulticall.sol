@@ -13,4 +13,20 @@ interface IExtendedMulticall is IMulticall {
     function getBlockTimestamp() external view returns (uint256);
 
     function getBlockBasefee() external view returns (uint256);
+
+    struct Result {
+        bool success;
+        bytes returnData;
+    }
+
+    event FailedDelegatedcall(
+        bytes data,
+        uint256 timestamp,
+        string errorMessage,
+        address indexed sender
+    );
+
+    function tryMulticall(bytes[] calldata data)
+        external
+        returns (Result[] memory results);
 }
