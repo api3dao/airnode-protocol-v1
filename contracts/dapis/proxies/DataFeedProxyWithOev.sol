@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./DapiProxy.sol";
+import "./DataFeedProxy.sol";
 
-contract OevDapiProxy is DapiProxy {
+contract DataFeedProxyWithOev is DataFeedProxy {
     constructor(
         address _dapiServer,
-        bytes32 _dataFeedIdOrDapiNameHash,
+        bytes32 _dataFeedId,
         bytes32 _policyHash
-    ) DapiProxy(_dapiServer, _dataFeedIdOrDapiNameHash, _policyHash) {}
+    ) DataFeedProxy(_dapiServer, _dataFeedId, _policyHash) {}
 
     // TODO: Implement withdraw()
 
@@ -72,16 +72,13 @@ contract OevDapiProxy is DapiProxy {
         override
         returns (int224 value, uint32 timestamp)
     {
-        bytes32 dataFeedId = IDapiServer(dapiServer).dapiNameHashToDataFeedId(
-            dapiNameHash
-        );
         (
             int224 ownDataFeedValue,
             uint32 ownDataFeedTimestamp,
             int224 baseDataFeedValue,
             uint32 baseDataFeedTimestamp
         ) = IDapiServer(dapiServer).readOwnDataFeedWithId(dataFeedId);
-        if (ownDataFeedTimestamp > baseDataFeedTimestamp) {
+        if (ownDataFeedTimestamp > timestamp) {
             return (ownDataFeedValue, ownDataFeedTimestamp);
         } else {
             return (baseDataFeedValue, baseDataFeedTimestamp);
