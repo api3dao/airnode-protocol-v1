@@ -10,24 +10,7 @@ contract OevDataFeedProxy2 is DataFeedProxy {
         bytes32 _policyHash
     ) DataFeedProxy(_dapiServer, _dataFeedId, _policyHash) {}
 
-    function read()
-        external
-        view
-        override
-        returns (int224 value, uint32 timestamp)
-    {
-        (
-            int224 ownDataFeedValue,
-            uint32 ownDataFeedTimestamp,
-            int224 baseDataFeedValue,
-            uint32 baseDataFeedTimestamp
-        ) = IDapiServer(dapiServer).readOwnDataFeedWithId(dataFeedId);
-        if (ownDataFeedTimestamp > timestamp) {
-            return (ownDataFeedValue, ownDataFeedTimestamp);
-        } else {
-            return (baseDataFeedValue, baseDataFeedTimestamp);
-        }
-    }
+    // TODO: Implement withdraw()
 
     function oevBeaconUpdate(
         address airnode,
@@ -81,5 +64,24 @@ contract OevDataFeedProxy2 is DataFeedProxy {
             ),
             signatures
         );
+    }
+
+    function read()
+        external
+        view
+        override
+        returns (int224 value, uint32 timestamp)
+    {
+        (
+            int224 ownDataFeedValue,
+            uint32 ownDataFeedTimestamp,
+            int224 baseDataFeedValue,
+            uint32 baseDataFeedTimestamp
+        ) = IDapiServer(dapiServer).readOwnDataFeedWithId(dataFeedId);
+        if (ownDataFeedTimestamp > timestamp) {
+            return (ownDataFeedValue, ownDataFeedTimestamp);
+        } else {
+            return (baseDataFeedValue, baseDataFeedTimestamp);
+        }
     }
 }
