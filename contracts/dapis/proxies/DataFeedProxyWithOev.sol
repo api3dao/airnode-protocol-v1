@@ -6,9 +6,13 @@ import "./DataFeedProxy.sol";
 contract DataFeedProxyWithOev is DataFeedProxy {
     constructor(
         address _dapiServer,
+        address _reader,
         bytes32 _dataFeedId,
-        bytes32 _policyHash
-    ) DataFeedProxy(_dapiServer, _dataFeedId, _policyHash) {}
+        bytes32 _policyHash,
+        address _referral
+    )
+        DataFeedProxy(_dapiServer, _reader, _dataFeedId, _policyHash, _referral)
+    {}
 
     // TODO: Implement withdraw()
 
@@ -72,6 +76,10 @@ contract DataFeedProxyWithOev is DataFeedProxy {
         override
         returns (int224 value, uint32 timestamp)
     {
+        require(
+            reader == address(0) || msg.sender == reader,
+            "Sender cannot read"
+        );
         (
             int224 ownDataFeedValue,
             uint32 ownDataFeedTimestamp,

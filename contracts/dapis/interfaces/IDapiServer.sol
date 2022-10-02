@@ -73,11 +73,15 @@ interface IDapiServer is IAirnodeRequester {
         uint32 timestamp
     );
 
+    event AddedUnlimitedReader(address indexed unlimitedReader);
+
     event SetDapiName(
         bytes32 indexed dapiName,
         bytes32 dataFeedId,
         address indexed sender
     );
+
+    function addUnlimitedReader(address unlimitedReader) external;
 
     function setRrpBeaconUpdatePermissionStatus(
         address rrpBeaconUpdateRequester,
@@ -184,6 +188,25 @@ interface IDapiServer is IAirnodeRequester {
         external
         view
         returns (int224 value, uint32 timestamp);
+
+    function readerCanReadDataFeed(bytes32 dataFeedId, address reader)
+        external
+        view
+        returns (bool);
+
+    function dataFeedIdToReaderToWhitelistStatus(
+        bytes32 dataFeedId,
+        address reader
+    )
+        external
+        view
+        returns (uint64 expirationTimestamp, uint192 indefiniteWhitelistCount);
+
+    function dataFeedIdToReaderToSetterToIndefiniteWhitelistStatus(
+        bytes32 dataFeedId,
+        address reader,
+        address setter
+    ) external view returns (bool indefiniteWhitelistStatus);
 
     function deriveBeaconId(address airnode, bytes32 templateId)
         external

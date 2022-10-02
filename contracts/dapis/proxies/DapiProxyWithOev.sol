@@ -6,9 +6,11 @@ import "./DapiProxy.sol";
 contract DapiProxyWithOev is DapiProxy {
     constructor(
         address _dapiServer,
-        bytes32 _dataFeedIdOrDapiNameHash,
-        bytes32 _policyHash
-    ) DapiProxy(_dapiServer, _dataFeedIdOrDapiNameHash, _policyHash) {}
+        address _reader,
+        bytes32 _dapiNameHash,
+        bytes32 _policyHash,
+        address _referral
+    ) DapiProxy(_dapiServer, _reader, _dapiNameHash, _policyHash, _referral) {}
 
     // TODO: Implement withdraw()
 
@@ -72,15 +74,18 @@ contract DapiProxyWithOev is DapiProxy {
         override
         returns (int224 value, uint32 timestamp)
     {
-        bytes32 dataFeedId = IDapiServer(dapiServer).dapiNameHashToDataFeedId(
-            dapiNameHash
+        require(
+            reader == address(0) || msg.sender == reader,
+            "Sender cannot read"
         );
         (
             int224 ownDataFeedValue,
             uint32 ownDataFeedTimestamp,
             int224 baseDataFeedValue,
             uint32 baseDataFeedTimestamp
-        ) = IDapiServer(dapiServer).readOwnDataFeedWithId(dataFeedId);
+        ) = IDapiServer(dapiServer).readOwnDataFeedWithDapiNameHash(
+                dapiNameHash
+            );
         if (ownDataFeedTimestamp > baseDataFeedTimestamp) {
             return (ownDataFeedValue, ownDataFeedTimestamp);
         } else {
