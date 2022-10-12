@@ -57,24 +57,17 @@ describe('ExtendedMulticall', function () {
         extendedMulticall.interface.encodeFunctionData('getBlockNumber', []),
       ];
 
-      await expect(extendedMulticall.tryMulticall(data))
-        .to.emit(extendedMulticall, 'FailedDelegatedcall')
-        .withArgs(
-          extendedMulticall.interface.encodeFunctionData('multicall', [['0x']]),
-          (await hre.ethers.provider.getBlock()).timestamp + 1,
-          'low-level delegate call failed',
-          roles.deployer.address
-        );
-
-      const results = await extendedMulticall.callStatic.tryMulticall(data);
-      expect(extendedMulticall.interface.decodeFunctionResult('getChainId', results[0].returnData).toString()).to.eq(
+      const [succeeded, returnData] = await extendedMulticall.callStatic.tryMulticall(data);
+      expect(succeeded[0]).to.be.true;
+      expect(extendedMulticall.interface.decodeFunctionResult('getChainId', returnData[0]).toString()).to.eq(
         hre.ethers.provider.network.chainId.toString()
       );
-      expect(results[1].success).to.be.false;
-      expect(utils.decodeRevertString(results[1].returnData)).to.have.string('low-level delegate call failed');
-      expect(
-        extendedMulticall.interface.decodeFunctionResult('getBlockNumber', results[2].returnData).toString()
-      ).to.eq((await hre.ethers.provider.getBlockNumber()).toString());
+      expect(succeeded[1]).to.be.false;
+      expect(utils.decodeRevertString(returnData[1])).to.have.string('low-level delegate call failed');
+      expect(succeeded[2]).to.be.true;
+      expect(extendedMulticall.interface.decodeFunctionResult('getBlockNumber', returnData[2]).toString()).to.eq(
+        (await hre.ethers.provider.getBlockNumber()).toString()
+      );
     });
   });
 });
