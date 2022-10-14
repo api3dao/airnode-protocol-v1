@@ -16,5 +16,5 @@ interface IExtendedMulticall is IMulticall {
 
     function tryMulticall(bytes[] calldata data)
         external
-        returns (bool[] memory succeeded, bytes[] memory returnData);
+        returns (bool[] memory success, bytes[] memory returndata);
 }

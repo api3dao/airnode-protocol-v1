@@ -38,22 +38,18 @@ contract ExtendedMulticall is Multicall {
     }
 
     /// @notice Receives and executes a batch of function calls on this contract
-    /// @dev Unlike Openzeppelin.multicall(), this function does not revert when a call fails
+    /// @dev Unlike OpenZeppelin's multicall(), this function does not revert when a call fails
     /// @param data Array with each function call data
-    /// @return succeeded Array with each call success condition
-    /// @return returnData Array with each call result
+    /// @return success Array with each call success condition
+    /// @return returndata Array with each call result
     function tryMulticall(bytes[] calldata data)
         external
-        returns (bool[] memory succeeded, bytes[] memory returnData)
+        returns (bool[] memory success, bytes[] memory returndata)
     {
-        succeeded = new bool[](data.length);
-        returnData = new bytes[](data.length);
+        success = new bool[](data.length);
+        returndata = new bytes[](data.length);
         for (uint256 i = 0; i < data.length; i++) {
-            (bool success, bytes memory result) = address(this).delegatecall(
-                data[i]
-            );
-            succeeded[i] = success;
-            returnData[i] = result;
+            (success[i], returndata[i]) = address(this).delegatecall(data[i]);
         }
     }
 }
