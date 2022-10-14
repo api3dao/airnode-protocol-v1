@@ -6,7 +6,6 @@
     "30": "rsk",
     "31": "rsk-testnet",
     "56": "bsc",
-    "69": "optimism-testnet",
     "77": "gnosis-testnet",
     "97": "bsc-testnet",
     "100": "gnosis",
@@ -23,8 +22,7 @@
     "43113": "avalanche-testnet",
     "43114": "avalanche",
     "80001": "polygon-testnet",
-    "200101": "milkomeda-testnet",
-    "421611": "arbitrum-testnet"
+    "200101": "milkomeda-testnet"
   },
   "AirnodeProtocol": {
     "1": "0x73FF8cdEeA2770BA2B8bA1FD000090A7dd598F0b",
@@ -33,7 +31,6 @@
     "30": "0x73FF8cdEeA2770BA2B8bA1FD000090A7dd598F0b",
     "31": "0x73FF8cdEeA2770BA2B8bA1FD000090A7dd598F0b",
     "56": "0x73FF8cdEeA2770BA2B8bA1FD000090A7dd598F0b",
-    "69": "0x73FF8cdEeA2770BA2B8bA1FD000090A7dd598F0b",
     "77": "0x73FF8cdEeA2770BA2B8bA1FD000090A7dd598F0b",
     "97": "0x73FF8cdEeA2770BA2B8bA1FD000090A7dd598F0b",
     "100": "0x73FF8cdEeA2770BA2B8bA1FD000090A7dd598F0b",
@@ -50,7 +47,6 @@
     "43113": "0xCCc843194F02Ef93b8ee9A9F7b5F9273604Acd12",
     "43114": "0x67308748E81E5898566A115D93E6D234dD9aB361",
     "80001": "0x73FF8cdEeA2770BA2B8bA1FD000090A7dd598F0b",
-    "200101": "0x73FF8cdEeA2770BA2B8bA1FD000090A7dd598F0b",
-    "421611": "0x02F75e52feFfAbFb182CB39e795bB537F8b8Ab81"
+    "200101": "0x73FF8cdEeA2770BA2B8bA1FD000090A7dd598F0b"
   }
 }
