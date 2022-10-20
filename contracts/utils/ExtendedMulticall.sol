@@ -36,4 +36,20 @@ contract ExtendedMulticall is Multicall {
     function getBlockBasefee() external view returns (uint256) {
         return block.basefee;
     }
+
+    /// @notice Receives and executes a batch of function calls on this contract
+    /// @dev Unlike OpenZeppelin's multicall(), this function does not revert when a call fails
+    /// @param data Array with each function call data
+    /// @return success Array with each call success condition
+    /// @return returndata Array with each call result
+    function tryMulticall(bytes[] calldata data)
+        external
+        returns (bool[] memory success, bytes[] memory returndata)
+    {
+        success = new bool[](data.length);
+        returndata = new bytes[](data.length);
+        for (uint256 i = 0; i < data.length; i++) {
+            (success[i], returndata[i]) = address(this).delegatecall(data[i]);
+        }
+    }
 }

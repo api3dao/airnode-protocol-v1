@@ -1,5 +1,6 @@
 const hre = require('hardhat');
 const { expect } = require('chai');
+const utils = require('../test-utils');
 
 describe('ExtendedMulticall', function () {
   let roles;
@@ -45,6 +46,28 @@ describe('ExtendedMulticall', function () {
       // Commenting this out because it's not supported by Hardhat yet
       // https://github.com/nomiclabs/hardhat/issues/1688
       // expect(await extendedMulticall.getBlockBasefee()).to.equal((await hre.ethers.provider.getBlock()).baseFeePerGas);
+    });
+  });
+
+  describe('tryMulticall', function () {
+    it('tries calling all functions even when some fail', async function () {
+      const data = [
+        extendedMulticall.interface.encodeFunctionData('getChainId', []),
+        extendedMulticall.interface.encodeFunctionData('multicall', [['0x']]),
+        extendedMulticall.interface.encodeFunctionData('getBlockNumber', []),
+      ];
+
+      const [succeeded, returnData] = await extendedMulticall.callStatic.tryMulticall(data);
+      expect(succeeded[0]).to.be.true;
+      expect(extendedMulticall.interface.decodeFunctionResult('getChainId', returnData[0]).toString()).to.eq(
+        hre.ethers.provider.network.chainId.toString()
+      );
+      expect(succeeded[1]).to.be.false;
+      expect(utils.decodeRevertString(returnData[1])).to.have.string('low-level delegate call failed');
+      expect(succeeded[2]).to.be.true;
+      expect(extendedMulticall.interface.decodeFunctionResult('getBlockNumber', returnData[2]).toString()).to.eq(
+        (await hre.ethers.provider.getBlockNumber()).toString()
+      );
     });
   });
 });
