@@ -8,5 +8,5 @@ interface ISelfMulticall {
 
     function trySelfMulticall(bytes[] calldata data)
         external
-        returns (bool[] memory success, bytes[] memory returndata);
+        returns (bool[] memory successes, bytes[] memory returndata);
 }
