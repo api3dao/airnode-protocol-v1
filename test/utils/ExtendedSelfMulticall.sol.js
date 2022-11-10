@@ -55,11 +55,11 @@ describe('ExtendedSelfMulticall', function () {
     it('tries calling all functions even when some fail', async function () {
       const data = [
         extendedSelfMulticall.interface.encodeFunctionData('getChainId', []),
-        extendedSelfMulticall.interface.encodeFunctionData('selfMulticall', [['0x']]),
+        extendedSelfMulticall.interface.encodeFunctionData('multicall', [['0x']]),
         extendedSelfMulticall.interface.encodeFunctionData('getBlockNumber', []),
       ];
 
-      const [succeeded, returnData] = await extendedSelfMulticall.callStatic.trySelfMulticall(data);
+      const [succeeded, returnData] = await extendedSelfMulticall.callStatic.tryMulticall(data);
       expect(succeeded[0]).to.be.true;
       expect(extendedSelfMulticall.interface.decodeFunctionResult('getChainId', returnData[0]).toString()).to.eq(
         hre.ethers.provider.network.chainId.toString()
