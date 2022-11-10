@@ -22,10 +22,18 @@ contract SelfMulticall is ISelfMulticall {
         for (uint256 i = 0; i < data.length; i++) {
             bool success;
             (success, returndata[i]) = address(this).delegatecall(data[i]); // solhint-disable-line avoid-low-level-calls
-            require(
-                success,
-                string(abi.encodePacked("Multicall:", string(returndata[i])))
-            );
+            // Adapted from OpenZeppelin's Address.sol
+            if (!success) {
+                if (returndata.length > 0) {
+                    // solhint-disable-next-line no-inline-assembly
+                    assembly {
+                        let returndata_size := mload(returndata)
+                        revert(add(32, returndata), returndata_size)
+                    }
+                } else {
+                    revert("Multicall: No revert string");
+                }
+            }
         }
     }
 

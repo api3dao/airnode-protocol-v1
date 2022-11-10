@@ -25,10 +25,22 @@ contract ExternalMulticall is IExternalMulticall {
             );
             bool success;
             (success, returndata[i]) = targets[i].call(data[i]); // solhint-disable-line avoid-low-level-calls
-            require(
-                success,
-                string(abi.encodePacked("Multicall:", string(returndata[i])))
-            );
+            if (!success) {
+                // Adapted from OpenZeppelin's Address.sol
+                if (returndata[i].length > 0) {
+                    bytes memory returndataWithRevertString = returndata[i];
+                    // solhint-disable-next-line no-inline-assembly
+                    assembly {
+                        let returndata_size := mload(returndataWithRevertString)
+                        revert(
+                            add(32, returndataWithRevertString),
+                            returndata_size
+                        )
+                    }
+                } else {
+                    revert("Multicall: No revert string");
+                }
+            }
         }
     }
 
