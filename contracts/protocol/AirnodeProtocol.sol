@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./StorageUtils.sol";
 import "./SponsorshipUtils.sol";
 import "./WithdrawalUtils.sol";
-import "../utils/ExtendedMulticall.sol";
+import "../utils/SelfMulticall.sol";
 import "./interfaces/IAirnodeProtocol.sol";
 
 /// @title Airnode request–response protocol (RRP) and its relayed version
@@ -23,7 +23,7 @@ contract AirnodeProtocol is
     StorageUtils,
     SponsorshipUtils,
     WithdrawalUtils,
-    ExtendedMulticall,
+    SelfMulticall,
     IAirnodeProtocol
 {
     using ECDSA for bytes32;
