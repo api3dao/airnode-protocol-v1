@@ -65,7 +65,7 @@ describe('ExtendedSelfMulticall', function () {
         hre.ethers.provider.network.chainId.toString()
       );
       expect(succeeded[1]).to.be.false;
-      expect(utils.decodeRevertString(returnData[1])).to.have.string('Multicall:');
+      expect(utils.decodeRevertString(returnData[1])).to.have.string('No revert string');
       expect(succeeded[2]).to.be.true;
       expect(extendedSelfMulticall.interface.decodeFunctionResult('getBlockNumber', returnData[2]).toString()).to.eq(
         (await hre.ethers.provider.getBlockNumber()).toString()
