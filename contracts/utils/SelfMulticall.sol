@@ -24,11 +24,15 @@ contract SelfMulticall is ISelfMulticall {
             (success, returndata[i]) = address(this).delegatecall(data[i]); // solhint-disable-line avoid-low-level-calls
             // Adapted from OpenZeppelin's Address.sol
             if (!success) {
-                if (returndata.length > 0) {
+                bytes memory returndataWithRevertString = returndata[i];
+                if (returndataWithRevertString.length > 0) {
                     // solhint-disable-next-line no-inline-assembly
                     assembly {
-                        let returndata_size := mload(returndata)
-                        revert(add(32, returndata), returndata_size)
+                        let returndata_size := mload(returndataWithRevertString)
+                        revert(
+                            add(32, returndataWithRevertString),
+                            returndata_size
+                        )
                     }
                 } else {
                     revert("Multicall: No revert string");
