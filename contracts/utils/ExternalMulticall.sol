@@ -17,8 +17,10 @@ contract ExternalMulticall is IExternalMulticall {
         address[] calldata targets,
         bytes[] calldata data
     ) external override returns (bytes[] memory returndata) {
-        returndata = new bytes[](data.length);
-        for (uint256 i = 0; i < data.length; i++) {
+        uint256 callCount = targets.length;
+        require(callCount == data.length, "Parameter length mismatch");
+        returndata = new bytes[](callCount);
+        for (uint256 i = 0; i < callCount; i++) {
             require(
                 targets[i].code.length > 0,
                 "Multicall target not contract"
@@ -58,9 +60,11 @@ contract ExternalMulticall is IExternalMulticall {
         override
         returns (bool[] memory successes, bytes[] memory returndata)
     {
-        successes = new bool[](data.length);
-        returndata = new bytes[](data.length);
-        for (uint256 i = 0; i < data.length; i++) {
+        uint256 callCount = targets.length;
+        require(callCount == data.length, "Parameter length mismatch");
+        successes = new bool[](callCount);
+        returndata = new bytes[](callCount);
+        for (uint256 i = 0; i < callCount; i++) {
             if (targets[i].code.length > 0) {
                 (successes[i], returndata[i]) = targets[i].call(data[i]); // solhint-disable-line avoid-low-level-calls
             }
