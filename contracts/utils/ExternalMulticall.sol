@@ -12,7 +12,7 @@ contract ExternalMulticall is IExternalMulticall {
     /// to the user
     /// @param targets Array of target addresses of batched calls
     /// @param data Array of calldata of batched calls
-    /// @param returndata Array of returndata of batched calls
+    /// @return returndata Array of returndata of batched calls
     function externalMulticall(
         address[] calldata targets,
         bytes[] calldata data
@@ -48,8 +48,8 @@ contract ExternalMulticall is IExternalMulticall {
     /// of the batched calls reverts
     /// @param targets Array of target addresses of batched calls
     /// @param data Array of calldata of batched calls
-    /// @param successes Array of success conditions of batched calls
-    /// @param returndata Array of returndata of batched calls
+    /// @return successes Array of success conditions of batched calls
+    /// @return returndata Array of returndata of batched calls
     function tryExternalMulticall(
         address[] calldata targets,
         bytes[] calldata data

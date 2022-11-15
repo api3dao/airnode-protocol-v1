@@ -12,7 +12,7 @@ contract SelfMulticall is ISelfMulticall {
     /// @dev Bubbles up the raw returndata if a call reverts, leaving decoding
     /// to the user
     /// @param data Array of calldata of batched calls
-    /// @param returndata Array of returndata of batched calls
+    /// @return returndata Array of returndata of batched calls
     function multicall(bytes[] calldata data)
         external
         override
@@ -44,8 +44,8 @@ contract SelfMulticall is ISelfMulticall {
     /// @notice Batches calls to the inheriting contract but does not revert if
     /// any of the batched calls reverts
     /// @param data Array of calldata of batched calls
-    /// @param successes Array of success conditions of batched calls
-    /// @param returndata Array of returndata of batched calls
+    /// @return successes Array of success conditions of batched calls
+    /// @return returndata Array of returndata of batched calls
     function tryMulticall(bytes[] calldata data)
         external
         override
