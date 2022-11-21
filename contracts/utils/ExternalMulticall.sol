@@ -30,12 +30,12 @@ contract ExternalMulticall is IExternalMulticall {
             if (!success) {
                 // Adapted from OpenZeppelin's Address.sol
                 if (returndata[i].length > 0) {
-                    bytes memory returndataWithRevertString = returndata[i];
+                    bytes memory returndataWithRevertData = returndata[i];
                     // solhint-disable-next-line no-inline-assembly
                     assembly {
-                        let returndata_size := mload(returndataWithRevertString)
+                        let returndata_size := mload(returndataWithRevertData)
                         revert(
-                            add(32, returndataWithRevertString),
+                            add(32, returndataWithRevertData),
                             returndata_size
                         )
                     }
