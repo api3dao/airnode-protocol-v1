@@ -1,5 +1,6 @@
 const hre = require('hardhat');
 const { expect } = require('chai');
+const utils = require('../test-utils');
 
 describe('SelfMulticall', function () {
   let roles;
@@ -91,6 +92,7 @@ describe('SelfMulticall', function () {
           const { successes, returndata } = await selfMulticall.callStatic.tryMulticall(data);
           expect(successes).to.deep.equal([true, false, true]);
           expect(hre.ethers.utils.defaultAbiCoder.decode(['int256'], returndata[0])[0]).to.equal(-1);
+          expect(utils.decodeRevertString(returndata[1])).to.equal('Reverted with string');
           expect(hre.ethers.utils.defaultAbiCoder.decode(['int256'], returndata[2])[0]).to.equal(-3);
         });
       });
@@ -119,6 +121,7 @@ describe('SelfMulticall', function () {
           const { successes, returndata } = await selfMulticall.callStatic.tryMulticall(data);
           expect(successes).to.deep.equal([true, false, true]);
           expect(hre.ethers.utils.defaultAbiCoder.decode(['int256'], returndata[0])[0]).to.equal(-1);
+          expect(returndata[1]).to.equal('0x');
           expect(hre.ethers.utils.defaultAbiCoder.decode(['int256'], returndata[2])[0]).to.equal(-3);
         });
       });
