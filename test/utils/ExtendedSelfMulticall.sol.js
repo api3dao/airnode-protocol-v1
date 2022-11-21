@@ -1,6 +1,5 @@
 const hre = require('hardhat');
 const { expect } = require('chai');
-const utils = require('../test-utils');
 
 describe('ExtendedSelfMulticall', function () {
   let roles;
@@ -48,28 +47,6 @@ describe('ExtendedSelfMulticall', function () {
       // Commenting this out because it's not supported by Hardhat yet
       // https://github.com/nomiclabs/hardhat/issues/1688
       // expect(await extendedSelfMulticall.getBlockBasefee()).to.equal((await hre.ethers.provider.getBlock()).baseFeePerGas);
-    });
-  });
-
-  describe('trySelfMulticall', function () {
-    it('tries calling all functions even when some fail', async function () {
-      const data = [
-        extendedSelfMulticall.interface.encodeFunctionData('getChainId', []),
-        extendedSelfMulticall.interface.encodeFunctionData('multicall', [['0x']]),
-        extendedSelfMulticall.interface.encodeFunctionData('getBlockNumber', []),
-      ];
-
-      const [succeeded, returnData] = await extendedSelfMulticall.callStatic.tryMulticall(data);
-      expect(succeeded[0]).to.be.true;
-      expect(extendedSelfMulticall.interface.decodeFunctionResult('getChainId', returnData[0]).toString()).to.eq(
-        hre.ethers.provider.network.chainId.toString()
-      );
-      expect(succeeded[1]).to.be.false;
-      expect(utils.decodeRevertString(returnData[1])).to.have.string('No revert string');
-      expect(succeeded[2]).to.be.true;
-      expect(extendedSelfMulticall.interface.decodeFunctionResult('getBlockNumber', returnData[2]).toString()).to.eq(
-        (await hre.ethers.provider.getBlockNumber()).toString()
-      );
     });
   });
 });
