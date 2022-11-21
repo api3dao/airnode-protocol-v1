@@ -8,8 +8,6 @@ import "./interfaces/IExternalMulticall.sol";
 contract ExternalMulticall is IExternalMulticall {
     /// @notice Batches calls to external contracts and reverts if at
     /// least one of the batched calls reverts
-    /// @dev Bubbles up the raw returndata if a call reverts, leaving decoding
-    /// to the user
     /// @param targets Array of target addresses of batched calls
     /// @param data Array of calldata of batched calls
     /// @return returndata Array of returndata of batched calls
@@ -26,11 +24,12 @@ contract ExternalMulticall is IExternalMulticall {
                 "Multicall target not contract"
             );
             bool success;
-            (success, returndata[i]) = targets[i].call(data[i]); // solhint-disable-line avoid-low-level-calls
+            // solhint-disable-next-line avoid-low-level-calls
+            (success, returndata[i]) = targets[i].call(data[i]);
             if (!success) {
+                bytes memory returndataWithRevertData = returndata[i];
                 // Adapted from OpenZeppelin's Address.sol
-                if (returndata[i].length > 0) {
-                    bytes memory returndataWithRevertData = returndata[i];
+                if (returndataWithRevertData.length > 0) {
                     // solhint-disable-next-line no-inline-assembly
                     assembly {
                         let returndata_size := mload(returndataWithRevertData)
@@ -66,7 +65,8 @@ contract ExternalMulticall is IExternalMulticall {
         returndata = new bytes[](callCount);
         for (uint256 i = 0; i < callCount; i++) {
             if (targets[i].code.length > 0) {
-                (successes[i], returndata[i]) = targets[i].call(data[i]); // solhint-disable-line avoid-low-level-calls
+                // solhint-disable-next-line avoid-low-level-calls
+                (successes[i], returndata[i]) = targets[i].call(data[i]);
             }
         }
     }

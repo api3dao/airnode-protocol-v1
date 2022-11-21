@@ -9,8 +9,6 @@ import "./interfaces/ISelfMulticall.sol";
 contract SelfMulticall is ISelfMulticall {
     /// @notice Batches calls to the inheriting contract and reverts if at
     /// least one of the batched calls reverts
-    /// @dev Bubbles up the raw returndata if a call reverts, leaving decoding
-    /// to the user
     /// @param data Array of calldata of batched calls
     /// @return returndata Array of returndata of batched calls
     function multicall(bytes[] calldata data)
@@ -21,11 +19,12 @@ contract SelfMulticall is ISelfMulticall {
         returndata = new bytes[](data.length);
         for (uint256 i = 0; i < data.length; i++) {
             bool success;
-            (success, returndata[i]) = address(this).delegatecall(data[i]); // solhint-disable-line avoid-low-level-calls
-            // Adapted from OpenZeppelin's Address.sol
+            // solhint-disable-next-line avoid-low-level-calls
+            (success, returndata[i]) = address(this).delegatecall(data[i]);
             if (!success) {
-                if (returndata[i].length > 0) {
-                    bytes memory returndataWithRevertData = returndata[i];
+                bytes memory returndataWithRevertData = returndata[i];
+                if (returndataWithRevertData.length > 0) {
+                    // Adapted from OpenZeppelin's Address.sol
                     // solhint-disable-next-line no-inline-assembly
                     assembly {
                         let returndata_size := mload(returndataWithRevertData)
@@ -54,7 +53,8 @@ contract SelfMulticall is ISelfMulticall {
         successes = new bool[](data.length);
         returndata = new bytes[](data.length);
         for (uint256 i = 0; i < data.length; i++) {
-            (successes[i], returndata[i]) = address(this).delegatecall(data[i]); // solhint-disable-line avoid-low-level-calls
+            // solhint-disable-next-line avoid-low-level-calls
+            (successes[i], returndata[i]) = address(this).delegatecall(data[i]);
         }
     }
 }
