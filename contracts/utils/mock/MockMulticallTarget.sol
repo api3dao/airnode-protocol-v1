@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.9;
 
-import "../SelfMulticall.sol";
-
-contract MockSelfMulticallTarget is SelfMulticall {
+contract MockMulticallTarget {
     error MyError(uint256 fieldAlways123, string fieldAlwaysFoo);
 
     function alwaysRevertsWithString(int256 argPositive, int256 argNegative)

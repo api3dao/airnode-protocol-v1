@@ -10,11 +10,8 @@ describe('SelfMulticall', function () {
     roles = {
       deployer: accounts[0],
     };
-    const MockSelfMulticallTargetFactory = await hre.ethers.getContractFactory(
-      'MockSelfMulticallTarget',
-      roles.deployer
-    );
-    selfMulticall = await MockSelfMulticallTargetFactory.deploy();
+    const MockSelfMulticallFactory = await hre.ethers.getContractFactory('MockSelfMulticall', roles.deployer);
+    selfMulticall = await MockSelfMulticallFactory.deploy();
   });
 
   describe('multicall', function () {
