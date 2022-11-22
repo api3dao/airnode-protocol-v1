@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.9;
 
-import "../utils/ExtendedMulticall.sol";
+import "../utils/ExtendedSelfMulticall.sol";
 import "../whitelist/WhitelistWithManager.sol";
 import "../protocol/AirnodeRequester.sol";
 import "./Median.sol";
@@ -31,7 +31,7 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 /// checked because this is a purely keeper job that does not require off-chain
 /// data. Similar to Beacon updates, any Beacon set update is welcome.
 contract DapiServer is
-    ExtendedMulticall,
+    ExtendedSelfMulticall,
     WhitelistWithManager,
     AirnodeRequester,
     Median,

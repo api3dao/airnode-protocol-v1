@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/utils/Multicall.sol";
+import "../utils/SelfMulticall.sol";
 import "./RoleDeriver.sol";
 import "./AccessControlRegistryUser.sol";
 import "./interfaces/IAccessControlRegistryAdminned.sol";
@@ -9,7 +9,7 @@ import "./interfaces/IAccessControlRegistryAdminned.sol";
 /// @title Contract to be inherited by contracts whose adminship functionality
 /// will be implemented using AccessControlRegistry
 contract AccessControlRegistryAdminned is
-    Multicall,
+    SelfMulticall,
     RoleDeriver,
     AccessControlRegistryUser,
     IAccessControlRegistryAdminned

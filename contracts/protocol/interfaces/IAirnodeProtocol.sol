@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "../../utils/interfaces/IExtendedSelfMulticall.sol";
 import "./IStorageUtils.sol";
 import "./ISponsorshipUtils.sol";
 import "./IWithdrawalUtils.sol";
 
 interface IAirnodeProtocol is
+    IExtendedSelfMulticall,
     IStorageUtils,
     ISponsorshipUtils,
     IWithdrawalUtils
