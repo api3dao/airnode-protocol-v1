@@ -58,6 +58,7 @@ describe('ExternalMulticall', function () {
                 multicallTarget.interface.encodeFunctionData('convertsPositiveArgumentToNegative', [3]),
               ];
               // Hardhat cannot decode the custom error because it's not defined in ExternalMulticall
+              // https://github.com/NomicFoundation/hardhat/issues/1618
               await expect(externalMulticall.externalMulticall(targets, data)).to.be.revertedWith(
                 'reverted with an unrecognized custom error'
               );
