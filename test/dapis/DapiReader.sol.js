@@ -85,37 +85,18 @@ describe('DapiReader', function () {
   });
 
   describe('readDataFeedWithId', function () {
-    context('DapiReader is whitelisted', function () {
-      it('reads with data feed ID', async function () {
-        await dapiServer1.connect(roles.manager).setIndefiniteWhitelistStatus(beaconId, dapiReader.address, true);
-        const dataFeed = await dapiReader.exposedReadWithDataFeedId(beaconId);
-        expect(dataFeed.value).to.equal(beaconValue);
-        expect(dataFeed.timestamp).to.equal(beaconTimestamp);
-      });
-    });
-    context('DapiReader is not whitelisted', function () {
-      it('reads with data feed ID', async function () {
-        await expect(dapiReader.exposedReadWithDataFeedId(beaconId)).to.be.revertedWith('Sender cannot read');
-      });
+    it('reads with data feed ID', async function () {
+      const dataFeed = await dapiReader.exposedReadWithDataFeedId(beaconId);
+      expect(dataFeed.value).to.equal(beaconValue);
+      expect(dataFeed.timestamp).to.equal(beaconTimestamp);
     });
   });
 
   describe('readDataFeedWithDapiName', function () {
-    context('DapiReader is whitelisted', function () {
-      it('reads with dAPI name', async function () {
-        const dapiNameHash = hre.ethers.utils.keccak256(
-          hre.ethers.utils.defaultAbiCoder.encode(['bytes32'], [dapiName])
-        );
-        await dapiServer1.connect(roles.manager).setIndefiniteWhitelistStatus(dapiNameHash, dapiReader.address, true);
-        const dataFeed = await dapiReader.exposedReadWithDapiName(dapiName);
-        expect(dataFeed.value).to.equal(beaconValue);
-        expect(dataFeed.timestamp).to.equal(beaconTimestamp);
-      });
-    });
-    context('DapiReader is not whitelisted', function () {
-      it('reads with data feed ID', async function () {
-        await expect(dapiReader.exposedReadWithDapiName(dapiName)).to.be.revertedWith('Sender cannot read');
-      });
+    it('reads with dAPI name', async function () {
+      const dataFeed = await dapiReader.exposedReadWithDapiName(dapiName);
+      expect(dataFeed.value).to.equal(beaconValue);
+      expect(dataFeed.timestamp).to.equal(beaconTimestamp);
     });
   });
 });

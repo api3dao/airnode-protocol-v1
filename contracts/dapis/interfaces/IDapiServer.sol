@@ -73,8 +73,6 @@ interface IDapiServer is IAirnodeRequester {
         uint32 timestamp
     );
 
-    event AddedUnlimitedReader(address indexed unlimitedReader);
-
     event SetDapiName(
         bytes32 indexed dapiName,
         bytes32 dataFeedId,
@@ -141,11 +139,6 @@ interface IDapiServer is IAirnodeRequester {
         external
         returns (bytes32 beaconSetId);
 
-    function updateBeaconSetWithBeaconsAndReturnCondition(
-        bytes32[] memory beaconIds,
-        uint256 updateThresholdInPercentage
-    ) external returns (bool);
-
     function conditionPspBeaconSetUpdate(
         bytes32 subscriptionId,
         bytes calldata data,
@@ -169,8 +162,6 @@ interface IDapiServer is IAirnodeRequester {
         bytes[] memory data,
         bytes[] memory signatures
     ) external returns (bytes32 beaconSetId);
-
-    function addUnlimitedReader(address unlimitedReader) external;
 
     function setDapiName(bytes32 dapiName, bytes32 dataFeedId) external;
 
@@ -198,25 +189,6 @@ interface IDapiServer is IAirnodeRequester {
         external
         view
         returns (int224 value);
-
-    function readerCanReadDataFeed(bytes32 dataFeedId, address reader)
-        external
-        view
-        returns (bool);
-
-    function dataFeedIdToReaderToWhitelistStatus(
-        bytes32 dataFeedId,
-        address reader
-    )
-        external
-        view
-        returns (uint64 expirationTimestamp, uint192 indefiniteWhitelistCount);
-
-    function dataFeedIdToReaderToSetterToIndefiniteWhitelistStatus(
-        bytes32 dataFeedId,
-        address reader,
-        address setter
-    ) external view returns (bool indefiniteWhitelistStatus);
 
     function deriveBeaconId(address airnode, bytes32 templateId)
         external
