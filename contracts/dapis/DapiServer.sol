@@ -143,7 +143,7 @@ contract DapiServer is
         );
     }
 
-    /// @notice Creates an RRP requests for the Beacon to be updated
+    /// @notice Creates an RRP request for the Beacon to be updated
     /// @dev In addition to the sponsor sponsoring this contract (by calling
     /// `setRrpSponsorshipStatus()`), the sponsor must also give update request
     /// permission to the sender (by calling
@@ -184,7 +184,7 @@ contract DapiServer is
         );
     }
 
-    /// @notice Creates an RRP requests for the Beacon to be updated by the relayer
+    /// @notice Creates an RRP request for the Beacon to be updated by the relayer
     /// @param airnode Airnode address
     /// @param templateId Template ID
     /// @param relayer Relayer address
