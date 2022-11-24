@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "../../utils/interfaces/IExtendedSelfMulticall.sol";
 import "../../protocol/interfaces/IAirnodeRequester.sol";
 
-interface IDapiServer is IAirnodeRequester {
+interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
     event SetRrpBeaconUpdatePermissionStatus(
         address indexed sponsor,
         address indexed rrpBeaconUpdateRequester,

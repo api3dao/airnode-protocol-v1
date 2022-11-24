@@ -1,28 +1,28 @@
 const hre = require('hardhat');
 const { expect } = require('chai');
 
-describe('ExtendedMulticall', function () {
+describe('ExtendedSelfMulticall', function () {
   let roles;
-  let extendedMulticall;
+  let extendedSelfMulticall;
 
   beforeEach(async () => {
     const accounts = await hre.ethers.getSigners();
     roles = {
       deployer: accounts[0],
     };
-    const ExtendedMulticallFactory = await hre.ethers.getContractFactory('ExtendedMulticall', roles.deployer);
-    extendedMulticall = await ExtendedMulticallFactory.deploy();
+    const ExtendedSelfMulticallFactory = await hre.ethers.getContractFactory('ExtendedSelfMulticall', roles.deployer);
+    extendedSelfMulticall = await ExtendedSelfMulticallFactory.deploy();
   });
 
   describe('getChainId', function () {
     it('gets chain ID', async function () {
-      expect(await extendedMulticall.getChainId()).to.equal((await hre.ethers.provider.getNetwork()).chainId);
+      expect(await extendedSelfMulticall.getChainId()).to.equal((await hre.ethers.provider.getNetwork()).chainId);
     });
   });
 
   describe('getBalance', function () {
     it('gets balance', async function () {
-      expect(await extendedMulticall.getBalance(roles.deployer.address)).to.equal(
+      expect(await extendedSelfMulticall.getBalance(roles.deployer.address)).to.equal(
         await hre.ethers.provider.getBalance(roles.deployer.address)
       );
     });
@@ -30,13 +30,15 @@ describe('ExtendedMulticall', function () {
 
   describe('getBlockNumber', function () {
     it('gets block number', async function () {
-      expect(await extendedMulticall.getBlockNumber()).to.equal(await hre.ethers.provider.getBlockNumber());
+      expect(await extendedSelfMulticall.getBlockNumber()).to.equal(await hre.ethers.provider.getBlockNumber());
     });
   });
 
   describe('getBlockTimestamp', function () {
     it('gets block timestamp', async function () {
-      expect(await extendedMulticall.getBlockTimestamp()).to.equal((await hre.ethers.provider.getBlock()).timestamp);
+      expect(await extendedSelfMulticall.getBlockTimestamp()).to.equal(
+        (await hre.ethers.provider.getBlock()).timestamp
+      );
     });
   });
 
@@ -44,7 +46,7 @@ describe('ExtendedMulticall', function () {
     it('gets block basefee', async function () {
       // Commenting this out because it's not supported by Hardhat yet
       // https://github.com/nomiclabs/hardhat/issues/1688
-      // expect(await extendedMulticall.getBlockBasefee()).to.equal((await hre.ethers.provider.getBlock()).baseFeePerGas);
+      // expect(await extendedSelfMulticall.getBlockBasefee()).to.equal((await hre.ethers.provider.getBlock()).baseFeePerGas);
     });
   });
 });

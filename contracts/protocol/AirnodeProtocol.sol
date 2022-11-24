@@ -2,10 +2,10 @@
 pragma solidity 0.8.9;
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "../utils/ExtendedSelfMulticall.sol";
 import "./StorageUtils.sol";
 import "./SponsorshipUtils.sol";
 import "./WithdrawalUtils.sol";
-import "../utils/ExtendedMulticall.sol";
 import "./interfaces/IAirnodeProtocol.sol";
 
 /// @title Airnode request–response protocol (RRP) and its relayed version
@@ -20,10 +20,10 @@ import "./interfaces/IAirnodeProtocol.sol";
 /// StorageUtils, SponsorshipUtils and WithdrawalUtils also implement some
 /// auxiliary functionality for PSP.
 contract AirnodeProtocol is
+    ExtendedSelfMulticall,
     StorageUtils,
     SponsorshipUtils,
     WithdrawalUtils,
-    ExtendedMulticall,
     IAirnodeProtocol
 {
     using ECDSA for bytes32;

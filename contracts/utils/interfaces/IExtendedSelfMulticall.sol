@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./IMulticall.sol";
+import "./ISelfMulticall.sol";
 
-interface IExtendedMulticall is IMulticall {
+interface IExtendedSelfMulticall is ISelfMulticall {
     function getChainId() external view returns (uint256);
 
     function getBalance(address account) external view returns (uint256);
