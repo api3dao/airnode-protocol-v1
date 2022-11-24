@@ -425,22 +425,14 @@ contract DapiServer is
         override
         returns (bytes32 beaconSetId)
     {
-        uint256 beaconCount = beaconIds.length;
-        require(beaconCount > 1, "Specified less than two Beacons");
-        int256[] memory values = new int256[](beaconCount);
-        uint256 accumulatedTimestamp = 0;
-        for (uint256 ind = 0; ind < beaconCount; ind++) {
-            DataFeed storage dataFeed = dataFeeds[beaconIds[ind]];
-            values[ind] = dataFeed.value;
-            accumulatedTimestamp += dataFeed.timestamp;
-        }
-        uint32 updatedTimestamp = uint32(accumulatedTimestamp / beaconCount);
+        (int224 updatedValue, uint32 updatedTimestamp) = aggregateBeacons(
+            beaconIds
+        );
         beaconSetId = deriveBeaconSetId(beaconIds);
         require(
             updatedTimestamp >= dataFeeds[beaconSetId].timestamp,
             "Updated value outdated"
         );
-        int224 updatedValue = int224(median(values));
         dataFeeds[beaconSetId] = DataFeed({
             value: updatedValue,
             timestamp: updatedTimestamp
