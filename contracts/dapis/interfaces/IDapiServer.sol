@@ -144,7 +144,7 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
         bytes32 subscriptionId,
         bytes calldata data,
         bytes calldata conditionParameters
-    ) external returns (bool);
+    ) external view returns (bool);
 
     function fulfillPspBeaconSetUpdate(
         bytes32 subscriptionId,

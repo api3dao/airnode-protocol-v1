@@ -468,24 +468,21 @@ contract DapiServer is
         bytes32 subscriptionId, // solhint-disable-line no-unused-vars
         bytes calldata data,
         bytes calldata conditionParameters
-    ) external override returns (bool) {
-        require(msg.sender == address(0), "Sender not zero address");
+    ) external view override returns (bool) {
         bytes32[] memory beaconIds = abi.decode(data, (bytes32[]));
         require(
             keccak256(abi.encode(beaconIds)) == keccak256(data),
             "Data length not correct"
         );
+        (int224 updatedValue, uint32 updatedTimestamp) = aggregateBeacons(
+            beaconIds
+        );
         bytes32 beaconSetId = deriveBeaconSetId(beaconIds);
-        DataFeed memory initialBeaconSet = dataFeeds[beaconSetId];
-        updateBeaconSetWithBeacons(beaconIds);
-        DataFeed storage updatedBeaconSet = dataFeeds[beaconSetId];
+        DataFeed storage initialBeaconSet = dataFeeds[beaconSetId];
         return
-            calculateUpdateInPercentage(
-                initialBeaconSet.value,
-                updatedBeaconSet.value
-            ) >=
+            calculateUpdateInPercentage(initialBeaconSet.value, updatedValue) >=
             decodeConditionParameters(conditionParameters) ||
-            (initialBeaconSet.timestamp == 0 && updatedBeaconSet.timestamp > 0);
+            (initialBeaconSet.timestamp == 0 && updatedTimestamp > 0);
     }
 
     /// @notice Called by the Airnode/relayer using the sponsor wallet to
