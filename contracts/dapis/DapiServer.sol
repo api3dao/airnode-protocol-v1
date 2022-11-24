@@ -710,6 +710,32 @@ contract DapiServer is
         return dataFeed.value;
     }
 
+    /// @notice Aggregates the Beacons and returns the result
+    /// @dev Tha aggregation of Beacons may have a different value than the
+    /// respective Beacon set, e.g., because the Beacon set has been updated
+    /// using signed data
+    /// @param beaconIds Beacon IDs
+    /// @return value Aggregation value
+    /// @return timestamp Aggregation timestamp
+    function aggregateBeacons(bytes32[] memory beaconIds)
+        public
+        view
+        override
+        returns (int224 value, uint32 timestamp)
+    {
+        uint256 beaconCount = beaconIds.length;
+        require(beaconCount > 1, "Specified less than two Beacons");
+        int256[] memory values = new int256[](beaconCount);
+        uint256 accumulatedTimestamp = 0;
+        for (uint256 ind = 0; ind < beaconCount; ind++) {
+            DataFeed storage dataFeed = dataFeeds[beaconIds[ind]];
+            values[ind] = dataFeed.value;
+            accumulatedTimestamp += dataFeed.timestamp;
+        }
+        value = int224(median(values));
+        timestamp = uint32(accumulatedTimestamp / beaconCount);
+    }
+
     /// @notice Derives the Beacon ID from the Airnode address and template ID
     /// @param airnode Airnode address
     /// @param templateId Template ID

@@ -191,6 +191,11 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
         view
         returns (int224 value);
 
+    function aggregateBeacons(bytes32[] memory beaconIds)
+        external
+        view
+        returns (int224 value, uint32 timestamp);
+
     function deriveBeaconId(address airnode, bytes32 templateId)
         external
         pure
