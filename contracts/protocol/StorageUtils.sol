@@ -22,7 +22,7 @@ contract StorageUtils is IStorageUtils {
     struct Subscription {
         uint256 chainId;
         address airnode;
-        bytes32 templateId;
+        bytes32 endpointOrTemplateId;
         bytes parameters;
         bytes conditions;
         address relayer;
@@ -107,9 +107,11 @@ contract StorageUtils is IStorageUtils {
     /// endpoint while verifying `conditions`.
     /// @param chainId Chain ID
     /// @param airnode Airnode address
-    /// @param templateId Template ID (allowed to be `bytes32(0)`)
+    /// @param endpointOrTemplateId Endpoint or template ID (allowed to be
+    /// `bytes32(0)`)
     /// @param parameters Parameters provided by the subscription in addition
-    /// to the parameters in the template, encoded in Airnode ABI
+    /// to the parameters in the template (if applicable), encoded in Airnode
+    /// ABI
     /// @param conditions Conditions under which the subscription is requested
     /// to be fulfilled, encoded in Airnode ABI
     /// @param relayer Relayer address
@@ -121,7 +123,7 @@ contract StorageUtils is IStorageUtils {
     function announceSubscription(
         uint256 chainId,
         address airnode,
-        bytes32 templateId,
+        bytes32 endpointOrTemplateId,
         bytes calldata parameters,
         bytes calldata conditions,
         address relayer,
@@ -147,7 +149,7 @@ contract StorageUtils is IStorageUtils {
             abi.encode(
                 chainId,
                 airnode,
-                templateId,
+                endpointOrTemplateId,
                 parameters,
                 conditions,
                 relayer,
@@ -160,7 +162,7 @@ contract StorageUtils is IStorageUtils {
             subscriptionId,
             chainId,
             airnode,
-            templateId,
+            endpointOrTemplateId,
             parameters,
             conditions,
             relayer,
@@ -173,9 +175,11 @@ contract StorageUtils is IStorageUtils {
     /// @notice Stores subscription details
     /// @param chainId Chain ID
     /// @param airnode Airnode address
-    /// @param templateId Template ID (allowed to be `bytes32(0)`)
+    /// @param endpointOrTemplateId Endpoint or template ID (allowed to be
+    /// `bytes32(0)`)
     /// @param parameters Parameters provided by the subscription in addition
-    /// to the parameters in the template, encoded in Airnode ABI
+    /// to the parameters in the template (if applicable), encoded in Airnode
+    /// ABI
     /// @param conditions Conditions under which the subscription is requested
     /// to be fulfilled, encoded in Airnode ABI
     /// @param relayer Relayer address
@@ -187,7 +191,7 @@ contract StorageUtils is IStorageUtils {
     function storeSubscription(
         uint256 chainId,
         address airnode,
-        bytes32 templateId,
+        bytes32 endpointOrTemplateId,
         bytes calldata parameters,
         bytes calldata conditions,
         address relayer,
@@ -198,7 +202,7 @@ contract StorageUtils is IStorageUtils {
         subscriptionId = announceSubscription(
             chainId,
             airnode,
-            templateId,
+            endpointOrTemplateId,
             parameters,
             conditions,
             relayer,
@@ -209,7 +213,7 @@ contract StorageUtils is IStorageUtils {
         subscriptions[subscriptionId] = Subscription({
             chainId: chainId,
             airnode: airnode,
-            templateId: templateId,
+            endpointOrTemplateId: endpointOrTemplateId,
             parameters: parameters,
             conditions: conditions,
             relayer: relayer,

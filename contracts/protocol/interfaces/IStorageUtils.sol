@@ -12,7 +12,7 @@ interface IStorageUtils {
         bytes32 indexed subscriptionId,
         uint256 chainId,
         address airnode,
-        bytes32 templateId,
+        bytes32 endpointOrTemplateId,
         bytes parameters,
         bytes conditions,
         address relayer,
@@ -32,7 +32,7 @@ interface IStorageUtils {
     function announceSubscription(
         uint256 chainId,
         address airnode,
-        bytes32 templateId,
+        bytes32 endpointOrTemplateId,
         bytes calldata parameters,
         bytes calldata conditions,
         address relayer,
@@ -44,7 +44,7 @@ interface IStorageUtils {
     function storeSubscription(
         uint256 chainId,
         address airnode,
-        bytes32 templateId,
+        bytes32 endpointOrTemplateId,
         bytes calldata parameters,
         bytes calldata conditions,
         address relayer,
@@ -67,7 +67,7 @@ interface IStorageUtils {
         returns (
             uint256 chainId,
             address airnode,
-            bytes32 templateId,
+            bytes32 endpointOrTemplateId,
             bytes memory parameters,
             bytes memory conditions,
             address relayer,

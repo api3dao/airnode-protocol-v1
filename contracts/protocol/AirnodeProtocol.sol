@@ -36,22 +36,24 @@ contract AirnodeProtocol is
     mapping(bytes32 => bytes32) private requestIdToFulfillmentParameters;
 
     /// @notice Called by the requester to make a request
-    /// @param templateId Template ID
-    /// @param parameters Parameters provided by the requester in addition to
-    /// the parameters in the template
+    /// @param endpointOrTemplateId Template ID
+    /// @param parameters Parameters
     /// @param sponsor Sponsor address
     /// @param fulfillFunctionId Selector of the function to be called for
     /// fulfillment
     /// @return requestId Request ID
     function makeRequest(
         address airnode,
-        bytes32 templateId,
+        bytes32 endpointOrTemplateId,
         bytes calldata parameters,
         address sponsor,
         bytes4 fulfillFunctionId
     ) external override returns (bytes32 requestId) {
         require(airnode != address(0), "Airnode address zero");
-        require(templateId != bytes32(0), "Template ID zero");
+        require(
+            endpointOrTemplateId != bytes32(0),
+            "Endpoint or template ID zero"
+        );
         require(
             parameters.length <= MAXIMUM_PARAMETER_LENGTH,
             "Parameters too long"
@@ -66,7 +68,7 @@ contract AirnodeProtocol is
                 msg.sender,
                 requesterRequestCount,
                 airnode,
-                templateId,
+                endpointOrTemplateId,
                 parameters,
                 sponsor,
                 fulfillFunctionId
@@ -80,7 +82,7 @@ contract AirnodeProtocol is
             requestId,
             msg.sender,
             requesterRequestCount,
-            templateId,
+            endpointOrTemplateId,
             parameters,
             sponsor,
             fulfillFunctionId
@@ -202,9 +204,8 @@ contract AirnodeProtocol is
     /// relayer
     /// @dev The relayer address indexed in the relayed protocol logs because
     /// it will be the relayer that will be listening to these logs
-    /// @param templateId Template ID
-    /// @param parameters Parameters provided by the requester in addition to
-    /// the parameters in the template
+    /// @param endpointOrTemplateId Endpoint or template ID
+    /// @param parameters Parameters
     /// @param relayer Relayer address
     /// @param sponsor Sponsor address
     /// @param fulfillFunctionId Selector of the function to be called for
@@ -212,14 +213,17 @@ contract AirnodeProtocol is
     /// @return requestId Request ID
     function makeRequestRelayed(
         address airnode,
-        bytes32 templateId,
+        bytes32 endpointOrTemplateId,
         bytes calldata parameters,
         address relayer,
         address sponsor,
         bytes4 fulfillFunctionId
     ) external override returns (bytes32 requestId) {
         require(airnode != address(0), "Airnode address zero");
-        require(templateId != bytes32(0), "Template ID zero");
+        require(
+            endpointOrTemplateId != bytes32(0),
+            "Endpoint or template ID zero"
+        );
         require(
             parameters.length <= MAXIMUM_PARAMETER_LENGTH,
             "Parameters too long"
@@ -235,7 +239,7 @@ contract AirnodeProtocol is
                 msg.sender,
                 requesterRequestCount,
                 airnode,
-                templateId,
+                endpointOrTemplateId,
                 parameters,
                 relayer,
                 sponsor,
@@ -251,7 +255,7 @@ contract AirnodeProtocol is
             airnode,
             msg.sender,
             requesterRequestCount,
-            templateId,
+            endpointOrTemplateId,
             parameters,
             sponsor,
             fulfillFunctionId

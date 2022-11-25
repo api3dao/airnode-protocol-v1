@@ -17,7 +17,7 @@ interface IAirnodeProtocol is
         bytes32 indexed requestId,
         address requester,
         uint256 requesterRequestCount,
-        bytes32 templateId,
+        bytes32 endpointOrTemplateId,
         bytes parameters,
         address sponsor,
         bytes4 fulfillFunctionId
@@ -43,7 +43,7 @@ interface IAirnodeProtocol is
         address indexed airnode,
         address requester,
         uint256 requesterRequestCount,
-        bytes32 templateId,
+        bytes32 endpointOrTemplateId,
         bytes parameters,
         address sponsor,
         bytes4 fulfillFunctionId
@@ -67,7 +67,7 @@ interface IAirnodeProtocol is
 
     function makeRequest(
         address airnode,
-        bytes32 templateId,
+        bytes32 endpointOrTemplateId,
         bytes calldata parameters,
         address sponsor,
         bytes4 fulfillFunctionId
@@ -95,7 +95,7 @@ interface IAirnodeProtocol is
 
     function makeRequestRelayed(
         address airnode,
-        bytes32 templateId,
+        bytes32 endpointOrTemplateId,
         bytes calldata parameters,
         address relayer,
         address sponsor,
