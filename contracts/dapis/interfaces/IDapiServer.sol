@@ -33,7 +33,7 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
     event UpdatedBeaconWithRrp(
         bytes32 indexed beaconId,
         bytes32 requestId,
-        int256 value,
+        uint256 value,
         uint256 timestamp
     );
 
@@ -52,25 +52,25 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
     event UpdatedBeaconWithPsp(
         bytes32 indexed beaconId,
         bytes32 subscriptionId,
-        int224 value,
+        uint224 value,
         uint32 timestamp
     );
 
     event UpdatedBeaconWithSignedData(
         bytes32 indexed beaconId,
-        int256 value,
+        uint256 value,
         uint256 timestamp
     );
 
     event UpdatedBeaconSetWithBeacons(
         bytes32 indexed beaconSetId,
-        int224 value,
+        uint224 value,
         uint32 timestamp
     );
 
     event UpdatedBeaconSetWithSignedData(
         bytes32 indexed dapiId,
-        int224 value,
+        uint224 value,
         uint32 timestamp
     );
 
@@ -174,27 +174,27 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
     function readDataFeedWithId(bytes32 dataFeedId)
         external
         view
-        returns (int224 value, uint32 timestamp);
+        returns (uint224 value, uint32 timestamp);
 
     function readDataFeedValueWithId(bytes32 dataFeedId)
         external
         view
-        returns (int224 value);
+        returns (uint224 value);
 
     function readDataFeedWithDapiName(bytes32 dapiName)
         external
         view
-        returns (int224 value, uint32 timestamp);
+        returns (uint224 value, uint32 timestamp);
 
     function readDataFeedValueWithDapiName(bytes32 dapiName)
         external
         view
-        returns (int224 value);
+        returns (uint224 value);
 
     function aggregateBeacons(bytes32[] memory beaconIds)
         external
         view
-        returns (int224 value, uint32 timestamp);
+        returns (uint224 value, uint32 timestamp);
 
     function deriveBeaconId(address airnode, bytes32 templateId)
         external

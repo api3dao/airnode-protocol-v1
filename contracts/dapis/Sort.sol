@@ -10,7 +10,7 @@ contract Sort {
 
     /// @notice Sorts the array
     /// @param array Array to be sorted
-    function sort(int256[] memory array) internal pure {
+    function sort(uint256[] memory array) internal pure {
         uint256 arrayLength = array.length;
         require(arrayLength <= MAX_SORT_LENGTH, "Array too long to sort");
         // Do a binary search
@@ -149,7 +149,7 @@ contract Sort {
     /// @param ind1 Index of the first element
     /// @param ind2 Index of the second element
     function swapIfFirstIsLarger(
-        int256[] memory array,
+        uint256[] memory array,
         uint256 ind1,
         uint256 ind2
     ) private pure {

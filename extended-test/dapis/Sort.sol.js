@@ -6,7 +6,7 @@ describe('Sort', function () {
 
   // Adapted from https://stackoverflow.com/a/37580979/14558682
   async function testSortWithAllPermutations(arrayLength) {
-    const array = Array.from(Array(arrayLength), (_, i) => i - Math.floor(arrayLength / 2));
+    const array = Array.from(Array(arrayLength).keys());
     let length = array.length,
       c = new Array(length).fill(0),
       i = 1,

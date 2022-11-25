@@ -10,7 +10,7 @@ contract Quickselect {
     /// @param array Array in which k-th largest element will be searched
     /// @param k K
     /// @return indK Index of the k-th largest element
-    function quickselectK(int256[] memory array, uint256 k)
+    function quickselectK(uint256[] memory array, uint256 k)
         internal
         pure
         returns (uint256 indK)
@@ -25,7 +25,7 @@ contract Quickselect {
     /// @param k K
     /// @return indK Index of the k-th largest element
     /// @return indKPlusOne Index of the (k+1)-th largest element
-    function quickselectKPlusOne(int256[] memory array, uint256 k)
+    function quickselectKPlusOne(uint256[] memory array, uint256 k)
         internal
         pure
         returns (uint256 indK, uint256 indKPlusOne)
@@ -49,7 +49,7 @@ contract Quickselect {
     /// @return indKPlusOne Index of the (k+1)-th largest element (only set if
     /// `selectKPlusOne` is `true`)
     function quickselect(
-        int256[] memory array,
+        uint256[] memory array,
         uint256 lo,
         uint256 hi,
         uint256 k,
@@ -88,14 +88,14 @@ contract Quickselect {
     /// partitioned
     /// @return pivotInd Pivot index
     function partition(
-        int256[] memory array,
+        uint256[] memory array,
         uint256 lo,
         uint256 hi
     ) private pure returns (uint256 pivotInd) {
         if (lo == hi) {
             return lo;
         }
-        int256 pivot = array[lo];
+        uint256 pivot = array[lo];
         uint256 i = lo;
         pivotInd = hi + 1;
         while (true) {
