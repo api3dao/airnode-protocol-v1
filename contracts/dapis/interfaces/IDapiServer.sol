@@ -20,7 +20,7 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
         bytes32 templateId
     );
 
-    event RequestedRrpBeaconUpdateRelayed(
+    event RequestedRelayedRrpBeaconUpdate(
         bytes32 indexed beaconId,
         address indexed sponsor,
         address indexed requester,
@@ -85,15 +85,30 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
         bool status
     ) external;
 
-    function requestRrpBeaconUpdate(
+    function requestRrpBeaconUpdateWithTemplate(
         address airnode,
         bytes32 templateId,
         address sponsor
     ) external returns (bytes32 requestId);
 
-    function requestRrpBeaconUpdateRelayed(
+    function requestRrpBeaconUpdateWithEndpoint(
+        address airnode,
+        bytes32 endpointId,
+        bytes calldata parameters,
+        address sponsor
+    ) external returns (bytes32 requestId);
+
+    function requestRelayedRrpBeaconUpdateWithTemplate(
         address airnode,
         bytes32 templateId,
+        address relayer,
+        address sponsor
+    ) external returns (bytes32 requestId);
+
+    function requestRelayedRrpBeaconUpdateWithEndpoint(
+        address airnode,
+        bytes32 endpointId,
+        bytes calldata parameters,
         address relayer,
         address sponsor
     ) external returns (bytes32 requestId);

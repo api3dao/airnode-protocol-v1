@@ -152,7 +152,7 @@ contract DapiServer is
     /// @param templateId Template ID
     /// @param sponsor Sponsor address
     /// @return requestId Request ID
-    function requestRrpBeaconUpdate(
+    function requestRrpBeaconUpdateWithTemplate(
         address airnode,
         bytes32 templateId,
         address sponsor
@@ -181,13 +181,52 @@ contract DapiServer is
         );
     }
 
+    /// @notice Creates an RRP request for the Beacon to be updated
+    /// @param airnode Airnode address
+    /// @param endpointId Endpoint ID
+    /// @param parameters Parameters
+    /// @param sponsor Sponsor address
+    /// @return requestId Request ID
+    function requestRrpBeaconUpdateWithEndpoint(
+        address airnode,
+        bytes32 endpointId,
+        bytes calldata parameters,
+        address sponsor
+    )
+        external
+        override
+        onlyPermittedUpdateRequester(sponsor)
+        returns (bytes32 requestId)
+    {
+        bytes32 templateId = keccak256(
+            abi.encodePacked(endpointId, parameters)
+        );
+        bytes32 beaconId = deriveBeaconId(airnode, templateId);
+        requestId = IAirnodeProtocol(airnodeProtocol).makeRequest(
+            airnode,
+            endpointId,
+            parameters,
+            sponsor,
+            this.fulfillRrpBeaconUpdate.selector
+        );
+        requestIdToBeaconId[requestId] = beaconId;
+        emit RequestedRrpBeaconUpdate(
+            beaconId,
+            sponsor,
+            msg.sender,
+            requestId,
+            airnode,
+            templateId
+        );
+    }
+
     /// @notice Creates an RRP request for the Beacon to be updated by the relayer
     /// @param airnode Airnode address
     /// @param templateId Template ID
     /// @param relayer Relayer address
     /// @param sponsor Sponsor address
     /// @return requestId Request ID
-    function requestRrpBeaconUpdateRelayed(
+    function requestRelayedRrpBeaconUpdateWithTemplate(
         address airnode,
         bytes32 templateId,
         address relayer,
@@ -208,7 +247,50 @@ contract DapiServer is
             this.fulfillRrpBeaconUpdate.selector
         );
         requestIdToBeaconId[requestId] = beaconId;
-        emit RequestedRrpBeaconUpdateRelayed(
+        emit RequestedRelayedRrpBeaconUpdate(
+            beaconId,
+            sponsor,
+            msg.sender,
+            requestId,
+            airnode,
+            relayer,
+            templateId
+        );
+    }
+
+    /// @notice Creates an RRP request for the Beacon to be updated by the relayer
+    /// @param airnode Airnode address
+    /// @param endpointId Endpoint ID
+    /// @param parameters Parameters
+    /// @param relayer Relayer address
+    /// @param sponsor Sponsor address
+    /// @return requestId Request ID
+    function requestRelayedRrpBeaconUpdateWithEndpoint(
+        address airnode,
+        bytes32 endpointId,
+        bytes calldata parameters,
+        address relayer,
+        address sponsor
+    )
+        external
+        override
+        onlyPermittedUpdateRequester(sponsor)
+        returns (bytes32 requestId)
+    {
+        bytes32 templateId = keccak256(
+            abi.encodePacked(endpointId, parameters)
+        );
+        bytes32 beaconId = deriveBeaconId(airnode, templateId);
+        requestId = IAirnodeProtocol(airnodeProtocol).makeRequestRelayed(
+            airnode,
+            endpointId,
+            parameters,
+            relayer,
+            sponsor,
+            this.fulfillRrpBeaconUpdate.selector
+        );
+        requestIdToBeaconId[requestId] = beaconId;
+        emit RequestedRelayedRrpBeaconUpdate(
             beaconId,
             sponsor,
             msg.sender,
