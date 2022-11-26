@@ -98,9 +98,7 @@ describe('ExpiringMetaCallForwarder', function () {
             const signature = await roles.deployer._signTypedData(domain, types, value);
             const counterBefore = await expiringMetaCallForwarderTarget.counter();
             await expect(
-              expiringMetaCallForwarder
-                .connect(roles.randomPerson)
-                .execute({ from, to, data, expirationTimestamp }, signature)
+              expiringMetaCallForwarder.connect(roles.randomPerson).execute(value, signature)
             ).to.not.be.reverted;
             expect(await expiringMetaCallForwarderTarget.counter()).to.be.equal(counterBefore.add(1));
           });
@@ -139,9 +137,7 @@ describe('ExpiringMetaCallForwarder', function () {
             };
             const signature = await roles.randomPerson._signTypedData(domain, types, value);
             await expect(
-              expiringMetaCallForwarder
-                .connect(roles.randomPerson)
-                .execute({ from, to, data, expirationTimestamp }, signature)
+              expiringMetaCallForwarder.connect(roles.randomPerson).execute(value, signature)
             ).to.be.revertedWith('Invalid signature');
           });
         });
@@ -180,9 +176,7 @@ describe('ExpiringMetaCallForwarder', function () {
           };
           const signature = await roles.deployer._signTypedData(domain, types, value);
           await expect(
-            expiringMetaCallForwarder
-              .connect(roles.randomPerson)
-              .execute({ from, to, data, expirationTimestamp }, signature)
+            expiringMetaCallForwarder.connect(roles.randomPerson).execute(value, signature)
           ).to.be.revertedWith('Meta-call expired');
         });
       });
@@ -220,13 +214,9 @@ describe('ExpiringMetaCallForwarder', function () {
           expirationTimestamp,
         };
         const signature = await roles.deployer._signTypedData(domain, types, value);
-        await expiringMetaCallForwarder
-          .connect(roles.randomPerson)
-          .execute({ from, to, data, expirationTimestamp }, signature);
+        await expiringMetaCallForwarder.connect(roles.randomPerson).execute(value, signature);
         await expect(
-          expiringMetaCallForwarder
-            .connect(roles.randomPerson)
-            .execute({ from, to, data, expirationTimestamp }, signature)
+          expiringMetaCallForwarder.connect(roles.randomPerson).execute(value, signature)
         ).to.be.revertedWith('Meta-call already executed');
       });
     });
