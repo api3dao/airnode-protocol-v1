@@ -15,14 +15,18 @@ contract AllocatorWithAirnode is
 {
     /// @param _accessControlRegistry AccessControlRegistry contract address
     /// @param _adminRoleDescription Admin role description
+    /// @param _trustedForwarder Trusted forwarder that verifies and executes
+    /// signed meta-calls
     constructor(
         address _accessControlRegistry,
-        string memory _adminRoleDescription
+        string memory _adminRoleDescription,
+        address _trustedForwarder
     )
         AccessControlRegistryAdminned(
             _accessControlRegistry,
             _adminRoleDescription
         )
+        Allocator(_trustedForwarder)
     {}
 
     /// @notice Sets a slot with the given parameters
@@ -38,7 +42,7 @@ contract AllocatorWithAirnode is
         uint64 expirationTimestamp
     ) external override {
         require(
-            hasSlotSetterRoleOrIsAirnode(airnode, msg.sender),
+            hasSlotSetterRoleOrIsAirnode(airnode, _msgSender()),
             "Sender cannot set slot"
         );
         _setSlot(airnode, slotIndex, subscriptionId, expirationTimestamp);

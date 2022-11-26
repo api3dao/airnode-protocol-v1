@@ -21,16 +21,20 @@ contract AllocatorWithManager is
     /// @param _accessControlRegistry AccessControlRegistry contract address
     /// @param _adminRoleDescription Admin role description
     /// @param _manager Manager address
+    /// @param _trustedForwarder Trusted forwarder that verifies and executes
+    /// signed meta-calls
     constructor(
         address _accessControlRegistry,
         string memory _adminRoleDescription,
-        address _manager
+        address _manager,
+        address _trustedForwarder
     )
         AccessControlRegistryAdminnedWithManager(
             _accessControlRegistry,
             _adminRoleDescription,
             _manager
         )
+        Allocator(_trustedForwarder)
     {
         slotSetterRole = _deriveRole(
             adminRole,
@@ -51,7 +55,7 @@ contract AllocatorWithManager is
         uint64 expirationTimestamp
     ) external override {
         require(
-            hasSlotSetterRoleOrIsManager(msg.sender),
+            hasSlotSetterRoleOrIsManager(_msgSender()),
             "Sender cannot set slot"
         );
         _setSlot(airnode, slotIndex, subscriptionId, expirationTimestamp);

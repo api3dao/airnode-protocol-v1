@@ -4,7 +4,7 @@ const testUtils = require('../test-utils');
 
 describe('AllocatorWithManager', function () {
   let roles;
-  let accessControlRegistry, allocatorWithManager;
+  let expiringMetaCallForwarder, accessControlRegistry, allocatorWithManager;
   let allocatorWithManagerAdminRoleDescription = 'AllocatorWithManager admin role';
   let slotSetterRoleDescription = 'Slot setter';
   let slotSetterRole;
@@ -22,13 +22,19 @@ describe('AllocatorWithManager', function () {
       anotherSlotSetter: accounts[4],
       randomPerson: accounts[9],
     };
+    const expiringMetaCallForwarderFactory = await hre.ethers.getContractFactory(
+      'ExpiringMetaCallForwarder',
+      roles.deployer
+    );
+    expiringMetaCallForwarder = await expiringMetaCallForwarderFactory.deploy();
     const accessControlRegistryFactory = await hre.ethers.getContractFactory('AccessControlRegistry', roles.deployer);
     accessControlRegistry = await accessControlRegistryFactory.deploy();
     const allocatorWithManagerFactory = await hre.ethers.getContractFactory('AllocatorWithManager', roles.deployer);
     allocatorWithManager = await allocatorWithManagerFactory.deploy(
       accessControlRegistry.address,
       allocatorWithManagerAdminRoleDescription,
-      roles.manager.address
+      roles.manager.address,
+      expiringMetaCallForwarder.address
     );
     const managerRootRole = await accessControlRegistry.deriveRootRole(roles.manager.address);
     const managerAdminRole = await allocatorWithManager.adminRole();
