@@ -6,7 +6,7 @@ import "./RequesterAuthorizer.sol";
 import "./interfaces/IRequesterAuthorizerWithManager.sol";
 
 /// @title Authorizer contract that a manager can use to temporarily or
-/// indefinitely whitelist requesters for Airnode–endpoint pairs
+/// indefinitely whitelist requesters for Airnode–endpoint pairs or Airnodes
 contract RequesterAuthorizerWithManager is
     WhitelistRolesWithManager,
     RequesterAuthorizer,
