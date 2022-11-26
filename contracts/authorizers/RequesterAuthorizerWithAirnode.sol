@@ -22,8 +22,8 @@ contract RequesterAuthorizerWithAirnode is
     {}
 
     /// @notice Extends the expiration of the temporary whitelist of
-    /// `requester` for the `airnode`–`endpointId` pair if the sender has the
-    /// whitelist expiration extender role
+    /// `requester` for the `airnode`–`endpointId` pair if the sender is
+    /// allowed to extend whitelist expiration
     /// @param airnode Airnode address
     /// @param endpointId Endpoint ID
     /// @param requester Requester address
@@ -48,8 +48,8 @@ contract RequesterAuthorizerWithAirnode is
     }
 
     /// @notice Sets the expiration of the temporary whitelist of `requester`
-    /// for the `airnode`–`endpointId` pair if the sender has the whitelist
-    /// expiration setter role
+    /// for the `airnode`–`endpointId` pair if the sender is allowed to set
+    /// expiration
     /// @dev Unlike `extendWhitelistExpiration()`, this can hasten expiration
     /// @param airnode Airnode address
     /// @param endpointId Endpoint ID
@@ -75,8 +75,8 @@ contract RequesterAuthorizerWithAirnode is
     }
 
     /// @notice Sets the indefinite whitelist status of `requester` for the
-    /// `airnode`–`endpointId` pair if the sender has the indefinite
-    /// whitelister role
+    /// `airnode`–`endpointId` pair if the sender is allowed to whitelist
+    /// indefinitely
     /// @param airnode Airnode address
     /// @param endpointId Endpoint ID
     /// @param requester Requester address
