@@ -4,7 +4,7 @@ const testUtils = require('../test-utils');
 
 describe('RequesterAuthorizerWithAirnode', function () {
   let roles;
-  let accessControlRegistry, requesterAuthorizerWithAirnode;
+  let expiringMetaCallForwarder, accessControlRegistry, requesterAuthorizerWithAirnode;
   let requesterAuthorizerWithAirnodeAdminRoleDescription = 'RequesterAuthorizerWithAirnode admin';
   let adminRole, whitelistExpirationExtenderRole, whitelistExpirationSetterRole, indefiniteWhitelisterRole;
   let airnodeAddress, airnodeMnemonic, airnodeWallet;
@@ -21,6 +21,11 @@ describe('RequesterAuthorizerWithAirnode', function () {
       requester: accounts[5],
       randomPerson: accounts[9],
     };
+    const expiringMetaCallForwarderFactory = await hre.ethers.getContractFactory(
+      'ExpiringMetaCallForwarder',
+      roles.deployer
+    );
+    expiringMetaCallForwarder = await expiringMetaCallForwarderFactory.deploy();
     const accessControlRegistryFactory = await hre.ethers.getContractFactory('AccessControlRegistry', roles.deployer);
     accessControlRegistry = await accessControlRegistryFactory.deploy();
     const requesterAuthorizerWithAirnodeFactory = await hre.ethers.getContractFactory(
@@ -29,7 +34,8 @@ describe('RequesterAuthorizerWithAirnode', function () {
     );
     requesterAuthorizerWithAirnode = await requesterAuthorizerWithAirnodeFactory.deploy(
       accessControlRegistry.address,
-      requesterAuthorizerWithAirnodeAdminRoleDescription
+      requesterAuthorizerWithAirnodeAdminRoleDescription,
+      expiringMetaCallForwarder.address
     );
     ({ airnodeAddress: airnodeAddress, airnodeMnemonic: airnodeMnemonic } = testUtils.generateRandomAirnodeWallet());
     await roles.deployer.sendTransaction({
@@ -148,7 +154,8 @@ describe('RequesterAuthorizerWithAirnode', function () {
           );
           requesterAuthorizerWithAirnode = await requesterAuthorizerWithAirnodeFactory.deploy(
             accessControlRegistry.address,
-            requesterAuthorizerWithAirnodeAdminRoleDescription
+            requesterAuthorizerWithAirnodeAdminRoleDescription,
+            expiringMetaCallForwarder.address
           );
           expect(await requesterAuthorizerWithAirnode.accessControlRegistry()).to.equal(accessControlRegistry.address);
           expect(await requesterAuthorizerWithAirnode.adminRoleDescription()).to.equal(
@@ -163,7 +170,11 @@ describe('RequesterAuthorizerWithAirnode', function () {
             roles.deployer
           );
           await expect(
-            requesterAuthorizerWithAirnodeFactory.deploy(accessControlRegistry.address, '')
+            requesterAuthorizerWithAirnodeFactory.deploy(
+              accessControlRegistry.address,
+              '',
+              expiringMetaCallForwarder.address
+            )
           ).to.be.revertedWith('Admin role description empty');
         });
       });
@@ -177,7 +188,8 @@ describe('RequesterAuthorizerWithAirnode', function () {
         await expect(
           requesterAuthorizerWithAirnodeFactory.deploy(
             hre.ethers.constants.AddressZero,
-            requesterAuthorizerWithAirnodeAdminRoleDescription
+            requesterAuthorizerWithAirnodeAdminRoleDescription,
+            expiringMetaCallForwarder.address
           )
         ).to.be.revertedWith('ACR address zero');
       });

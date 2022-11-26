@@ -15,16 +15,20 @@ contract RequesterAuthorizerWithManager is
     /// @param _accessControlRegistry AccessControlRegistry contract address
     /// @param _adminRoleDescription Admin role description
     /// @param _manager Manager address
+    /// @param _trustedForwarder Trusted forwarder that verifies and executes
+    /// signed meta-calls
     constructor(
         address _accessControlRegistry,
         string memory _adminRoleDescription,
-        address _manager
+        address _manager,
+        address _trustedForwarder
     )
         WhitelistRolesWithManager(
             _accessControlRegistry,
             _adminRoleDescription,
             _manager
         )
+        RequesterAuthorizer(_trustedForwarder)
     {}
 
     /// @notice Extends the expiration of the temporary whitelist of
@@ -42,7 +46,7 @@ contract RequesterAuthorizerWithManager is
         uint64 expirationTimestamp
     ) external override {
         require(
-            hasWhitelistExpirationExtenderRoleOrIsManager(msg.sender),
+            hasWhitelistExpirationExtenderRoleOrIsManager(_msgSender()),
             "Cannot extend expiration"
         );
         _extendWhitelistExpirationAndEmit(
@@ -69,7 +73,7 @@ contract RequesterAuthorizerWithManager is
         uint64 expirationTimestamp
     ) external override {
         require(
-            hasWhitelistExpirationSetterRoleOrIsManager(msg.sender),
+            hasWhitelistExpirationSetterRoleOrIsManager(_msgSender()),
             "Cannot set expiration"
         );
         _setWhitelistExpirationAndEmit(
@@ -94,7 +98,7 @@ contract RequesterAuthorizerWithManager is
         bool status
     ) external override {
         require(
-            hasIndefiniteWhitelisterRoleOrIsManager(msg.sender),
+            hasIndefiniteWhitelisterRoleOrIsManager(_msgSender()),
             "Cannot set indefinite status"
         );
         _setIndefiniteWhitelistStatusAndEmit(
