@@ -304,6 +304,122 @@ describe('RequesterAuthorizerWithAirnode', function () {
         });
       });
     });
+    // Let us demonstrate meta-calls as a proof of concept
+    context('Sender using a meta-call signed by the Airnode address', function () {
+      context('Timestamp extends whitelist expiration', function () {
+        it('extends whitelist expiration', async function () {
+          await accessControlRegistry
+            .connect(airnodeWallet)
+            .renounceRole(whitelistExpirationExtenderRole, airnodeAddress, { gasLimit: 1000000 });
+          let whitelistStatus;
+          whitelistStatus = await requesterAuthorizerWithAirnode.airnodeToEndpointIdToRequesterToWhitelistStatus(
+            airnodeAddress,
+            endpointId,
+            roles.requester.address
+          );
+          expect(whitelistStatus.expirationTimestamp).to.equal(0);
+          expect(whitelistStatus.indefiniteWhitelistCount).to.equal(0);
+          const expirationTimestamp = 1000;
+
+          const from = airnodeAddress;
+          const to = requesterAuthorizerWithAirnode.address;
+          const data = requesterAuthorizerWithAirnode.interface.encodeFunctionData('extendWhitelistExpiration', [
+            airnodeAddress,
+            endpointId,
+            roles.requester.address,
+            expirationTimestamp,
+          ]);
+          const metaCallExpirationTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 3600;
+
+          const domainName = 'ExpiringMetaCallForwarder';
+          const domainVersion = '1.0.0';
+          const domainChainId = (await hre.ethers.provider.getNetwork()).chainId;
+          const domainAddress = expiringMetaCallForwarder.address;
+
+          const domain = {
+            name: domainName,
+            version: domainVersion,
+            chainId: domainChainId,
+            verifyingContract: domainAddress,
+          };
+          const types = {
+            ExpiringMetaCall: [
+              { name: 'from', type: 'address' },
+              { name: 'to', type: 'address' },
+              { name: 'data', type: 'bytes' },
+              { name: 'expirationTimestamp', type: 'uint256' },
+            ],
+          };
+          const value = {
+            from,
+            to,
+            data,
+            expirationTimestamp: metaCallExpirationTimestamp,
+          };
+          const signature = await airnodeWallet._signTypedData(domain, types, value);
+
+          await expect(expiringMetaCallForwarder.connect(roles.randomPerson).execute(value, signature))
+            .to.emit(requesterAuthorizerWithAirnode, 'ExtendedWhitelistExpiration')
+            .withArgs(airnodeAddress, endpointId, roles.requester.address, airnodeAddress, expirationTimestamp);
+
+          whitelistStatus = await requesterAuthorizerWithAirnode.airnodeToEndpointIdToRequesterToWhitelistStatus(
+            airnodeAddress,
+            endpointId,
+            roles.requester.address
+          );
+          expect(whitelistStatus.expirationTimestamp).to.equal(1000);
+          expect(whitelistStatus.indefiniteWhitelistCount).to.equal(0);
+        });
+      });
+      context('Timestamp does not extend whitelist expiration', function () {
+        it('reverts', async function () {
+          await accessControlRegistry
+            .connect(airnodeWallet)
+            .renounceRole(whitelistExpirationExtenderRole, airnodeAddress, { gasLimit: 1000000 });
+
+          const from = airnodeAddress;
+          const to = requesterAuthorizerWithAirnode.address;
+          const data = requesterAuthorizerWithAirnode.interface.encodeFunctionData('extendWhitelistExpiration', [
+            airnodeAddress,
+            endpointId,
+            roles.requester.address,
+            0,
+          ]);
+          const metaCallExpirationTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 3600;
+
+          const domainName = 'ExpiringMetaCallForwarder';
+          const domainVersion = '1.0.0';
+          const domainChainId = (await hre.ethers.provider.getNetwork()).chainId;
+          const domainAddress = expiringMetaCallForwarder.address;
+
+          const domain = {
+            name: domainName,
+            version: domainVersion,
+            chainId: domainChainId,
+            verifyingContract: domainAddress,
+          };
+          const types = {
+            ExpiringMetaCall: [
+              { name: 'from', type: 'address' },
+              { name: 'to', type: 'address' },
+              { name: 'data', type: 'bytes' },
+              { name: 'expirationTimestamp', type: 'uint256' },
+            ],
+          };
+          const value = {
+            from,
+            to,
+            data,
+            expirationTimestamp: metaCallExpirationTimestamp,
+          };
+          const signature = await airnodeWallet._signTypedData(domain, types, value);
+
+          await expect(
+            expiringMetaCallForwarder.connect(roles.randomPerson).execute(value, signature)
+          ).to.be.revertedWith('Does not extend expiration');
+        });
+      });
+    });
     context('Sender does not have the whitelist extender role and is not the Airnode address', function () {
       it('reverts', async function () {
         await expect(
