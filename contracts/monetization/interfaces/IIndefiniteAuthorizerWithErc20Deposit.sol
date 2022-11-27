@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./IRequesterAuthorizerWhitelisterWithToken.sol";
+import "./IAuthorizerWithErc20.sol";
 
-interface IRequesterAuthorizerWhitelisterWithTokenDeposit is
-    IRequesterAuthorizerWhitelisterWithToken
-{
+interface IIndefiniteAuthorizerWithErc20Deposit is IAuthorizerWithErc20 {
     event SetWithdrawalLeadTime(uint256 withdrawalLeadTime, address sender);
 
     event DepositedTokens(

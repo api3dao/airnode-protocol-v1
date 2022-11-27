@@ -8,9 +8,15 @@ interface IRequesterAuthorizerWithManager is
     IAccessControlRegistryAdminnedWithManager,
     IRequesterAuthorizer
 {
-    function whitelistExpirationExtenderRole() external view returns (bytes32);
+    function authorizationExpirationExtenderRole()
+        external
+        view
+        returns (bytes32);
 
-    function whitelistExpirationSetterRole() external view returns (bytes32);
+    function authorizationExpirationSetterRole()
+        external
+        view
+        returns (bytes32);
 
-    function indefiniteWhitelisterRole() external view returns (bytes32);
+    function indefiniteAuthorizerRole() external view returns (bytes32);
 }

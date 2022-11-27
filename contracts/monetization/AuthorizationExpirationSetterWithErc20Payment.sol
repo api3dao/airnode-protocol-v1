@@ -2,23 +2,23 @@
 pragma solidity 0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./RequesterAuthorizerWhitelisterWithToken.sol";
-import "./interfaces/IRequesterAuthorizerWhitelisterWithTokenPayment.sol";
+import "./AuthorizerWithErc20.sol";
+import "./interfaces/IAuthorizationExpirationSetterWithErc20Payment.sol";
 import "../authorizers/interfaces/IRequesterAuthorizer.sol";
 
-/// @title RequesterAuthorizer whitelist setter contract that allows users to
-/// pay the respective token to be whitelisted
-contract RequesterAuthorizerWhitelisterWithTokenPayment is
-    RequesterAuthorizerWhitelisterWithToken,
-    IRequesterAuthorizerWhitelisterWithTokenPayment
+/// @title RequesterAuthorizer authorization expiration setter contract that
+/// allows users to pay the respective token to be authorized
+contract AuthorizationExpirationSetterWithErc20Payment is
+    AuthorizerWithErc20,
+    IAuthorizationExpirationSetterWithErc20Payment
 {
     using SafeERC20 for IERC20;
 
-    /// @notice Minimum whitelist extension
-    uint64 public override minimumWhitelistExtension = 1 days;
+    /// @notice Minimum authorization expiration extension
+    uint64 public override minimumAuthorizationExpiraitonExtension = 1 days;
 
-    /// @notice Maximum whitelist duration
-    uint64 public override maximumWhitelistDuration = 365 days;
+    /// @notice Maximum authorization duration
+    uint64 public override maximumAuthorizationExpiration = 365 days;
 
     uint256 private constant PRICING_INTERVAL = 30 days;
 
@@ -45,7 +45,7 @@ contract RequesterAuthorizerWhitelisterWithTokenPayment is
         uint256 _priceCoefficient,
         address _proceedsDestination
     )
-        RequesterAuthorizerWhitelisterWithToken(
+        AuthorizerWithErc20(
             _accessControlRegistry,
             _adminRoleDescription,
             _manager,
@@ -65,54 +65,57 @@ contract RequesterAuthorizerWhitelisterWithTokenPayment is
     }
 
     /// @notice Called by the maintainers or the manager to set the minimum
-    /// whitelist extension
-    /// @param _minimumWhitelistExtension Minimum whitelist extension
-    function setMinimumWhitelistExtension(uint64 _minimumWhitelistExtension)
-        external
-        override
-        onlyMaintainerOrManager
-    {
+    /// authorization expiration extension
+    /// @param _minimumAuthorizationExpiraitonExtension Minimum authorization
+    /// expiration extension
+    function setMinimumAuthorizationExpirationExtension(
+        uint64 _minimumAuthorizationExpiraitonExtension
+    ) external override onlyMaintainerOrManager {
         require(
-            _minimumWhitelistExtension <= maximumWhitelistDuration &&
-                _minimumWhitelistExtension != 0,
+            _minimumAuthorizationExpiraitonExtension <=
+                maximumAuthorizationExpiration &&
+                _minimumAuthorizationExpiraitonExtension != 0,
             "Invalid minimum duration"
         );
-        minimumWhitelistExtension = _minimumWhitelistExtension;
-        emit SetMinimumWhitelistExtension(
-            _minimumWhitelistExtension,
+        minimumAuthorizationExpiraitonExtension = _minimumAuthorizationExpiraitonExtension;
+        emit SetMinimumAuthorizationExpirationExtension(
+            _minimumAuthorizationExpiraitonExtension,
             msg.sender
         );
     }
 
     /// @notice Called by the maintainers or the manager to set the maximum
-    /// whitelist duration
-    /// @param _maximumWhitelistDuration Maximum whitelist duration
-    function setMaximumWhitelistDuration(uint64 _maximumWhitelistDuration)
-        external
-        override
-        onlyMaintainerOrManager
-    {
+    /// authorization expiration
+    /// @param _maximumAuthorizationExpiration Maximum authorization expiration
+    function setMaximumAuthorizationExpiration(
+        uint64 _maximumAuthorizationExpiration
+    ) external override onlyMaintainerOrManager {
         require(
-            _maximumWhitelistDuration >= minimumWhitelistExtension,
+            _maximumAuthorizationExpiration >=
+                minimumAuthorizationExpiraitonExtension,
             "Invalid maximum duration"
         );
-        maximumWhitelistDuration = _maximumWhitelistDuration;
-        emit SetMaximumWhitelistDuration(_maximumWhitelistDuration, msg.sender);
+        maximumAuthorizationExpiration = _maximumAuthorizationExpiration;
+        emit SetMaximumAuthorizationExpiration(
+            _maximumAuthorizationExpiration,
+            msg.sender
+        );
     }
 
-    /// @notice Pays tokens to extend the whitelist expiration of the requester
-    /// for the Airnode–endpoint pair on the chain
+    /// @notice Pays tokens to set the authorization expiration of the
+    /// requester for the Airnode–endpoint pair
     /// @param airnode Airnode address
     /// @param chainId Chain ID
     /// @param endpointId Endpoint ID
     /// @param requester Requester address
-    /// @param whitelistExtension Whitelist expiration
+    /// @param authorizationExpirationExtension Authorization expiration
+    /// extension
     function payTokens(
         address airnode,
         uint256 chainId,
         bytes32 endpointId,
         address requester,
-        uint64 whitelistExtension
+        uint64 authorizationExpirationExtension
     )
         external
         override
@@ -122,31 +125,32 @@ contract RequesterAuthorizerWhitelisterWithTokenPayment is
         onlyNonBlockedRequester(airnode, requester)
     {
         require(
-            whitelistExtension >= minimumWhitelistExtension,
+            authorizationExpirationExtension >=
+                minimumAuthorizationExpiraitonExtension,
             "Extension below minimum"
         );
         uint256 tokenPaymentAmount = getTokenPaymentAmount(
             airnode,
             chainId,
             endpointId,
-            whitelistExtension
+            authorizationExpirationExtension
         );
         IRequesterAuthorizer requesterAuthorizer = IRequesterAuthorizer(
             getRequesterAuthorizerAddress(chainId)
         );
         (uint64 currentExpirationTimestamp, ) = requesterAuthorizer
-            .airnodeToEndpointIdToRequesterToWhitelistStatus(
+            .airnodeToEndpointIdToRequesterToAuthorizationStatus(
                 airnode,
                 endpointId,
                 requester
             );
         uint64 newExpirationTimestamp = currentExpirationTimestamp >
             block.timestamp
-            ? currentExpirationTimestamp + whitelistExtension
-            : uint64(block.timestamp) + whitelistExtension;
+            ? currentExpirationTimestamp + authorizationExpirationExtension
+            : uint64(block.timestamp) + authorizationExpirationExtension;
         require(
             newExpirationTimestamp - block.timestamp <=
-                maximumWhitelistDuration,
+                maximumAuthorizationExpiration,
             "Exceeds maximum duration"
         );
         emit PaidTokens(
@@ -154,11 +158,11 @@ contract RequesterAuthorizerWhitelisterWithTokenPayment is
             chainId,
             endpointId,
             requester,
-            whitelistExtension,
+            authorizationExpirationExtension,
             msg.sender,
             newExpirationTimestamp
         );
-        requesterAuthorizer.setWhitelistExpiration(
+        requesterAuthorizer.setAuthorizationExpiration(
             airnode,
             endpointId,
             requester,
@@ -171,13 +175,13 @@ contract RequesterAuthorizerWhitelisterWithTokenPayment is
         );
     }
 
-    /// @notice Resets the whitelist expiration of the blocked requester for
-    /// the Airnode–endpoint pair on the chain
+    /// @notice Resets the authorization expiration of the blocked requester
+    /// for the Airnode–endpoint pair
     /// @param airnode Airnode address
     /// @param chainId Chain ID
     /// @param endpointId Endpoint ID
     /// @param requester Requester address
-    function resetWhitelistExpirationOfBlockedRequester(
+    function resetAuthorizationExpirationOfBlockedRequester(
         address airnode,
         uint256 chainId,
         bytes32 endpointId,
@@ -187,7 +191,7 @@ contract RequesterAuthorizerWhitelisterWithTokenPayment is
             requesterIsBlocked(airnode, requester),
             "Requester not blocked"
         );
-        emit ResetWhitelistExpirationOfBlockedRequester(
+        emit ResetAuthorizationExpirationOfBlockedRequester(
             airnode,
             chainId,
             endpointId,
@@ -195,25 +199,26 @@ contract RequesterAuthorizerWhitelisterWithTokenPayment is
             msg.sender
         );
         IRequesterAuthorizer(getRequesterAuthorizerAddress(chainId))
-            .setWhitelistExpiration(airnode, endpointId, requester, 0);
+            .setAuthorizationExpiration(airnode, endpointId, requester, 0);
     }
 
-    /// @notice Amount of tokens needed to be paid to extend the whitelist
-    /// expiration for the Airnode–endpoint pair on the chain
+    /// @notice Amount of tokens needed to be paid to extend the authorization
+    /// expiration for the Airnode–endpoint pair
     /// @param airnode Airnode address
     /// @param chainId Chain ID
     /// @param endpointId Endpoint ID
-    /// @param whitelistExtension Whitelist extension
+    /// @param authorizationExpirationExtension Authorization expiration
+    /// extension
     /// @return tokenPaymentAmount Token amount needed to be paid
     function getTokenPaymentAmount(
         address airnode,
         uint256 chainId,
         bytes32 endpointId,
-        uint64 whitelistExtension
+        uint64 authorizationExpirationExtension
     ) public view override returns (uint256 tokenPaymentAmount) {
         tokenPaymentAmount =
             (getTokenAmount(airnode, chainId, endpointId) *
-                whitelistExtension) /
+                authorizationExpirationExtension) /
             PRICING_INTERVAL;
     }
 }

@@ -2,17 +2,16 @@ const hre = require('hardhat');
 const { expect } = require('chai');
 const testUtils = require('../test-utils');
 
-describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
+describe('IndefiniteAuthorizerWithErc20Deposit', function () {
   let roles;
   let expiringMetaCallForwarder,
     accessControlRegistry,
     airnodeEndpointPriceRegistry,
     requesterAuthorizerRegistry,
     requesterAuthorizerWithManager,
-    requesterAuthorizerWhitelisterWithTokenDeposit,
+    indefiniteAuthorizerWithErc20Deposit,
     token;
-  let requesterAuthorizerWhitelisterWithTokenDepositAdminRoleDescription =
-    'RequesterAuthorizerWhitelisterWithTokenDeposit admin';
+  let indefiniteAuthorizerWithErc20DepositAdminRoleDescription = 'IndefiniteAuthorizerWithErc20Deposit admin';
   let tokenDecimals = 12;
   let tokenPrice = hre.ethers.BigNumber.from(`5${'0'.repeat(18)}`); // $5
   let priceCoefficient = hre.ethers.BigNumber.from(`2${'0'.repeat(tokenDecimals)}`); // 2x
@@ -73,13 +72,13 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
       .registerChainRequesterAuthorizer(chainId, requesterAuthorizerWithManager.address);
     const tokenFactory = await hre.ethers.getContractFactory('MockERC20', roles.deployer);
     token = await tokenFactory.deploy(tokenDecimals);
-    const requesterAuthorizerWhitelisterWithTokenDepositFactory = await hre.ethers.getContractFactory(
-      'RequesterAuthorizerWhitelisterWithTokenDeposit',
+    const indefiniteAuthorizerWithErc20DepositFactory = await hre.ethers.getContractFactory(
+      'IndefiniteAuthorizerWithErc20Deposit',
       roles.deployer
     );
-    requesterAuthorizerWhitelisterWithTokenDeposit = await requesterAuthorizerWhitelisterWithTokenDepositFactory.deploy(
+    indefiniteAuthorizerWithErc20Deposit = await indefiniteAuthorizerWithErc20DepositFactory.deploy(
       accessControlRegistry.address,
-      requesterAuthorizerWhitelisterWithTokenDepositAdminRoleDescription,
+      indefiniteAuthorizerWithErc20DepositAdminRoleDescription,
       roles.manager.address,
       airnodeEndpointPriceRegistry.address,
       requesterAuthorizerRegistry.address,
@@ -93,39 +92,33 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
     await accessControlRegistry
       .connect(roles.manager)
       .initializeRoleAndGrantToSender(managerRootRole, await requesterAuthorizerWithManager.adminRoleDescription());
-    const indefiniteWhitelisterRole = await requesterAuthorizerWithManager.indefiniteWhitelisterRole();
+    const indefiniteAuthorizerRole = await requesterAuthorizerWithManager.indefiniteAuthorizerRole();
     await accessControlRegistry
       .connect(roles.manager)
       .initializeRoleAndGrantToSender(
         await requesterAuthorizerWithManager.adminRole(),
-        await requesterAuthorizerWithManager.INDEFINITE_WHITELISTER_ROLE_DESCRIPTION()
+        await requesterAuthorizerWithManager.INDEFINITE_AUTHORIZER_ROLE_DESCRIPTION()
       );
     await accessControlRegistry
       .connect(roles.manager)
-      .grantRole(indefiniteWhitelisterRole, requesterAuthorizerWhitelisterWithTokenDeposit.address);
+      .grantRole(indefiniteAuthorizerRole, indefiniteAuthorizerWithErc20Deposit.address);
 
-    const adminRole = await requesterAuthorizerWhitelisterWithTokenDeposit.adminRole();
+    const adminRole = await indefiniteAuthorizerWithErc20Deposit.adminRole();
     await accessControlRegistry
       .connect(roles.manager)
-      .initializeRoleAndGrantToSender(
-        managerRootRole,
-        requesterAuthorizerWhitelisterWithTokenDepositAdminRoleDescription
-      );
-    const maintainerRole = await requesterAuthorizerWhitelisterWithTokenDeposit.maintainerRole();
+      .initializeRoleAndGrantToSender(managerRootRole, indefiniteAuthorizerWithErc20DepositAdminRoleDescription);
+    const maintainerRole = await indefiniteAuthorizerWithErc20Deposit.maintainerRole();
     await accessControlRegistry
       .connect(roles.manager)
       .initializeRoleAndGrantToSender(
         adminRole,
-        await requesterAuthorizerWhitelisterWithTokenDeposit.MAINTAINER_ROLE_DESCRIPTION()
+        await indefiniteAuthorizerWithErc20Deposit.MAINTAINER_ROLE_DESCRIPTION()
       );
     await accessControlRegistry.connect(roles.manager).grantRole(maintainerRole, roles.maintainer.address);
-    const blockerRole = await requesterAuthorizerWhitelisterWithTokenDeposit.blockerRole();
+    const blockerRole = await indefiniteAuthorizerWithErc20Deposit.blockerRole();
     await accessControlRegistry
       .connect(roles.manager)
-      .initializeRoleAndGrantToSender(
-        adminRole,
-        await requesterAuthorizerWhitelisterWithTokenDeposit.BLOCKER_ROLE_DESCRIPTION()
-      );
+      .initializeRoleAndGrantToSender(adminRole, await indefiniteAuthorizerWithErc20Deposit.BLOCKER_ROLE_DESCRIPTION());
     await accessControlRegistry.connect(roles.manager).grantRole(blockerRole, roles.blocker.address);
     await token.connect(roles.deployer).transfer(roles.depositor.address, hre.ethers.utils.parseEther('1'));
     await token.connect(roles.deployer).transfer(roles.anotherDepositor.address, hre.ethers.utils.parseEther('1'));
@@ -139,11 +132,11 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
             context('Price denomination matches with the registry', function () {
               context('Price decimals matches with the registry', function () {
                 it('constructs', async function () {
-                  const adminRole = await requesterAuthorizerWhitelisterWithTokenDeposit.adminRole();
-                  expect(await requesterAuthorizerWhitelisterWithTokenDeposit.MAINTAINER_ROLE_DESCRIPTION()).to.equal(
+                  const adminRole = await indefiniteAuthorizerWithErc20Deposit.adminRole();
+                  expect(await indefiniteAuthorizerWithErc20Deposit.MAINTAINER_ROLE_DESCRIPTION()).to.equal(
                     'Maintainer'
                   );
-                  expect(await requesterAuthorizerWhitelisterWithTokenDeposit.maintainerRole()).to.equal(
+                  expect(await indefiniteAuthorizerWithErc20Deposit.maintainerRole()).to.equal(
                     hre.ethers.utils.keccak256(
                       hre.ethers.utils.solidityPack(
                         ['bytes32', 'bytes32'],
@@ -154,10 +147,8 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                       )
                     )
                   );
-                  expect(await requesterAuthorizerWhitelisterWithTokenDeposit.BLOCKER_ROLE_DESCRIPTION()).to.equal(
-                    'Blocker'
-                  );
-                  expect(await requesterAuthorizerWhitelisterWithTokenDeposit.blockerRole()).to.equal(
+                  expect(await indefiniteAuthorizerWithErc20Deposit.BLOCKER_ROLE_DESCRIPTION()).to.equal('Blocker');
+                  expect(await indefiniteAuthorizerWithErc20Deposit.blockerRole()).to.equal(
                     hre.ethers.utils.keccak256(
                       hre.ethers.utils.solidityPack(
                         ['bytes32', 'bytes32'],
@@ -165,15 +156,13 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                       )
                     )
                   );
-                  expect(await requesterAuthorizerWhitelisterWithTokenDeposit.token()).to.equal(token.address);
-                  expect(await requesterAuthorizerWhitelisterWithTokenDeposit.tokenPrice()).to.equal(tokenPrice);
-                  expect(await requesterAuthorizerWhitelisterWithTokenDeposit.priceCoefficient()).to.equal(
-                    priceCoefficient
-                  );
-                  expect(await requesterAuthorizerWhitelisterWithTokenDeposit.proceedsDestination()).to.equal(
+                  expect(await indefiniteAuthorizerWithErc20Deposit.token()).to.equal(token.address);
+                  expect(await indefiniteAuthorizerWithErc20Deposit.tokenPrice()).to.equal(tokenPrice);
+                  expect(await indefiniteAuthorizerWithErc20Deposit.priceCoefficient()).to.equal(priceCoefficient);
+                  expect(await indefiniteAuthorizerWithErc20Deposit.proceedsDestination()).to.equal(
                     roles.proceedsDestination.address
                   );
-                  expect(await requesterAuthorizerWhitelisterWithTokenDeposit.withdrawalLeadTime()).to.equal(0);
+                  expect(await indefiniteAuthorizerWithErc20Deposit.withdrawalLeadTime()).to.equal(0);
                 });
               });
               context('Price decimals does not match with the registry', function () {
@@ -187,14 +176,14 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                     12,
                     30 * 24 * 60 * 60
                   );
-                  const requesterAuthorizerWhitelisterWithTokenDepositFactory = await hre.ethers.getContractFactory(
-                    'RequesterAuthorizerWhitelisterWithTokenDeposit',
+                  const indefiniteAuthorizerWithErc20DepositFactory = await hre.ethers.getContractFactory(
+                    'IndefiniteAuthorizerWithErc20Deposit',
                     roles.deployer
                   );
                   await expect(
-                    requesterAuthorizerWhitelisterWithTokenDepositFactory.deploy(
+                    indefiniteAuthorizerWithErc20DepositFactory.deploy(
                       accessControlRegistry.address,
-                      requesterAuthorizerWhitelisterWithTokenDepositAdminRoleDescription,
+                      indefiniteAuthorizerWithErc20DepositAdminRoleDescription,
                       roles.manager.address,
                       mockAirnodeEndpointPriceRegistry.address,
                       requesterAuthorizerRegistry.address,
@@ -218,14 +207,14 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                   18,
                   30 * 24 * 60 * 60
                 );
-                const requesterAuthorizerWhitelisterWithTokenDepositFactory = await hre.ethers.getContractFactory(
-                  'RequesterAuthorizerWhitelisterWithTokenDeposit',
+                const indefiniteAuthorizerWithErc20DepositFactory = await hre.ethers.getContractFactory(
+                  'IndefiniteAuthorizerWithErc20Deposit',
                   roles.deployer
                 );
                 await expect(
-                  requesterAuthorizerWhitelisterWithTokenDepositFactory.deploy(
+                  indefiniteAuthorizerWithErc20DepositFactory.deploy(
                     accessControlRegistry.address,
-                    requesterAuthorizerWhitelisterWithTokenDepositAdminRoleDescription,
+                    indefiniteAuthorizerWithErc20DepositAdminRoleDescription,
                     roles.manager.address,
                     mockAirnodeEndpointPriceRegistry.address,
                     requesterAuthorizerRegistry.address,
@@ -240,14 +229,14 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
           });
           context('Proceeds destination is zero', function () {
             it('reverts', async function () {
-              const requesterAuthorizerWhitelisterWithTokenDepositFactory = await hre.ethers.getContractFactory(
-                'RequesterAuthorizerWhitelisterWithTokenDeposit',
+              const indefiniteAuthorizerWithErc20DepositFactory = await hre.ethers.getContractFactory(
+                'IndefiniteAuthorizerWithErc20Deposit',
                 roles.deployer
               );
               await expect(
-                requesterAuthorizerWhitelisterWithTokenDepositFactory.deploy(
+                indefiniteAuthorizerWithErc20DepositFactory.deploy(
                   accessControlRegistry.address,
-                  requesterAuthorizerWhitelisterWithTokenDepositAdminRoleDescription,
+                  indefiniteAuthorizerWithErc20DepositAdminRoleDescription,
                   roles.manager.address,
                   airnodeEndpointPriceRegistry.address,
                   requesterAuthorizerRegistry.address,
@@ -262,14 +251,14 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
         });
         context('Price coefficient is zero', function () {
           it('reverts', async function () {
-            const requesterAuthorizerWhitelisterWithTokenDepositFactory = await hre.ethers.getContractFactory(
-              'RequesterAuthorizerWhitelisterWithTokenDeposit',
+            const indefiniteAuthorizerWithErc20DepositFactory = await hre.ethers.getContractFactory(
+              'IndefiniteAuthorizerWithErc20Deposit',
               roles.deployer
             );
             await expect(
-              requesterAuthorizerWhitelisterWithTokenDepositFactory.deploy(
+              indefiniteAuthorizerWithErc20DepositFactory.deploy(
                 accessControlRegistry.address,
-                requesterAuthorizerWhitelisterWithTokenDepositAdminRoleDescription,
+                indefiniteAuthorizerWithErc20DepositAdminRoleDescription,
                 roles.manager.address,
                 airnodeEndpointPriceRegistry.address,
                 requesterAuthorizerRegistry.address,
@@ -284,14 +273,14 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
       });
       context('Token price is zero', function () {
         it('reverts', async function () {
-          const requesterAuthorizerWhitelisterWithTokenDepositFactory = await hre.ethers.getContractFactory(
-            'RequesterAuthorizerWhitelisterWithTokenDeposit',
+          const indefiniteAuthorizerWithErc20DepositFactory = await hre.ethers.getContractFactory(
+            'IndefiniteAuthorizerWithErc20Deposit',
             roles.deployer
           );
           await expect(
-            requesterAuthorizerWhitelisterWithTokenDepositFactory.deploy(
+            indefiniteAuthorizerWithErc20DepositFactory.deploy(
               accessControlRegistry.address,
-              requesterAuthorizerWhitelisterWithTokenDepositAdminRoleDescription,
+              indefiniteAuthorizerWithErc20DepositAdminRoleDescription,
               roles.manager.address,
               airnodeEndpointPriceRegistry.address,
               requesterAuthorizerRegistry.address,
@@ -306,14 +295,14 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
     });
     context('Token address is zero', function () {
       it('reverts', async function () {
-        const requesterAuthorizerWhitelisterWithTokenDepositFactory = await hre.ethers.getContractFactory(
-          'RequesterAuthorizerWhitelisterWithTokenDeposit',
+        const indefiniteAuthorizerWithErc20DepositFactory = await hre.ethers.getContractFactory(
+          'IndefiniteAuthorizerWithErc20Deposit',
           roles.deployer
         );
         await expect(
-          requesterAuthorizerWhitelisterWithTokenDepositFactory.deploy(
+          indefiniteAuthorizerWithErc20DepositFactory.deploy(
             accessControlRegistry.address,
-            requesterAuthorizerWhitelisterWithTokenDepositAdminRoleDescription,
+            indefiniteAuthorizerWithErc20DepositAdminRoleDescription,
             roles.manager.address,
             airnodeEndpointPriceRegistry.address,
             requesterAuthorizerRegistry.address,
@@ -331,16 +320,16 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
     context('Sender is maintainer', function () {
       context('Token price is not zero', function () {
         it('sets token price', async function () {
-          await expect(requesterAuthorizerWhitelisterWithTokenDeposit.connect(roles.maintainer).setTokenPrice(123))
-            .to.emit(requesterAuthorizerWhitelisterWithTokenDeposit, 'SetTokenPrice')
+          await expect(indefiniteAuthorizerWithErc20Deposit.connect(roles.maintainer).setTokenPrice(123))
+            .to.emit(indefiniteAuthorizerWithErc20Deposit, 'SetTokenPrice')
             .withArgs(123, roles.maintainer.address);
-          expect(await requesterAuthorizerWhitelisterWithTokenDeposit.tokenPrice()).to.equal(123);
+          expect(await indefiniteAuthorizerWithErc20Deposit.tokenPrice()).to.equal(123);
         });
       });
       context('Token price is zero', function () {
         it('reverts', async function () {
           await expect(
-            requesterAuthorizerWhitelisterWithTokenDeposit.connect(roles.maintainer).setTokenPrice(0)
+            indefiniteAuthorizerWithErc20Deposit.connect(roles.maintainer).setTokenPrice(0)
           ).to.be.revertedWith('Token price zero');
         });
       });
@@ -348,24 +337,24 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
     context('Sender is manager', function () {
       context('Token price is not zero', function () {
         it('sets token price', async function () {
-          await expect(requesterAuthorizerWhitelisterWithTokenDeposit.connect(roles.manager).setTokenPrice(123))
-            .to.emit(requesterAuthorizerWhitelisterWithTokenDeposit, 'SetTokenPrice')
+          await expect(indefiniteAuthorizerWithErc20Deposit.connect(roles.manager).setTokenPrice(123))
+            .to.emit(indefiniteAuthorizerWithErc20Deposit, 'SetTokenPrice')
             .withArgs(123, roles.manager.address);
-          expect(await requesterAuthorizerWhitelisterWithTokenDeposit.tokenPrice()).to.equal(123);
+          expect(await indefiniteAuthorizerWithErc20Deposit.tokenPrice()).to.equal(123);
         });
       });
       context('Token price is zero', function () {
         it('reverts', async function () {
-          await expect(
-            requesterAuthorizerWhitelisterWithTokenDeposit.connect(roles.manager).setTokenPrice(0)
-          ).to.be.revertedWith('Token price zero');
+          await expect(indefiniteAuthorizerWithErc20Deposit.connect(roles.manager).setTokenPrice(0)).to.be.revertedWith(
+            'Token price zero'
+          );
         });
       });
     });
     context('Sender is not maintainer and manager', function () {
       it('reverts', async function () {
         await expect(
-          requesterAuthorizerWhitelisterWithTokenDeposit.connect(roles.randomPerson).setTokenPrice(123)
+          indefiniteAuthorizerWithErc20Deposit.connect(roles.randomPerson).setTokenPrice(123)
         ).to.be.revertedWith('Sender cannot maintain');
       });
     });
@@ -375,18 +364,16 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
     context('Sender is maintainer', function () {
       context('Price coefficient is not zero', function () {
         it('sets price coefficient', async function () {
-          await expect(
-            requesterAuthorizerWhitelisterWithTokenDeposit.connect(roles.maintainer).setPriceCoefficient(123)
-          )
-            .to.emit(requesterAuthorizerWhitelisterWithTokenDeposit, 'SetPriceCoefficient')
+          await expect(indefiniteAuthorizerWithErc20Deposit.connect(roles.maintainer).setPriceCoefficient(123))
+            .to.emit(indefiniteAuthorizerWithErc20Deposit, 'SetPriceCoefficient')
             .withArgs(123, roles.maintainer.address);
-          expect(await requesterAuthorizerWhitelisterWithTokenDeposit.priceCoefficient()).to.equal(123);
+          expect(await indefiniteAuthorizerWithErc20Deposit.priceCoefficient()).to.equal(123);
         });
       });
       context('Price coefficient is zero', function () {
         it('reverts', async function () {
           await expect(
-            requesterAuthorizerWhitelisterWithTokenDeposit.connect(roles.maintainer).setPriceCoefficient(0)
+            indefiniteAuthorizerWithErc20Deposit.connect(roles.maintainer).setPriceCoefficient(0)
           ).to.be.revertedWith('Price coefficient zero');
         });
       });
@@ -394,16 +381,16 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
     context('Sender is manager', function () {
       context('Price coefficient is not zero', function () {
         it('sets price coefficient', async function () {
-          await expect(requesterAuthorizerWhitelisterWithTokenDeposit.connect(roles.manager).setPriceCoefficient(123))
-            .to.emit(requesterAuthorizerWhitelisterWithTokenDeposit, 'SetPriceCoefficient')
+          await expect(indefiniteAuthorizerWithErc20Deposit.connect(roles.manager).setPriceCoefficient(123))
+            .to.emit(indefiniteAuthorizerWithErc20Deposit, 'SetPriceCoefficient')
             .withArgs(123, roles.manager.address);
-          expect(await requesterAuthorizerWhitelisterWithTokenDeposit.priceCoefficient()).to.equal(123);
+          expect(await indefiniteAuthorizerWithErc20Deposit.priceCoefficient()).to.equal(123);
         });
       });
       context('Price coefficient is zero', function () {
         it('reverts', async function () {
           await expect(
-            requesterAuthorizerWhitelisterWithTokenDeposit.connect(roles.manager).setPriceCoefficient(0)
+            indefiniteAuthorizerWithErc20Deposit.connect(roles.manager).setPriceCoefficient(0)
           ).to.be.revertedWith('Price coefficient zero');
         });
       });
@@ -411,7 +398,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
     context('Sender is not maintainer and manager', function () {
       it('reverts', async function () {
         await expect(
-          requesterAuthorizerWhitelisterWithTokenDeposit.connect(roles.randomPerson).setPriceCoefficient(123)
+          indefiniteAuthorizerWithErc20Deposit.connect(roles.randomPerson).setPriceCoefficient(123)
         ).to.be.revertedWith('Sender cannot maintain');
       });
     });
@@ -423,31 +410,31 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
         context('Status is not Active', function () {
           it('sets Airnode participation status', async function () {
             await expect(
-              requesterAuthorizerWhitelisterWithTokenDeposit
+              indefiniteAuthorizerWithErc20Deposit
                 .connect(roles.airnode)
                 .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.OptedOut)
             )
-              .to.emit(requesterAuthorizerWhitelisterWithTokenDeposit, 'SetAirnodeParticipationStatus')
+              .to.emit(indefiniteAuthorizerWithErc20Deposit, 'SetAirnodeParticipationStatus')
               .withArgs(roles.airnode.address, AirnodeParticipationStatus.OptedOut, roles.airnode.address);
             expect(
-              await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToParticipationStatus(roles.airnode.address)
+              await indefiniteAuthorizerWithErc20Deposit.airnodeToParticipationStatus(roles.airnode.address)
             ).to.equal(AirnodeParticipationStatus.OptedOut);
             await expect(
-              requesterAuthorizerWhitelisterWithTokenDeposit
+              indefiniteAuthorizerWithErc20Deposit
                 .connect(roles.airnode)
                 .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Inactive)
             )
-              .to.emit(requesterAuthorizerWhitelisterWithTokenDeposit, 'SetAirnodeParticipationStatus')
+              .to.emit(indefiniteAuthorizerWithErc20Deposit, 'SetAirnodeParticipationStatus')
               .withArgs(roles.airnode.address, AirnodeParticipationStatus.Inactive, roles.airnode.address);
             expect(
-              await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToParticipationStatus(roles.airnode.address)
+              await indefiniteAuthorizerWithErc20Deposit.airnodeToParticipationStatus(roles.airnode.address)
             ).to.equal(AirnodeParticipationStatus.Inactive);
           });
         });
         context('Status is Active', function () {
           it('reverts', async function () {
             await expect(
-              requesterAuthorizerWhitelisterWithTokenDeposit
+              indefiniteAuthorizerWithErc20Deposit
                 .connect(roles.airnode)
                 .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active)
             ).to.be.revertedWith('Airnode cannot activate itself');
@@ -459,39 +446,39 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
           context('Airnode has not opted out', function () {
             it('sets Airnode participation status', async function () {
               await expect(
-                requesterAuthorizerWhitelisterWithTokenDeposit
+                indefiniteAuthorizerWithErc20Deposit
                   .connect(roles.maintainer)
                   .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active)
               )
-                .to.emit(requesterAuthorizerWhitelisterWithTokenDeposit, 'SetAirnodeParticipationStatus')
+                .to.emit(indefiniteAuthorizerWithErc20Deposit, 'SetAirnodeParticipationStatus')
                 .withArgs(roles.airnode.address, AirnodeParticipationStatus.Active, roles.maintainer.address);
               expect(
-                await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToParticipationStatus(roles.airnode.address)
+                await indefiniteAuthorizerWithErc20Deposit.airnodeToParticipationStatus(roles.airnode.address)
               ).to.equal(AirnodeParticipationStatus.Active);
               await expect(
-                requesterAuthorizerWhitelisterWithTokenDeposit
+                indefiniteAuthorizerWithErc20Deposit
                   .connect(roles.maintainer)
                   .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Inactive)
               )
-                .to.emit(requesterAuthorizerWhitelisterWithTokenDeposit, 'SetAirnodeParticipationStatus')
+                .to.emit(indefiniteAuthorizerWithErc20Deposit, 'SetAirnodeParticipationStatus')
                 .withArgs(roles.airnode.address, AirnodeParticipationStatus.Inactive, roles.maintainer.address);
               expect(
-                await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToParticipationStatus(roles.airnode.address)
+                await indefiniteAuthorizerWithErc20Deposit.airnodeToParticipationStatus(roles.airnode.address)
               ).to.equal(AirnodeParticipationStatus.Inactive);
             });
           });
           context('Airnode has opted out', function () {
             it('reverts', async function () {
-              await requesterAuthorizerWhitelisterWithTokenDeposit
+              await indefiniteAuthorizerWithErc20Deposit
                 .connect(roles.airnode)
                 .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.OptedOut);
               await expect(
-                requesterAuthorizerWhitelisterWithTokenDeposit
+                indefiniteAuthorizerWithErc20Deposit
                   .connect(roles.maintainer)
                   .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active)
               ).to.be.revertedWith('Airnode opted out');
               await expect(
-                requesterAuthorizerWhitelisterWithTokenDeposit
+                indefiniteAuthorizerWithErc20Deposit
                   .connect(roles.maintainer)
                   .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Inactive)
               ).to.be.revertedWith('Airnode opted out');
@@ -501,7 +488,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
         context('Status is OptedOut', function () {
           it('reverts', async function () {
             await expect(
-              requesterAuthorizerWhitelisterWithTokenDeposit
+              indefiniteAuthorizerWithErc20Deposit
                 .connect(roles.maintainer)
                 .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.OptedOut)
             ).to.be.revertedWith('Only Airnode can opt out');
@@ -513,39 +500,39 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
           context('Airnode has not opted out', function () {
             it('sets Airnode participation status', async function () {
               await expect(
-                requesterAuthorizerWhitelisterWithTokenDeposit
+                indefiniteAuthorizerWithErc20Deposit
                   .connect(roles.manager)
                   .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active)
               )
-                .to.emit(requesterAuthorizerWhitelisterWithTokenDeposit, 'SetAirnodeParticipationStatus')
+                .to.emit(indefiniteAuthorizerWithErc20Deposit, 'SetAirnodeParticipationStatus')
                 .withArgs(roles.airnode.address, AirnodeParticipationStatus.Active, roles.manager.address);
               expect(
-                await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToParticipationStatus(roles.airnode.address)
+                await indefiniteAuthorizerWithErc20Deposit.airnodeToParticipationStatus(roles.airnode.address)
               ).to.equal(AirnodeParticipationStatus.Active);
               await expect(
-                requesterAuthorizerWhitelisterWithTokenDeposit
+                indefiniteAuthorizerWithErc20Deposit
                   .connect(roles.manager)
                   .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Inactive)
               )
-                .to.emit(requesterAuthorizerWhitelisterWithTokenDeposit, 'SetAirnodeParticipationStatus')
+                .to.emit(indefiniteAuthorizerWithErc20Deposit, 'SetAirnodeParticipationStatus')
                 .withArgs(roles.airnode.address, AirnodeParticipationStatus.Inactive, roles.manager.address);
               expect(
-                await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToParticipationStatus(roles.airnode.address)
+                await indefiniteAuthorizerWithErc20Deposit.airnodeToParticipationStatus(roles.airnode.address)
               ).to.equal(AirnodeParticipationStatus.Inactive);
             });
           });
           context('Airnode has opted out', function () {
             it('reverts', async function () {
-              await requesterAuthorizerWhitelisterWithTokenDeposit
+              await indefiniteAuthorizerWithErc20Deposit
                 .connect(roles.airnode)
                 .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.OptedOut);
               await expect(
-                requesterAuthorizerWhitelisterWithTokenDeposit
+                indefiniteAuthorizerWithErc20Deposit
                   .connect(roles.manager)
                   .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active)
               ).to.be.revertedWith('Airnode opted out');
               await expect(
-                requesterAuthorizerWhitelisterWithTokenDeposit
+                indefiniteAuthorizerWithErc20Deposit
                   .connect(roles.manager)
                   .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Inactive)
               ).to.be.revertedWith('Airnode opted out');
@@ -555,7 +542,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
         context('Status is OptedOut', function () {
           it('reverts', async function () {
             await expect(
-              requesterAuthorizerWhitelisterWithTokenDeposit
+              indefiniteAuthorizerWithErc20Deposit
                 .connect(roles.manager)
                 .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.OptedOut)
             ).to.be.revertedWith('Only Airnode can opt out');
@@ -565,17 +552,17 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
       context('Sender is not maintainer and manager', function () {
         it('reverts', async function () {
           await expect(
-            requesterAuthorizerWhitelisterWithTokenDeposit
+            indefiniteAuthorizerWithErc20Deposit
               .connect(roles.randomPerson)
               .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Inactive)
           ).to.be.revertedWith('Sender cannot maintain');
           await expect(
-            requesterAuthorizerWhitelisterWithTokenDeposit
+            indefiniteAuthorizerWithErc20Deposit
               .connect(roles.randomPerson)
               .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active)
           ).to.be.revertedWith('Sender cannot maintain');
           await expect(
-            requesterAuthorizerWhitelisterWithTokenDeposit
+            indefiniteAuthorizerWithErc20Deposit
               .connect(roles.randomPerson)
               .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.OptedOut)
           ).to.be.revertedWith('Sender cannot maintain');
@@ -585,17 +572,17 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
     context('Airnode address is zero', function () {
       it('reverts', async function () {
         await expect(
-          requesterAuthorizerWhitelisterWithTokenDeposit
+          indefiniteAuthorizerWithErc20Deposit
             .connect(roles.maintainer)
             .setAirnodeParticipationStatus(hre.ethers.constants.AddressZero, AirnodeParticipationStatus.Inactive)
         ).to.be.revertedWith('Airnode address zero');
         await expect(
-          requesterAuthorizerWhitelisterWithTokenDeposit
+          indefiniteAuthorizerWithErc20Deposit
             .connect(roles.maintainer)
             .setAirnodeParticipationStatus(hre.ethers.constants.AddressZero, AirnodeParticipationStatus.Active)
         ).to.be.revertedWith('Airnode address zero');
         await expect(
-          requesterAuthorizerWhitelisterWithTokenDeposit
+          indefiniteAuthorizerWithErc20Deposit
             .connect(roles.maintainer)
             .setAirnodeParticipationStatus(hre.ethers.constants.AddressZero, AirnodeParticipationStatus.OptedOut)
         ).to.be.revertedWith('Airnode address zero');
@@ -609,24 +596,18 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
         it('sets proceeds destination', async function () {
           const proceedsDestination = testUtils.generateRandomAddress();
           await expect(
-            requesterAuthorizerWhitelisterWithTokenDeposit
-              .connect(roles.manager)
-              .setProceedsDestination(proceedsDestination)
+            indefiniteAuthorizerWithErc20Deposit.connect(roles.manager).setProceedsDestination(proceedsDestination)
           )
-            .to.emit(requesterAuthorizerWhitelisterWithTokenDeposit, 'SetProceedsDestination')
+            .to.emit(indefiniteAuthorizerWithErc20Deposit, 'SetProceedsDestination')
             .withArgs(proceedsDestination);
-          expect(await requesterAuthorizerWhitelisterWithTokenDeposit.proceedsDestination()).to.equal(
-            proceedsDestination
-          );
+          expect(await indefiniteAuthorizerWithErc20Deposit.proceedsDestination()).to.equal(proceedsDestination);
         });
       });
       context('Proceeds destination is zero', function () {
         it('reverts', async function () {
           const proceedsDestination = hre.ethers.constants.AddressZero;
           await expect(
-            requesterAuthorizerWhitelisterWithTokenDeposit
-              .connect(roles.manager)
-              .setProceedsDestination(proceedsDestination)
+            indefiniteAuthorizerWithErc20Deposit.connect(roles.manager).setProceedsDestination(proceedsDestination)
           ).to.be.revertedWith('Proceeds destination zero');
         });
       });
@@ -635,14 +616,10 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
       it('reverts', async function () {
         const proceedsDestination = testUtils.generateRandomAddress();
         await expect(
-          requesterAuthorizerWhitelisterWithTokenDeposit
-            .connect(roles.randomPerson)
-            .setProceedsDestination(proceedsDestination)
+          indefiniteAuthorizerWithErc20Deposit.connect(roles.randomPerson).setProceedsDestination(proceedsDestination)
         ).to.be.revertedWith('Sender not manager');
         await expect(
-          requesterAuthorizerWhitelisterWithTokenDeposit
-            .connect(roles.maintainer)
-            .setProceedsDestination(proceedsDestination)
+          indefiniteAuthorizerWithErc20Deposit.connect(roles.maintainer).setProceedsDestination(proceedsDestination)
         ).to.be.revertedWith('Sender not manager');
       });
     });
@@ -654,32 +631,24 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
         it('sets requester block status', async function () {
           const requester = testUtils.generateRandomAddress();
           await expect(
-            requesterAuthorizerWhitelisterWithTokenDeposit
-              .connect(roles.blocker)
-              .setRequesterBlockStatus(requester, true)
+            indefiniteAuthorizerWithErc20Deposit.connect(roles.blocker).setRequesterBlockStatus(requester, true)
           )
-            .to.emit(requesterAuthorizerWhitelisterWithTokenDeposit, 'SetRequesterBlockStatus')
+            .to.emit(indefiniteAuthorizerWithErc20Deposit, 'SetRequesterBlockStatus')
             .withArgs(requester, true, roles.blocker.address);
-          expect(await requesterAuthorizerWhitelisterWithTokenDeposit.requesterToBlockStatus(requester)).to.equal(true);
+          expect(await indefiniteAuthorizerWithErc20Deposit.requesterToBlockStatus(requester)).to.equal(true);
           await expect(
-            requesterAuthorizerWhitelisterWithTokenDeposit
-              .connect(roles.blocker)
-              .setRequesterBlockStatus(requester, false)
+            indefiniteAuthorizerWithErc20Deposit.connect(roles.blocker).setRequesterBlockStatus(requester, false)
           )
-            .to.emit(requesterAuthorizerWhitelisterWithTokenDeposit, 'SetRequesterBlockStatus')
+            .to.emit(indefiniteAuthorizerWithErc20Deposit, 'SetRequesterBlockStatus')
             .withArgs(requester, false, roles.blocker.address);
-          expect(await requesterAuthorizerWhitelisterWithTokenDeposit.requesterToBlockStatus(requester)).to.equal(
-            false
-          );
+          expect(await indefiniteAuthorizerWithErc20Deposit.requesterToBlockStatus(requester)).to.equal(false);
         });
       });
       context('Requester address is zero', function () {
         it('reverts', async function () {
           const requester = hre.ethers.constants.AddressZero;
           await expect(
-            requesterAuthorizerWhitelisterWithTokenDeposit
-              .connect(roles.blocker)
-              .setRequesterBlockStatus(requester, true)
+            indefiniteAuthorizerWithErc20Deposit.connect(roles.blocker).setRequesterBlockStatus(requester, true)
           ).to.be.revertedWith('Requester address zero');
         });
       });
@@ -689,32 +658,24 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
         it('sets requester block status', async function () {
           const requester = testUtils.generateRandomAddress();
           await expect(
-            requesterAuthorizerWhitelisterWithTokenDeposit
-              .connect(roles.manager)
-              .setRequesterBlockStatus(requester, true)
+            indefiniteAuthorizerWithErc20Deposit.connect(roles.manager).setRequesterBlockStatus(requester, true)
           )
-            .to.emit(requesterAuthorizerWhitelisterWithTokenDeposit, 'SetRequesterBlockStatus')
+            .to.emit(indefiniteAuthorizerWithErc20Deposit, 'SetRequesterBlockStatus')
             .withArgs(requester, true, roles.manager.address);
-          expect(await requesterAuthorizerWhitelisterWithTokenDeposit.requesterToBlockStatus(requester)).to.equal(true);
+          expect(await indefiniteAuthorizerWithErc20Deposit.requesterToBlockStatus(requester)).to.equal(true);
           await expect(
-            requesterAuthorizerWhitelisterWithTokenDeposit
-              .connect(roles.manager)
-              .setRequesterBlockStatus(requester, false)
+            indefiniteAuthorizerWithErc20Deposit.connect(roles.manager).setRequesterBlockStatus(requester, false)
           )
-            .to.emit(requesterAuthorizerWhitelisterWithTokenDeposit, 'SetRequesterBlockStatus')
+            .to.emit(indefiniteAuthorizerWithErc20Deposit, 'SetRequesterBlockStatus')
             .withArgs(requester, false, roles.manager.address);
-          expect(await requesterAuthorizerWhitelisterWithTokenDeposit.requesterToBlockStatus(requester)).to.equal(
-            false
-          );
+          expect(await indefiniteAuthorizerWithErc20Deposit.requesterToBlockStatus(requester)).to.equal(false);
         });
       });
       context('Requester address is zero', function () {
         it('reverts', async function () {
           const requester = hre.ethers.constants.AddressZero;
           await expect(
-            requesterAuthorizerWhitelisterWithTokenDeposit
-              .connect(roles.manager)
-              .setRequesterBlockStatus(requester, true)
+            indefiniteAuthorizerWithErc20Deposit.connect(roles.manager).setRequesterBlockStatus(requester, true)
           ).to.be.revertedWith('Requester address zero');
         });
       });
@@ -723,9 +684,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
       it('reverts', async function () {
         const requester = testUtils.generateRandomAddress();
         await expect(
-          requesterAuthorizerWhitelisterWithTokenDeposit
-            .connect(roles.randomPerson)
-            .setRequesterBlockStatus(requester, true)
+          indefiniteAuthorizerWithErc20Deposit.connect(roles.randomPerson).setRequesterBlockStatus(requester, true)
         ).to.be.revertedWith('Sender cannot block');
       });
     });
@@ -738,27 +697,27 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
           it('sets requester block status', async function () {
             const requester = testUtils.generateRandomAddress();
             await expect(
-              requesterAuthorizerWhitelisterWithTokenDeposit
+              indefiniteAuthorizerWithErc20Deposit
                 .connect(roles.blocker)
                 .setRequesterBlockStatusForAirnode(roles.airnode.address, requester, true)
             )
-              .to.emit(requesterAuthorizerWhitelisterWithTokenDeposit, 'SetRequesterBlockStatusForAirnode')
+              .to.emit(indefiniteAuthorizerWithErc20Deposit, 'SetRequesterBlockStatusForAirnode')
               .withArgs(roles.airnode.address, requester, true, roles.blocker.address);
             expect(
-              await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToRequesterToBlockStatus(
+              await indefiniteAuthorizerWithErc20Deposit.airnodeToRequesterToBlockStatus(
                 roles.airnode.address,
                 requester
               )
             ).to.equal(true);
             await expect(
-              requesterAuthorizerWhitelisterWithTokenDeposit
+              indefiniteAuthorizerWithErc20Deposit
                 .connect(roles.blocker)
                 .setRequesterBlockStatusForAirnode(roles.airnode.address, requester, false)
             )
-              .to.emit(requesterAuthorizerWhitelisterWithTokenDeposit, 'SetRequesterBlockStatusForAirnode')
+              .to.emit(indefiniteAuthorizerWithErc20Deposit, 'SetRequesterBlockStatusForAirnode')
               .withArgs(roles.airnode.address, requester, false, roles.blocker.address);
             expect(
-              await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToRequesterToBlockStatus(
+              await indefiniteAuthorizerWithErc20Deposit.airnodeToRequesterToBlockStatus(
                 roles.airnode.address,
                 requester
               )
@@ -769,7 +728,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
           it('reverts', async function () {
             const requester = hre.ethers.constants.AddressZero;
             await expect(
-              requesterAuthorizerWhitelisterWithTokenDeposit
+              indefiniteAuthorizerWithErc20Deposit
                 .connect(roles.blocker)
                 .setRequesterBlockStatusForAirnode(roles.airnode.address, requester, true)
             ).to.be.revertedWith('Requester address zero');
@@ -780,7 +739,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
         it('reverts', async function () {
           const requester = testUtils.generateRandomAddress();
           await expect(
-            requesterAuthorizerWhitelisterWithTokenDeposit
+            indefiniteAuthorizerWithErc20Deposit
               .connect(roles.blocker)
               .setRequesterBlockStatusForAirnode(hre.ethers.constants.AddressZero, requester, true)
           ).to.be.revertedWith('Airnode address zero');
@@ -793,27 +752,27 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
           it('sets requester block status', async function () {
             const requester = testUtils.generateRandomAddress();
             await expect(
-              requesterAuthorizerWhitelisterWithTokenDeposit
+              indefiniteAuthorizerWithErc20Deposit
                 .connect(roles.manager)
                 .setRequesterBlockStatusForAirnode(roles.airnode.address, requester, true)
             )
-              .to.emit(requesterAuthorizerWhitelisterWithTokenDeposit, 'SetRequesterBlockStatusForAirnode')
+              .to.emit(indefiniteAuthorizerWithErc20Deposit, 'SetRequesterBlockStatusForAirnode')
               .withArgs(roles.airnode.address, requester, true, roles.manager.address);
             expect(
-              await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToRequesterToBlockStatus(
+              await indefiniteAuthorizerWithErc20Deposit.airnodeToRequesterToBlockStatus(
                 roles.airnode.address,
                 requester
               )
             ).to.equal(true);
             await expect(
-              requesterAuthorizerWhitelisterWithTokenDeposit
+              indefiniteAuthorizerWithErc20Deposit
                 .connect(roles.manager)
                 .setRequesterBlockStatusForAirnode(roles.airnode.address, requester, false)
             )
-              .to.emit(requesterAuthorizerWhitelisterWithTokenDeposit, 'SetRequesterBlockStatusForAirnode')
+              .to.emit(indefiniteAuthorizerWithErc20Deposit, 'SetRequesterBlockStatusForAirnode')
               .withArgs(roles.airnode.address, requester, false, roles.manager.address);
             expect(
-              await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToRequesterToBlockStatus(
+              await indefiniteAuthorizerWithErc20Deposit.airnodeToRequesterToBlockStatus(
                 roles.airnode.address,
                 requester
               )
@@ -824,7 +783,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
           it('reverts', async function () {
             const requester = hre.ethers.constants.AddressZero;
             await expect(
-              requesterAuthorizerWhitelisterWithTokenDeposit
+              indefiniteAuthorizerWithErc20Deposit
                 .connect(roles.manager)
                 .setRequesterBlockStatusForAirnode(roles.airnode.address, requester, true)
             ).to.be.revertedWith('Requester address zero');
@@ -835,7 +794,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
         it('reverts', async function () {
           const requester = testUtils.generateRandomAddress();
           await expect(
-            requesterAuthorizerWhitelisterWithTokenDeposit
+            indefiniteAuthorizerWithErc20Deposit
               .connect(roles.blocker)
               .setRequesterBlockStatusForAirnode(hre.ethers.constants.AddressZero, requester, true)
           ).to.be.revertedWith('Airnode address zero');
@@ -846,7 +805,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
       it('reverts', async function () {
         const requester = testUtils.generateRandomAddress();
         await expect(
-          requesterAuthorizerWhitelisterWithTokenDeposit
+          indefiniteAuthorizerWithErc20Deposit
             .connect(roles.randomPerson)
             .setRequesterBlockStatusForAirnode(roles.airnode.address, requester, true)
         ).to.be.revertedWith('Sender cannot block');
@@ -865,11 +824,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
         // $100 times 2 divided by $5 = 40 tokens with 12 decimals (because the token was defined to have 12 decimals)
         const expectedTokenAmount = price.mul(priceCoefficient).div(tokenPrice);
         expect(
-          await requesterAuthorizerWhitelisterWithTokenDeposit.getTokenAmount(
-            roles.airnode.address,
-            chainId,
-            endpointId
-          )
+          await indefiniteAuthorizerWithErc20Deposit.getTokenAmount(roles.airnode.address, chainId, endpointId)
         ).to.equal(expectedTokenAmount);
       });
     });
@@ -877,7 +832,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
       it('reverts', async function () {
         const endpointId = testUtils.generateRandomBytes32();
         await expect(
-          requesterAuthorizerWhitelisterWithTokenDeposit.getTokenAmount(roles.airnode.address, chainId, endpointId)
+          indefiniteAuthorizerWithErc20Deposit.getTokenAmount(roles.airnode.address, chainId, endpointId)
         ).to.be.revertedWith('No default price set');
       });
     });
@@ -888,21 +843,17 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
       context('Withdrawal lead time is not too long', function () {
         it('sets withdrawal lead time', async function () {
           const oneMonth = 30 * 24 * 60 * 60;
-          await expect(
-            requesterAuthorizerWhitelisterWithTokenDeposit.connect(roles.maintainer).setWithdrawalLeadTime(oneMonth)
-          )
-            .to.emit(requesterAuthorizerWhitelisterWithTokenDeposit, 'SetWithdrawalLeadTime')
+          await expect(indefiniteAuthorizerWithErc20Deposit.connect(roles.maintainer).setWithdrawalLeadTime(oneMonth))
+            .to.emit(indefiniteAuthorizerWithErc20Deposit, 'SetWithdrawalLeadTime')
             .withArgs(oneMonth, roles.maintainer.address);
-          expect(await requesterAuthorizerWhitelisterWithTokenDeposit.withdrawalLeadTime()).to.equal(oneMonth);
+          expect(await indefiniteAuthorizerWithErc20Deposit.withdrawalLeadTime()).to.equal(oneMonth);
         });
       });
       context('Withdrawal lead time is too long', function () {
         it('reverts', async function () {
           const oneMonthAndOneSecond = 30 * 24 * 60 * 60 + 1;
           await expect(
-            requesterAuthorizerWhitelisterWithTokenDeposit
-              .connect(roles.maintainer)
-              .setWithdrawalLeadTime(oneMonthAndOneSecond)
+            indefiniteAuthorizerWithErc20Deposit.connect(roles.maintainer).setWithdrawalLeadTime(oneMonthAndOneSecond)
           ).to.be.revertedWith('Withdrawal lead time too long');
         });
       });
@@ -911,21 +862,17 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
       context('Withdrawal lead time is not too long', function () {
         it('sets withdrawal lead time', async function () {
           const oneMonth = 30 * 24 * 60 * 60;
-          await expect(
-            requesterAuthorizerWhitelisterWithTokenDeposit.connect(roles.manager).setWithdrawalLeadTime(oneMonth)
-          )
-            .to.emit(requesterAuthorizerWhitelisterWithTokenDeposit, 'SetWithdrawalLeadTime')
+          await expect(indefiniteAuthorizerWithErc20Deposit.connect(roles.manager).setWithdrawalLeadTime(oneMonth))
+            .to.emit(indefiniteAuthorizerWithErc20Deposit, 'SetWithdrawalLeadTime')
             .withArgs(oneMonth, roles.manager.address);
-          expect(await requesterAuthorizerWhitelisterWithTokenDeposit.withdrawalLeadTime()).to.equal(oneMonth);
+          expect(await indefiniteAuthorizerWithErc20Deposit.withdrawalLeadTime()).to.equal(oneMonth);
         });
       });
       context('Withdrawal lead time is too long', function () {
         it('reverts', async function () {
           const oneMonthAndOneSecond = 30 * 24 * 60 * 60 + 1;
           await expect(
-            requesterAuthorizerWhitelisterWithTokenDeposit
-              .connect(roles.manager)
-              .setWithdrawalLeadTime(oneMonthAndOneSecond)
+            indefiniteAuthorizerWithErc20Deposit.connect(roles.manager).setWithdrawalLeadTime(oneMonthAndOneSecond)
           ).to.be.revertedWith('Withdrawal lead time too long');
         });
       });
@@ -933,7 +880,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
     context('Sender is not maintainer and manager', function () {
       it('reverts', async function () {
         await expect(
-          requesterAuthorizerWhitelisterWithTokenDeposit.connect(roles.randomPerson).setWithdrawalLeadTime(123)
+          indefiniteAuthorizerWithErc20Deposit.connect(roles.randomPerson).setWithdrawalLeadTime(123)
         ).to.be.revertedWith('Sender cannot maintain');
       });
     });
@@ -948,7 +895,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
               context('Token transfer is successful', function () {
                 context('Tokens were not deposited for the requester-endpoint pair before', function () {
                   context('RequesterAuthorizer for the chain is set', function () {
-                    it('indefinitely whitelists the requester for the endpoint, increments the number of times tokens were deposited for the requester-endpoint pair and deposits tokens', async function () {
+                    it('indefinitely authorizes the requester for the endpoint, increments the number of times tokens were deposited for the requester-endpoint pair and deposits tokens', async function () {
                       const endpointId = testUtils.generateRandomBytes32();
                       const requester = testUtils.generateRandomAddress();
                       const price = hre.ethers.BigNumber.from(`100${'0'.repeat(18)}`); // $100
@@ -956,29 +903,26 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                       await airnodeEndpointPriceRegistry
                         .connect(roles.manager)
                         .registerAirnodeChainEndpointPrice(roles.airnode.address, chainId, endpointId, price);
-                      await requesterAuthorizerWhitelisterWithTokenDeposit
+                      await indefiniteAuthorizerWithErc20Deposit
                         .connect(roles.maintainer)
                         .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
                       await token
                         .connect(roles.depositor)
-                        .approve(
-                          requesterAuthorizerWhitelisterWithTokenDeposit.address,
-                          hre.ethers.utils.parseEther('1')
-                        );
-                      let whitelistStatus =
-                        await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToWhitelistStatus(
+                        .approve(indefiniteAuthorizerWithErc20Deposit.address, hre.ethers.utils.parseEther('1'));
+                      let authorizationStatus =
+                        await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToAuthorizationStatus(
                           roles.airnode.address,
                           endpointId,
                           requester
                         );
-                      expect(whitelistStatus.expirationTimestamp).to.equal(0);
-                      expect(whitelistStatus.indefiniteWhitelistCount).to.equal(0);
+                      expect(authorizationStatus.expirationTimestamp).to.equal(0);
+                      expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(0);
                       await expect(
-                        requesterAuthorizerWhitelisterWithTokenDeposit
+                        indefiniteAuthorizerWithErc20Deposit
                           .connect(roles.depositor)
                           .depositTokens(roles.airnode.address, chainId, endpointId, requester)
                       )
-                        .to.emit(requesterAuthorizerWhitelisterWithTokenDeposit, 'DepositedTokens')
+                        .to.emit(indefiniteAuthorizerWithErc20Deposit, 'DepositedTokens')
                         .withArgs(
                           roles.airnode.address,
                           chainId,
@@ -988,14 +932,14 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                           1,
                           expectedTokenAmount
                         );
-                      expect(await token.balanceOf(requesterAuthorizerWhitelisterWithTokenDeposit.address)).to.equal(
+                      expect(await token.balanceOf(indefiniteAuthorizerWithErc20Deposit.address)).to.equal(
                         expectedTokenAmount
                       );
                       expect(await token.balanceOf(roles.depositor.address)).to.equal(
                         hre.ethers.utils.parseEther('1').sub(expectedTokenAmount)
                       );
                       expect(
-                        await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositsCount(
+                        await indefiniteAuthorizerWithErc20Deposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositsCount(
                           roles.airnode.address,
                           chainId,
                           endpointId,
@@ -1003,7 +947,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                         )
                       ).to.equal(1);
                       expect(
-                        await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositorToAmount(
+                        await indefiniteAuthorizerWithErc20Deposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositorToAmount(
                           roles.airnode.address,
                           chainId,
                           endpointId,
@@ -1011,14 +955,14 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                           roles.depositor.address
                         )
                       ).to.equal(expectedTokenAmount);
-                      whitelistStatus =
-                        await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToWhitelistStatus(
+                      authorizationStatus =
+                        await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToAuthorizationStatus(
                           roles.airnode.address,
                           endpointId,
                           requester
                         );
-                      expect(whitelistStatus.expirationTimestamp).to.equal(0);
-                      expect(whitelistStatus.indefiniteWhitelistCount).to.equal(1);
+                      expect(authorizationStatus.expirationTimestamp).to.equal(0);
+                      expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(1);
                     });
                   });
                   context('RequesterAuthorizer for the chain is not set', function () {
@@ -1030,17 +974,14 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                       await airnodeEndpointPriceRegistry
                         .connect(roles.manager)
                         .registerAirnodeChainEndpointPrice(roles.airnode.address, anotherChainId, endpointId, price);
-                      await requesterAuthorizerWhitelisterWithTokenDeposit
+                      await indefiniteAuthorizerWithErc20Deposit
                         .connect(roles.maintainer)
                         .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
                       await token
                         .connect(roles.depositor)
-                        .approve(
-                          requesterAuthorizerWhitelisterWithTokenDeposit.address,
-                          hre.ethers.utils.parseEther('1')
-                        );
+                        .approve(indefiniteAuthorizerWithErc20Deposit.address, hre.ethers.utils.parseEther('1'));
                       await expect(
-                        requesterAuthorizerWhitelisterWithTokenDeposit
+                        indefiniteAuthorizerWithErc20Deposit
                           .connect(roles.depositor)
                           .depositTokens(roles.airnode.address, anotherChainId, endpointId, requester)
                       ).to.be.revertedWith('No Authorizer set for chain');
@@ -1056,28 +997,25 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                     await airnodeEndpointPriceRegistry
                       .connect(roles.manager)
                       .registerAirnodeChainEndpointPrice(roles.airnode.address, chainId, endpointId, price);
-                    await requesterAuthorizerWhitelisterWithTokenDeposit
+                    await indefiniteAuthorizerWithErc20Deposit
                       .connect(roles.maintainer)
                       .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
                     await token
                       .connect(roles.anotherDepositor)
-                      .approve(
-                        requesterAuthorizerWhitelisterWithTokenDeposit.address,
-                        hre.ethers.utils.parseEther('1')
-                      );
-                    await requesterAuthorizerWhitelisterWithTokenDeposit
+                      .approve(indefiniteAuthorizerWithErc20Deposit.address, hre.ethers.utils.parseEther('1'));
+                    await indefiniteAuthorizerWithErc20Deposit
                       .connect(roles.anotherDepositor)
                       .depositTokens(roles.airnode.address, chainId, endpointId, requester);
-                    let whitelistStatus =
-                      await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToWhitelistStatus(
+                    let authorizationStatus =
+                      await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToAuthorizationStatus(
                         roles.airnode.address,
                         endpointId,
                         requester
                       );
-                    expect(whitelistStatus.expirationTimestamp).to.equal(0);
-                    expect(whitelistStatus.indefiniteWhitelistCount).to.equal(1);
+                    expect(authorizationStatus.expirationTimestamp).to.equal(0);
+                    expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(1);
                     expect(
-                      await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositsCount(
+                      await indefiniteAuthorizerWithErc20Deposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositsCount(
                         roles.airnode.address,
                         chainId,
                         endpointId,
@@ -1086,16 +1024,13 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                     ).to.equal(1);
                     await token
                       .connect(roles.depositor)
-                      .approve(
-                        requesterAuthorizerWhitelisterWithTokenDeposit.address,
-                        hre.ethers.utils.parseEther('1')
-                      );
+                      .approve(indefiniteAuthorizerWithErc20Deposit.address, hre.ethers.utils.parseEther('1'));
                     await expect(
-                      requesterAuthorizerWhitelisterWithTokenDeposit
+                      indefiniteAuthorizerWithErc20Deposit
                         .connect(roles.depositor)
                         .depositTokens(roles.airnode.address, chainId, endpointId, requester)
                     )
-                      .to.emit(requesterAuthorizerWhitelisterWithTokenDeposit, 'DepositedTokens')
+                      .to.emit(indefiniteAuthorizerWithErc20Deposit, 'DepositedTokens')
                       .withArgs(
                         roles.airnode.address,
                         chainId,
@@ -1105,14 +1040,14 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                         2,
                         expectedTokenAmount
                       );
-                    expect(await token.balanceOf(requesterAuthorizerWhitelisterWithTokenDeposit.address)).to.equal(
+                    expect(await token.balanceOf(indefiniteAuthorizerWithErc20Deposit.address)).to.equal(
                       expectedTokenAmount.mul(2)
                     );
                     expect(await token.balanceOf(roles.depositor.address)).to.equal(
                       hre.ethers.utils.parseEther('1').sub(expectedTokenAmount)
                     );
                     expect(
-                      await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositsCount(
+                      await indefiniteAuthorizerWithErc20Deposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositsCount(
                         roles.airnode.address,
                         chainId,
                         endpointId,
@@ -1120,7 +1055,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                       )
                     ).to.equal(2);
                     expect(
-                      await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositorToAmount(
+                      await indefiniteAuthorizerWithErc20Deposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositorToAmount(
                         roles.airnode.address,
                         chainId,
                         endpointId,
@@ -1128,14 +1063,14 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                         roles.depositor.address
                       )
                     ).to.equal(expectedTokenAmount);
-                    whitelistStatus =
-                      await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToWhitelistStatus(
+                    authorizationStatus =
+                      await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToAuthorizationStatus(
                         roles.airnode.address,
                         endpointId,
                         requester
                       );
-                    expect(whitelistStatus.expirationTimestamp).to.equal(0);
-                    expect(whitelistStatus.indefiniteWhitelistCount).to.equal(1);
+                    expect(authorizationStatus.expirationTimestamp).to.equal(0);
+                    expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(1);
                   });
                 });
               });
@@ -1147,11 +1082,11 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                   await airnodeEndpointPriceRegistry
                     .connect(roles.manager)
                     .registerAirnodeChainEndpointPrice(roles.airnode.address, chainId, endpointId, price);
-                  await requesterAuthorizerWhitelisterWithTokenDeposit
+                  await indefiniteAuthorizerWithErc20Deposit
                     .connect(roles.maintainer)
                     .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
                   await expect(
-                    requesterAuthorizerWhitelisterWithTokenDeposit
+                    indefiniteAuthorizerWithErc20Deposit
                       .connect(roles.depositor)
                       .depositTokens(roles.airnode.address, chainId, endpointId, requester)
                   ).to.be.revertedWith('ERC20: insufficient allowance');
@@ -1166,17 +1101,17 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                 await airnodeEndpointPriceRegistry
                   .connect(roles.manager)
                   .registerAirnodeChainEndpointPrice(roles.airnode.address, chainId, endpointId, price);
-                await requesterAuthorizerWhitelisterWithTokenDeposit
+                await indefiniteAuthorizerWithErc20Deposit
                   .connect(roles.maintainer)
                   .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
                 await token
                   .connect(roles.depositor)
-                  .approve(requesterAuthorizerWhitelisterWithTokenDeposit.address, hre.ethers.utils.parseEther('1'));
-                await requesterAuthorizerWhitelisterWithTokenDeposit
+                  .approve(indefiniteAuthorizerWithErc20Deposit.address, hre.ethers.utils.parseEther('1'));
+                await indefiniteAuthorizerWithErc20Deposit
                   .connect(roles.depositor)
                   .depositTokens(roles.airnode.address, chainId, endpointId, requester);
                 await expect(
-                  requesterAuthorizerWhitelisterWithTokenDeposit
+                  indefiniteAuthorizerWithErc20Deposit
                     .connect(roles.depositor)
                     .depositTokens(roles.airnode.address, chainId, endpointId, requester)
                 ).to.be.revertedWith('Sender already deposited tokens');
@@ -1187,14 +1122,14 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
             it('reverts', async function () {
               const endpointId = testUtils.generateRandomBytes32();
               const requester = testUtils.generateRandomAddress();
-              await requesterAuthorizerWhitelisterWithTokenDeposit
+              await indefiniteAuthorizerWithErc20Deposit
                 .connect(roles.maintainer)
                 .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
-              await requesterAuthorizerWhitelisterWithTokenDeposit
+              await indefiniteAuthorizerWithErc20Deposit
                 .connect(roles.blocker)
                 .setRequesterBlockStatus(requester, true);
               await expect(
-                requesterAuthorizerWhitelisterWithTokenDeposit
+                indefiniteAuthorizerWithErc20Deposit
                   .connect(roles.depositor)
                   .depositTokens(roles.airnode.address, chainId, endpointId, requester)
               ).to.be.revertedWith('Requester blocked');
@@ -1204,14 +1139,14 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
             it('reverts', async function () {
               const endpointId = testUtils.generateRandomBytes32();
               const requester = testUtils.generateRandomAddress();
-              await requesterAuthorizerWhitelisterWithTokenDeposit
+              await indefiniteAuthorizerWithErc20Deposit
                 .connect(roles.maintainer)
                 .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
-              await requesterAuthorizerWhitelisterWithTokenDeposit
+              await indefiniteAuthorizerWithErc20Deposit
                 .connect(roles.blocker)
                 .setRequesterBlockStatusForAirnode(roles.airnode.address, requester, true);
               await expect(
-                requesterAuthorizerWhitelisterWithTokenDeposit
+                indefiniteAuthorizerWithErc20Deposit
                   .connect(roles.depositor)
                   .depositTokens(roles.airnode.address, chainId, endpointId, requester)
               ).to.be.revertedWith('Requester blocked');
@@ -1222,11 +1157,11 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
           it('reverts', async function () {
             const endpointId = testUtils.generateRandomBytes32();
             const requester = hre.ethers.constants.AddressZero;
-            await requesterAuthorizerWhitelisterWithTokenDeposit
+            await indefiniteAuthorizerWithErc20Deposit
               .connect(roles.maintainer)
               .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
             await expect(
-              requesterAuthorizerWhitelisterWithTokenDeposit
+              indefiniteAuthorizerWithErc20Deposit
                 .connect(roles.depositor)
                 .depositTokens(roles.airnode.address, chainId, endpointId, requester)
             ).to.be.revertedWith('Requester address zero');
@@ -1237,11 +1172,11 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
         it('reverts', async function () {
           const endpointId = testUtils.generateRandomBytes32();
           const requester = testUtils.generateRandomAddress();
-          await requesterAuthorizerWhitelisterWithTokenDeposit
+          await indefiniteAuthorizerWithErc20Deposit
             .connect(roles.maintainer)
             .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
           await expect(
-            requesterAuthorizerWhitelisterWithTokenDeposit
+            indefiniteAuthorizerWithErc20Deposit
               .connect(roles.depositor)
               .depositTokens(roles.airnode.address, 0, endpointId, requester)
           ).to.be.revertedWith('Chain ID zero');
@@ -1253,7 +1188,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
         const endpointId = testUtils.generateRandomBytes32();
         const requester = testUtils.generateRandomAddress();
         await expect(
-          requesterAuthorizerWhitelisterWithTokenDeposit
+          indefiniteAuthorizerWithErc20Deposit
             .connect(roles.depositor)
             .depositTokens(roles.airnode.address, chainId, endpointId, requester)
         ).to.be.revertedWith('Airnode not active');
@@ -1265,11 +1200,9 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
     context('Sender has deposited tokens', function () {
       context('Sender has not signaled an unfulfilled withdrawal intent', function () {
         context('Signaling intent to withdraw the last deposit for the requester-endpoint pair', function () {
-          it('removes the indefinite whitelist of the requester for the endpoint, decrements the number of times tokens were deposited for the requester-endpoint pair and signals intent', async function () {
+          it('removes the indefinite authorization of the requester for the endpoint, decrements the number of times tokens were deposited for the requester-endpoint pair and signals intent', async function () {
             const oneWeek = 7 * 24 * 60 * 60;
-            await requesterAuthorizerWhitelisterWithTokenDeposit
-              .connect(roles.maintainer)
-              .setWithdrawalLeadTime(oneWeek);
+            await indefiniteAuthorizerWithErc20Deposit.connect(roles.maintainer).setWithdrawalLeadTime(oneWeek);
             const endpointId = testUtils.generateRandomBytes32();
             const requester = testUtils.generateRandomAddress();
             const price = hre.ethers.BigNumber.from(`100${'0'.repeat(18)}`); // $100
@@ -1277,34 +1210,35 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
             await airnodeEndpointPriceRegistry
               .connect(roles.manager)
               .registerAirnodeChainEndpointPrice(roles.airnode.address, chainId, endpointId, price);
-            await requesterAuthorizerWhitelisterWithTokenDeposit
+            await indefiniteAuthorizerWithErc20Deposit
               .connect(roles.maintainer)
               .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
             await token
               .connect(roles.depositor)
-              .approve(requesterAuthorizerWhitelisterWithTokenDeposit.address, hre.ethers.utils.parseEther('1'));
-            await requesterAuthorizerWhitelisterWithTokenDeposit
+              .approve(indefiniteAuthorizerWithErc20Deposit.address, hre.ethers.utils.parseEther('1'));
+            await indefiniteAuthorizerWithErc20Deposit
               .connect(roles.depositor)
               .depositTokens(roles.airnode.address, chainId, endpointId, requester);
-            let whitelistStatus = await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToWhitelistStatus(
-              roles.airnode.address,
-              endpointId,
-              requester
-            );
-            expect(whitelistStatus.expirationTimestamp).to.equal(0);
-            expect(whitelistStatus.indefiniteWhitelistCount).to.equal(1);
+            let authorizationStatus =
+              await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToAuthorizationStatus(
+                roles.airnode.address,
+                endpointId,
+                requester
+              );
+            expect(authorizationStatus.expirationTimestamp).to.equal(0);
+            expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(1);
             const now = (await hre.ethers.provider.getBlock(await hre.ethers.provider.getBlockNumber())).timestamp;
             await hre.ethers.provider.send('evm_setNextBlockTimestamp', [now + 1]);
             const earliestWithdrawalTime = now + 1 + oneWeek;
             await expect(
-              requesterAuthorizerWhitelisterWithTokenDeposit
+              indefiniteAuthorizerWithErc20Deposit
                 .connect(roles.depositor)
                 .signalWithdrawalIntent(roles.airnode.address, chainId, endpointId, requester)
             )
-              .to.emit(requesterAuthorizerWhitelisterWithTokenDeposit, 'SignaledWithdrawalIntent')
+              .to.emit(indefiniteAuthorizerWithErc20Deposit, 'SignaledWithdrawalIntent')
               .withArgs(roles.airnode.address, chainId, endpointId, requester, roles.depositor.address, 0);
             expect(
-              await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositsCount(
+              await indefiniteAuthorizerWithErc20Deposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositsCount(
                 roles.airnode.address,
                 chainId,
                 endpointId,
@@ -1312,7 +1246,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
               )
             ).to.equal(0);
             expect(
-              await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositorToAmount(
+              await indefiniteAuthorizerWithErc20Deposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositorToAmount(
                 roles.airnode.address,
                 chainId,
                 endpointId,
@@ -1321,7 +1255,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
               )
             ).to.equal(expectedTokenAmount);
             expect(
-              await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositorToEarliestWithdrawalTime(
+              await indefiniteAuthorizerWithErc20Deposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositorToEarliestWithdrawalTime(
                 roles.airnode.address,
                 chainId,
                 endpointId,
@@ -1329,13 +1263,14 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                 roles.depositor.address
               )
             ).to.equal(earliestWithdrawalTime);
-            whitelistStatus = await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToWhitelistStatus(
-              roles.airnode.address,
-              endpointId,
-              requester
-            );
-            expect(whitelistStatus.expirationTimestamp).to.equal(0);
-            expect(whitelistStatus.indefiniteWhitelistCount).to.equal(0);
+            authorizationStatus =
+              await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToAuthorizationStatus(
+                roles.airnode.address,
+                endpointId,
+                requester
+              );
+            expect(authorizationStatus.expirationTimestamp).to.equal(0);
+            expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(0);
           });
         });
         context(
@@ -1343,9 +1278,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
           function () {
             it('decrements the number of times tokens were deposited for the requester-endpoint pair and signals intent', async function () {
               const oneWeek = 7 * 24 * 60 * 60;
-              await requesterAuthorizerWhitelisterWithTokenDeposit
-                .connect(roles.maintainer)
-                .setWithdrawalLeadTime(oneWeek);
+              await indefiniteAuthorizerWithErc20Deposit.connect(roles.maintainer).setWithdrawalLeadTime(oneWeek);
               const endpointId = testUtils.generateRandomBytes32();
               const requester = testUtils.generateRandomAddress();
               const price = hre.ethers.BigNumber.from(`100${'0'.repeat(18)}`); // $100
@@ -1353,41 +1286,41 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
               await airnodeEndpointPriceRegistry
                 .connect(roles.manager)
                 .registerAirnodeChainEndpointPrice(roles.airnode.address, chainId, endpointId, price);
-              await requesterAuthorizerWhitelisterWithTokenDeposit
+              await indefiniteAuthorizerWithErc20Deposit
                 .connect(roles.maintainer)
                 .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
               await token
                 .connect(roles.depositor)
-                .approve(requesterAuthorizerWhitelisterWithTokenDeposit.address, hre.ethers.utils.parseEther('1'));
-              await requesterAuthorizerWhitelisterWithTokenDeposit
+                .approve(indefiniteAuthorizerWithErc20Deposit.address, hre.ethers.utils.parseEther('1'));
+              await indefiniteAuthorizerWithErc20Deposit
                 .connect(roles.depositor)
                 .depositTokens(roles.airnode.address, chainId, endpointId, requester);
               await token
                 .connect(roles.anotherDepositor)
-                .approve(requesterAuthorizerWhitelisterWithTokenDeposit.address, hre.ethers.utils.parseEther('1'));
-              await requesterAuthorizerWhitelisterWithTokenDeposit
+                .approve(indefiniteAuthorizerWithErc20Deposit.address, hre.ethers.utils.parseEther('1'));
+              await indefiniteAuthorizerWithErc20Deposit
                 .connect(roles.anotherDepositor)
                 .depositTokens(roles.airnode.address, chainId, endpointId, requester);
-              let whitelistStatus =
-                await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToWhitelistStatus(
+              let authorizationStatus =
+                await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToAuthorizationStatus(
                   roles.airnode.address,
                   endpointId,
                   requester
                 );
-              expect(whitelistStatus.expirationTimestamp).to.equal(0);
-              expect(whitelistStatus.indefiniteWhitelistCount).to.equal(1);
+              expect(authorizationStatus.expirationTimestamp).to.equal(0);
+              expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(1);
               const now = (await hre.ethers.provider.getBlock(await hre.ethers.provider.getBlockNumber())).timestamp;
               await hre.ethers.provider.send('evm_setNextBlockTimestamp', [now + 1]);
               const earliestWithdrawalTime = now + 1 + oneWeek;
               await expect(
-                requesterAuthorizerWhitelisterWithTokenDeposit
+                indefiniteAuthorizerWithErc20Deposit
                   .connect(roles.depositor)
                   .signalWithdrawalIntent(roles.airnode.address, chainId, endpointId, requester)
               )
-                .to.emit(requesterAuthorizerWhitelisterWithTokenDeposit, 'SignaledWithdrawalIntent')
+                .to.emit(indefiniteAuthorizerWithErc20Deposit, 'SignaledWithdrawalIntent')
                 .withArgs(roles.airnode.address, chainId, endpointId, requester, roles.depositor.address, 1);
               expect(
-                await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositsCount(
+                await indefiniteAuthorizerWithErc20Deposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositsCount(
                   roles.airnode.address,
                   chainId,
                   endpointId,
@@ -1395,7 +1328,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                 )
               ).to.equal(1);
               expect(
-                await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositorToAmount(
+                await indefiniteAuthorizerWithErc20Deposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositorToAmount(
                   roles.airnode.address,
                   chainId,
                   endpointId,
@@ -1404,7 +1337,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                 )
               ).to.equal(expectedTokenAmount);
               expect(
-                await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositorToEarliestWithdrawalTime(
+                await indefiniteAuthorizerWithErc20Deposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositorToEarliestWithdrawalTime(
                   roles.airnode.address,
                   chainId,
                   endpointId,
@@ -1412,13 +1345,14 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                   roles.depositor.address
                 )
               ).to.equal(earliestWithdrawalTime);
-              whitelistStatus = await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToWhitelistStatus(
-                roles.airnode.address,
-                endpointId,
-                requester
-              );
-              expect(whitelistStatus.expirationTimestamp).to.equal(0);
-              expect(whitelistStatus.indefiniteWhitelistCount).to.equal(1);
+              authorizationStatus =
+                await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToAuthorizationStatus(
+                  roles.airnode.address,
+                  endpointId,
+                  requester
+                );
+              expect(authorizationStatus.expirationTimestamp).to.equal(0);
+              expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(1);
             });
           }
         );
@@ -1431,20 +1365,20 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
           await airnodeEndpointPriceRegistry
             .connect(roles.manager)
             .registerAirnodeChainEndpointPrice(roles.airnode.address, chainId, endpointId, price);
-          await requesterAuthorizerWhitelisterWithTokenDeposit
+          await indefiniteAuthorizerWithErc20Deposit
             .connect(roles.maintainer)
             .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
           await token
             .connect(roles.depositor)
-            .approve(requesterAuthorizerWhitelisterWithTokenDeposit.address, hre.ethers.utils.parseEther('1'));
-          await requesterAuthorizerWhitelisterWithTokenDeposit
+            .approve(indefiniteAuthorizerWithErc20Deposit.address, hre.ethers.utils.parseEther('1'));
+          await indefiniteAuthorizerWithErc20Deposit
             .connect(roles.depositor)
             .depositTokens(roles.airnode.address, chainId, endpointId, requester);
-          await requesterAuthorizerWhitelisterWithTokenDeposit
+          await indefiniteAuthorizerWithErc20Deposit
             .connect(roles.depositor)
             .signalWithdrawalIntent(roles.airnode.address, chainId, endpointId, requester);
           await expect(
-            requesterAuthorizerWhitelisterWithTokenDeposit
+            indefiniteAuthorizerWithErc20Deposit
               .connect(roles.depositor)
               .signalWithdrawalIntent(roles.airnode.address, chainId, endpointId, requester)
           ).to.be.revertedWith('Intent already signaled');
@@ -1459,11 +1393,11 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
         await airnodeEndpointPriceRegistry
           .connect(roles.manager)
           .registerAirnodeChainEndpointPrice(roles.airnode.address, chainId, endpointId, price);
-        await requesterAuthorizerWhitelisterWithTokenDeposit
+        await indefiniteAuthorizerWithErc20Deposit
           .connect(roles.maintainer)
           .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
         await expect(
-          requesterAuthorizerWhitelisterWithTokenDeposit
+          indefiniteAuthorizerWithErc20Deposit
             .connect(roles.depositor)
             .signalWithdrawalIntent(roles.airnode.address, chainId, endpointId, requester)
         ).to.be.revertedWith('Sender has not deposited tokens');
@@ -1485,32 +1419,32 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                 await airnodeEndpointPriceRegistry
                   .connect(roles.manager)
                   .registerAirnodeChainEndpointPrice(roles.airnode.address, chainId, endpointId, price);
-                await requesterAuthorizerWhitelisterWithTokenDeposit
+                await indefiniteAuthorizerWithErc20Deposit
                   .connect(roles.maintainer)
                   .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
                 await token
                   .connect(roles.depositor)
-                  .approve(requesterAuthorizerWhitelisterWithTokenDeposit.address, hre.ethers.utils.parseEther('1'));
-                await requesterAuthorizerWhitelisterWithTokenDeposit
+                  .approve(indefiniteAuthorizerWithErc20Deposit.address, hre.ethers.utils.parseEther('1'));
+                await indefiniteAuthorizerWithErc20Deposit
                   .connect(roles.depositor)
                   .depositTokens(roles.airnode.address, chainId, endpointId, requester);
-                await requesterAuthorizerWhitelisterWithTokenDeposit
+                await indefiniteAuthorizerWithErc20Deposit
                   .connect(roles.depositor)
                   .signalWithdrawalIntent(roles.airnode.address, chainId, endpointId, requester);
-                let whitelistStatus =
-                  await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToWhitelistStatus(
+                let authorizationStatus =
+                  await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToAuthorizationStatus(
                     roles.airnode.address,
                     endpointId,
                     requester
                   );
-                expect(whitelistStatus.expirationTimestamp).to.equal(0);
-                expect(whitelistStatus.indefiniteWhitelistCount).to.equal(0);
+                expect(authorizationStatus.expirationTimestamp).to.equal(0);
+                expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(0);
                 await expect(
-                  requesterAuthorizerWhitelisterWithTokenDeposit
+                  indefiniteAuthorizerWithErc20Deposit
                     .connect(roles.depositor)
                     .withdrawTokens(roles.airnode.address, chainId, endpointId, requester)
                 )
-                  .to.emit(requesterAuthorizerWhitelisterWithTokenDeposit, 'WithdrewTokens')
+                  .to.emit(indefiniteAuthorizerWithErc20Deposit, 'WithdrewTokens')
                   .withArgs(
                     roles.airnode.address,
                     chainId,
@@ -1520,10 +1454,10 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                     0,
                     expectedTokenAmount
                   );
-                expect(await token.balanceOf(requesterAuthorizerWhitelisterWithTokenDeposit.address)).to.equal(0);
+                expect(await token.balanceOf(indefiniteAuthorizerWithErc20Deposit.address)).to.equal(0);
                 expect(await token.balanceOf(roles.depositor.address)).to.equal(hre.ethers.utils.parseEther('1'));
                 expect(
-                  await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositsCount(
+                  await indefiniteAuthorizerWithErc20Deposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositsCount(
                     roles.airnode.address,
                     chainId,
                     endpointId,
@@ -1531,7 +1465,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                   )
                 ).to.equal(0);
                 expect(
-                  await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositorToAmount(
+                  await indefiniteAuthorizerWithErc20Deposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositorToAmount(
                     roles.airnode.address,
                     chainId,
                     endpointId,
@@ -1539,21 +1473,20 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                     roles.depositor.address
                   )
                 ).to.equal(0);
-                whitelistStatus = await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToWhitelistStatus(
-                  roles.airnode.address,
-                  endpointId,
-                  requester
-                );
-                expect(whitelistStatus.expirationTimestamp).to.equal(0);
-                expect(whitelistStatus.indefiniteWhitelistCount).to.equal(0);
+                authorizationStatus =
+                  await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToAuthorizationStatus(
+                    roles.airnode.address,
+                    endpointId,
+                    requester
+                  );
+                expect(authorizationStatus.expirationTimestamp).to.equal(0);
+                expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(0);
               });
             });
             context('It is before the earliest withdrawal time', function () {
               it('withdraws tokens', async function () {
                 const oneWeek = 7 * 24 * 60 * 60;
-                await requesterAuthorizerWhitelisterWithTokenDeposit
-                  .connect(roles.maintainer)
-                  .setWithdrawalLeadTime(oneWeek);
+                await indefiniteAuthorizerWithErc20Deposit.connect(roles.maintainer).setWithdrawalLeadTime(oneWeek);
                 const endpointId = testUtils.generateRandomBytes32();
                 const requester = testUtils.generateRandomAddress();
                 const price = hre.ethers.BigNumber.from(`100${'0'.repeat(18)}`); // $100
@@ -1561,33 +1494,33 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                 await airnodeEndpointPriceRegistry
                   .connect(roles.manager)
                   .registerAirnodeChainEndpointPrice(roles.airnode.address, chainId, endpointId, price);
-                await requesterAuthorizerWhitelisterWithTokenDeposit
+                await indefiniteAuthorizerWithErc20Deposit
                   .connect(roles.maintainer)
                   .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
                 await token
                   .connect(roles.depositor)
-                  .approve(requesterAuthorizerWhitelisterWithTokenDeposit.address, hre.ethers.utils.parseEther('1'));
-                await requesterAuthorizerWhitelisterWithTokenDeposit
+                  .approve(indefiniteAuthorizerWithErc20Deposit.address, hre.ethers.utils.parseEther('1'));
+                await indefiniteAuthorizerWithErc20Deposit
                   .connect(roles.depositor)
                   .depositTokens(roles.airnode.address, chainId, endpointId, requester);
-                await requesterAuthorizerWhitelisterWithTokenDeposit
+                await indefiniteAuthorizerWithErc20Deposit
                   .connect(roles.depositor)
                   .signalWithdrawalIntent(roles.airnode.address, chainId, endpointId, requester);
-                await requesterAuthorizerWhitelisterWithTokenDeposit.connect(roles.maintainer).setWithdrawalLeadTime(0);
-                let whitelistStatus =
-                  await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToWhitelistStatus(
+                await indefiniteAuthorizerWithErc20Deposit.connect(roles.maintainer).setWithdrawalLeadTime(0);
+                let authorizationStatus =
+                  await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToAuthorizationStatus(
                     roles.airnode.address,
                     endpointId,
                     requester
                   );
-                expect(whitelistStatus.expirationTimestamp).to.equal(0);
-                expect(whitelistStatus.indefiniteWhitelistCount).to.equal(0);
+                expect(authorizationStatus.expirationTimestamp).to.equal(0);
+                expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(0);
                 await expect(
-                  requesterAuthorizerWhitelisterWithTokenDeposit
+                  indefiniteAuthorizerWithErc20Deposit
                     .connect(roles.depositor)
                     .withdrawTokens(roles.airnode.address, chainId, endpointId, requester)
                 )
-                  .to.emit(requesterAuthorizerWhitelisterWithTokenDeposit, 'WithdrewTokens')
+                  .to.emit(indefiniteAuthorizerWithErc20Deposit, 'WithdrewTokens')
                   .withArgs(
                     roles.airnode.address,
                     chainId,
@@ -1597,10 +1530,10 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                     0,
                     expectedTokenAmount
                   );
-                expect(await token.balanceOf(requesterAuthorizerWhitelisterWithTokenDeposit.address)).to.equal(0);
+                expect(await token.balanceOf(indefiniteAuthorizerWithErc20Deposit.address)).to.equal(0);
                 expect(await token.balanceOf(roles.depositor.address)).to.equal(hre.ethers.utils.parseEther('1'));
                 expect(
-                  await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositsCount(
+                  await indefiniteAuthorizerWithErc20Deposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositsCount(
                     roles.airnode.address,
                     chainId,
                     endpointId,
@@ -1608,7 +1541,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                   )
                 ).to.equal(0);
                 expect(
-                  await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositorToAmount(
+                  await indefiniteAuthorizerWithErc20Deposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositorToAmount(
                     roles.airnode.address,
                     chainId,
                     endpointId,
@@ -1616,19 +1549,20 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                     roles.depositor.address
                   )
                 ).to.equal(0);
-                whitelistStatus = await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToWhitelistStatus(
-                  roles.airnode.address,
-                  endpointId,
-                  requester
-                );
-                expect(whitelistStatus.expirationTimestamp).to.equal(0);
-                expect(whitelistStatus.indefiniteWhitelistCount).to.equal(0);
+                authorizationStatus =
+                  await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToAuthorizationStatus(
+                    roles.airnode.address,
+                    endpointId,
+                    requester
+                  );
+                expect(authorizationStatus.expirationTimestamp).to.equal(0);
+                expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(0);
               });
             });
           });
           context('Sender has not signaled intent', function () {
             context('Withdrawn deposit was the last one for the requester-endpoint pair', function () {
-              it('removes the indefinite whitelist of the requester for the endpoint, decrements the number of times tokens were deposited for the requester-endpoint pair and withdraws tokens', async function () {
+              it('removes the indefinite authorization of the requester for the endpoint, decrements the number of times tokens were deposited for the requester-endpoint pair and withdraws tokens', async function () {
                 const endpointId = testUtils.generateRandomBytes32();
                 const requester = testUtils.generateRandomAddress();
                 const price = hre.ethers.BigNumber.from(`100${'0'.repeat(18)}`); // $100
@@ -1636,29 +1570,29 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                 await airnodeEndpointPriceRegistry
                   .connect(roles.manager)
                   .registerAirnodeChainEndpointPrice(roles.airnode.address, chainId, endpointId, price);
-                await requesterAuthorizerWhitelisterWithTokenDeposit
+                await indefiniteAuthorizerWithErc20Deposit
                   .connect(roles.maintainer)
                   .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
                 await token
                   .connect(roles.depositor)
-                  .approve(requesterAuthorizerWhitelisterWithTokenDeposit.address, hre.ethers.utils.parseEther('1'));
-                await requesterAuthorizerWhitelisterWithTokenDeposit
+                  .approve(indefiniteAuthorizerWithErc20Deposit.address, hre.ethers.utils.parseEther('1'));
+                await indefiniteAuthorizerWithErc20Deposit
                   .connect(roles.depositor)
                   .depositTokens(roles.airnode.address, chainId, endpointId, requester);
-                let whitelistStatus =
-                  await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToWhitelistStatus(
+                let authorizationStatus =
+                  await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToAuthorizationStatus(
                     roles.airnode.address,
                     endpointId,
                     requester
                   );
-                expect(whitelistStatus.expirationTimestamp).to.equal(0);
-                expect(whitelistStatus.indefiniteWhitelistCount).to.equal(1);
+                expect(authorizationStatus.expirationTimestamp).to.equal(0);
+                expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(1);
                 await expect(
-                  requesterAuthorizerWhitelisterWithTokenDeposit
+                  indefiniteAuthorizerWithErc20Deposit
                     .connect(roles.depositor)
                     .withdrawTokens(roles.airnode.address, chainId, endpointId, requester)
                 )
-                  .to.emit(requesterAuthorizerWhitelisterWithTokenDeposit, 'WithdrewTokens')
+                  .to.emit(indefiniteAuthorizerWithErc20Deposit, 'WithdrewTokens')
                   .withArgs(
                     roles.airnode.address,
                     chainId,
@@ -1668,10 +1602,10 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                     0,
                     expectedTokenAmount
                   );
-                expect(await token.balanceOf(requesterAuthorizerWhitelisterWithTokenDeposit.address)).to.equal(0);
+                expect(await token.balanceOf(indefiniteAuthorizerWithErc20Deposit.address)).to.equal(0);
                 expect(await token.balanceOf(roles.depositor.address)).to.equal(hre.ethers.utils.parseEther('1'));
                 expect(
-                  await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositsCount(
+                  await indefiniteAuthorizerWithErc20Deposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositsCount(
                     roles.airnode.address,
                     chainId,
                     endpointId,
@@ -1679,7 +1613,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                   )
                 ).to.equal(0);
                 expect(
-                  await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositorToAmount(
+                  await indefiniteAuthorizerWithErc20Deposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositorToAmount(
                     roles.airnode.address,
                     chainId,
                     endpointId,
@@ -1687,13 +1621,14 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                     roles.depositor.address
                   )
                 ).to.equal(0);
-                whitelistStatus = await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToWhitelistStatus(
-                  roles.airnode.address,
-                  endpointId,
-                  requester
-                );
-                expect(whitelistStatus.expirationTimestamp).to.equal(0);
-                expect(whitelistStatus.indefiniteWhitelistCount).to.equal(0);
+                authorizationStatus =
+                  await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToAuthorizationStatus(
+                    roles.airnode.address,
+                    endpointId,
+                    requester
+                  );
+                expect(authorizationStatus.expirationTimestamp).to.equal(0);
+                expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(0);
               });
             });
             context('Withdrawn deposit was not the last one for the requester-endpoint pair', function () {
@@ -1705,35 +1640,35 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                 await airnodeEndpointPriceRegistry
                   .connect(roles.manager)
                   .registerAirnodeChainEndpointPrice(roles.airnode.address, chainId, endpointId, price);
-                await requesterAuthorizerWhitelisterWithTokenDeposit
+                await indefiniteAuthorizerWithErc20Deposit
                   .connect(roles.maintainer)
                   .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
                 await token
                   .connect(roles.depositor)
-                  .approve(requesterAuthorizerWhitelisterWithTokenDeposit.address, hre.ethers.utils.parseEther('1'));
-                await requesterAuthorizerWhitelisterWithTokenDeposit
+                  .approve(indefiniteAuthorizerWithErc20Deposit.address, hre.ethers.utils.parseEther('1'));
+                await indefiniteAuthorizerWithErc20Deposit
                   .connect(roles.depositor)
                   .depositTokens(roles.airnode.address, chainId, endpointId, requester);
                 await token
                   .connect(roles.anotherDepositor)
-                  .approve(requesterAuthorizerWhitelisterWithTokenDeposit.address, hre.ethers.utils.parseEther('1'));
-                await requesterAuthorizerWhitelisterWithTokenDeposit
+                  .approve(indefiniteAuthorizerWithErc20Deposit.address, hre.ethers.utils.parseEther('1'));
+                await indefiniteAuthorizerWithErc20Deposit
                   .connect(roles.anotherDepositor)
                   .depositTokens(roles.airnode.address, chainId, endpointId, requester);
-                let whitelistStatus =
-                  await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToWhitelistStatus(
+                let authorizationStatus =
+                  await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToAuthorizationStatus(
                     roles.airnode.address,
                     endpointId,
                     requester
                   );
-                expect(whitelistStatus.expirationTimestamp).to.equal(0);
-                expect(whitelistStatus.indefiniteWhitelistCount).to.equal(1);
+                expect(authorizationStatus.expirationTimestamp).to.equal(0);
+                expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(1);
                 await expect(
-                  requesterAuthorizerWhitelisterWithTokenDeposit
+                  indefiniteAuthorizerWithErc20Deposit
                     .connect(roles.depositor)
                     .withdrawTokens(roles.airnode.address, chainId, endpointId, requester)
                 )
-                  .to.emit(requesterAuthorizerWhitelisterWithTokenDeposit, 'WithdrewTokens')
+                  .to.emit(indefiniteAuthorizerWithErc20Deposit, 'WithdrewTokens')
                   .withArgs(
                     roles.airnode.address,
                     chainId,
@@ -1743,12 +1678,12 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                     1,
                     expectedTokenAmount
                   );
-                expect(await token.balanceOf(requesterAuthorizerWhitelisterWithTokenDeposit.address)).to.equal(
+                expect(await token.balanceOf(indefiniteAuthorizerWithErc20Deposit.address)).to.equal(
                   expectedTokenAmount
                 );
                 expect(await token.balanceOf(roles.depositor.address)).to.equal(hre.ethers.utils.parseEther('1'));
                 expect(
-                  await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositsCount(
+                  await indefiniteAuthorizerWithErc20Deposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositsCount(
                     roles.airnode.address,
                     chainId,
                     endpointId,
@@ -1756,7 +1691,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                   )
                 ).to.equal(1);
                 expect(
-                  await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositorToAmount(
+                  await indefiniteAuthorizerWithErc20Deposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositorToAmount(
                     roles.airnode.address,
                     chainId,
                     endpointId,
@@ -1764,13 +1699,14 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                     roles.depositor.address
                   )
                 ).to.equal(0);
-                whitelistStatus = await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToWhitelistStatus(
-                  roles.airnode.address,
-                  endpointId,
-                  requester
-                );
-                expect(whitelistStatus.expirationTimestamp).to.equal(0);
-                expect(whitelistStatus.indefiniteWhitelistCount).to.equal(1);
+                authorizationStatus =
+                  await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToAuthorizationStatus(
+                    roles.airnode.address,
+                    endpointId,
+                    requester
+                  );
+                expect(authorizationStatus.expirationTimestamp).to.equal(0);
+                expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(1);
               });
             });
           });
@@ -1780,9 +1716,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
             context('It is not before the earliest withdrawal time', function () {
               it('withdraws tokens', async function () {
                 const oneWeek = 7 * 24 * 60 * 60;
-                await requesterAuthorizerWhitelisterWithTokenDeposit
-                  .connect(roles.maintainer)
-                  .setWithdrawalLeadTime(oneWeek);
+                await indefiniteAuthorizerWithErc20Deposit.connect(roles.maintainer).setWithdrawalLeadTime(oneWeek);
                 const endpointId = testUtils.generateRandomBytes32();
                 const requester = testUtils.generateRandomAddress();
                 const price = hre.ethers.BigNumber.from(`100${'0'.repeat(18)}`); // $100
@@ -1790,34 +1724,34 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                 await airnodeEndpointPriceRegistry
                   .connect(roles.manager)
                   .registerAirnodeChainEndpointPrice(roles.airnode.address, chainId, endpointId, price);
-                await requesterAuthorizerWhitelisterWithTokenDeposit
+                await indefiniteAuthorizerWithErc20Deposit
                   .connect(roles.maintainer)
                   .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
                 await token
                   .connect(roles.depositor)
-                  .approve(requesterAuthorizerWhitelisterWithTokenDeposit.address, hre.ethers.utils.parseEther('1'));
-                await requesterAuthorizerWhitelisterWithTokenDeposit
+                  .approve(indefiniteAuthorizerWithErc20Deposit.address, hre.ethers.utils.parseEther('1'));
+                await indefiniteAuthorizerWithErc20Deposit
                   .connect(roles.depositor)
                   .depositTokens(roles.airnode.address, chainId, endpointId, requester);
-                await requesterAuthorizerWhitelisterWithTokenDeposit
+                await indefiniteAuthorizerWithErc20Deposit
                   .connect(roles.depositor)
                   .signalWithdrawalIntent(roles.airnode.address, chainId, endpointId, requester);
                 const now = (await hre.ethers.provider.getBlock(await hre.ethers.provider.getBlockNumber())).timestamp;
                 await hre.ethers.provider.send('evm_setNextBlockTimestamp', [now + oneWeek]);
-                let whitelistStatus =
-                  await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToWhitelistStatus(
+                let authorizationStatus =
+                  await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToAuthorizationStatus(
                     roles.airnode.address,
                     endpointId,
                     requester
                   );
-                expect(whitelistStatus.expirationTimestamp).to.equal(0);
-                expect(whitelistStatus.indefiniteWhitelistCount).to.equal(0);
+                expect(authorizationStatus.expirationTimestamp).to.equal(0);
+                expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(0);
                 await expect(
-                  requesterAuthorizerWhitelisterWithTokenDeposit
+                  indefiniteAuthorizerWithErc20Deposit
                     .connect(roles.depositor)
                     .withdrawTokens(roles.airnode.address, chainId, endpointId, requester)
                 )
-                  .to.emit(requesterAuthorizerWhitelisterWithTokenDeposit, 'WithdrewTokens')
+                  .to.emit(indefiniteAuthorizerWithErc20Deposit, 'WithdrewTokens')
                   .withArgs(
                     roles.airnode.address,
                     chainId,
@@ -1827,10 +1761,10 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                     0,
                     expectedTokenAmount
                   );
-                expect(await token.balanceOf(requesterAuthorizerWhitelisterWithTokenDeposit.address)).to.equal(0);
+                expect(await token.balanceOf(indefiniteAuthorizerWithErc20Deposit.address)).to.equal(0);
                 expect(await token.balanceOf(roles.depositor.address)).to.equal(hre.ethers.utils.parseEther('1'));
                 expect(
-                  await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositsCount(
+                  await indefiniteAuthorizerWithErc20Deposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositsCount(
                     roles.airnode.address,
                     chainId,
                     endpointId,
@@ -1838,7 +1772,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                   )
                 ).to.equal(0);
                 expect(
-                  await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositorToAmount(
+                  await indefiniteAuthorizerWithErc20Deposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositorToAmount(
                     roles.airnode.address,
                     chainId,
                     endpointId,
@@ -1846,41 +1780,40 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                     roles.depositor.address
                   )
                 ).to.equal(0);
-                whitelistStatus = await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToWhitelistStatus(
-                  roles.airnode.address,
-                  endpointId,
-                  requester
-                );
-                expect(whitelistStatus.expirationTimestamp).to.equal(0);
-                expect(whitelistStatus.indefiniteWhitelistCount).to.equal(0);
+                authorizationStatus =
+                  await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToAuthorizationStatus(
+                    roles.airnode.address,
+                    endpointId,
+                    requester
+                  );
+                expect(authorizationStatus.expirationTimestamp).to.equal(0);
+                expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(0);
               });
             });
             context('It is before the earliest withdrawal time', function () {
               it('reverts', async function () {
                 const oneWeek = 7 * 24 * 60 * 60;
-                await requesterAuthorizerWhitelisterWithTokenDeposit
-                  .connect(roles.maintainer)
-                  .setWithdrawalLeadTime(oneWeek);
+                await indefiniteAuthorizerWithErc20Deposit.connect(roles.maintainer).setWithdrawalLeadTime(oneWeek);
                 const endpointId = testUtils.generateRandomBytes32();
                 const requester = testUtils.generateRandomAddress();
                 const price = hre.ethers.BigNumber.from(`100${'0'.repeat(18)}`); // $100
                 await airnodeEndpointPriceRegistry
                   .connect(roles.manager)
                   .registerAirnodeChainEndpointPrice(roles.airnode.address, chainId, endpointId, price);
-                await requesterAuthorizerWhitelisterWithTokenDeposit
+                await indefiniteAuthorizerWithErc20Deposit
                   .connect(roles.maintainer)
                   .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
                 await token
                   .connect(roles.depositor)
-                  .approve(requesterAuthorizerWhitelisterWithTokenDeposit.address, hre.ethers.utils.parseEther('1'));
-                await requesterAuthorizerWhitelisterWithTokenDeposit
+                  .approve(indefiniteAuthorizerWithErc20Deposit.address, hre.ethers.utils.parseEther('1'));
+                await indefiniteAuthorizerWithErc20Deposit
                   .connect(roles.depositor)
                   .depositTokens(roles.airnode.address, chainId, endpointId, requester);
-                await requesterAuthorizerWhitelisterWithTokenDeposit
+                await indefiniteAuthorizerWithErc20Deposit
                   .connect(roles.depositor)
                   .signalWithdrawalIntent(roles.airnode.address, chainId, endpointId, requester);
                 await expect(
-                  requesterAuthorizerWhitelisterWithTokenDeposit
+                  indefiniteAuthorizerWithErc20Deposit
                     .connect(roles.depositor)
                     .withdrawTokens(roles.airnode.address, chainId, endpointId, requester)
                 ).to.be.revertedWith('Not withdrawal time yet');
@@ -1890,26 +1823,24 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
           context('Sender has not signaled intent', function () {
             it('reverts', async function () {
               const oneWeek = 7 * 24 * 60 * 60;
-              await requesterAuthorizerWhitelisterWithTokenDeposit
-                .connect(roles.maintainer)
-                .setWithdrawalLeadTime(oneWeek);
+              await indefiniteAuthorizerWithErc20Deposit.connect(roles.maintainer).setWithdrawalLeadTime(oneWeek);
               const endpointId = testUtils.generateRandomBytes32();
               const requester = testUtils.generateRandomAddress();
               const price = hre.ethers.BigNumber.from(`100${'0'.repeat(18)}`); // $100
               await airnodeEndpointPriceRegistry
                 .connect(roles.manager)
                 .registerAirnodeChainEndpointPrice(roles.airnode.address, chainId, endpointId, price);
-              await requesterAuthorizerWhitelisterWithTokenDeposit
+              await indefiniteAuthorizerWithErc20Deposit
                 .connect(roles.maintainer)
                 .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
               await token
                 .connect(roles.depositor)
-                .approve(requesterAuthorizerWhitelisterWithTokenDeposit.address, hre.ethers.utils.parseEther('1'));
-              await requesterAuthorizerWhitelisterWithTokenDeposit
+                .approve(indefiniteAuthorizerWithErc20Deposit.address, hre.ethers.utils.parseEther('1'));
+              await indefiniteAuthorizerWithErc20Deposit
                 .connect(roles.depositor)
                 .depositTokens(roles.airnode.address, chainId, endpointId, requester);
               await expect(
-                requesterAuthorizerWhitelisterWithTokenDeposit
+                indefiniteAuthorizerWithErc20Deposit
                   .connect(roles.depositor)
                   .withdrawTokens(roles.airnode.address, chainId, endpointId, requester)
               ).to.be.revertedWith('Withdrawal intent not signaled');
@@ -1925,11 +1856,11 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
           await airnodeEndpointPriceRegistry
             .connect(roles.manager)
             .registerAirnodeChainEndpointPrice(roles.airnode.address, chainId, endpointId, price);
-          await requesterAuthorizerWhitelisterWithTokenDeposit
+          await indefiniteAuthorizerWithErc20Deposit
             .connect(roles.maintainer)
             .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
           await expect(
-            requesterAuthorizerWhitelisterWithTokenDeposit
+            indefiniteAuthorizerWithErc20Deposit
               .connect(roles.depositor)
               .withdrawTokens(roles.airnode.address, chainId, endpointId, requester)
           ).to.be.revertedWith('Sender has not deposited tokens');
@@ -1940,14 +1871,12 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
       it('reverts', async function () {
         const endpointId = testUtils.generateRandomBytes32();
         const requester = testUtils.generateRandomAddress();
-        await requesterAuthorizerWhitelisterWithTokenDeposit
+        await indefiniteAuthorizerWithErc20Deposit
           .connect(roles.maintainer)
           .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
-        await requesterAuthorizerWhitelisterWithTokenDeposit
-          .connect(roles.blocker)
-          .setRequesterBlockStatus(requester, true);
+        await indefiniteAuthorizerWithErc20Deposit.connect(roles.blocker).setRequesterBlockStatus(requester, true);
         await expect(
-          requesterAuthorizerWhitelisterWithTokenDeposit
+          indefiniteAuthorizerWithErc20Deposit
             .connect(roles.depositor)
             .withdrawTokens(roles.airnode.address, chainId, endpointId, requester)
         ).to.be.revertedWith('Requester blocked');
@@ -1957,14 +1886,14 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
       it('reverts', async function () {
         const endpointId = testUtils.generateRandomBytes32();
         const requester = testUtils.generateRandomAddress();
-        await requesterAuthorizerWhitelisterWithTokenDeposit
+        await indefiniteAuthorizerWithErc20Deposit
           .connect(roles.maintainer)
           .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
-        await requesterAuthorizerWhitelisterWithTokenDeposit
+        await indefiniteAuthorizerWithErc20Deposit
           .connect(roles.blocker)
           .setRequesterBlockStatusForAirnode(roles.airnode.address, requester, true);
         await expect(
-          requesterAuthorizerWhitelisterWithTokenDeposit
+          indefiniteAuthorizerWithErc20Deposit
             .connect(roles.depositor)
             .withdrawTokens(roles.airnode.address, chainId, endpointId, requester)
         ).to.be.revertedWith('Requester blocked');
@@ -1976,7 +1905,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
     context('Requester is blocked globally', function () {
       context('depositor has deposited tokens', function () {
         context('Withdrawn deposit was the last one for the requester-endpoint pair', function () {
-          it('removes the indefinite whitelist of the requester for the endpoint, decrements the number of times tokens were deposited for the requester-endpoint pair and withdraws tokens to the proceeds destination', async function () {
+          it('removes the indefinite authorization of the requester for the endpoint, decrements the number of times tokens were deposited for the requester-endpoint pair and withdraws tokens to the proceeds destination', async function () {
             const endpointId = testUtils.generateRandomBytes32();
             const requester = testUtils.generateRandomAddress();
             const price = hre.ethers.BigNumber.from(`100${'0'.repeat(18)}`); // $100
@@ -1984,27 +1913,26 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
             await airnodeEndpointPriceRegistry
               .connect(roles.manager)
               .registerAirnodeChainEndpointPrice(roles.airnode.address, chainId, endpointId, price);
-            await requesterAuthorizerWhitelisterWithTokenDeposit
+            await indefiniteAuthorizerWithErc20Deposit
               .connect(roles.maintainer)
               .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
             await token
               .connect(roles.depositor)
-              .approve(requesterAuthorizerWhitelisterWithTokenDeposit.address, hre.ethers.utils.parseEther('1'));
-            await requesterAuthorizerWhitelisterWithTokenDeposit
+              .approve(indefiniteAuthorizerWithErc20Deposit.address, hre.ethers.utils.parseEther('1'));
+            await indefiniteAuthorizerWithErc20Deposit
               .connect(roles.depositor)
               .depositTokens(roles.airnode.address, chainId, endpointId, requester);
-            await requesterAuthorizerWhitelisterWithTokenDeposit
-              .connect(roles.blocker)
-              .setRequesterBlockStatus(requester, true);
-            let whitelistStatus = await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToWhitelistStatus(
-              roles.airnode.address,
-              endpointId,
-              requester
-            );
-            expect(whitelistStatus.expirationTimestamp).to.equal(0);
-            expect(whitelistStatus.indefiniteWhitelistCount).to.equal(1);
+            await indefiniteAuthorizerWithErc20Deposit.connect(roles.blocker).setRequesterBlockStatus(requester, true);
+            let authorizationStatus =
+              await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToAuthorizationStatus(
+                roles.airnode.address,
+                endpointId,
+                requester
+              );
+            expect(authorizationStatus.expirationTimestamp).to.equal(0);
+            expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(1);
             await expect(
-              requesterAuthorizerWhitelisterWithTokenDeposit
+              indefiniteAuthorizerWithErc20Deposit
                 .connect(roles.randomPerson)
                 .withdrawFundsDepositedForBlockedRequester(
                   roles.airnode.address,
@@ -2014,7 +1942,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                   roles.depositor.address
                 )
             )
-              .to.emit(requesterAuthorizerWhitelisterWithTokenDeposit, 'WithdrewTokensDepositedForBlockedRequester')
+              .to.emit(indefiniteAuthorizerWithErc20Deposit, 'WithdrewTokensDepositedForBlockedRequester')
               .withArgs(
                 roles.airnode.address,
                 chainId,
@@ -2024,13 +1952,13 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                 0,
                 expectedTokenAmount
               );
-            expect(await token.balanceOf(requesterAuthorizerWhitelisterWithTokenDeposit.address)).to.equal(0);
+            expect(await token.balanceOf(indefiniteAuthorizerWithErc20Deposit.address)).to.equal(0);
             expect(await token.balanceOf(roles.depositor.address)).to.equal(
               hre.ethers.utils.parseEther('1').sub(expectedTokenAmount)
             );
             expect(await token.balanceOf(roles.proceedsDestination.address)).to.equal(expectedTokenAmount);
             expect(
-              await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositsCount(
+              await indefiniteAuthorizerWithErc20Deposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositsCount(
                 roles.airnode.address,
                 chainId,
                 endpointId,
@@ -2038,7 +1966,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
               )
             ).to.equal(0);
             expect(
-              await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositorToAmount(
+              await indefiniteAuthorizerWithErc20Deposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositorToAmount(
                 roles.airnode.address,
                 chainId,
                 endpointId,
@@ -2046,13 +1974,14 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                 roles.depositor.address
               )
             ).to.equal(0);
-            whitelistStatus = await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToWhitelistStatus(
-              roles.airnode.address,
-              endpointId,
-              requester
-            );
-            expect(whitelistStatus.expirationTimestamp).to.equal(0);
-            expect(whitelistStatus.indefiniteWhitelistCount).to.equal(0);
+            authorizationStatus =
+              await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToAuthorizationStatus(
+                roles.airnode.address,
+                endpointId,
+                requester
+              );
+            expect(authorizationStatus.expirationTimestamp).to.equal(0);
+            expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(0);
           });
         });
         context('Withdrawn deposit was not the last one for the requester-endpoint pair', function () {
@@ -2064,33 +1993,32 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
             await airnodeEndpointPriceRegistry
               .connect(roles.manager)
               .registerAirnodeChainEndpointPrice(roles.airnode.address, chainId, endpointId, price);
-            await requesterAuthorizerWhitelisterWithTokenDeposit
+            await indefiniteAuthorizerWithErc20Deposit
               .connect(roles.maintainer)
               .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
             await token
               .connect(roles.depositor)
-              .approve(requesterAuthorizerWhitelisterWithTokenDeposit.address, hre.ethers.utils.parseEther('1'));
-            await requesterAuthorizerWhitelisterWithTokenDeposit
+              .approve(indefiniteAuthorizerWithErc20Deposit.address, hre.ethers.utils.parseEther('1'));
+            await indefiniteAuthorizerWithErc20Deposit
               .connect(roles.depositor)
               .depositTokens(roles.airnode.address, chainId, endpointId, requester);
             await token
               .connect(roles.anotherDepositor)
-              .approve(requesterAuthorizerWhitelisterWithTokenDeposit.address, hre.ethers.utils.parseEther('1'));
-            await requesterAuthorizerWhitelisterWithTokenDeposit
+              .approve(indefiniteAuthorizerWithErc20Deposit.address, hre.ethers.utils.parseEther('1'));
+            await indefiniteAuthorizerWithErc20Deposit
               .connect(roles.anotherDepositor)
               .depositTokens(roles.airnode.address, chainId, endpointId, requester);
-            await requesterAuthorizerWhitelisterWithTokenDeposit
-              .connect(roles.blocker)
-              .setRequesterBlockStatus(requester, true);
-            let whitelistStatus = await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToWhitelistStatus(
-              roles.airnode.address,
-              endpointId,
-              requester
-            );
-            expect(whitelistStatus.expirationTimestamp).to.equal(0);
-            expect(whitelistStatus.indefiniteWhitelistCount).to.equal(1);
+            await indefiniteAuthorizerWithErc20Deposit.connect(roles.blocker).setRequesterBlockStatus(requester, true);
+            let authorizationStatus =
+              await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToAuthorizationStatus(
+                roles.airnode.address,
+                endpointId,
+                requester
+              );
+            expect(authorizationStatus.expirationTimestamp).to.equal(0);
+            expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(1);
             await expect(
-              requesterAuthorizerWhitelisterWithTokenDeposit
+              indefiniteAuthorizerWithErc20Deposit
                 .connect(roles.randomPerson)
                 .withdrawFundsDepositedForBlockedRequester(
                   roles.airnode.address,
@@ -2100,7 +2028,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                   roles.depositor.address
                 )
             )
-              .to.emit(requesterAuthorizerWhitelisterWithTokenDeposit, 'WithdrewTokensDepositedForBlockedRequester')
+              .to.emit(indefiniteAuthorizerWithErc20Deposit, 'WithdrewTokensDepositedForBlockedRequester')
               .withArgs(
                 roles.airnode.address,
                 chainId,
@@ -2110,15 +2038,13 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                 1,
                 expectedTokenAmount
               );
-            expect(await token.balanceOf(requesterAuthorizerWhitelisterWithTokenDeposit.address)).to.equal(
-              expectedTokenAmount
-            );
+            expect(await token.balanceOf(indefiniteAuthorizerWithErc20Deposit.address)).to.equal(expectedTokenAmount);
             expect(await token.balanceOf(roles.depositor.address)).to.equal(
               hre.ethers.utils.parseEther('1').sub(expectedTokenAmount)
             );
             expect(await token.balanceOf(roles.proceedsDestination.address)).to.equal(expectedTokenAmount);
             expect(
-              await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositsCount(
+              await indefiniteAuthorizerWithErc20Deposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositsCount(
                 roles.airnode.address,
                 chainId,
                 endpointId,
@@ -2126,7 +2052,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
               )
             ).to.equal(1);
             expect(
-              await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositorToAmount(
+              await indefiniteAuthorizerWithErc20Deposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositorToAmount(
                 roles.airnode.address,
                 chainId,
                 endpointId,
@@ -2134,13 +2060,14 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                 roles.depositor.address
               )
             ).to.equal(0);
-            whitelistStatus = await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToWhitelistStatus(
-              roles.airnode.address,
-              endpointId,
-              requester
-            );
-            expect(whitelistStatus.expirationTimestamp).to.equal(0);
-            expect(whitelistStatus.indefiniteWhitelistCount).to.equal(1);
+            authorizationStatus =
+              await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToAuthorizationStatus(
+                roles.airnode.address,
+                endpointId,
+                requester
+              );
+            expect(authorizationStatus.expirationTimestamp).to.equal(0);
+            expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(1);
           });
         });
       });
@@ -2148,14 +2075,12 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
         it('reverts', async function () {
           const endpointId = testUtils.generateRandomBytes32();
           const requester = testUtils.generateRandomAddress();
-          await requesterAuthorizerWhitelisterWithTokenDeposit
+          await indefiniteAuthorizerWithErc20Deposit
             .connect(roles.maintainer)
             .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
-          await requesterAuthorizerWhitelisterWithTokenDeposit
-            .connect(roles.blocker)
-            .setRequesterBlockStatus(requester, true);
+          await indefiniteAuthorizerWithErc20Deposit.connect(roles.blocker).setRequesterBlockStatus(requester, true);
           await expect(
-            requesterAuthorizerWhitelisterWithTokenDeposit
+            indefiniteAuthorizerWithErc20Deposit
               .connect(roles.randomPerson)
               .withdrawFundsDepositedForBlockedRequester(
                 roles.airnode.address,
@@ -2171,7 +2096,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
     context('Requester is blocked for Airnode', function () {
       context('depositor has deposited tokens', function () {
         context('Withdrawn deposit was the last one for the requester-endpoint pair', function () {
-          it('removes the indefinite whitelist of the requester for the endpoint, decrements the number of times tokens were deposited for the requester-endpoint pair and withdraws tokens to the proceeds destination', async function () {
+          it('removes the indefinite authorization of the requester for the endpoint, decrements the number of times tokens were deposited for the requester-endpoint pair and withdraws tokens to the proceeds destination', async function () {
             const endpointId = testUtils.generateRandomBytes32();
             const requester = testUtils.generateRandomAddress();
             const price = hre.ethers.BigNumber.from(`100${'0'.repeat(18)}`); // $100
@@ -2179,27 +2104,28 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
             await airnodeEndpointPriceRegistry
               .connect(roles.manager)
               .registerAirnodeChainEndpointPrice(roles.airnode.address, chainId, endpointId, price);
-            await requesterAuthorizerWhitelisterWithTokenDeposit
+            await indefiniteAuthorizerWithErc20Deposit
               .connect(roles.maintainer)
               .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
             await token
               .connect(roles.depositor)
-              .approve(requesterAuthorizerWhitelisterWithTokenDeposit.address, hre.ethers.utils.parseEther('1'));
-            await requesterAuthorizerWhitelisterWithTokenDeposit
+              .approve(indefiniteAuthorizerWithErc20Deposit.address, hre.ethers.utils.parseEther('1'));
+            await indefiniteAuthorizerWithErc20Deposit
               .connect(roles.depositor)
               .depositTokens(roles.airnode.address, chainId, endpointId, requester);
-            await requesterAuthorizerWhitelisterWithTokenDeposit
+            await indefiniteAuthorizerWithErc20Deposit
               .connect(roles.blocker)
               .setRequesterBlockStatusForAirnode(roles.airnode.address, requester, true);
-            let whitelistStatus = await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToWhitelistStatus(
-              roles.airnode.address,
-              endpointId,
-              requester
-            );
-            expect(whitelistStatus.expirationTimestamp).to.equal(0);
-            expect(whitelistStatus.indefiniteWhitelistCount).to.equal(1);
+            let authorizationStatus =
+              await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToAuthorizationStatus(
+                roles.airnode.address,
+                endpointId,
+                requester
+              );
+            expect(authorizationStatus.expirationTimestamp).to.equal(0);
+            expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(1);
             await expect(
-              requesterAuthorizerWhitelisterWithTokenDeposit
+              indefiniteAuthorizerWithErc20Deposit
                 .connect(roles.randomPerson)
                 .withdrawFundsDepositedForBlockedRequester(
                   roles.airnode.address,
@@ -2209,7 +2135,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                   roles.depositor.address
                 )
             )
-              .to.emit(requesterAuthorizerWhitelisterWithTokenDeposit, 'WithdrewTokensDepositedForBlockedRequester')
+              .to.emit(indefiniteAuthorizerWithErc20Deposit, 'WithdrewTokensDepositedForBlockedRequester')
               .withArgs(
                 roles.airnode.address,
                 chainId,
@@ -2219,13 +2145,13 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                 0,
                 expectedTokenAmount
               );
-            expect(await token.balanceOf(requesterAuthorizerWhitelisterWithTokenDeposit.address)).to.equal(0);
+            expect(await token.balanceOf(indefiniteAuthorizerWithErc20Deposit.address)).to.equal(0);
             expect(await token.balanceOf(roles.depositor.address)).to.equal(
               hre.ethers.utils.parseEther('1').sub(expectedTokenAmount)
             );
             expect(await token.balanceOf(roles.proceedsDestination.address)).to.equal(expectedTokenAmount);
             expect(
-              await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositsCount(
+              await indefiniteAuthorizerWithErc20Deposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositsCount(
                 roles.airnode.address,
                 chainId,
                 endpointId,
@@ -2233,7 +2159,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
               )
             ).to.equal(0);
             expect(
-              await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositorToAmount(
+              await indefiniteAuthorizerWithErc20Deposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositorToAmount(
                 roles.airnode.address,
                 chainId,
                 endpointId,
@@ -2241,13 +2167,14 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                 roles.depositor.address
               )
             ).to.equal(0);
-            whitelistStatus = await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToWhitelistStatus(
-              roles.airnode.address,
-              endpointId,
-              requester
-            );
-            expect(whitelistStatus.expirationTimestamp).to.equal(0);
-            expect(whitelistStatus.indefiniteWhitelistCount).to.equal(0);
+            authorizationStatus =
+              await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToAuthorizationStatus(
+                roles.airnode.address,
+                endpointId,
+                requester
+              );
+            expect(authorizationStatus.expirationTimestamp).to.equal(0);
+            expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(0);
           });
         });
         context('Withdrawn deposit was not the last one for the requester-endpoint pair', function () {
@@ -2259,33 +2186,34 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
             await airnodeEndpointPriceRegistry
               .connect(roles.manager)
               .registerAirnodeChainEndpointPrice(roles.airnode.address, chainId, endpointId, price);
-            await requesterAuthorizerWhitelisterWithTokenDeposit
+            await indefiniteAuthorizerWithErc20Deposit
               .connect(roles.maintainer)
               .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
             await token
               .connect(roles.depositor)
-              .approve(requesterAuthorizerWhitelisterWithTokenDeposit.address, hre.ethers.utils.parseEther('1'));
-            await requesterAuthorizerWhitelisterWithTokenDeposit
+              .approve(indefiniteAuthorizerWithErc20Deposit.address, hre.ethers.utils.parseEther('1'));
+            await indefiniteAuthorizerWithErc20Deposit
               .connect(roles.depositor)
               .depositTokens(roles.airnode.address, chainId, endpointId, requester);
             await token
               .connect(roles.anotherDepositor)
-              .approve(requesterAuthorizerWhitelisterWithTokenDeposit.address, hre.ethers.utils.parseEther('1'));
-            await requesterAuthorizerWhitelisterWithTokenDeposit
+              .approve(indefiniteAuthorizerWithErc20Deposit.address, hre.ethers.utils.parseEther('1'));
+            await indefiniteAuthorizerWithErc20Deposit
               .connect(roles.anotherDepositor)
               .depositTokens(roles.airnode.address, chainId, endpointId, requester);
-            await requesterAuthorizerWhitelisterWithTokenDeposit
+            await indefiniteAuthorizerWithErc20Deposit
               .connect(roles.blocker)
               .setRequesterBlockStatusForAirnode(roles.airnode.address, requester, true);
-            let whitelistStatus = await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToWhitelistStatus(
-              roles.airnode.address,
-              endpointId,
-              requester
-            );
-            expect(whitelistStatus.expirationTimestamp).to.equal(0);
-            expect(whitelistStatus.indefiniteWhitelistCount).to.equal(1);
+            let authorizationStatus =
+              await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToAuthorizationStatus(
+                roles.airnode.address,
+                endpointId,
+                requester
+              );
+            expect(authorizationStatus.expirationTimestamp).to.equal(0);
+            expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(1);
             await expect(
-              requesterAuthorizerWhitelisterWithTokenDeposit
+              indefiniteAuthorizerWithErc20Deposit
                 .connect(roles.randomPerson)
                 .withdrawFundsDepositedForBlockedRequester(
                   roles.airnode.address,
@@ -2295,7 +2223,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                   roles.depositor.address
                 )
             )
-              .to.emit(requesterAuthorizerWhitelisterWithTokenDeposit, 'WithdrewTokensDepositedForBlockedRequester')
+              .to.emit(indefiniteAuthorizerWithErc20Deposit, 'WithdrewTokensDepositedForBlockedRequester')
               .withArgs(
                 roles.airnode.address,
                 chainId,
@@ -2305,15 +2233,13 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                 1,
                 expectedTokenAmount
               );
-            expect(await token.balanceOf(requesterAuthorizerWhitelisterWithTokenDeposit.address)).to.equal(
-              expectedTokenAmount
-            );
+            expect(await token.balanceOf(indefiniteAuthorizerWithErc20Deposit.address)).to.equal(expectedTokenAmount);
             expect(await token.balanceOf(roles.depositor.address)).to.equal(
               hre.ethers.utils.parseEther('1').sub(expectedTokenAmount)
             );
             expect(await token.balanceOf(roles.proceedsDestination.address)).to.equal(expectedTokenAmount);
             expect(
-              await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositsCount(
+              await indefiniteAuthorizerWithErc20Deposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositsCount(
                 roles.airnode.address,
                 chainId,
                 endpointId,
@@ -2321,7 +2247,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
               )
             ).to.equal(1);
             expect(
-              await requesterAuthorizerWhitelisterWithTokenDeposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositorToAmount(
+              await indefiniteAuthorizerWithErc20Deposit.airnodeToChainIdToEndpointIdToRequesterToTokenDepositorToAmount(
                 roles.airnode.address,
                 chainId,
                 endpointId,
@@ -2329,13 +2255,14 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
                 roles.depositor.address
               )
             ).to.equal(0);
-            whitelistStatus = await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToWhitelistStatus(
-              roles.airnode.address,
-              endpointId,
-              requester
-            );
-            expect(whitelistStatus.expirationTimestamp).to.equal(0);
-            expect(whitelistStatus.indefiniteWhitelistCount).to.equal(1);
+            authorizationStatus =
+              await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToAuthorizationStatus(
+                roles.airnode.address,
+                endpointId,
+                requester
+              );
+            expect(authorizationStatus.expirationTimestamp).to.equal(0);
+            expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(1);
           });
         });
       });
@@ -2343,14 +2270,14 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
         it('reverts', async function () {
           const endpointId = testUtils.generateRandomBytes32();
           const requester = testUtils.generateRandomAddress();
-          await requesterAuthorizerWhitelisterWithTokenDeposit
+          await indefiniteAuthorizerWithErc20Deposit
             .connect(roles.maintainer)
             .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
-          await requesterAuthorizerWhitelisterWithTokenDeposit
+          await indefiniteAuthorizerWithErc20Deposit
             .connect(roles.blocker)
             .setRequesterBlockStatusForAirnode(roles.airnode.address, requester, true);
           await expect(
-            requesterAuthorizerWhitelisterWithTokenDeposit
+            indefiniteAuthorizerWithErc20Deposit
               .connect(roles.randomPerson)
               .withdrawFundsDepositedForBlockedRequester(
                 roles.airnode.address,
@@ -2368,7 +2295,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
         const endpointId = testUtils.generateRandomBytes32();
         const requester = testUtils.generateRandomAddress();
         await expect(
-          requesterAuthorizerWhitelisterWithTokenDeposit
+          indefiniteAuthorizerWithErc20Deposit
             .connect(roles.randomPerson)
             .withdrawFundsDepositedForBlockedRequester(
               roles.airnode.address,

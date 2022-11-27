@@ -13,17 +13,17 @@ interface IRequesterAuthorizerWithAirnode is
         view
         returns (bytes32 role);
 
-    function deriveWhitelistExpirationExtenderRole(address airnode)
+    function deriveAuthorizationExpirationExtenderRole(address airnode)
         external
         view
         returns (bytes32 role);
 
-    function deriveWhitelistExpirationSetterRole(address airnode)
+    function deriveAuthorizationExpirationSetterRole(address airnode)
         external
         view
         returns (bytes32 role);
 
-    function deriveIndefiniteWhitelisterRole(address airnode)
+    function deriveIndefiniteAuthorizerRole(address airnode)
         external
         view
         returns (bytes32 role);

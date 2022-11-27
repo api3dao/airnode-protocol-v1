@@ -5,7 +5,7 @@ import "../../access-control-registry/interfaces/IAccessControlRegistryAdminnedW
 import "./IAirnodeEndpointPriceRegistryUser.sol";
 import "./IRequesterAuthorizerRegistryUser.sol";
 
-interface IRequesterAuthorizerWhitelisterWithToken is
+interface IAuthorizerWithErc20 is
     IAccessControlRegistryAdminnedWithManager,
     IAirnodeEndpointPriceRegistryUser,
     IRequesterAuthorizerRegistryUser

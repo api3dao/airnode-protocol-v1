@@ -2,15 +2,15 @@
 pragma solidity 0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./RequesterAuthorizerWhitelisterWithToken.sol";
-import "./interfaces/IRequesterAuthorizerWhitelisterWithTokenDeposit.sol";
+import "./AuthorizerWithErc20.sol";
+import "./interfaces/IIndefiniteAuthorizerWithErc20Deposit.sol";
 import "../authorizers/interfaces/IRequesterAuthorizer.sol";
 
-/// @title RequesterAuthorizer indefinite whitelister contract that allows
-/// users to deposit the respective token to be whitelisted
-contract RequesterAuthorizerWhitelisterWithTokenDeposit is
-    RequesterAuthorizerWhitelisterWithToken,
-    IRequesterAuthorizerWhitelisterWithTokenDeposit
+/// @title RequesterAuthorizer indefinite authorizer contract that allows
+/// users to deposit the respective ERC20 token to be authorized
+contract IndefiniteAuthorizerWithErc20Deposit is
+    AuthorizerWithErc20,
+    IIndefiniteAuthorizerWithErc20Deposit
 {
     using SafeERC20 for IERC20;
 
@@ -53,7 +53,7 @@ contract RequesterAuthorizerWhitelisterWithTokenDeposit is
         uint256 _priceCoefficient,
         address _proceedsDestination
     )
-        RequesterAuthorizerWhitelisterWithToken(
+        AuthorizerWithErc20(
             _accessControlRegistry,
             _adminRoleDescription,
             _manager,
@@ -81,8 +81,8 @@ contract RequesterAuthorizerWhitelisterWithTokenDeposit is
         emit SetWithdrawalLeadTime(_withdrawalLeadTime, msg.sender);
     }
 
-    /// @notice Deposits tokens for the requester to be whitelisted for the
-    /// Airnode–endpoint pair on the chain
+    /// @notice Deposits tokens for the requester to be authorized for the
+    /// Airnode–endpoint pair
     /// @param airnode Airnode address
     /// @param chainId Chain ID
     /// @param endpointId Endpoint ID
@@ -126,7 +126,7 @@ contract RequesterAuthorizerWhitelisterWithTokenDeposit is
         );
         if (tokenDepositsCount == 1) {
             IRequesterAuthorizer(getRequesterAuthorizerAddress(chainId))
-                .setIndefiniteWhitelistStatus(
+                .setIndefiniteAuthorizationStatus(
                     airnode,
                     endpointId,
                     requester,
@@ -141,7 +141,7 @@ contract RequesterAuthorizerWhitelisterWithTokenDeposit is
     }
 
     /// @notice Signals intent to withdraw tokens previously deposited for the
-    /// requester to be whitelisted for the Airnode–endpoint pair on the chain
+    /// requester to be authorized for the Airnode–endpoint pair
     /// @dev Withdrawal intent can be signaled for tokens deposited for blocked
     /// requesters.
     /// Consider calling `withdrawTokens()` directly if `withdrawalLeadTime` is
@@ -182,7 +182,7 @@ contract RequesterAuthorizerWhitelisterWithTokenDeposit is
         );
         if (tokenDepositsCount == 0) {
             IRequesterAuthorizer(getRequesterAuthorizerAddress(chainId))
-                .setIndefiniteWhitelistStatus(
+                .setIndefiniteAuthorizationStatus(
                     airnode,
                     endpointId,
                     requester,
@@ -192,7 +192,7 @@ contract RequesterAuthorizerWhitelisterWithTokenDeposit is
     }
 
     /// @notice Withdraws tokens previously deposited for the requester to be
-    /// whitelisted for the Airnode–endpoint pair on the chain
+    /// authorized for the Airnode–endpoint pair
     /// @param airnode Airnode address
     /// @param chainId Chain ID
     /// @param endpointId Endpoint ID
@@ -248,7 +248,7 @@ contract RequesterAuthorizerWhitelisterWithTokenDeposit is
             );
             if (tokenDepositsCount == 0) {
                 IRequesterAuthorizer(getRequesterAuthorizerAddress(chainId))
-                    .setIndefiniteWhitelistStatus(
+                    .setIndefiniteAuthorizationStatus(
                         airnode,
                         endpointId,
                         requester,
@@ -260,8 +260,7 @@ contract RequesterAuthorizerWhitelisterWithTokenDeposit is
     }
 
     /// @notice Withdraws tokens previously deposited for the blocked requester
-    /// to be whitelisted for the Airnode–endpoint pair on the chain by the
-    /// depositor
+    /// to be authorized for the Airnode–endpoint pair by the depositor
     /// @param airnode Airnode address
     /// @param chainId Chain ID
     /// @param endpointId Endpoint ID
@@ -300,7 +299,7 @@ contract RequesterAuthorizerWhitelisterWithTokenDeposit is
             );
             if (tokenDepositsCount == 0) {
                 IRequesterAuthorizer(getRequesterAuthorizerAddress(chainId))
-                    .setIndefiniteWhitelistStatus(
+                    .setIndefiniteAuthorizationStatus(
                         airnode,
                         endpointId,
                         requester,
@@ -323,8 +322,8 @@ contract RequesterAuthorizerWhitelisterWithTokenDeposit is
         IERC20(token).safeTransfer(proceedsDestination, tokenWithdrawAmount);
     }
 
-    /// @notice Number of deposits made for the requester to be whitelisted for
-    /// the Airnode–endpoint pair on the chain
+    /// @notice Number of deposits made for the requester to be authorized for
+    /// the Airnode–endpoint pair
     /// @param airnode Airnode address
     /// @param chainId Chain ID
     /// @param endpointId Endpoint ID
@@ -342,7 +341,7 @@ contract RequesterAuthorizerWhitelisterWithTokenDeposit is
     }
 
     /// @notice Amount of tokens deposited by the depositor for the requester
-    /// to be whitelisted for the Airnode–endpoint pair on the chain
+    /// to be authorized for the Airnode–endpoint pair
     /// @param airnode Airnode address
     /// @param chainId Chain ID
     /// @param endpointId Endpoint ID
@@ -362,8 +361,8 @@ contract RequesterAuthorizerWhitelisterWithTokenDeposit is
     }
 
     /// @notice Earliest time the depositor is allowed to withdraw tokens
-    /// deposited for the requester to be whitelisted for the Airnode–endpoint
-    /// pair on the chain after the withdrawal intent is signaled
+    /// deposited for the requester to be authorized for the Airnode–endpoint
+    /// pair after the withdrawal intent is signaled
     /// @param airnode Airnode address
     /// @param chainId Chain ID
     /// @param endpointId Endpoint ID
