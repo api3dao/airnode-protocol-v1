@@ -138,7 +138,7 @@ describe('ExpiringMetaCallForwarder', function () {
             const signature = await roles.randomPerson._signTypedData(domain, types, value);
             await expect(
               expiringMetaCallForwarder.connect(roles.randomPerson).execute(value, signature)
-            ).to.be.revertedWith('Invalid signature');
+            ).to.be.revertedWith('Signature mismatch');
           });
         });
       });

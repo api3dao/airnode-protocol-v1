@@ -67,7 +67,7 @@ contract ExpiringMetaCallForwarder is EIP712, SelfMulticall {
         );
         require(
             metaCallHash.recover(signature) == metaCall.from,
-            "Invalid signature"
+            "Signature mismatch"
         );
         metaCallWithHashIsExecuted[metaCallHash] = true;
         returndata = metaCall.to.functionCall(
