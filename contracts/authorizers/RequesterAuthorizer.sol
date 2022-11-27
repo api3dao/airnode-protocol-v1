@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
-import "../whitelist/Whitelist.sol";
 import "./interfaces/IRequesterAuthorizer.sol";
 
 /// @title Abstract contract to be inherited by Authorizer contracts that
@@ -10,11 +9,63 @@ import "./interfaces/IRequesterAuthorizer.sol";
 /// or Airnodes
 /// @dev An authorization for an Airnode with endpoint ID `bytes32(0)`
 /// represents a blanket authorization across all endpoints of the Airnode
-abstract contract RequesterAuthorizer is
-    ERC2771Context,
-    Whitelist,
-    IRequesterAuthorizer
-{
+abstract contract RequesterAuthorizer is ERC2771Context, IRequesterAuthorizer {
+    struct WhitelistStatus {
+        uint64 expirationTimestamp;
+        uint192 indefiniteWhitelistCount;
+    }
+
+    // There are four roles implemented in this contract:
+    // Root
+    // └── (1) Admin (can grant and revoke the roles below)
+    //     ├── (2) Whitelist expiration extender
+    //     ├── (3) Whitelist expiration setter
+    //     └── (4) Indefinite whitelister
+    // Their IDs are derived from the descriptions below. Refer to
+    // AccessControlRegistry for more information.
+    // To clarify, the root role of the manager is the admin of (1), while (1)
+    // is the admin of (2), (3) and (4). So (1) is more of a "contract admin",
+    // while the `adminRole` used in AccessControl and AccessControlRegistry
+    // refers to a more general adminship relationship between roles.
+
+    /// @notice Whitelist expiration extender role description
+    string
+        public constant
+        override WHITELIST_EXPIRATION_EXTENDER_ROLE_DESCRIPTION =
+        "Whitelist expiration extender";
+
+    /// @notice Whitelist expiration setter role description
+    string
+        public constant
+        override WHITELIST_EXPIRATION_SETTER_ROLE_DESCRIPTION =
+        "Whitelist expiration setter";
+
+    /// @notice Indefinite whitelister role description
+
+    string public constant override INDEFINITE_WHITELISTER_ROLE_DESCRIPTION =
+        "Indefinite whitelister";
+
+    bytes32
+        internal constant WHITELIST_EXPIRATION_EXTENDER_ROLE_DESCRIPTION_HASH =
+        keccak256(
+            abi.encodePacked(WHITELIST_EXPIRATION_EXTENDER_ROLE_DESCRIPTION)
+        );
+
+    bytes32
+        internal constant WHITELIST_EXPIRATION_SETTER_ROLE_DESCRIPTION_HASH =
+        keccak256(
+            abi.encodePacked(WHITELIST_EXPIRATION_SETTER_ROLE_DESCRIPTION)
+        );
+
+    bytes32 internal constant INDEFINITE_WHITELISTER_ROLE_DESCRIPTION_HASH =
+        keccak256(abi.encodePacked(INDEFINITE_WHITELISTER_ROLE_DESCRIPTION));
+
+    mapping(bytes32 => mapping(address => WhitelistStatus))
+        private serviceIdToUserToWhitelistStatus;
+
+    mapping(bytes32 => mapping(address => mapping(address => bool)))
+        private serviceIdToUserToSetterToIndefiniteWhitelistStatus;
+
     /// @param _trustedForwarder Trusted forwarder that verifies and executes
     /// signed meta-calls
     constructor(address _trustedForwarder) ERC2771Context(_trustedForwarder) {}
@@ -34,11 +85,15 @@ abstract contract RequesterAuthorizer is
     ) internal {
         require(airnode != address(0), "Airnode address zero");
         require(requester != address(0), "Requester address zero");
-        _extendWhitelistExpiration(
-            deriveServiceId(airnode, endpointId),
-            requester,
-            expirationTimestamp
+        bytes32 serviceId = deriveServiceId(airnode, endpointId);
+        require(
+            expirationTimestamp >
+                serviceIdToUserToWhitelistStatus[serviceId][requester]
+                    .expirationTimestamp,
+            "Does not extend expiration"
         );
+        serviceIdToUserToWhitelistStatus[serviceId][requester]
+            .expirationTimestamp = expirationTimestamp;
         emit ExtendedWhitelistExpiration(
             airnode,
             endpointId,
@@ -64,11 +119,9 @@ abstract contract RequesterAuthorizer is
     ) internal {
         require(airnode != address(0), "Airnode address zero");
         require(requester != address(0), "Requester address zero");
-        _setWhitelistExpiration(
-            deriveServiceId(airnode, endpointId),
-            requester,
-            expirationTimestamp
-        );
+        bytes32 serviceId = deriveServiceId(airnode, endpointId);
+        serviceIdToUserToWhitelistStatus[serviceId][requester]
+            .expirationTimestamp = expirationTimestamp;
         emit SetWhitelistExpiration(
             airnode,
             endpointId,
@@ -93,11 +146,35 @@ abstract contract RequesterAuthorizer is
     ) internal {
         require(airnode != address(0), "Airnode address zero");
         require(requester != address(0), "Requester address zero");
-        uint192 indefiniteWhitelistCount = _setIndefiniteWhitelistStatus(
-            deriveServiceId(airnode, endpointId),
-            requester,
-            status
-        );
+        bytes32 serviceId = deriveServiceId(airnode, endpointId);
+        uint192 indefiniteWhitelistCount = serviceIdToUserToWhitelistStatus[
+            serviceId
+        ][requester].indefiniteWhitelistCount;
+        if (
+            status &&
+            !serviceIdToUserToSetterToIndefiniteWhitelistStatus[serviceId][
+                requester
+            ][_msgSender()]
+        ) {
+            serviceIdToUserToSetterToIndefiniteWhitelistStatus[serviceId][
+                requester
+            ][_msgSender()] = true;
+            indefiniteWhitelistCount++;
+            serviceIdToUserToWhitelistStatus[serviceId][requester]
+                .indefiniteWhitelistCount = indefiniteWhitelistCount;
+        } else if (
+            !status &&
+            serviceIdToUserToSetterToIndefiniteWhitelistStatus[serviceId][
+                requester
+            ][_msgSender()]
+        ) {
+            serviceIdToUserToSetterToIndefiniteWhitelistStatus[serviceId][
+                requester
+            ][_msgSender()] = false;
+            indefiniteWhitelistCount--;
+            serviceIdToUserToWhitelistStatus[serviceId][requester]
+                .indefiniteWhitelistCount = indefiniteWhitelistCount;
+        }
         emit SetIndefiniteWhitelistStatus(
             airnode,
             endpointId,
@@ -125,15 +202,21 @@ abstract contract RequesterAuthorizer is
         require(airnode != address(0), "Airnode address zero");
         require(requester != address(0), "Requester address zero");
         require(setter != address(0), "Setter address zero");
-        (
-            bool revoked,
-            uint192 indefiniteWhitelistCount
-        ) = _revokeIndefiniteWhitelistStatus(
-                deriveServiceId(airnode, endpointId),
-                requester,
-                setter
-            );
-        if (revoked) {
+        bytes32 serviceId = deriveServiceId(airnode, endpointId);
+        uint192 indefiniteWhitelistCount = serviceIdToUserToWhitelistStatus[
+            serviceId
+        ][requester].indefiniteWhitelistCount;
+        if (
+            serviceIdToUserToSetterToIndefiniteWhitelistStatus[serviceId][
+                requester
+            ][setter]
+        ) {
+            serviceIdToUserToSetterToIndefiniteWhitelistStatus[serviceId][
+                requester
+            ][setter] = false;
+            indefiniteWhitelistCount--;
+            serviceIdToUserToWhitelistStatus[serviceId][requester]
+                .indefiniteWhitelistCount = indefiniteWhitelistCount;
             emit RevokedIndefiniteWhitelistStatus(
                 airnode,
                 endpointId,
@@ -243,5 +326,23 @@ abstract contract RequesterAuthorizer is
         returns (bytes32 serviceId)
     {
         serviceId = keccak256(abi.encodePacked(airnode, endpointId));
+    }
+
+    /// @notice Returns if the user is whitelised to use the service
+    /// @param serviceId Service ID
+    /// @param user User address
+    /// @return isWhitelisted If the user is whitelisted
+    function userIsWhitelisted(bytes32 serviceId, address user)
+        private
+        view
+        returns (bool isWhitelisted)
+    {
+        WhitelistStatus
+            storage whitelistStatus = serviceIdToUserToWhitelistStatus[
+                serviceId
+            ][user];
+        return
+            whitelistStatus.indefiniteWhitelistCount > 0 ||
+            whitelistStatus.expirationTimestamp > block.timestamp;
     }
 }

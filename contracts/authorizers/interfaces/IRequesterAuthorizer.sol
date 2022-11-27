@@ -87,4 +87,22 @@ interface IRequesterAuthorizer is IAuthorizerV0 {
         bytes32 endpointId,
         address requester
     ) external view returns (bool);
+
+    // solhint-disable-next-line func-name-mixedcase
+    function WHITELIST_EXPIRATION_EXTENDER_ROLE_DESCRIPTION()
+        external
+        view
+        returns (string memory);
+
+    // solhint-disable-next-line func-name-mixedcase
+    function WHITELIST_EXPIRATION_SETTER_ROLE_DESCRIPTION()
+        external
+        view
+        returns (string memory);
+
+    // solhint-disable-next-line func-name-mixedcase
+    function INDEFINITE_WHITELISTER_ROLE_DESCRIPTION()
+        external
+        view
+        returns (string memory);
 }
