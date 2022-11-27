@@ -470,12 +470,12 @@ contract DapiServer is
 
     /// @notice Updates a Beacon using data signed by the respective Airnode,
     /// without requiring a request or subscription
+    /// @dev The signature can be generic or specific to this contract
     /// @param airnode Airnode address
     /// @param templateId Template ID
     /// @param timestamp Timestamp used in the signature
     /// @param data Response data (a `uint256` encoded in contract ABI)
-    /// @param signature Template ID, a timestamp and the response data signed
-    /// by the Airnode address
+    /// @param signature Data signed by the Airnode address
     function updateBeaconWithSignedData(
         address airnode,
         bytes32 templateId,
@@ -484,10 +484,7 @@ contract DapiServer is
         bytes calldata signature
     ) external override onlyValidTimestamp(timestamp) {
         require(
-            (
-                keccak256(abi.encodePacked(templateId, timestamp, data))
-                    .toEthSignedMessageHash()
-            ).recover(signature) == airnode,
+            signatureIsValid(airnode, templateId, timestamp, data, signature),
             "Signature mismatch"
         );
         bytes32 beaconId = deriveBeaconId(airnode, templateId);
@@ -604,20 +601,20 @@ contract DapiServer is
     /// @notice Updates a Beacon set using data signed by the respective
     /// Airnodes without requiring a request or subscription. The Beacons for
     /// which the signature is omitted will be read from the storage.
+    /// @dev The signatures can be generic or specific to this contract
     /// @param airnodes Airnode addresses
     /// @param templateIds Template IDs
     /// @param timestamps Timestamps used in the signatures
     /// @param data Response data (a `uint256` encoded in contract ABI per
     /// Beacon)
-    /// @param signatures Template ID, a timestamp and the response data signed
-    /// by the respective Airnode address per Beacon
+    /// @param signatures Data signed by the Airnode addresses
     /// @return beaconSetId Beacon set ID
     function updateBeaconSetWithSignedData(
         address[] memory airnodes,
         bytes32[] memory templateIds,
         uint256[] memory timestamps,
-        bytes[] memory data,
-        bytes[] memory signatures
+        bytes[] calldata data,
+        bytes[] calldata signatures
     ) external override returns (bytes32 beaconSetId) {
         uint256 beaconCount = airnodes.length;
         require(
@@ -637,15 +634,13 @@ contract DapiServer is
                 uint256 timestamp = timestamps[ind];
                 require(timestampIsValid(timestamp), "Timestamp not valid");
                 require(
-                    (
-                        keccak256(
-                            abi.encodePacked(
-                                templateIds[ind],
-                                timestamp,
-                                data[ind]
-                            )
-                        ).toEthSignedMessageHash()
-                    ).recover(signatures[ind]) == airnode,
+                    signatureIsValid(
+                        airnode,
+                        templateIds[ind],
+                        timestamp,
+                        data[ind],
+                        signatures[ind]
+                    ),
                     "Signature mismatch"
                 );
                 values[ind] = decodeFulfillmentData(data[ind]);
@@ -928,5 +923,40 @@ contract DapiServer is
         } else {
             updateInPercentage = type(uint256).max;
         }
+    }
+
+    /// @notice Returns if the signature is valid
+    /// @dev The signature can be generic or specific to this contract
+    /// @param airnode Airnode address
+    /// @param templateId Template ID
+    /// @param timestamp Timestamp used in the signature
+    /// @param data Response data (a `uint256` encoded in contract ABI)
+    /// @param signature Data signed by the Airnode address
+    /// @return signatureIsValid If the signature is valid
+    function signatureIsValid(
+        address airnode,
+        bytes32 templateId,
+        uint256 timestamp,
+        bytes calldata data,
+        bytes calldata signature
+    ) private view returns (bool) {
+        return
+            (
+                keccak256(abi.encodePacked(templateId, timestamp, data))
+                    .toEthSignedMessageHash()
+            ).recover(signature) ==
+            airnode ||
+            (
+                keccak256(
+                    abi.encodePacked(
+                        block.chainid,
+                        address(this),
+                        templateId,
+                        timestamp,
+                        data
+                    )
+                ).toEthSignedMessageHash()
+            ).recover(signature) ==
+            airnode;
     }
 }
