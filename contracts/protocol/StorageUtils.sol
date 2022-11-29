@@ -47,8 +47,6 @@ contract StorageUtils is IStorageUtils {
     mapping(bytes32 => Subscription) public override subscriptions;
 
     /// @notice Announces template details with an event
-
-    /// @notice Announces template details
     /// @dev Templates fully or partially define requests. By referencing a
     /// template, requesters can omit specifying the "boilerplate" sections of
     /// requests.

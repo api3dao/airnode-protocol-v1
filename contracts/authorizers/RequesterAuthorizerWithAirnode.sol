@@ -49,7 +49,7 @@ contract RequesterAuthorizerWithAirnode is
             ),
             "Cannot extend expiration"
         );
-        _extendAuthorizationExpirationAndEmit(
+        _extendAuthorizationExpiration(
             airnode,
             endpointId,
             requester,
@@ -79,7 +79,7 @@ contract RequesterAuthorizerWithAirnode is
             ),
             "Cannot set expiration"
         );
-        _setAuthorizationExpirationAndEmit(
+        _setAuthorizationExpiration(
             airnode,
             endpointId,
             requester,
@@ -104,7 +104,7 @@ contract RequesterAuthorizerWithAirnode is
             hasIndefiniteAuthorizerRoleOrIsAirnode(airnode, _msgSender()),
             "Cannot set indefinite status"
         );
-        _setIndefiniteAuthorizationStatusAndEmit(
+        _setIndefiniteAuthorizationStatus(
             airnode,
             endpointId,
             requester,
@@ -128,7 +128,7 @@ contract RequesterAuthorizerWithAirnode is
             !hasIndefiniteAuthorizerRoleOrIsAirnode(airnode, setter),
             "setter can set indefinite status"
         );
-        _revokeIndefiniteAuthorizationStatusAndEmit(
+        _revokeIndefiniteAuthorizationStatus(
             airnode,
             endpointId,
             requester,
