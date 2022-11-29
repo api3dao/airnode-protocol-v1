@@ -36,7 +36,7 @@ contract AirnodeProtocol is
     mapping(bytes32 => bytes32) private requestIdToFulfillmentParameters;
 
     /// @notice Called by the requester to make a request
-    /// @param endpointOrTemplateId Template ID
+    /// @param endpointOrTemplateId Endpoint or template ID
     /// @param parameters Parameters
     /// @param sponsor Sponsor address
     /// @param fulfillFunctionId Selector of the function to be called for
