@@ -425,22 +425,14 @@ contract DapiServer is
         override
         returns (bytes32 beaconSetId)
     {
-        uint256 beaconCount = beaconIds.length;
-        require(beaconCount > 1, "Specified less than two Beacons");
-        int256[] memory values = new int256[](beaconCount);
-        uint256 accumulatedTimestamp = 0;
-        for (uint256 ind = 0; ind < beaconCount; ind++) {
-            DataFeed storage dataFeed = dataFeeds[beaconIds[ind]];
-            values[ind] = dataFeed.value;
-            accumulatedTimestamp += dataFeed.timestamp;
-        }
-        uint32 updatedTimestamp = uint32(accumulatedTimestamp / beaconCount);
+        (int224 updatedValue, uint32 updatedTimestamp) = aggregateBeacons(
+            beaconIds
+        );
         beaconSetId = deriveBeaconSetId(beaconIds);
         require(
             updatedTimestamp >= dataFeeds[beaconSetId].timestamp,
             "Updated value outdated"
         );
-        int224 updatedValue = int224(median(values));
         dataFeeds[beaconSetId] = DataFeed({
             value: updatedValue,
             timestamp: updatedTimestamp
@@ -468,24 +460,21 @@ contract DapiServer is
         bytes32 subscriptionId, // solhint-disable-line no-unused-vars
         bytes calldata data,
         bytes calldata conditionParameters
-    ) external override returns (bool) {
-        require(msg.sender == address(0), "Sender not zero address");
+    ) external view override returns (bool) {
         bytes32[] memory beaconIds = abi.decode(data, (bytes32[]));
         require(
             keccak256(abi.encode(beaconIds)) == keccak256(data),
             "Data length not correct"
         );
+        (int224 updatedValue, uint32 updatedTimestamp) = aggregateBeacons(
+            beaconIds
+        );
         bytes32 beaconSetId = deriveBeaconSetId(beaconIds);
-        DataFeed memory initialBeaconSet = dataFeeds[beaconSetId];
-        updateBeaconSetWithBeacons(beaconIds);
-        DataFeed storage updatedBeaconSet = dataFeeds[beaconSetId];
+        DataFeed storage initialBeaconSet = dataFeeds[beaconSetId];
         return
-            calculateUpdateInPercentage(
-                initialBeaconSet.value,
-                updatedBeaconSet.value
-            ) >=
+            calculateUpdateInPercentage(initialBeaconSet.value, updatedValue) >=
             decodeConditionParameters(conditionParameters) ||
-            (initialBeaconSet.timestamp == 0 && updatedBeaconSet.timestamp > 0);
+            (initialBeaconSet.timestamp == 0 && updatedTimestamp > 0);
     }
 
     /// @notice Called by the Airnode/relayer using the sponsor wallet to
@@ -708,6 +697,32 @@ contract DapiServer is
         ];
         require(dataFeed.timestamp != 0, "Data feed does not exist");
         return dataFeed.value;
+    }
+
+    /// @notice Aggregates the Beacons and returns the result
+    /// @dev Tha aggregation of Beacons may have a different value than the
+    /// respective Beacon set, e.g., because the Beacon set has been updated
+    /// using signed data
+    /// @param beaconIds Beacon IDs
+    /// @return value Aggregation value
+    /// @return timestamp Aggregation timestamp
+    function aggregateBeacons(bytes32[] memory beaconIds)
+        public
+        view
+        override
+        returns (int224 value, uint32 timestamp)
+    {
+        uint256 beaconCount = beaconIds.length;
+        require(beaconCount > 1, "Specified less than two Beacons");
+        int256[] memory values = new int256[](beaconCount);
+        uint256 accumulatedTimestamp = 0;
+        for (uint256 ind = 0; ind < beaconCount; ind++) {
+            DataFeed storage dataFeed = dataFeeds[beaconIds[ind]];
+            values[ind] = dataFeed.value;
+            accumulatedTimestamp += dataFeed.timestamp;
+        }
+        value = int224(median(values));
+        timestamp = uint32(accumulatedTimestamp / beaconCount);
     }
 
     /// @notice Derives the Beacon ID from the Airnode address and template ID

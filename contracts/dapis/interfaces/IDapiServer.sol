@@ -144,7 +144,7 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
         bytes32 subscriptionId,
         bytes calldata data,
         bytes calldata conditionParameters
-    ) external returns (bool);
+    ) external view returns (bool);
 
     function fulfillPspBeaconSetUpdate(
         bytes32 subscriptionId,
@@ -190,6 +190,11 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
         external
         view
         returns (int224 value);
+
+    function aggregateBeacons(bytes32[] memory beaconIds)
+        external
+        view
+        returns (int224 value, uint32 timestamp);
 
     function deriveBeaconId(address airnode, bytes32 templateId)
         external

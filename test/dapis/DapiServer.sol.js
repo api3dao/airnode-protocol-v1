@@ -9,7 +9,6 @@ describe('DapiServer', function () {
   let dapiNameSetterRole;
   let airnodeAddress, airnodeWallet, relayerAddress;
   let airnodeRrpSponsorWallet, airnodePspSponsorWallet, relayerRrpSponsorWallet, relayerPspSponsorWallet;
-  let voidSignerAddressZero;
   let templateId, beaconSetTemplateIds;
   let beaconId;
   let beaconUpdateSubscriptionId,
@@ -86,7 +85,6 @@ describe('DapiServer', function () {
       to: relayerPspSponsorWallet.address,
       value: hre.ethers.utils.parseEther('1'),
     });
-    voidSignerAddressZero = new hre.ethers.VoidSigner(hre.ethers.constants.AddressZero, hre.ethers.provider);
   }
 
   async function setUpTemplate() {
@@ -1629,23 +1627,67 @@ describe('DapiServer', function () {
   });
 
   describe('conditionPspBeaconSetUpdate', function () {
-    context('Sender has zero address ', function () {
-      context('Data length is correct', function () {
-        context('Condition parameters length is correct', function () {
-          context('Beacon set timestamp is zero', function () {
-            context('Update will set the Beacon set timestamp to a non-zero value', function () {
+    context('Data length is correct', function () {
+      context('Condition parameters length is correct', function () {
+        context('Beacon set timestamp is zero', function () {
+          context('Update will set the Beacon set timestamp to a non-zero value', function () {
+            it('returns true', async function () {
+              let timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
+              const encodedData = [0, 0, 0];
+              for (let ind = 0; ind < encodedData.length; ind++) {
+                timestamp++;
+                await setBeacon(beaconSetTemplateIds[ind], encodedData[ind], timestamp);
+              }
+              // Even if the Beacon values are zero, since their timestamps are not zero,
+              // the condition will return true
+              expect(
+                await dapiServer
+                  .connect(roles.randomPerson)
+                  .callStatic.conditionPspBeaconSetUpdate(
+                    beaconSetUpdateSubscriptionId,
+                    hre.ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSetBeaconIds]),
+                    beaconSetUpdateSubscriptionConditionParameters
+                  )
+              ).to.equal(true);
+            });
+          });
+          context('Update will not set the Beacon set timestamp to a non-zero value', function () {
+            it('returns false', async function () {
+              expect(
+                await dapiServer
+                  .connect(roles.randomPerson)
+                  .callStatic.conditionPspBeaconSetUpdate(
+                    beaconSetUpdateSubscriptionId,
+                    hre.ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSetBeaconIds]),
+                    beaconSetUpdateSubscriptionConditionParameters
+                  )
+              ).to.equal(false);
+            });
+          });
+        });
+        context('Beacon set timestamp is not zero', function () {
+          context('Data makes a larger update than the threshold', function () {
+            context('Update is upwards', function () {
               it('returns true', async function () {
+                // Set the Beacon set to 100 first
                 let timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-                const encodedData = [0, 0, 0];
+                timestamp++;
+                await setBeaconSet(
+                  airnodeAddress,
+                  beaconSetTemplateIds,
+                  [100, 100, 100],
+                  [timestamp, timestamp, timestamp]
+                );
+                // beaconSetUpdateSubscriptionConditionParameters is 5%
+                // 100 -> 105 satisfies the condition and returns true
+                const encodedData = [105, 110, 100];
                 for (let ind = 0; ind < encodedData.length; ind++) {
                   timestamp++;
                   await setBeacon(beaconSetTemplateIds[ind], encodedData[ind], timestamp);
                 }
-                // Even if the Beacon values are zero, since their timestamps are not zero,
-                // the condition will return true
                 expect(
                   await dapiServer
-                    .connect(voidSignerAddressZero)
+                    .connect(roles.randomPerson)
                     .callStatic.conditionPspBeaconSetUpdate(
                       beaconSetUpdateSubscriptionId,
                       hre.ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSetBeaconIds]),
@@ -1654,11 +1696,87 @@ describe('DapiServer', function () {
                 ).to.equal(true);
               });
             });
-            context('Update will not set the Beacon set timestamp to a non-zero value', function () {
-              it('returns false', async function () {
+            context('Update is downwards', function () {
+              it('returns true', async function () {
+                // Set the Beacon set to 100 first
+                let timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
+                timestamp++;
+                await setBeaconSet(
+                  airnodeAddress,
+                  beaconSetTemplateIds,
+                  [100, 100, 100],
+                  [timestamp, timestamp, timestamp]
+                );
+                // beaconSetUpdateSubscriptionConditionParameters is 5%
+                // 100 -> 95 satisfies the condition and returns true
+                const encodedData = [95, 100, 90];
+                for (let ind = 0; ind < encodedData.length; ind++) {
+                  timestamp++;
+                  await setBeacon(beaconSetTemplateIds[ind], encodedData[ind], timestamp);
+                }
                 expect(
                   await dapiServer
-                    .connect(voidSignerAddressZero)
+                    .connect(roles.randomPerson)
+                    .callStatic.conditionPspBeaconSetUpdate(
+                      beaconSetUpdateSubscriptionId,
+                      hre.ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSetBeaconIds]),
+                      beaconSetUpdateSubscriptionConditionParameters
+                    )
+                ).to.equal(true);
+              });
+            });
+          });
+          context('Data does not make a larger update than the threshold', function () {
+            context('Update is upwards', function () {
+              it('returns false', async function () {
+                // Set the Beacon set to 100 first
+                let timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
+                timestamp++;
+                await setBeaconSet(
+                  airnodeAddress,
+                  beaconSetTemplateIds,
+                  [100, 100, 100],
+                  [timestamp, timestamp, timestamp]
+                );
+                // beaconSetUpdateSubscriptionConditionParameters is 5%
+                // 100 -> 104 does not satisfy the condition and returns false
+                const encodedData = [110, 104, 95];
+                for (let ind = 0; ind < encodedData.length; ind++) {
+                  timestamp++;
+                  await setBeacon(beaconSetTemplateIds[ind], encodedData[ind], timestamp);
+                }
+                expect(
+                  await dapiServer
+                    .connect(roles.randomPerson)
+                    .callStatic.conditionPspBeaconSetUpdate(
+                      beaconSetUpdateSubscriptionId,
+                      hre.ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSetBeaconIds]),
+                      beaconSetUpdateSubscriptionConditionParameters
+                    )
+                ).to.equal(false);
+              });
+            });
+            context('Update is downwards', function () {
+              it('returns false', async function () {
+                // Set the Beacon set to 100 first
+                let timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
+                timestamp++;
+                await setBeaconSet(
+                  airnodeAddress,
+                  beaconSetTemplateIds,
+                  [100, 100, 100],
+                  [timestamp, timestamp, timestamp]
+                );
+                // beaconSetUpdateSubscriptionConditionParameters is 5%
+                // 100 -> 96 does not satisfy the condition and returns false
+                const encodedData = [105, 96, 95];
+                for (let ind = 0; ind < encodedData.length; ind++) {
+                  timestamp++;
+                  await setBeacon(beaconSetTemplateIds[ind], encodedData[ind], timestamp);
+                }
+                expect(
+                  await dapiServer
+                    .connect(roles.randomPerson)
                     .callStatic.conditionPspBeaconSetUpdate(
                       beaconSetUpdateSubscriptionId,
                       hre.ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSetBeaconIds]),
@@ -1668,157 +1786,13 @@ describe('DapiServer', function () {
               });
             });
           });
-          context('Beacon set timestamp is not zero', function () {
-            context('Data makes a larger update than the threshold', function () {
-              context('Update is upwards', function () {
-                it('returns true', async function () {
-                  // Set the Beacon set to 100 first
-                  let timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-                  timestamp++;
-                  await setBeaconSet(
-                    airnodeAddress,
-                    beaconSetTemplateIds,
-                    [100, 100, 100],
-                    [timestamp, timestamp, timestamp]
-                  );
-                  // beaconSetUpdateSubscriptionConditionParameters is 5%
-                  // 100 -> 105 satisfies the condition and returns true
-                  const encodedData = [105, 110, 100];
-                  for (let ind = 0; ind < encodedData.length; ind++) {
-                    timestamp++;
-                    await setBeacon(beaconSetTemplateIds[ind], encodedData[ind], timestamp);
-                  }
-                  expect(
-                    await dapiServer
-                      .connect(voidSignerAddressZero)
-                      .callStatic.conditionPspBeaconSetUpdate(
-                        beaconSetUpdateSubscriptionId,
-                        hre.ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSetBeaconIds]),
-                        beaconSetUpdateSubscriptionConditionParameters
-                      )
-                  ).to.equal(true);
-                });
-              });
-              context('Update is downwards', function () {
-                it('returns true', async function () {
-                  // Set the Beacon set to 100 first
-                  let timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-                  timestamp++;
-                  await setBeaconSet(
-                    airnodeAddress,
-                    beaconSetTemplateIds,
-                    [100, 100, 100],
-                    [timestamp, timestamp, timestamp]
-                  );
-                  // beaconSetUpdateSubscriptionConditionParameters is 5%
-                  // 100 -> 95 satisfies the condition and returns true
-                  const encodedData = [95, 100, 90];
-                  for (let ind = 0; ind < encodedData.length; ind++) {
-                    timestamp++;
-                    await setBeacon(beaconSetTemplateIds[ind], encodedData[ind], timestamp);
-                  }
-                  expect(
-                    await dapiServer
-                      .connect(voidSignerAddressZero)
-                      .callStatic.conditionPspBeaconSetUpdate(
-                        beaconSetUpdateSubscriptionId,
-                        hre.ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSetBeaconIds]),
-                        beaconSetUpdateSubscriptionConditionParameters
-                      )
-                  ).to.equal(true);
-                });
-              });
-            });
-            context('Data does not make a larger update than the threshold', function () {
-              context('Update is upwards', function () {
-                it('returns false', async function () {
-                  // Set the Beacon set to 100 first
-                  let timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-                  timestamp++;
-                  await setBeaconSet(
-                    airnodeAddress,
-                    beaconSetTemplateIds,
-                    [100, 100, 100],
-                    [timestamp, timestamp, timestamp]
-                  );
-                  // beaconSetUpdateSubscriptionConditionParameters is 5%
-                  // 100 -> 104 does not satisfy the condition and returns false
-                  const encodedData = [110, 104, 95];
-                  for (let ind = 0; ind < encodedData.length; ind++) {
-                    timestamp++;
-                    await setBeacon(beaconSetTemplateIds[ind], encodedData[ind], timestamp);
-                  }
-                  expect(
-                    await dapiServer
-                      .connect(voidSignerAddressZero)
-                      .callStatic.conditionPspBeaconSetUpdate(
-                        beaconSetUpdateSubscriptionId,
-                        hre.ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSetBeaconIds]),
-                        beaconSetUpdateSubscriptionConditionParameters
-                      )
-                  ).to.equal(false);
-                });
-              });
-              context('Update is downwards', function () {
-                it('returns false', async function () {
-                  // Set the Beacon set to 100 first
-                  let timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-                  timestamp++;
-                  await setBeaconSet(
-                    airnodeAddress,
-                    beaconSetTemplateIds,
-                    [100, 100, 100],
-                    [timestamp, timestamp, timestamp]
-                  );
-                  // beaconSetUpdateSubscriptionConditionParameters is 5%
-                  // 100 -> 96 does not satisfy the condition and returns false
-                  const encodedData = [105, 96, 95];
-                  for (let ind = 0; ind < encodedData.length; ind++) {
-                    timestamp++;
-                    await setBeacon(beaconSetTemplateIds[ind], encodedData[ind], timestamp);
-                  }
-                  expect(
-                    await dapiServer
-                      .connect(voidSignerAddressZero)
-                      .callStatic.conditionPspBeaconSetUpdate(
-                        beaconSetUpdateSubscriptionId,
-                        hre.ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSetBeaconIds]),
-                        beaconSetUpdateSubscriptionConditionParameters
-                      )
-                  ).to.equal(false);
-                });
-              });
-            });
-          });
-        });
-        context('Condition parameters length is not correct', function () {
-          it('reverts', async function () {
-            await expect(
-              dapiServer
-                .connect(voidSignerAddressZero)
-                .callStatic.conditionPspBeaconSetUpdate(
-                  testUtils.generateRandomBytes32(),
-                  hre.ethers.utils.defaultAbiCoder.encode(
-                    ['bytes32[]'],
-                    [
-                      [
-                        testUtils.generateRandomBytes32(),
-                        testUtils.generateRandomBytes32(),
-                        testUtils.generateRandomBytes32(),
-                      ],
-                    ]
-                  ),
-                  beaconSetUpdateSubscriptionConditionParameters + '00'
-                )
-            ).to.be.revertedWith('Incorrect parameter length');
-          });
         });
       });
-      context('Data length is not correct', function () {
+      context('Condition parameters length is not correct', function () {
         it('reverts', async function () {
           await expect(
             dapiServer
-              .connect(voidSignerAddressZero)
+              .connect(roles.randomPerson)
               .callStatic.conditionPspBeaconSetUpdate(
                 testUtils.generateRandomBytes32(),
                 hre.ethers.utils.defaultAbiCoder.encode(
@@ -1830,16 +1804,15 @@ describe('DapiServer', function () {
                       testUtils.generateRandomBytes32(),
                     ],
                   ]
-                ) + '00',
-                beaconSetUpdateSubscriptionConditionParameters
+                ),
+                beaconSetUpdateSubscriptionConditionParameters + '00'
               )
-          ).to.be.revertedWith('Data length not correct');
+          ).to.be.revertedWith('Incorrect parameter length');
         });
       });
     });
-    context('Sender does not have zero address ', function () {
+    context('Data length is not correct', function () {
       it('reverts', async function () {
-        // Static calls should revert
         await expect(
           dapiServer
             .connect(roles.randomPerson)
@@ -1854,29 +1827,10 @@ describe('DapiServer', function () {
                     testUtils.generateRandomBytes32(),
                   ],
                 ]
-              ),
+              ) + '00',
               beaconSetUpdateSubscriptionConditionParameters
             )
-        ).to.be.revertedWith('Sender not zero address');
-        // Calls should also revert
-        await expect(
-          dapiServer
-            .connect(roles.randomPerson)
-            .conditionPspBeaconSetUpdate(
-              testUtils.generateRandomBytes32(),
-              hre.ethers.utils.defaultAbiCoder.encode(
-                ['bytes32[]'],
-                [
-                  [
-                    testUtils.generateRandomBytes32(),
-                    testUtils.generateRandomBytes32(),
-                    testUtils.generateRandomBytes32(),
-                  ],
-                ]
-              ),
-              beaconSetUpdateSubscriptionConditionParameters
-            )
-        ).to.be.revertedWith('Sender not zero address');
+        ).to.be.revertedWith('Data length not correct');
       });
     });
   });
