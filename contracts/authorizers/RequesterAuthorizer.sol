@@ -41,7 +41,6 @@ abstract contract RequesterAuthorizer is ERC2771Context, IRequesterAuthorizer {
         "Authorization expiration setter";
 
     /// @notice Indefinite authorizer role description
-
     string public constant override INDEFINITE_AUTHORIZER_ROLE_DESCRIPTION =
         "Indefinite authorizer";
 
