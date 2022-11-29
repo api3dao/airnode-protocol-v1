@@ -76,7 +76,7 @@ abstract contract RequesterAuthorizer is ERC2771Context, IRequesterAuthorizer {
     /// @param requester Requester address
     /// @param expirationTimestamp Timestamp at which the temporary
     /// authorization will expire
-    function _extendAuthorizationExpirationAndEmit(
+    function _extendAuthorizationExpiration(
         address airnode,
         bytes32 endpointId,
         address requester,
@@ -110,7 +110,7 @@ abstract contract RequesterAuthorizer is ERC2771Context, IRequesterAuthorizer {
     /// @param requester Requester address
     /// @param expirationTimestamp Timestamp at which the temporary
     /// authorization will expire
-    function _setAuthorizationExpirationAndEmit(
+    function _setAuthorizationExpiration(
         address airnode,
         bytes32 endpointId,
         address requester,
@@ -137,7 +137,7 @@ abstract contract RequesterAuthorizer is ERC2771Context, IRequesterAuthorizer {
     /// @param endpointId Endpoint ID (allowed to be `bytes32(0)`)
     /// @param requester Requester address
     /// @param status Indefinite authorization status
-    function _setIndefiniteAuthorizationStatusAndEmit(
+    function _setIndefiniteAuthorizationStatus(
         address airnode,
         bytes32 endpointId,
         address requester,
@@ -191,7 +191,7 @@ abstract contract RequesterAuthorizer is ERC2771Context, IRequesterAuthorizer {
     /// @param endpointId Endpoint ID (allowed to be `bytes32(0)`)
     /// @param requester Requester address
     /// @param setter Setter of the indefinite authorization status
-    function _revokeIndefiniteAuthorizationStatusAndEmit(
+    function _revokeIndefiniteAuthorizationStatus(
         address airnode,
         bytes32 endpointId,
         address requester,
