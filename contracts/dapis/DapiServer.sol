@@ -309,14 +309,16 @@ contract DapiServer is
     ) external view override returns (bool) {
         bytes32 beaconId = subscriptionIdToBeaconId[subscriptionId];
         require(beaconId != bytes32(0), "Subscription not registered");
-        DataFeed storage beacon = dataFeeds[beaconId];
+        // Assuming that the update value will be signed after this condition
+        // returns true, the update timestamp will be larger than
+        // `block.timestamp`, which will still satisfy the update condition.
         return
-            calculateUpdateInPercentage(
-                beacon.value,
-                decodeFulfillmentData(data)
-            ) >=
-            decodeConditionParameters(conditionParameters) ||
-            beacon.timestamp == 0;
+            checkUpdateCondition(
+                beaconId,
+                decodeFulfillmentData(data),
+                uint32(block.timestamp),
+                conditionParameters
+            );
     }
 
     /// @notice Called by the Airnode/relayer using the sponsor wallet to
@@ -469,12 +471,13 @@ contract DapiServer is
         (int224 updatedValue, uint32 updatedTimestamp) = aggregateBeacons(
             beaconIds
         );
-        bytes32 beaconSetId = deriveBeaconSetId(beaconIds);
-        DataFeed storage initialBeaconSet = dataFeeds[beaconSetId];
         return
-            calculateUpdateInPercentage(initialBeaconSet.value, updatedValue) >=
-            decodeConditionParameters(conditionParameters) ||
-            (initialBeaconSet.timestamp == 0 && updatedTimestamp > 0);
+            checkUpdateCondition(
+                deriveBeaconSetId(beaconIds),
+                updatedValue,
+                updatedTimestamp,
+                conditionParameters
+            );
     }
 
     /// @notice Called by the Airnode/relayer using the sponsor wallet to
@@ -793,21 +796,32 @@ contract DapiServer is
         return int224(decodedData);
     }
 
-    /// @notice Called privately to decode the condition parameters
-    /// @param conditionParameters Condition parameters (a `uint256` encoded in
-    /// contract ABI)
-    /// @return deviationThresholdInPercentage Deviation threshold in
-    /// percentage where 100% is represented as `HUNDRED_PERCENT`
-    function decodeConditionParameters(bytes calldata conditionParameters)
-        private
-        pure
-        returns (uint256 deviationThresholdInPercentage)
-    {
-        require(conditionParameters.length == 32, "Incorrect parameter length");
-        deviationThresholdInPercentage = abi.decode(
-            conditionParameters,
-            (uint256)
-        );
+    /// @notice Called privately to check the update condition
+    /// @param dataFeedId Data feed ID
+    /// @param updatedValue Value the data feed will be updated with
+    /// @param updatedTimestamp Timestamp the data feed will be updated with
+    /// @param conditionParameters Condition parameters (two `uint256`s encoded
+    /// in contract ABI)
+    /// @return If update should be executed
+    function checkUpdateCondition(
+        bytes32 dataFeedId,
+        int224 updatedValue,
+        uint32 updatedTimestamp,
+        bytes calldata conditionParameters
+    ) private view returns (bool) {
+        require(conditionParameters.length == 64, "Incorrect parameter length");
+        (
+            uint256 deviationThresholdInPercentage,
+            uint256 heartbeatInterval
+        ) = abi.decode(conditionParameters, (uint256, uint256));
+        DataFeed storage dataFeed = dataFeeds[dataFeedId];
+        return
+            (dataFeed.timestamp == 0 && updatedTimestamp != 0) ||
+            (deviationThresholdInPercentage != 0 &&
+                calculateUpdateInPercentage(dataFeed.value, updatedValue) >=
+                deviationThresholdInPercentage) ||
+            (heartbeatInterval != 0 &&
+                dataFeed.timestamp + heartbeatInterval <= updatedTimestamp);
     }
 
     /// @notice Called privately to calculate the update magnitude in
