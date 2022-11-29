@@ -495,6 +495,40 @@ contract DapiServer is
         emit UpdatedBeaconWithSignedData(beaconId, decodedData, timestamp);
     }
 
+    /// @notice Updates a Beacon using data signed for this contract by the
+    /// respective Airnode, without requiring a request or subscription
+    /// @param airnode Airnode address
+    /// @param templateId Template ID
+    /// @param timestamp Timestamp used in the signature
+    /// @param data Response data (a `uint256` encoded in contract ABI)
+    /// @param signature Template ID, a timestamp and the response data signed
+    /// for this contract by the Airnode address
+    function updateBeaconWithDomainSignedData(
+        address airnode,
+        bytes32 templateId,
+        uint256 timestamp,
+        bytes calldata data,
+        bytes calldata signature
+    ) external override onlyValidTimestamp(timestamp) {
+        require(
+            (
+                keccak256(
+                    abi.encodePacked(
+                        block.chainid,
+                        address(this),
+                        templateId,
+                        timestamp,
+                        data
+                    )
+                ).toEthSignedMessageHash()
+            ).recover(signature) == airnode,
+            "Signature mismatch"
+        );
+        bytes32 beaconId = deriveBeaconId(airnode, templateId);
+        uint256 decodedData = processBeaconUpdate(beaconId, timestamp, data);
+        emit UpdatedBeaconWithSignedData(beaconId, decodedData, timestamp);
+    }
+
     ///                     ~~~PSP Beacon set updates~~~
 
     /// @notice Updates the Beacon set using the current values of its Beacons
@@ -653,6 +687,94 @@ contract DapiServer is
                 // be small enough to be typecast into `uint32`
                 accumulatedTimestamp += timestamp;
                 beaconIds[ind] = deriveBeaconId(airnode, templateIds[ind]);
+            } else {
+                bytes32 beaconId = deriveBeaconId(
+                    airnodes[ind],
+                    templateIds[ind]
+                );
+                DataFeed storage dataFeed = dataFeeds[beaconId];
+                values[ind] = dataFeed.value;
+                accumulatedTimestamp += dataFeed.timestamp;
+                beaconIds[ind] = beaconId;
+            }
+        }
+        beaconSetId = deriveBeaconSetId(beaconIds);
+        uint32 updatedTimestamp = uint32(accumulatedTimestamp / beaconCount);
+        require(
+            updatedTimestamp >= dataFeeds[beaconSetId].timestamp,
+            "Updated value outdated"
+        );
+        uint224 updatedValue = uint224(median(values));
+        dataFeeds[beaconSetId] = DataFeed({
+            value: updatedValue,
+            timestamp: updatedTimestamp
+        });
+        emit UpdatedBeaconSetWithSignedData(
+            beaconSetId,
+            updatedValue,
+            updatedTimestamp
+        );
+    }
+
+    /// @notice Updates a Beacon set using data signed for this contract by the
+    ///  respective Airnodes without requiring a request or subscription. The
+    /// Beacons for which the signature is omitted will be read from the
+    /// storage.
+    /// @param airnodes Airnode addresses
+    /// @param templateIds Template IDs
+    /// @param timestamps Timestamps used in the signatures
+    /// @param data Response data (a `uint256` encoded in contract ABI per
+    /// Beacon)
+    /// @param signatures Template ID, a timestamp and the response data signed
+    /// for this contract by the respective Airnode address per Beacon
+    /// @return beaconSetId Beacon set ID
+    function updateBeaconSetWithDomainSignedData(
+        address[] memory airnodes,
+        bytes32[] memory templateIds,
+        uint256[] memory timestamps,
+        bytes[] memory data,
+        bytes[] memory signatures
+    ) external override returns (bytes32 beaconSetId) {
+        uint256 beaconCount = airnodes.length;
+        require(
+            beaconCount == templateIds.length &&
+                beaconCount == timestamps.length &&
+                beaconCount == data.length &&
+                beaconCount == signatures.length,
+            "Parameter length mismatch"
+        );
+        require(beaconCount > 1, "Specified less than two Beacons");
+        bytes32[] memory beaconIds = new bytes32[](beaconCount);
+        uint256[] memory values = new uint256[](beaconCount);
+        uint256 accumulatedTimestamp = 0;
+        for (uint256 ind = 0; ind < beaconCount; ind++) {
+            if (signatures[ind].length != 0) {
+                require(
+                    timestampIsValid(timestamps[ind]),
+                    "Timestamp not valid"
+                );
+                require(
+                    (
+                        keccak256(
+                            abi.encodePacked(
+                                block.chainid,
+                                address(this),
+                                templateIds[ind],
+                                timestamps[ind],
+                                data[ind]
+                            )
+                        ).toEthSignedMessageHash()
+                    ).recover(signatures[ind]) == airnodes[ind],
+                    "Signature mismatch"
+                );
+                values[ind] = decodeFulfillmentData(data[ind]);
+                // Timestamp validity is already checked, which means it will
+                // be small enough to be typecast into `uint32`
+                accumulatedTimestamp += timestamps[ind];
+                beaconIds[ind] = deriveBeaconId(
+                    airnodes[ind],
+                    templateIds[ind]
+                );
             } else {
                 bytes32 beaconId = deriveBeaconId(
                     airnodes[ind],
