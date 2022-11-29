@@ -2,13 +2,13 @@
 pragma solidity ^0.8.0;
 
 interface IStorageUtils {
-    event StoredTemplate(
+    event AnnouncedTemplate(
         bytes32 indexed templateId,
         bytes32 endpointId,
         bytes parameters
     );
 
-    event StoredSubscription(
+    event AnnouncedSubscription(
         bytes32 indexed subscriptionId,
         uint256 chainId,
         address airnode,
@@ -21,9 +21,25 @@ interface IStorageUtils {
         bytes4 fulfillFunctionId
     );
 
+    function announceTemplate(bytes32 endpointId, bytes calldata parameters)
+        external
+        returns (bytes32 templateId);
+
     function storeTemplate(bytes32 endpointId, bytes calldata parameters)
         external
         returns (bytes32 templateId);
+
+    function announceSubscription(
+        uint256 chainId,
+        address airnode,
+        bytes32 templateId,
+        bytes calldata parameters,
+        bytes calldata conditions,
+        address relayer,
+        address sponsor,
+        address requester,
+        bytes4 fulfillFunctionId
+    ) external returns (bytes32 subscriptionId);
 
     function storeSubscription(
         uint256 chainId,
