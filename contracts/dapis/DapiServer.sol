@@ -70,7 +70,8 @@ contract DapiServer is
     /// @notice ID of the Beacon that the subscription is registered to update
     mapping(bytes32 => bytes32) public override subscriptionIdToBeaconId;
 
-    mapping(bytes32 => DataFeed) private dataFeeds;
+    /// @notice Data feed with ID
+    mapping(bytes32 => DataFeed) public override dataFeeds;
 
     mapping(bytes32 => bytes32) private requestIdToBeaconId;
 
@@ -840,20 +841,6 @@ contract DapiServer is
         returns (bytes32)
     {
         return dapiNameHashToDataFeedId[keccak256(abi.encodePacked(dapiName))];
-    }
-
-    /// @notice Reads the data feed with ID
-    /// @param dataFeedId Data feed ID
-    /// @return value Data feed value
-    /// @return timestamp Data feed timestamp
-    function readDataFeedWithId(bytes32 dataFeedId)
-        external
-        view
-        override
-        returns (uint224 value, uint32 timestamp)
-    {
-        DataFeed storage dataFeed = dataFeeds[dataFeedId];
-        return (dataFeed.value, dataFeed.timestamp);
     }
 
     /// @notice Reads the data feed with dAPI name
