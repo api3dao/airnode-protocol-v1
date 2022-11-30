@@ -73,11 +73,12 @@ contract DapiServer is
     /// @notice Data feed with ID
     mapping(bytes32 => DataFeed) public override dataFeeds;
 
+    /// @notice Data feed ID mapped to the dAPI name hash
+    mapping(bytes32 => bytes32) public override dapiNameHashToDataFeedId;
+
     mapping(bytes32 => bytes32) private requestIdToBeaconId;
 
     mapping(bytes32 => bytes32) private subscriptionIdToHash;
-
-    mapping(bytes32 => bytes32) private dapiNameHashToDataFeedId;
 
     /// @dev Reverts if the sender is not permitted to request an RRP-based
     /// update with the sponsor and is not the sponsor

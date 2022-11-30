@@ -247,4 +247,9 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
         external
         view
         returns (uint224 value, uint32 timestamp);
+
+    function dapiNameHashToDataFeedId(bytes32 dapiNameHash)
+        external
+        view
+        returns (bytes32 dataFeedId);
 }
