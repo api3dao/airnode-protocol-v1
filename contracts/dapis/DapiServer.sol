@@ -856,20 +856,6 @@ contract DapiServer is
         return (dataFeed.value, dataFeed.timestamp);
     }
 
-    /// @notice Reads the data feed value with ID
-    /// @param dataFeedId Data feed ID
-    /// @return value Data feed value
-    function readDataFeedValueWithId(bytes32 dataFeedId)
-        external
-        view
-        override
-        returns (uint224 value)
-    {
-        DataFeed storage dataFeed = dataFeeds[dataFeedId];
-        require(dataFeed.timestamp != 0, "Data feed does not exist");
-        return dataFeed.value;
-    }
-
     /// @notice Reads the data feed with dAPI name
     /// @param dapiName dAPI name
     /// @return value Data feed value
@@ -886,23 +872,6 @@ contract DapiServer is
         require(dataFeedId != bytes32(0), "dAPI name not set");
         DataFeed storage dataFeed = dataFeeds[dataFeedId];
         return (dataFeed.value, dataFeed.timestamp);
-    }
-
-    /// @notice Reads the data feed value with dAPI name
-    /// @param dapiName dAPI name
-    /// @return value Data feed value
-    function readDataFeedValueWithDapiName(bytes32 dapiName)
-        external
-        view
-        override
-        returns (uint224 value)
-    {
-        bytes32 dapiNameHash = keccak256(abi.encodePacked(dapiName));
-        DataFeed storage dataFeed = dataFeeds[
-            dapiNameHashToDataFeedId[dapiNameHash]
-        ];
-        require(dataFeed.timestamp != 0, "Data feed does not exist");
-        return dataFeed.value;
     }
 
     /// @notice Aggregates the Beacons and returns the result

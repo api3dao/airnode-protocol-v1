@@ -207,20 +207,10 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
         view
         returns (uint224 value, uint32 timestamp);
 
-    function readDataFeedValueWithId(bytes32 dataFeedId)
-        external
-        view
-        returns (uint224 value);
-
     function readDataFeedWithDapiName(bytes32 dapiName)
         external
         view
         returns (uint224 value, uint32 timestamp);
-
-    function readDataFeedValueWithDapiName(bytes32 dapiName)
-        external
-        view
-        returns (uint224 value);
 
     function aggregateBeacons(bytes32[] memory beaconIds)
         external
