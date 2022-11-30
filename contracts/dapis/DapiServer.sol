@@ -843,19 +843,17 @@ contract DapiServer is
         return dapiNameHashToDataFeedId[keccak256(abi.encodePacked(dapiName))];
     }
 
-    /// @notice Reads the data feed with dAPI name
-    /// @param dapiName dAPI name
+    /// @notice Reads the data feed with dAPI name hash
+    /// @param dapiNameHash dAPI name hash
     /// @return value Data feed value
     /// @return timestamp Data feed timestamp
-    function readDataFeedWithDapiName(bytes32 dapiName)
+    function readDataFeedWithDapiNameHash(bytes32 dapiNameHash)
         external
         view
         override
         returns (uint224 value, uint32 timestamp)
     {
-        bytes32 dataFeedId = dapiNameHashToDataFeedId[
-            keccak256(abi.encodePacked(dapiName))
-        ];
+        bytes32 dataFeedId = dapiNameHashToDataFeedId[dapiNameHash];
         require(dataFeedId != bytes32(0), "dAPI name not set");
         DataFeed storage dataFeed = dataFeeds[dataFeedId];
         return (dataFeed.value, dataFeed.timestamp);

@@ -3071,14 +3071,15 @@ describe('DapiServer', function () {
     });
   });
 
-  describe('readDataFeedWithDapiName', function () {
+  describe('readDataFeedWithDapiNameHash', function () {
     context('dAPI name set to Beacon', function () {
       it('reads Beacon', async function () {
         const dapiName = hre.ethers.utils.formatBytes32String('My beacon');
+        const dapiNameHash = hre.ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
         await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconId);
         const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
         await setBeacon(templateId, 123, timestamp);
-        const beacon = await dapiServer.connect(roles.randomPerson).readDataFeedWithDapiName(dapiName);
+        const beacon = await dapiServer.connect(roles.randomPerson).readDataFeedWithDapiNameHash(dapiNameHash);
         expect(beacon.value).to.be.equal(123);
         expect(beacon.timestamp).to.be.equal(timestamp);
       });
@@ -3086,6 +3087,7 @@ describe('DapiServer', function () {
     context('dAPI name set to Beacon set', function () {
       it('reads Beacon set', async function () {
         const dapiName = hre.ethers.utils.formatBytes32String('My dAPI');
+        const dapiNameHash = hre.ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
         await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSetId);
         const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
         await setBeaconSet(
@@ -3094,7 +3096,7 @@ describe('DapiServer', function () {
           [123, 456, 789],
           [timestamp - 2, timestamp, timestamp + 2]
         );
-        const beaconSet = await dapiServer.connect(roles.randomPerson).readDataFeedWithDapiName(dapiName);
+        const beaconSet = await dapiServer.connect(roles.randomPerson).readDataFeedWithDapiNameHash(dapiNameHash);
         expect(beaconSet.value).to.be.equal(456);
         expect(beaconSet.timestamp).to.be.equal(timestamp);
       });
@@ -3102,9 +3104,10 @@ describe('DapiServer', function () {
     context('dAPI name not set', function () {
       it('reverts', async function () {
         const dapiName = hre.ethers.utils.formatBytes32String('My beacon');
-        await expect(dapiServer.connect(roles.randomPerson).readDataFeedWithDapiName(dapiName)).to.be.revertedWith(
-          'dAPI name not set'
-        );
+        const dapiNameHash = hre.ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
+        await expect(
+          dapiServer.connect(roles.randomPerson).readDataFeedWithDapiNameHash(dapiNameHash)
+        ).to.be.revertedWith('dAPI name not set');
       });
     });
   });
