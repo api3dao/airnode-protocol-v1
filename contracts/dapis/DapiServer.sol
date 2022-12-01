@@ -809,16 +809,21 @@ contract DapiServer is
         uint32 updatedTimestamp,
         bytes calldata conditionParameters
     ) private view returns (bool) {
-        require(conditionParameters.length == 64, "Incorrect parameter length");
+        require(conditionParameters.length == 96, "Incorrect parameter length");
         (
             uint256 deviationThresholdInPercentage,
+            int224 deviationReference,
             uint256 heartbeatInterval
-        ) = abi.decode(conditionParameters, (uint256, uint256));
+        ) = abi.decode(conditionParameters, (uint256, int224, uint256));
         DataFeed storage dataFeed = dataFeeds[dataFeedId];
         return
             (dataFeed.timestamp == 0 && updatedTimestamp != 0) ||
             (deviationThresholdInPercentage != 0 &&
-                calculateUpdateInPercentage(dataFeed.value, updatedValue) >=
+                calculateUpdateInPercentage(
+                    dataFeed.value,
+                    updatedValue,
+                    deviationReference
+                ) >=
                 deviationThresholdInPercentage) ||
             (heartbeatInterval != 0 &&
                 dataFeed.timestamp + heartbeatInterval <= updatedTimestamp);
@@ -833,20 +838,25 @@ contract DapiServer is
     /// offset and scale.
     /// @param initialValue Initial value
     /// @param updatedValue Updated value
+    /// @param deviationReference Reference value that deviation will be
+    /// calculated against
     /// @return updateInPercentage Update in percentage
     function calculateUpdateInPercentage(
         int224 initialValue,
-        int224 updatedValue
+        int224 updatedValue,
+        int224 deviationReference
     ) private pure returns (uint256 updateInPercentage) {
         int256 delta = int256(updatedValue) - int256(initialValue);
-        uint256 absoluteDelta = delta > 0 ? uint256(delta) : uint256(-delta);
-        uint256 absoluteInitialValue = initialValue > 0
-            ? uint256(int256(initialValue))
-            : uint256(-int256(initialValue));
-        // Avoid division by 0
-        if (absoluteInitialValue == 0) {
-            absoluteInitialValue = 1;
+        if (delta == 0) {
+            return 0;
         }
+        uint256 absoluteInitialValue = initialValue > deviationReference
+            ? uint256(int256(initialValue) - int256(deviationReference))
+            : uint256(int256(deviationReference) - int256(initialValue));
+        if (absoluteInitialValue == 0) {
+            return type(uint256).max;
+        }
+        uint256 absoluteDelta = delta > 0 ? uint256(delta) : uint256(-delta);
         updateInPercentage =
             (absoluteDelta * HUNDRED_PERCENT) /
             absoluteInitialValue;
