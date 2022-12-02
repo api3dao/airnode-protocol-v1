@@ -74,6 +74,20 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
         uint32 timestamp
     );
 
+    event UpdatedOevProxyBeaconWithSignedData(
+        bytes32 indexed beaconId,
+        address indexed proxy,
+        uint256 value,
+        uint256 timestamp
+    );
+
+    event UpdatedOevProxyBeaconSetWithSignedData(
+        bytes32 indexed beaconSetId,
+        address indexed proxy,
+        uint256 value,
+        uint256 timestamp
+    );
+
     event SetDapiName(
         bytes32 indexed dapiName,
         bytes32 dataFeedId,
@@ -195,6 +209,24 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
         bytes[] memory signatures
     ) external returns (bytes32 beaconSetId);
 
+    function updateOevProxyBeaconWithSignedData(
+        address airnode,
+        bytes32 templateId,
+        uint256 timestamp,
+        bytes calldata data,
+        bytes calldata metadata,
+        bytes calldata signature
+    ) external;
+
+    function updateOevProxyBeaconSetWithSignedData(
+        address[] memory airnodes,
+        bytes32[] memory templateIds,
+        uint256[] memory timestamps,
+        bytes[] memory data,
+        bytes memory metadata,
+        bytes[] memory signatures
+    ) external returns (bytes32 beaconSetId);
+
     function setDapiName(bytes32 dapiName, bytes32 dataFeedId) external;
 
     function dapiNameToDataFeedId(bytes32 dapiName)
@@ -203,6 +235,16 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
         returns (bytes32);
 
     function readDataFeedWithDapiNameHash(bytes32 dapiNameHash)
+        external
+        view
+        returns (uint224 value, uint32 timestamp);
+
+    function readDataFeedWithIdAsOevProxy(bytes32 dataFeedId)
+        external
+        view
+        returns (uint224 value, uint32 timestamp);
+
+    function readDataFeedWithDapiNameHashAsOevProxy(bytes32 dapiNameHash)
         external
         view
         returns (uint224 value, uint32 timestamp);
@@ -244,6 +286,11 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
         returns (bytes32);
 
     function dataFeeds(bytes32 dataFeedId)
+        external
+        view
+        returns (uint224 value, uint32 timestamp);
+
+    function oevProxyAddressToIdToDataFeed(address proxy, bytes32 dataFeedId)
         external
         view
         returns (uint224 value, uint32 timestamp);
