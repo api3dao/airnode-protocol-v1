@@ -717,7 +717,7 @@ contract DapiServer is
     }
 
     /// @notice Updates a Beacon set using data signed for this contract by the
-    ///  respective Airnodes without requiring a request or subscription. The
+    /// respective Airnodes without requiring a request or subscription. The
     /// Beacons for which the signature is omitted will be read from the
     /// storage.
     /// @param airnodes Airnode addresses
