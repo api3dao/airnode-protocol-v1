@@ -40,10 +40,10 @@ contract DapiServer is
     using ECDSA for bytes32;
 
     // Airnodes serve their fulfillment data along with timestamps. This
-    // contract casts the reported data to `uint224` and the timestamp to
+    // contract casts the reported data to `int224` and the timestamp to
     // `uint32`, which works until year 2106.
     struct DataFeed {
-        uint224 value;
+        int224 value;
         uint32 timestamp;
     }
 
@@ -145,8 +145,8 @@ contract DapiServer is
     /// `setRrpSponsorshipStatus()`), the sponsor must also give update request
     /// permission to the sender (by calling
     /// `setRrpBeaconUpdatePermissionStatus()`) before this method is called.
-    /// The template must specify a single point of data of type `uint256` to be
-    /// returned and for it to be small enough to be castable to `uint224`
+    /// The template must specify a single point of data of type `int256` to be
+    /// returned and for it to be small enough to be castable to `int224`
     /// because this is what `fulfillRrpBeaconUpdate()` expects.
     /// @param airnode Airnode address
     /// @param templateId Template ID
@@ -305,7 +305,7 @@ contract DapiServer is
     /// AirnodeProtocol to fulfill the request
     /// @param requestId Request ID
     /// @param timestamp Timestamp used in the signature
-    /// @param data Fulfillment data (a `uint256` encoded in contract ABI)
+    /// @param data Fulfillment data (an `int256` encoded in contract ABI)
     function fulfillRrpBeaconUpdate(
         bytes32 requestId,
         uint256 timestamp,
@@ -313,7 +313,7 @@ contract DapiServer is
     ) external override onlyAirnodeProtocol onlyValidTimestamp(timestamp) {
         bytes32 beaconId = requestIdToBeaconId[requestId];
         delete requestIdToBeaconId[requestId];
-        uint256 decodedData = processBeaconUpdate(beaconId, timestamp, data);
+        int256 decodedData = processBeaconUpdate(beaconId, timestamp, data);
         emit UpdatedBeaconWithRrp(beaconId, requestId, decodedData, timestamp);
     }
 
@@ -380,7 +380,7 @@ contract DapiServer is
     /// @dev `conditionParameters` are specified within the `conditions` field
     /// of a Subscription
     /// @param subscriptionId Subscription ID
-    /// @param data Fulfillment data (a `uint256` encoded in contract ABI)
+    /// @param data Fulfillment data (an `int256` encoded in contract ABI)
     /// @param conditionParameters Subscription condition parameters (a
     /// `uint256` encoded in contract ABI)
     /// @return If the Beacon update subscription should be fulfilled
@@ -412,7 +412,8 @@ contract DapiServer is
     /// @param relayer Relayer address
     /// @param sponsor Sponsor address
     /// @param timestamp Timestamp used in the signature
-    /// @param data Fulfillment data (a `uint256` encoded in contract ABI)
+    /// @param data Fulfillment data (a single `int256` encoded in contract
+    /// ABI)
     /// @param signature Subscription ID, timestamp, sponsor wallet address
     /// (and fulfillment data if the relayer is not the Airnode) signed by the
     /// Airnode wallet
@@ -457,11 +458,11 @@ contract DapiServer is
         bytes32 beaconId = subscriptionIdToBeaconId[subscriptionId];
         // Beacon ID is guaranteed to not be zero because the subscription is
         // registered
-        uint256 decodedData = processBeaconUpdate(beaconId, timestamp, data);
+        int256 decodedData = processBeaconUpdate(beaconId, timestamp, data);
         emit UpdatedBeaconWithPsp(
             beaconId,
             subscriptionId,
-            uint224(decodedData),
+            int224(decodedData),
             uint32(timestamp)
         );
     }
@@ -473,7 +474,7 @@ contract DapiServer is
     /// @param airnode Airnode address
     /// @param templateId Template ID
     /// @param timestamp Timestamp used in the signature
-    /// @param data Response data (a `uint256` encoded in contract ABI)
+    /// @param data Response data (an `int256` encoded in contract ABI)
     /// @param signature Template ID, a timestamp and the response data signed
     /// by the Airnode address
     function updateBeaconWithSignedData(
@@ -491,7 +492,7 @@ contract DapiServer is
             "Signature mismatch"
         );
         bytes32 beaconId = deriveBeaconId(airnode, templateId);
-        uint256 decodedData = processBeaconUpdate(beaconId, timestamp, data);
+        int256 decodedData = processBeaconUpdate(beaconId, timestamp, data);
         emit UpdatedBeaconWithSignedData(beaconId, decodedData, timestamp);
     }
 
@@ -508,7 +509,7 @@ contract DapiServer is
         override
         returns (bytes32 beaconSetId)
     {
-        (uint224 updatedValue, uint32 updatedTimestamp) = aggregateBeacons(
+        (int224 updatedValue, uint32 updatedTimestamp) = aggregateBeacons(
             beaconIds
         );
         beaconSetId = deriveBeaconSetId(beaconIds);
@@ -549,7 +550,7 @@ contract DapiServer is
             keccak256(abi.encode(beaconIds)) == keccak256(data),
             "Data length not correct"
         );
-        (uint224 updatedValue, uint32 updatedTimestamp) = aggregateBeacons(
+        (int224 updatedValue, uint32 updatedTimestamp) = aggregateBeacons(
             beaconIds
         );
         return
@@ -579,7 +580,7 @@ contract DapiServer is
     /// @param relayer Relayer address
     /// @param sponsor Sponsor address
     /// @param timestamp Timestamp used in the signature
-    /// @param data Fulfillment data (a `uint256` encoded in contract ABI)
+    /// @param data Fulfillment data (an `int256` encoded in contract ABI)
     /// @param signature Subscription ID, timestamp, sponsor wallet address
     /// (and fulfillment data if the relayer is not the Airnode) signed by the
     /// Airnode wallet
@@ -607,7 +608,7 @@ contract DapiServer is
     /// @param airnodes Airnode addresses
     /// @param templateIds Template IDs
     /// @param timestamps Timestamps used in the signatures
-    /// @param data Response data (a `uint256` encoded in contract ABI per
+    /// @param data Response data (an `int256` encoded in contract ABI per
     /// Beacon)
     /// @param signatures Template ID, a timestamp and the response data signed
     /// by the respective Airnode address per Beacon
@@ -629,7 +630,7 @@ contract DapiServer is
         );
         require(beaconCount > 1, "Specified less than two Beacons");
         bytes32[] memory beaconIds = new bytes32[](beaconCount);
-        uint256[] memory values = new uint256[](beaconCount);
+        int256[] memory values = new int256[](beaconCount);
         uint256 accumulatedTimestamp = 0;
         for (uint256 ind = 0; ind < beaconCount; ind++) {
             if (signatures[ind].length != 0) {
@@ -670,7 +671,7 @@ contract DapiServer is
             updatedTimestamp >= dataFeeds[beaconSetId].timestamp,
             "Updated value outdated"
         );
-        uint224 updatedValue = uint224(median(values));
+        int224 updatedValue = int224(median(values));
         dataFeeds[beaconSetId] = DataFeed({
             value: updatedValue,
             timestamp: updatedTimestamp
@@ -728,7 +729,7 @@ contract DapiServer is
         external
         view
         override
-        returns (uint224 value, uint32 timestamp)
+        returns (int224 value, uint32 timestamp)
     {
         DataFeed storage dataFeed = dataFeeds[dataFeedId];
         return (dataFeed.value, dataFeed.timestamp);
@@ -741,7 +742,7 @@ contract DapiServer is
         external
         view
         override
-        returns (uint224 value)
+        returns (int224 value)
     {
         DataFeed storage dataFeed = dataFeeds[dataFeedId];
         require(dataFeed.timestamp != 0, "Data feed does not exist");
@@ -756,7 +757,7 @@ contract DapiServer is
         external
         view
         override
-        returns (uint224 value, uint32 timestamp)
+        returns (int224 value, uint32 timestamp)
     {
         bytes32 dataFeedId = dapiNameHashToDataFeedId[
             keccak256(abi.encodePacked(dapiName))
@@ -773,7 +774,7 @@ contract DapiServer is
         external
         view
         override
-        returns (uint224 value)
+        returns (int224 value)
     {
         bytes32 dapiNameHash = keccak256(abi.encodePacked(dapiName));
         DataFeed storage dataFeed = dataFeeds[
@@ -794,18 +795,18 @@ contract DapiServer is
         public
         view
         override
-        returns (uint224 value, uint32 timestamp)
+        returns (int224 value, uint32 timestamp)
     {
         uint256 beaconCount = beaconIds.length;
         require(beaconCount > 1, "Specified less than two Beacons");
-        uint256[] memory values = new uint256[](beaconCount);
+        int256[] memory values = new int256[](beaconCount);
         uint256 accumulatedTimestamp = 0;
         for (uint256 ind = 0; ind < beaconCount; ind++) {
             DataFeed storage dataFeed = dataFeeds[beaconIds[ind]];
             values[ind] = dataFeed.value;
             accumulatedTimestamp += dataFeed.timestamp;
         }
-        value = uint224(median(values));
+        value = int224(median(values));
         timestamp = uint32(accumulatedTimestamp / beaconCount);
     }
 
@@ -840,13 +841,13 @@ contract DapiServer is
     /// @notice Called privately to process the Beacon update
     /// @param beaconId Beacon ID
     /// @param timestamp Timestamp used in the signature
-    /// @param data Fulfillment data (a `uint256` encoded in contract ABI)
+    /// @param data Fulfillment data (an `int256` encoded in contract ABI)
     /// @return updatedBeaconValue Updated Beacon value
     function processBeaconUpdate(
         bytes32 beaconId,
         uint256 timestamp,
         bytes calldata data
-    ) private returns (uint256 updatedBeaconValue) {
+    ) private returns (int256 updatedBeaconValue) {
         updatedBeaconValue = decodeFulfillmentData(data);
         require(
             timestamp > dataFeeds[beaconId].timestamp,
@@ -855,23 +856,26 @@ contract DapiServer is
         // Timestamp validity is already checked by `onlyValidTimestamp`, which
         // means it will be small enough to be typecast into `uint32`
         dataFeeds[beaconId] = DataFeed({
-            value: uint224(updatedBeaconValue),
+            value: int224(updatedBeaconValue),
             timestamp: uint32(timestamp)
         });
     }
 
     /// @notice Called privately to decode the fulfillment data
-    /// @param data Fulfillment data (a `uint256` encoded in contract ABI)
+    /// @param data Fulfillment data (an `int256` encoded in contract ABI)
     /// @return decodedData Decoded fulfillment data
     function decodeFulfillmentData(bytes memory data)
         private
         pure
-        returns (uint224)
+        returns (int224)
     {
         require(data.length == 32, "Data length not correct");
-        uint256 decodedData = abi.decode(data, (uint256));
-        require(decodedData <= type(uint224).max, "Value typecasting error");
-        return uint224(decodedData);
+        int256 decodedData = abi.decode(data, (int256));
+        require(
+            decodedData >= type(int224).min && decodedData <= type(int224).max,
+            "Value typecasting error"
+        );
+        return int224(decodedData);
     }
 
     /// @notice Called privately to check the update condition
@@ -883,7 +887,7 @@ contract DapiServer is
     /// @return If update should be executed
     function checkUpdateCondition(
         bytes32 dataFeedId,
-        uint224 updatedValue,
+        int224 updatedValue,
         uint32 updatedTimestamp,
         bytes calldata conditionParameters
     ) private view returns (bool) {
@@ -913,20 +917,20 @@ contract DapiServer is
     /// @param updatedValue Updated value
     /// @return updateInPercentage Update in percentage
     function calculateUpdateInPercentage(
-        uint224 initialValue,
-        uint224 updatedValue
+        int224 initialValue,
+        int224 updatedValue
     ) private pure returns (uint256 updateInPercentage) {
-        uint256 absoluteDelta = updatedValue > initialValue
-            ? updatedValue - initialValue
-            : initialValue - updatedValue;
-        if (initialValue != 0) {
-            updateInPercentage =
-                (absoluteDelta * HUNDRED_PERCENT) /
-                initialValue;
-        } else if (absoluteDelta == 0) {
-            updateInPercentage = 0;
-        } else {
-            updateInPercentage = type(uint256).max;
+        int256 delta = int256(updatedValue) - int256(initialValue);
+        uint256 absoluteDelta = delta > 0 ? uint256(delta) : uint256(-delta);
+        uint256 absoluteInitialValue = initialValue > 0
+            ? uint256(int256(initialValue))
+            : uint256(-int256(initialValue));
+        // Avoid division by 0
+        if (absoluteInitialValue == 0) {
+            absoluteInitialValue = 1;
         }
+        updateInPercentage =
+            (absoluteDelta * HUNDRED_PERCENT) /
+            absoluteInitialValue;
     }
 }
