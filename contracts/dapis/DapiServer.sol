@@ -76,7 +76,7 @@ contract DapiServer is
     /// @notice Data feed with ID specific to the OEV proxy
     mapping(address => mapping(bytes32 => DataFeed))
         public
-        override oevProxyAddressToIdToDataFeed;
+        override oevProxyToIdToDataFeed;
 
     /// @notice Data feed ID mapped to the dAPI name hash
     mapping(bytes32 => bytes32) public override dapiNameHashToDataFeedId;
@@ -848,12 +848,12 @@ contract DapiServer is
         uint224 updatedBeaconValue = decodeFulfillmentData(data);
         require(
             timestamp >
-                oevProxyAddressToIdToDataFeed[msg.sender][beaconId].timestamp,
+                oevProxyToIdToDataFeed[msg.sender][beaconId].timestamp,
             "Fulfillment older than Beacon"
         );
         // Timestamp validity is already checked by `onlyValidTimestamp`, which
         // means it will be small enough to be typecast into `uint32`
-        oevProxyAddressToIdToDataFeed[msg.sender][beaconId] = DataFeed({
+        oevProxyToIdToDataFeed[msg.sender][beaconId] = DataFeed({
             value: updatedBeaconValue,
             timestamp: uint32(timestamp)
         });
@@ -938,12 +938,12 @@ contract DapiServer is
         uint32 updatedTimestamp = uint32(accumulatedTimestamp / beaconCount);
         require(
             updatedTimestamp >=
-                oevProxyAddressToIdToDataFeed[msg.sender][beaconSetId]
+                oevProxyToIdToDataFeed[msg.sender][beaconSetId]
                     .timestamp,
             "Updated value outdated"
         );
         uint224 updatedValue = uint224(median(values));
-        oevProxyAddressToIdToDataFeed[msg.sender][beaconSetId] = DataFeed({
+        oevProxyToIdToDataFeed[msg.sender][beaconSetId] = DataFeed({
             value: updatedValue,
             timestamp: updatedTimestamp
         });
@@ -1019,7 +1019,7 @@ contract DapiServer is
         override
         returns (uint224 value, uint32 timestamp)
     {
-        DataFeed storage oevDataFeed = oevProxyAddressToIdToDataFeed[
+        DataFeed storage oevDataFeed = oevProxyToIdToDataFeed[
             msg.sender
         ][dataFeedId];
         DataFeed storage dataFeed = dataFeeds[dataFeedId];
@@ -1042,7 +1042,7 @@ contract DapiServer is
     {
         bytes32 dataFeedId = dapiNameHashToDataFeedId[dapiNameHash];
         require(dataFeedId != bytes32(0), "dAPI name not set");
-        DataFeed storage oevDataFeed = oevProxyAddressToIdToDataFeed[
+        DataFeed storage oevDataFeed = oevProxyToIdToDataFeed[
             msg.sender
         ][dataFeedId];
         DataFeed storage dataFeed = dataFeeds[dataFeedId];

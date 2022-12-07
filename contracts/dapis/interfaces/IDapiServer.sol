@@ -301,7 +301,7 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
         view
         returns (int224 value, uint32 timestamp);
 
-    function oevProxyAddressToIdToDataFeed(address proxy, bytes32 dataFeedId)
+    function oevProxyToIdToDataFeed(address proxy, bytes32 dataFeedId)
         external
         view
         returns (uint224 value, uint32 timestamp);
