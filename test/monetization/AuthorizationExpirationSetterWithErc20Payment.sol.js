@@ -2,17 +2,17 @@ const hre = require('hardhat');
 const { expect } = require('chai');
 const testUtils = require('../test-utils');
 
-describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
+describe('AuthorizationExpirationSetterWithErc20Payment', function () {
   let roles;
   let expiringMetaCallForwarder,
     accessControlRegistry,
     airnodeEndpointPriceRegistry,
     requesterAuthorizerRegistry,
     requesterAuthorizerWithManager,
-    requesterAuthorizerWhitelisterWithTokenPayment,
+    authorizationExpirationSetterWithErc20Payment,
     token;
-  let requesterAuthorizerWhitelisterWithTokenPaymentAdminRoleDescription =
-    'RequesterAuthorizerWhitelisterWithTokenPayment admin';
+  let authorizationExpirationSetterWithErc20PaymentAdminRoleDescription =
+    'AuthorizationExpirationSetterWithErc20Payment admin';
   let tokenDecimals = 12;
   let tokenPrice = hre.ethers.BigNumber.from(`5${'0'.repeat(18)}`); // $5
   let priceCoefficient = hre.ethers.BigNumber.from(`2${'0'.repeat(tokenDecimals)}`); // 2x
@@ -72,13 +72,13 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
       .registerChainRequesterAuthorizer(chainId, requesterAuthorizerWithManager.address);
     const tokenFactory = await hre.ethers.getContractFactory('MockERC20', roles.deployer);
     token = await tokenFactory.deploy(tokenDecimals);
-    const requesterAuthorizerWhitelisterWithTokenPaymentFactory = await hre.ethers.getContractFactory(
-      'RequesterAuthorizerWhitelisterWithTokenPayment',
+    const authorizationExpirationSetterWithErc20PaymentFactory = await hre.ethers.getContractFactory(
+      'AuthorizationExpirationSetterWithErc20Payment',
       roles.deployer
     );
-    requesterAuthorizerWhitelisterWithTokenPayment = await requesterAuthorizerWhitelisterWithTokenPaymentFactory.deploy(
+    authorizationExpirationSetterWithErc20Payment = await authorizationExpirationSetterWithErc20PaymentFactory.deploy(
       accessControlRegistry.address,
-      requesterAuthorizerWhitelisterWithTokenPaymentAdminRoleDescription,
+      authorizationExpirationSetterWithErc20PaymentAdminRoleDescription,
       roles.manager.address,
       airnodeEndpointPriceRegistry.address,
       requesterAuthorizerRegistry.address,
@@ -92,38 +92,38 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
     await accessControlRegistry
       .connect(roles.manager)
       .initializeRoleAndGrantToSender(managerRootRole, await requesterAuthorizerWithManager.adminRoleDescription());
-    const whitelistExpirationSetterRole = await requesterAuthorizerWithManager.whitelistExpirationSetterRole();
+    const authorizationExpirationSetterRole = await requesterAuthorizerWithManager.authorizationExpirationSetterRole();
     await accessControlRegistry
       .connect(roles.manager)
       .initializeRoleAndGrantToSender(
         await requesterAuthorizerWithManager.adminRole(),
-        await requesterAuthorizerWithManager.WHITELIST_EXPIRATION_SETTER_ROLE_DESCRIPTION()
+        await requesterAuthorizerWithManager.AUTHORIZATION_EXPIRATION_SETTER_ROLE_DESCRIPTION()
       );
     await accessControlRegistry
       .connect(roles.manager)
-      .grantRole(whitelistExpirationSetterRole, requesterAuthorizerWhitelisterWithTokenPayment.address);
+      .grantRole(authorizationExpirationSetterRole, authorizationExpirationSetterWithErc20Payment.address);
 
-    const adminRole = await requesterAuthorizerWhitelisterWithTokenPayment.adminRole();
+    const adminRole = await authorizationExpirationSetterWithErc20Payment.adminRole();
     await accessControlRegistry
       .connect(roles.manager)
       .initializeRoleAndGrantToSender(
         managerRootRole,
-        requesterAuthorizerWhitelisterWithTokenPaymentAdminRoleDescription
+        authorizationExpirationSetterWithErc20PaymentAdminRoleDescription
       );
-    const maintainerRole = await requesterAuthorizerWhitelisterWithTokenPayment.maintainerRole();
+    const maintainerRole = await authorizationExpirationSetterWithErc20Payment.maintainerRole();
     await accessControlRegistry
       .connect(roles.manager)
       .initializeRoleAndGrantToSender(
         adminRole,
-        await requesterAuthorizerWhitelisterWithTokenPayment.MAINTAINER_ROLE_DESCRIPTION()
+        await authorizationExpirationSetterWithErc20Payment.MAINTAINER_ROLE_DESCRIPTION()
       );
     await accessControlRegistry.connect(roles.manager).grantRole(maintainerRole, roles.maintainer.address);
-    const blockerRole = await requesterAuthorizerWhitelisterWithTokenPayment.blockerRole();
+    const blockerRole = await authorizationExpirationSetterWithErc20Payment.blockerRole();
     await accessControlRegistry
       .connect(roles.manager)
       .initializeRoleAndGrantToSender(
         adminRole,
-        await requesterAuthorizerWhitelisterWithTokenPayment.BLOCKER_ROLE_DESCRIPTION()
+        await authorizationExpirationSetterWithErc20Payment.BLOCKER_ROLE_DESCRIPTION()
       );
     await accessControlRegistry.connect(roles.manager).grantRole(blockerRole, roles.blocker.address);
     await token.connect(roles.deployer).transfer(roles.payer.address, hre.ethers.utils.parseEther('1'));
@@ -138,11 +138,11 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
               context('Price decimals matches with the registry', function () {
                 context('Pricing interval matches with the registry', function () {
                   it('constructs', async function () {
-                    const adminRole = await requesterAuthorizerWhitelisterWithTokenPayment.adminRole();
-                    expect(await requesterAuthorizerWhitelisterWithTokenPayment.MAINTAINER_ROLE_DESCRIPTION()).to.equal(
+                    const adminRole = await authorizationExpirationSetterWithErc20Payment.adminRole();
+                    expect(await authorizationExpirationSetterWithErc20Payment.MAINTAINER_ROLE_DESCRIPTION()).to.equal(
                       'Maintainer'
                     );
-                    expect(await requesterAuthorizerWhitelisterWithTokenPayment.maintainerRole()).to.equal(
+                    expect(await authorizationExpirationSetterWithErc20Payment.maintainerRole()).to.equal(
                       hre.ethers.utils.keccak256(
                         hre.ethers.utils.solidityPack(
                           ['bytes32', 'bytes32'],
@@ -153,10 +153,10 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
                         )
                       )
                     );
-                    expect(await requesterAuthorizerWhitelisterWithTokenPayment.BLOCKER_ROLE_DESCRIPTION()).to.equal(
+                    expect(await authorizationExpirationSetterWithErc20Payment.BLOCKER_ROLE_DESCRIPTION()).to.equal(
                       'Blocker'
                     );
-                    expect(await requesterAuthorizerWhitelisterWithTokenPayment.blockerRole()).to.equal(
+                    expect(await authorizationExpirationSetterWithErc20Payment.blockerRole()).to.equal(
                       hre.ethers.utils.keccak256(
                         hre.ethers.utils.solidityPack(
                           ['bytes32', 'bytes32'],
@@ -167,20 +167,20 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
                         )
                       )
                     );
-                    expect(await requesterAuthorizerWhitelisterWithTokenPayment.token()).to.equal(token.address);
-                    expect(await requesterAuthorizerWhitelisterWithTokenPayment.tokenPrice()).to.equal(tokenPrice);
-                    expect(await requesterAuthorizerWhitelisterWithTokenPayment.priceCoefficient()).to.equal(
+                    expect(await authorizationExpirationSetterWithErc20Payment.token()).to.equal(token.address);
+                    expect(await authorizationExpirationSetterWithErc20Payment.tokenPrice()).to.equal(tokenPrice);
+                    expect(await authorizationExpirationSetterWithErc20Payment.priceCoefficient()).to.equal(
                       priceCoefficient
                     );
-                    expect(await requesterAuthorizerWhitelisterWithTokenPayment.proceedsDestination()).to.equal(
+                    expect(await authorizationExpirationSetterWithErc20Payment.proceedsDestination()).to.equal(
                       roles.proceedsDestination.address
                     );
-                    expect(await requesterAuthorizerWhitelisterWithTokenPayment.minimumWhitelistExtension()).to.equal(
-                      24 * 60 * 60
-                    );
-                    expect(await requesterAuthorizerWhitelisterWithTokenPayment.maximumWhitelistDuration()).to.equal(
-                      365 * 24 * 60 * 60
-                    );
+                    expect(
+                      await authorizationExpirationSetterWithErc20Payment.minimumAuthorizationExpiraitonExtension()
+                    ).to.equal(24 * 60 * 60);
+                    expect(
+                      await authorizationExpirationSetterWithErc20Payment.maximumAuthorizationExpiration()
+                    ).to.equal(365 * 24 * 60 * 60);
                   });
                 });
                 context('Pricing interval matches with the registry', function () {
@@ -194,14 +194,14 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
                       18,
                       12 * 30 * 24 * 60 * 60
                     );
-                    const requesterAuthorizerWhitelisterWithTokenPaymentFactory = await hre.ethers.getContractFactory(
-                      'RequesterAuthorizerWhitelisterWithTokenPayment',
+                    const authorizationExpirationSetterWithErc20PaymentFactory = await hre.ethers.getContractFactory(
+                      'AuthorizationExpirationSetterWithErc20Payment',
                       roles.deployer
                     );
                     await expect(
-                      requesterAuthorizerWhitelisterWithTokenPaymentFactory.deploy(
+                      authorizationExpirationSetterWithErc20PaymentFactory.deploy(
                         accessControlRegistry.address,
-                        requesterAuthorizerWhitelisterWithTokenPaymentAdminRoleDescription,
+                        authorizationExpirationSetterWithErc20PaymentAdminRoleDescription,
                         roles.manager.address,
                         mockAirnodeEndpointPriceRegistry.address,
                         requesterAuthorizerRegistry.address,
@@ -225,14 +225,14 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
                     12,
                     30 * 24 * 60 * 60
                   );
-                  const requesterAuthorizerWhitelisterWithTokenPaymentFactory = await hre.ethers.getContractFactory(
-                    'RequesterAuthorizerWhitelisterWithTokenPayment',
+                  const authorizationExpirationSetterWithErc20PaymentFactory = await hre.ethers.getContractFactory(
+                    'AuthorizationExpirationSetterWithErc20Payment',
                     roles.deployer
                   );
                   await expect(
-                    requesterAuthorizerWhitelisterWithTokenPaymentFactory.deploy(
+                    authorizationExpirationSetterWithErc20PaymentFactory.deploy(
                       accessControlRegistry.address,
-                      requesterAuthorizerWhitelisterWithTokenPaymentAdminRoleDescription,
+                      authorizationExpirationSetterWithErc20PaymentAdminRoleDescription,
                       roles.manager.address,
                       mockAirnodeEndpointPriceRegistry.address,
                       requesterAuthorizerRegistry.address,
@@ -256,14 +256,14 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
                   18,
                   30 * 24 * 60 * 60
                 );
-                const requesterAuthorizerWhitelisterWithTokenPaymentFactory = await hre.ethers.getContractFactory(
-                  'RequesterAuthorizerWhitelisterWithTokenPayment',
+                const authorizationExpirationSetterWithErc20PaymentFactory = await hre.ethers.getContractFactory(
+                  'AuthorizationExpirationSetterWithErc20Payment',
                   roles.deployer
                 );
                 await expect(
-                  requesterAuthorizerWhitelisterWithTokenPaymentFactory.deploy(
+                  authorizationExpirationSetterWithErc20PaymentFactory.deploy(
                     accessControlRegistry.address,
-                    requesterAuthorizerWhitelisterWithTokenPaymentAdminRoleDescription,
+                    authorizationExpirationSetterWithErc20PaymentAdminRoleDescription,
                     roles.manager.address,
                     mockAirnodeEndpointPriceRegistry.address,
                     requesterAuthorizerRegistry.address,
@@ -278,14 +278,14 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
           });
           context('Proceeds destination is zero', function () {
             it('reverts', async function () {
-              const requesterAuthorizerWhitelisterWithTokenPaymentFactory = await hre.ethers.getContractFactory(
-                'RequesterAuthorizerWhitelisterWithTokenPayment',
+              const authorizationExpirationSetterWithErc20PaymentFactory = await hre.ethers.getContractFactory(
+                'AuthorizationExpirationSetterWithErc20Payment',
                 roles.deployer
               );
               await expect(
-                requesterAuthorizerWhitelisterWithTokenPaymentFactory.deploy(
+                authorizationExpirationSetterWithErc20PaymentFactory.deploy(
                   accessControlRegistry.address,
-                  requesterAuthorizerWhitelisterWithTokenPaymentAdminRoleDescription,
+                  authorizationExpirationSetterWithErc20PaymentAdminRoleDescription,
                   roles.manager.address,
                   airnodeEndpointPriceRegistry.address,
                   requesterAuthorizerRegistry.address,
@@ -300,14 +300,14 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
         });
         context('Price coefficient is zero', function () {
           it('reverts', async function () {
-            const requesterAuthorizerWhitelisterWithTokenPaymentFactory = await hre.ethers.getContractFactory(
-              'RequesterAuthorizerWhitelisterWithTokenPayment',
+            const authorizationExpirationSetterWithErc20PaymentFactory = await hre.ethers.getContractFactory(
+              'AuthorizationExpirationSetterWithErc20Payment',
               roles.deployer
             );
             await expect(
-              requesterAuthorizerWhitelisterWithTokenPaymentFactory.deploy(
+              authorizationExpirationSetterWithErc20PaymentFactory.deploy(
                 accessControlRegistry.address,
-                requesterAuthorizerWhitelisterWithTokenPaymentAdminRoleDescription,
+                authorizationExpirationSetterWithErc20PaymentAdminRoleDescription,
                 roles.manager.address,
                 airnodeEndpointPriceRegistry.address,
                 requesterAuthorizerRegistry.address,
@@ -322,14 +322,14 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
       });
       context('Token price is zero', function () {
         it('reverts', async function () {
-          const requesterAuthorizerWhitelisterWithTokenPaymentFactory = await hre.ethers.getContractFactory(
-            'RequesterAuthorizerWhitelisterWithTokenPayment',
+          const authorizationExpirationSetterWithErc20PaymentFactory = await hre.ethers.getContractFactory(
+            'AuthorizationExpirationSetterWithErc20Payment',
             roles.deployer
           );
           await expect(
-            requesterAuthorizerWhitelisterWithTokenPaymentFactory.deploy(
+            authorizationExpirationSetterWithErc20PaymentFactory.deploy(
               accessControlRegistry.address,
-              requesterAuthorizerWhitelisterWithTokenPaymentAdminRoleDescription,
+              authorizationExpirationSetterWithErc20PaymentAdminRoleDescription,
               roles.manager.address,
               airnodeEndpointPriceRegistry.address,
               requesterAuthorizerRegistry.address,
@@ -344,14 +344,14 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
     });
     context('Token address is zero', function () {
       it('reverts', async function () {
-        const requesterAuthorizerWhitelisterWithTokenPaymentFactory = await hre.ethers.getContractFactory(
-          'RequesterAuthorizerWhitelisterWithTokenPayment',
+        const authorizationExpirationSetterWithErc20PaymentFactory = await hre.ethers.getContractFactory(
+          'AuthorizationExpirationSetterWithErc20Payment',
           roles.deployer
         );
         await expect(
-          requesterAuthorizerWhitelisterWithTokenPaymentFactory.deploy(
+          authorizationExpirationSetterWithErc20PaymentFactory.deploy(
             accessControlRegistry.address,
-            requesterAuthorizerWhitelisterWithTokenPaymentAdminRoleDescription,
+            authorizationExpirationSetterWithErc20PaymentAdminRoleDescription,
             roles.manager.address,
             airnodeEndpointPriceRegistry.address,
             requesterAuthorizerRegistry.address,
@@ -369,16 +369,16 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
     context('Sender is maintainer', function () {
       context('Token price is not zero', function () {
         it('sets token price', async function () {
-          await expect(requesterAuthorizerWhitelisterWithTokenPayment.connect(roles.maintainer).setTokenPrice(123))
-            .to.emit(requesterAuthorizerWhitelisterWithTokenPayment, 'SetTokenPrice')
+          await expect(authorizationExpirationSetterWithErc20Payment.connect(roles.maintainer).setTokenPrice(123))
+            .to.emit(authorizationExpirationSetterWithErc20Payment, 'SetTokenPrice')
             .withArgs(123, roles.maintainer.address);
-          expect(await requesterAuthorizerWhitelisterWithTokenPayment.tokenPrice()).to.equal(123);
+          expect(await authorizationExpirationSetterWithErc20Payment.tokenPrice()).to.equal(123);
         });
       });
       context('Token price is zero', function () {
         it('reverts', async function () {
           await expect(
-            requesterAuthorizerWhitelisterWithTokenPayment.connect(roles.maintainer).setTokenPrice(0)
+            authorizationExpirationSetterWithErc20Payment.connect(roles.maintainer).setTokenPrice(0)
           ).to.be.revertedWith('Token price zero');
         });
       });
@@ -386,16 +386,16 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
     context('Sender is manager', function () {
       context('Token price is not zero', function () {
         it('sets token price', async function () {
-          await expect(requesterAuthorizerWhitelisterWithTokenPayment.connect(roles.manager).setTokenPrice(123))
-            .to.emit(requesterAuthorizerWhitelisterWithTokenPayment, 'SetTokenPrice')
+          await expect(authorizationExpirationSetterWithErc20Payment.connect(roles.manager).setTokenPrice(123))
+            .to.emit(authorizationExpirationSetterWithErc20Payment, 'SetTokenPrice')
             .withArgs(123, roles.manager.address);
-          expect(await requesterAuthorizerWhitelisterWithTokenPayment.tokenPrice()).to.equal(123);
+          expect(await authorizationExpirationSetterWithErc20Payment.tokenPrice()).to.equal(123);
         });
       });
       context('Token price is zero', function () {
         it('reverts', async function () {
           await expect(
-            requesterAuthorizerWhitelisterWithTokenPayment.connect(roles.manager).setTokenPrice(0)
+            authorizationExpirationSetterWithErc20Payment.connect(roles.manager).setTokenPrice(0)
           ).to.be.revertedWith('Token price zero');
         });
       });
@@ -403,7 +403,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
     context('Sender is not maintainer and manager', function () {
       it('reverts', async function () {
         await expect(
-          requesterAuthorizerWhitelisterWithTokenPayment.connect(roles.randomPerson).setTokenPrice(123)
+          authorizationExpirationSetterWithErc20Payment.connect(roles.randomPerson).setTokenPrice(123)
         ).to.be.revertedWith('Sender cannot maintain');
       });
     });
@@ -413,18 +413,16 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
     context('Sender is maintainer', function () {
       context('Price coefficient is not zero', function () {
         it('sets price coefficient', async function () {
-          await expect(
-            requesterAuthorizerWhitelisterWithTokenPayment.connect(roles.maintainer).setPriceCoefficient(123)
-          )
-            .to.emit(requesterAuthorizerWhitelisterWithTokenPayment, 'SetPriceCoefficient')
+          await expect(authorizationExpirationSetterWithErc20Payment.connect(roles.maintainer).setPriceCoefficient(123))
+            .to.emit(authorizationExpirationSetterWithErc20Payment, 'SetPriceCoefficient')
             .withArgs(123, roles.maintainer.address);
-          expect(await requesterAuthorizerWhitelisterWithTokenPayment.priceCoefficient()).to.equal(123);
+          expect(await authorizationExpirationSetterWithErc20Payment.priceCoefficient()).to.equal(123);
         });
       });
       context('Price coefficient is zero', function () {
         it('reverts', async function () {
           await expect(
-            requesterAuthorizerWhitelisterWithTokenPayment.connect(roles.maintainer).setPriceCoefficient(0)
+            authorizationExpirationSetterWithErc20Payment.connect(roles.maintainer).setPriceCoefficient(0)
           ).to.be.revertedWith('Price coefficient zero');
         });
       });
@@ -432,16 +430,16 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
     context('Sender is manager', function () {
       context('Price coefficient is not zero', function () {
         it('sets price coefficient', async function () {
-          await expect(requesterAuthorizerWhitelisterWithTokenPayment.connect(roles.manager).setPriceCoefficient(123))
-            .to.emit(requesterAuthorizerWhitelisterWithTokenPayment, 'SetPriceCoefficient')
+          await expect(authorizationExpirationSetterWithErc20Payment.connect(roles.manager).setPriceCoefficient(123))
+            .to.emit(authorizationExpirationSetterWithErc20Payment, 'SetPriceCoefficient')
             .withArgs(123, roles.manager.address);
-          expect(await requesterAuthorizerWhitelisterWithTokenPayment.priceCoefficient()).to.equal(123);
+          expect(await authorizationExpirationSetterWithErc20Payment.priceCoefficient()).to.equal(123);
         });
       });
       context('Price coefficient is zero', function () {
         it('reverts', async function () {
           await expect(
-            requesterAuthorizerWhitelisterWithTokenPayment.connect(roles.manager).setPriceCoefficient(0)
+            authorizationExpirationSetterWithErc20Payment.connect(roles.manager).setPriceCoefficient(0)
           ).to.be.revertedWith('Price coefficient zero');
         });
       });
@@ -449,7 +447,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
     context('Sender is not maintainer and manager', function () {
       it('reverts', async function () {
         await expect(
-          requesterAuthorizerWhitelisterWithTokenPayment.connect(roles.randomPerson).setPriceCoefficient(123)
+          authorizationExpirationSetterWithErc20Payment.connect(roles.randomPerson).setPriceCoefficient(123)
         ).to.be.revertedWith('Sender cannot maintain');
       });
     });
@@ -461,31 +459,31 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
         context('Status is not Active', function () {
           it('sets Airnode participation status', async function () {
             await expect(
-              requesterAuthorizerWhitelisterWithTokenPayment
+              authorizationExpirationSetterWithErc20Payment
                 .connect(roles.airnode)
                 .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.OptedOut)
             )
-              .to.emit(requesterAuthorizerWhitelisterWithTokenPayment, 'SetAirnodeParticipationStatus')
+              .to.emit(authorizationExpirationSetterWithErc20Payment, 'SetAirnodeParticipationStatus')
               .withArgs(roles.airnode.address, AirnodeParticipationStatus.OptedOut, roles.airnode.address);
             expect(
-              await requesterAuthorizerWhitelisterWithTokenPayment.airnodeToParticipationStatus(roles.airnode.address)
+              await authorizationExpirationSetterWithErc20Payment.airnodeToParticipationStatus(roles.airnode.address)
             ).to.equal(AirnodeParticipationStatus.OptedOut);
             await expect(
-              requesterAuthorizerWhitelisterWithTokenPayment
+              authorizationExpirationSetterWithErc20Payment
                 .connect(roles.airnode)
                 .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Inactive)
             )
-              .to.emit(requesterAuthorizerWhitelisterWithTokenPayment, 'SetAirnodeParticipationStatus')
+              .to.emit(authorizationExpirationSetterWithErc20Payment, 'SetAirnodeParticipationStatus')
               .withArgs(roles.airnode.address, AirnodeParticipationStatus.Inactive, roles.airnode.address);
             expect(
-              await requesterAuthorizerWhitelisterWithTokenPayment.airnodeToParticipationStatus(roles.airnode.address)
+              await authorizationExpirationSetterWithErc20Payment.airnodeToParticipationStatus(roles.airnode.address)
             ).to.equal(AirnodeParticipationStatus.Inactive);
           });
         });
         context('Status is Active', function () {
           it('reverts', async function () {
             await expect(
-              requesterAuthorizerWhitelisterWithTokenPayment
+              authorizationExpirationSetterWithErc20Payment
                 .connect(roles.airnode)
                 .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active)
             ).to.be.revertedWith('Airnode cannot activate itself');
@@ -497,39 +495,39 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
           context('Airnode has not opted out', function () {
             it('sets Airnode participation status', async function () {
               await expect(
-                requesterAuthorizerWhitelisterWithTokenPayment
+                authorizationExpirationSetterWithErc20Payment
                   .connect(roles.maintainer)
                   .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active)
               )
-                .to.emit(requesterAuthorizerWhitelisterWithTokenPayment, 'SetAirnodeParticipationStatus')
+                .to.emit(authorizationExpirationSetterWithErc20Payment, 'SetAirnodeParticipationStatus')
                 .withArgs(roles.airnode.address, AirnodeParticipationStatus.Active, roles.maintainer.address);
               expect(
-                await requesterAuthorizerWhitelisterWithTokenPayment.airnodeToParticipationStatus(roles.airnode.address)
+                await authorizationExpirationSetterWithErc20Payment.airnodeToParticipationStatus(roles.airnode.address)
               ).to.equal(AirnodeParticipationStatus.Active);
               await expect(
-                requesterAuthorizerWhitelisterWithTokenPayment
+                authorizationExpirationSetterWithErc20Payment
                   .connect(roles.maintainer)
                   .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Inactive)
               )
-                .to.emit(requesterAuthorizerWhitelisterWithTokenPayment, 'SetAirnodeParticipationStatus')
+                .to.emit(authorizationExpirationSetterWithErc20Payment, 'SetAirnodeParticipationStatus')
                 .withArgs(roles.airnode.address, AirnodeParticipationStatus.Inactive, roles.maintainer.address);
               expect(
-                await requesterAuthorizerWhitelisterWithTokenPayment.airnodeToParticipationStatus(roles.airnode.address)
+                await authorizationExpirationSetterWithErc20Payment.airnodeToParticipationStatus(roles.airnode.address)
               ).to.equal(AirnodeParticipationStatus.Inactive);
             });
           });
           context('Airnode has opted out', function () {
             it('reverts', async function () {
-              await requesterAuthorizerWhitelisterWithTokenPayment
+              await authorizationExpirationSetterWithErc20Payment
                 .connect(roles.airnode)
                 .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.OptedOut);
               await expect(
-                requesterAuthorizerWhitelisterWithTokenPayment
+                authorizationExpirationSetterWithErc20Payment
                   .connect(roles.maintainer)
                   .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active)
               ).to.be.revertedWith('Airnode opted out');
               await expect(
-                requesterAuthorizerWhitelisterWithTokenPayment
+                authorizationExpirationSetterWithErc20Payment
                   .connect(roles.maintainer)
                   .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Inactive)
               ).to.be.revertedWith('Airnode opted out');
@@ -539,7 +537,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
         context('Status is OptedOut', function () {
           it('reverts', async function () {
             await expect(
-              requesterAuthorizerWhitelisterWithTokenPayment
+              authorizationExpirationSetterWithErc20Payment
                 .connect(roles.maintainer)
                 .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.OptedOut)
             ).to.be.revertedWith('Only Airnode can opt out');
@@ -551,39 +549,39 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
           context('Airnode has not opted out', function () {
             it('sets Airnode participation status', async function () {
               await expect(
-                requesterAuthorizerWhitelisterWithTokenPayment
+                authorizationExpirationSetterWithErc20Payment
                   .connect(roles.manager)
                   .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active)
               )
-                .to.emit(requesterAuthorizerWhitelisterWithTokenPayment, 'SetAirnodeParticipationStatus')
+                .to.emit(authorizationExpirationSetterWithErc20Payment, 'SetAirnodeParticipationStatus')
                 .withArgs(roles.airnode.address, AirnodeParticipationStatus.Active, roles.manager.address);
               expect(
-                await requesterAuthorizerWhitelisterWithTokenPayment.airnodeToParticipationStatus(roles.airnode.address)
+                await authorizationExpirationSetterWithErc20Payment.airnodeToParticipationStatus(roles.airnode.address)
               ).to.equal(AirnodeParticipationStatus.Active);
               await expect(
-                requesterAuthorizerWhitelisterWithTokenPayment
+                authorizationExpirationSetterWithErc20Payment
                   .connect(roles.manager)
                   .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Inactive)
               )
-                .to.emit(requesterAuthorizerWhitelisterWithTokenPayment, 'SetAirnodeParticipationStatus')
+                .to.emit(authorizationExpirationSetterWithErc20Payment, 'SetAirnodeParticipationStatus')
                 .withArgs(roles.airnode.address, AirnodeParticipationStatus.Inactive, roles.manager.address);
               expect(
-                await requesterAuthorizerWhitelisterWithTokenPayment.airnodeToParticipationStatus(roles.airnode.address)
+                await authorizationExpirationSetterWithErc20Payment.airnodeToParticipationStatus(roles.airnode.address)
               ).to.equal(AirnodeParticipationStatus.Inactive);
             });
           });
           context('Airnode has opted out', function () {
             it('reverts', async function () {
-              await requesterAuthorizerWhitelisterWithTokenPayment
+              await authorizationExpirationSetterWithErc20Payment
                 .connect(roles.airnode)
                 .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.OptedOut);
               await expect(
-                requesterAuthorizerWhitelisterWithTokenPayment
+                authorizationExpirationSetterWithErc20Payment
                   .connect(roles.manager)
                   .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active)
               ).to.be.revertedWith('Airnode opted out');
               await expect(
-                requesterAuthorizerWhitelisterWithTokenPayment
+                authorizationExpirationSetterWithErc20Payment
                   .connect(roles.manager)
                   .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Inactive)
               ).to.be.revertedWith('Airnode opted out');
@@ -593,7 +591,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
         context('Status is OptedOut', function () {
           it('reverts', async function () {
             await expect(
-              requesterAuthorizerWhitelisterWithTokenPayment
+              authorizationExpirationSetterWithErc20Payment
                 .connect(roles.manager)
                 .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.OptedOut)
             ).to.be.revertedWith('Only Airnode can opt out');
@@ -603,17 +601,17 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
       context('Sender is not maintainer and manager', function () {
         it('reverts', async function () {
           await expect(
-            requesterAuthorizerWhitelisterWithTokenPayment
+            authorizationExpirationSetterWithErc20Payment
               .connect(roles.randomPerson)
               .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Inactive)
           ).to.be.revertedWith('Sender cannot maintain');
           await expect(
-            requesterAuthorizerWhitelisterWithTokenPayment
+            authorizationExpirationSetterWithErc20Payment
               .connect(roles.randomPerson)
               .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active)
           ).to.be.revertedWith('Sender cannot maintain');
           await expect(
-            requesterAuthorizerWhitelisterWithTokenPayment
+            authorizationExpirationSetterWithErc20Payment
               .connect(roles.randomPerson)
               .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.OptedOut)
           ).to.be.revertedWith('Sender cannot maintain');
@@ -623,17 +621,17 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
     context('Airnode address is zero', function () {
       it('reverts', async function () {
         await expect(
-          requesterAuthorizerWhitelisterWithTokenPayment
+          authorizationExpirationSetterWithErc20Payment
             .connect(roles.maintainer)
             .setAirnodeParticipationStatus(hre.ethers.constants.AddressZero, AirnodeParticipationStatus.Inactive)
         ).to.be.revertedWith('Airnode address zero');
         await expect(
-          requesterAuthorizerWhitelisterWithTokenPayment
+          authorizationExpirationSetterWithErc20Payment
             .connect(roles.maintainer)
             .setAirnodeParticipationStatus(hre.ethers.constants.AddressZero, AirnodeParticipationStatus.Active)
         ).to.be.revertedWith('Airnode address zero');
         await expect(
-          requesterAuthorizerWhitelisterWithTokenPayment
+          authorizationExpirationSetterWithErc20Payment
             .connect(roles.maintainer)
             .setAirnodeParticipationStatus(hre.ethers.constants.AddressZero, AirnodeParticipationStatus.OptedOut)
         ).to.be.revertedWith('Airnode address zero');
@@ -647,13 +645,13 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
         it('sets proceeds destination', async function () {
           const proceedsDestination = testUtils.generateRandomAddress();
           await expect(
-            requesterAuthorizerWhitelisterWithTokenPayment
+            authorizationExpirationSetterWithErc20Payment
               .connect(roles.manager)
               .setProceedsDestination(proceedsDestination)
           )
-            .to.emit(requesterAuthorizerWhitelisterWithTokenPayment, 'SetProceedsDestination')
+            .to.emit(authorizationExpirationSetterWithErc20Payment, 'SetProceedsDestination')
             .withArgs(proceedsDestination);
-          expect(await requesterAuthorizerWhitelisterWithTokenPayment.proceedsDestination()).to.equal(
+          expect(await authorizationExpirationSetterWithErc20Payment.proceedsDestination()).to.equal(
             proceedsDestination
           );
         });
@@ -662,7 +660,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
         it('reverts', async function () {
           const proceedsDestination = hre.ethers.constants.AddressZero;
           await expect(
-            requesterAuthorizerWhitelisterWithTokenPayment
+            authorizationExpirationSetterWithErc20Payment
               .connect(roles.manager)
               .setProceedsDestination(proceedsDestination)
           ).to.be.revertedWith('Proceeds destination zero');
@@ -673,12 +671,12 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
       it('reverts', async function () {
         const proceedsDestination = testUtils.generateRandomAddress();
         await expect(
-          requesterAuthorizerWhitelisterWithTokenPayment
+          authorizationExpirationSetterWithErc20Payment
             .connect(roles.randomPerson)
             .setProceedsDestination(proceedsDestination)
         ).to.be.revertedWith('Sender not manager');
         await expect(
-          requesterAuthorizerWhitelisterWithTokenPayment
+          authorizationExpirationSetterWithErc20Payment
             .connect(roles.maintainer)
             .setProceedsDestination(proceedsDestination)
         ).to.be.revertedWith('Sender not manager');
@@ -692,30 +690,28 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
         it('sets requester block status', async function () {
           const requester = testUtils.generateRandomAddress();
           await expect(
-            requesterAuthorizerWhitelisterWithTokenPayment
+            authorizationExpirationSetterWithErc20Payment
               .connect(roles.blocker)
               .setRequesterBlockStatus(requester, true)
           )
-            .to.emit(requesterAuthorizerWhitelisterWithTokenPayment, 'SetRequesterBlockStatus')
+            .to.emit(authorizationExpirationSetterWithErc20Payment, 'SetRequesterBlockStatus')
             .withArgs(requester, true, roles.blocker.address);
-          expect(await requesterAuthorizerWhitelisterWithTokenPayment.requesterToBlockStatus(requester)).to.equal(true);
+          expect(await authorizationExpirationSetterWithErc20Payment.requesterToBlockStatus(requester)).to.equal(true);
           await expect(
-            requesterAuthorizerWhitelisterWithTokenPayment
+            authorizationExpirationSetterWithErc20Payment
               .connect(roles.blocker)
               .setRequesterBlockStatus(requester, false)
           )
-            .to.emit(requesterAuthorizerWhitelisterWithTokenPayment, 'SetRequesterBlockStatus')
+            .to.emit(authorizationExpirationSetterWithErc20Payment, 'SetRequesterBlockStatus')
             .withArgs(requester, false, roles.blocker.address);
-          expect(await requesterAuthorizerWhitelisterWithTokenPayment.requesterToBlockStatus(requester)).to.equal(
-            false
-          );
+          expect(await authorizationExpirationSetterWithErc20Payment.requesterToBlockStatus(requester)).to.equal(false);
         });
       });
       context('Requester address is zero', function () {
         it('reverts', async function () {
           const requester = hre.ethers.constants.AddressZero;
           await expect(
-            requesterAuthorizerWhitelisterWithTokenPayment
+            authorizationExpirationSetterWithErc20Payment
               .connect(roles.blocker)
               .setRequesterBlockStatus(requester, true)
           ).to.be.revertedWith('Requester address zero');
@@ -727,30 +723,28 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
         it('sets requester block status', async function () {
           const requester = testUtils.generateRandomAddress();
           await expect(
-            requesterAuthorizerWhitelisterWithTokenPayment
+            authorizationExpirationSetterWithErc20Payment
               .connect(roles.manager)
               .setRequesterBlockStatus(requester, true)
           )
-            .to.emit(requesterAuthorizerWhitelisterWithTokenPayment, 'SetRequesterBlockStatus')
+            .to.emit(authorizationExpirationSetterWithErc20Payment, 'SetRequesterBlockStatus')
             .withArgs(requester, true, roles.manager.address);
-          expect(await requesterAuthorizerWhitelisterWithTokenPayment.requesterToBlockStatus(requester)).to.equal(true);
+          expect(await authorizationExpirationSetterWithErc20Payment.requesterToBlockStatus(requester)).to.equal(true);
           await expect(
-            requesterAuthorizerWhitelisterWithTokenPayment
+            authorizationExpirationSetterWithErc20Payment
               .connect(roles.manager)
               .setRequesterBlockStatus(requester, false)
           )
-            .to.emit(requesterAuthorizerWhitelisterWithTokenPayment, 'SetRequesterBlockStatus')
+            .to.emit(authorizationExpirationSetterWithErc20Payment, 'SetRequesterBlockStatus')
             .withArgs(requester, false, roles.manager.address);
-          expect(await requesterAuthorizerWhitelisterWithTokenPayment.requesterToBlockStatus(requester)).to.equal(
-            false
-          );
+          expect(await authorizationExpirationSetterWithErc20Payment.requesterToBlockStatus(requester)).to.equal(false);
         });
       });
       context('Requester address is zero', function () {
         it('reverts', async function () {
           const requester = hre.ethers.constants.AddressZero;
           await expect(
-            requesterAuthorizerWhitelisterWithTokenPayment
+            authorizationExpirationSetterWithErc20Payment
               .connect(roles.manager)
               .setRequesterBlockStatus(requester, true)
           ).to.be.revertedWith('Requester address zero');
@@ -761,7 +755,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
       it('reverts', async function () {
         const requester = testUtils.generateRandomAddress();
         await expect(
-          requesterAuthorizerWhitelisterWithTokenPayment
+          authorizationExpirationSetterWithErc20Payment
             .connect(roles.randomPerson)
             .setRequesterBlockStatus(requester, true)
         ).to.be.revertedWith('Sender cannot block');
@@ -776,27 +770,27 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
           it('sets requester block status', async function () {
             const requester = testUtils.generateRandomAddress();
             await expect(
-              requesterAuthorizerWhitelisterWithTokenPayment
+              authorizationExpirationSetterWithErc20Payment
                 .connect(roles.blocker)
                 .setRequesterBlockStatusForAirnode(roles.airnode.address, requester, true)
             )
-              .to.emit(requesterAuthorizerWhitelisterWithTokenPayment, 'SetRequesterBlockStatusForAirnode')
+              .to.emit(authorizationExpirationSetterWithErc20Payment, 'SetRequesterBlockStatusForAirnode')
               .withArgs(roles.airnode.address, requester, true, roles.blocker.address);
             expect(
-              await requesterAuthorizerWhitelisterWithTokenPayment.airnodeToRequesterToBlockStatus(
+              await authorizationExpirationSetterWithErc20Payment.airnodeToRequesterToBlockStatus(
                 roles.airnode.address,
                 requester
               )
             ).to.equal(true);
             await expect(
-              requesterAuthorizerWhitelisterWithTokenPayment
+              authorizationExpirationSetterWithErc20Payment
                 .connect(roles.blocker)
                 .setRequesterBlockStatusForAirnode(roles.airnode.address, requester, false)
             )
-              .to.emit(requesterAuthorizerWhitelisterWithTokenPayment, 'SetRequesterBlockStatusForAirnode')
+              .to.emit(authorizationExpirationSetterWithErc20Payment, 'SetRequesterBlockStatusForAirnode')
               .withArgs(roles.airnode.address, requester, false, roles.blocker.address);
             expect(
-              await requesterAuthorizerWhitelisterWithTokenPayment.airnodeToRequesterToBlockStatus(
+              await authorizationExpirationSetterWithErc20Payment.airnodeToRequesterToBlockStatus(
                 roles.airnode.address,
                 requester
               )
@@ -807,7 +801,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
           it('reverts', async function () {
             const requester = hre.ethers.constants.AddressZero;
             await expect(
-              requesterAuthorizerWhitelisterWithTokenPayment
+              authorizationExpirationSetterWithErc20Payment
                 .connect(roles.blocker)
                 .setRequesterBlockStatusForAirnode(roles.airnode.address, requester, true)
             ).to.be.revertedWith('Requester address zero');
@@ -818,7 +812,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
         it('reverts', async function () {
           const requester = testUtils.generateRandomAddress();
           await expect(
-            requesterAuthorizerWhitelisterWithTokenPayment
+            authorizationExpirationSetterWithErc20Payment
               .connect(roles.blocker)
               .setRequesterBlockStatusForAirnode(hre.ethers.constants.AddressZero, requester, true)
           ).to.be.revertedWith('Airnode address zero');
@@ -831,27 +825,27 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
           it('sets requester block status', async function () {
             const requester = testUtils.generateRandomAddress();
             await expect(
-              requesterAuthorizerWhitelisterWithTokenPayment
+              authorizationExpirationSetterWithErc20Payment
                 .connect(roles.manager)
                 .setRequesterBlockStatusForAirnode(roles.airnode.address, requester, true)
             )
-              .to.emit(requesterAuthorizerWhitelisterWithTokenPayment, 'SetRequesterBlockStatusForAirnode')
+              .to.emit(authorizationExpirationSetterWithErc20Payment, 'SetRequesterBlockStatusForAirnode')
               .withArgs(roles.airnode.address, requester, true, roles.manager.address);
             expect(
-              await requesterAuthorizerWhitelisterWithTokenPayment.airnodeToRequesterToBlockStatus(
+              await authorizationExpirationSetterWithErc20Payment.airnodeToRequesterToBlockStatus(
                 roles.airnode.address,
                 requester
               )
             ).to.equal(true);
             await expect(
-              requesterAuthorizerWhitelisterWithTokenPayment
+              authorizationExpirationSetterWithErc20Payment
                 .connect(roles.manager)
                 .setRequesterBlockStatusForAirnode(roles.airnode.address, requester, false)
             )
-              .to.emit(requesterAuthorizerWhitelisterWithTokenPayment, 'SetRequesterBlockStatusForAirnode')
+              .to.emit(authorizationExpirationSetterWithErc20Payment, 'SetRequesterBlockStatusForAirnode')
               .withArgs(roles.airnode.address, requester, false, roles.manager.address);
             expect(
-              await requesterAuthorizerWhitelisterWithTokenPayment.airnodeToRequesterToBlockStatus(
+              await authorizationExpirationSetterWithErc20Payment.airnodeToRequesterToBlockStatus(
                 roles.airnode.address,
                 requester
               )
@@ -862,7 +856,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
           it('reverts', async function () {
             const requester = hre.ethers.constants.AddressZero;
             await expect(
-              requesterAuthorizerWhitelisterWithTokenPayment
+              authorizationExpirationSetterWithErc20Payment
                 .connect(roles.manager)
                 .setRequesterBlockStatusForAirnode(roles.airnode.address, requester, true)
             ).to.be.revertedWith('Requester address zero');
@@ -873,7 +867,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
         it('reverts', async function () {
           const requester = testUtils.generateRandomAddress();
           await expect(
-            requesterAuthorizerWhitelisterWithTokenPayment
+            authorizationExpirationSetterWithErc20Payment
               .connect(roles.blocker)
               .setRequesterBlockStatusForAirnode(hre.ethers.constants.AddressZero, requester, true)
           ).to.be.revertedWith('Airnode address zero');
@@ -884,7 +878,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
       it('reverts', async function () {
         const requester = testUtils.generateRandomAddress();
         await expect(
-          requesterAuthorizerWhitelisterWithTokenPayment
+          authorizationExpirationSetterWithErc20Payment
             .connect(roles.randomPerson)
             .setRequesterBlockStatusForAirnode(roles.airnode.address, requester, true)
         ).to.be.revertedWith('Sender cannot block');
@@ -903,11 +897,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
         // $100 times 2 divided by $5 = 40 tokens with 12 decimals (because the token was defined to have 12 decimals)
         const expectedTokenAmount = price.mul(priceCoefficient).div(tokenPrice);
         expect(
-          await requesterAuthorizerWhitelisterWithTokenPayment.getTokenAmount(
-            roles.airnode.address,
-            chainId,
-            endpointId
-          )
+          await authorizationExpirationSetterWithErc20Payment.getTokenAmount(roles.airnode.address, chainId, endpointId)
         ).to.equal(expectedTokenAmount);
       });
     });
@@ -915,60 +905,72 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
       it('reverts', async function () {
         const endpointId = testUtils.generateRandomBytes32();
         await expect(
-          requesterAuthorizerWhitelisterWithTokenPayment.getTokenAmount(roles.airnode.address, chainId, endpointId)
+          authorizationExpirationSetterWithErc20Payment.getTokenAmount(roles.airnode.address, chainId, endpointId)
         ).to.be.revertedWith('No default price set');
       });
     });
   });
 
-  describe('setMinimumWhitelistExtension', function () {
+  describe('setMinimumAuthorizationExpirationExtension', function () {
     context('Sender is maintainer', function () {
-      context('Minimum whitelist duration is valid', function () {
-        it('sets minimum whitelist extension', async function () {
+      context('Minimum authorization expiration extension is valid', function () {
+        it('sets minimum authorization expiration extension', async function () {
           await expect(
-            requesterAuthorizerWhitelisterWithTokenPayment.connect(roles.maintainer).setMinimumWhitelistExtension(123)
+            authorizationExpirationSetterWithErc20Payment
+              .connect(roles.maintainer)
+              .setMinimumAuthorizationExpirationExtension(123)
           )
-            .to.emit(requesterAuthorizerWhitelisterWithTokenPayment, 'SetMinimumWhitelistExtension')
+            .to.emit(authorizationExpirationSetterWithErc20Payment, 'SetMinimumAuthorizationExpirationExtension')
             .withArgs(123, roles.maintainer.address);
-          expect(await requesterAuthorizerWhitelisterWithTokenPayment.minimumWhitelistExtension()).to.equal(123);
+          expect(
+            await authorizationExpirationSetterWithErc20Payment.minimumAuthorizationExpiraitonExtension()
+          ).to.equal(123);
         });
       });
-      context('Minimum whitelist duration is not valid', function () {
+      context('Minimum authorization expiration extension is not valid', function () {
         it('reverts', async function () {
           await expect(
-            requesterAuthorizerWhitelisterWithTokenPayment.connect(roles.maintainer).setMinimumWhitelistExtension(0)
+            authorizationExpirationSetterWithErc20Payment
+              .connect(roles.maintainer)
+              .setMinimumAuthorizationExpirationExtension(0)
           ).to.be.revertedWith('Invalid minimum duration');
           await expect(
-            requesterAuthorizerWhitelisterWithTokenPayment
+            authorizationExpirationSetterWithErc20Payment
               .connect(roles.maintainer)
-              .setMinimumWhitelistExtension(
-                (await requesterAuthorizerWhitelisterWithTokenPayment.maximumWhitelistDuration()).add(1)
+              .setMinimumAuthorizationExpirationExtension(
+                (await authorizationExpirationSetterWithErc20Payment.maximumAuthorizationExpiration()).add(1)
               )
           ).to.be.revertedWith('Invalid minimum duration');
         });
       });
     });
     context('Sender is manager', function () {
-      context('Minimum whitelist duration is valid', function () {
-        it('sets minimum whitelist extension', async function () {
+      context('Minimum authorization expiration extension is valid', function () {
+        it('sets minimum authorization expiration extension', async function () {
           await expect(
-            requesterAuthorizerWhitelisterWithTokenPayment.connect(roles.manager).setMinimumWhitelistExtension(123)
+            authorizationExpirationSetterWithErc20Payment
+              .connect(roles.manager)
+              .setMinimumAuthorizationExpirationExtension(123)
           )
-            .to.emit(requesterAuthorizerWhitelisterWithTokenPayment, 'SetMinimumWhitelistExtension')
+            .to.emit(authorizationExpirationSetterWithErc20Payment, 'SetMinimumAuthorizationExpirationExtension')
             .withArgs(123, roles.manager.address);
-          expect(await requesterAuthorizerWhitelisterWithTokenPayment.minimumWhitelistExtension()).to.equal(123);
+          expect(
+            await authorizationExpirationSetterWithErc20Payment.minimumAuthorizationExpiraitonExtension()
+          ).to.equal(123);
         });
       });
-      context('Minimum whitelist duration is not valid', function () {
+      context('Minimum authorization expiration extension is not valid', function () {
         it('reverts', async function () {
           await expect(
-            requesterAuthorizerWhitelisterWithTokenPayment.connect(roles.manager).setMinimumWhitelistExtension(0)
+            authorizationExpirationSetterWithErc20Payment
+              .connect(roles.manager)
+              .setMinimumAuthorizationExpirationExtension(0)
           ).to.be.revertedWith('Invalid minimum duration');
           await expect(
-            requesterAuthorizerWhitelisterWithTokenPayment
+            authorizationExpirationSetterWithErc20Payment
               .connect(roles.manager)
-              .setMinimumWhitelistExtension(
-                (await requesterAuthorizerWhitelisterWithTokenPayment.maximumWhitelistDuration()).add(1)
+              .setMinimumAuthorizationExpirationExtension(
+                (await authorizationExpirationSetterWithErc20Payment.maximumAuthorizationExpiration()).add(1)
               )
           ).to.be.revertedWith('Invalid minimum duration');
         });
@@ -977,54 +979,60 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
     context('Sender is not maintainer and manager', function () {
       it('reverts', async function () {
         await expect(
-          requesterAuthorizerWhitelisterWithTokenPayment.connect(roles.randomPerson).setMinimumWhitelistExtension(123)
+          authorizationExpirationSetterWithErc20Payment
+            .connect(roles.randomPerson)
+            .setMinimumAuthorizationExpirationExtension(123)
         ).to.be.revertedWith('Sender cannot maintain');
       });
     });
   });
 
-  describe('setMaximumWhitelistDuration', function () {
+  describe('setMaximumAuthorizationExpiration', function () {
     context('Sender is maintainer', function () {
-      context('Minimum whitelist duration is valid', function () {
-        it('sets minimum whitelist extension', async function () {
+      context('Minimum authorization expiration extension is valid', function () {
+        it('sets minimum authorization expiration extension', async function () {
           await expect(
-            requesterAuthorizerWhitelisterWithTokenPayment.connect(roles.maintainer).setMaximumWhitelistDuration(123456)
+            authorizationExpirationSetterWithErc20Payment
+              .connect(roles.maintainer)
+              .setMaximumAuthorizationExpiration(123456)
           )
-            .to.emit(requesterAuthorizerWhitelisterWithTokenPayment, 'SetMaximumWhitelistDuration')
+            .to.emit(authorizationExpirationSetterWithErc20Payment, 'SetMaximumAuthorizationExpiration')
             .withArgs(123456, roles.maintainer.address);
-          expect(await requesterAuthorizerWhitelisterWithTokenPayment.maximumWhitelistDuration()).to.equal(123456);
+          expect(await authorizationExpirationSetterWithErc20Payment.maximumAuthorizationExpiration()).to.equal(123456);
         });
       });
-      context('Minimum whitelist duration is not valid', function () {
+      context('Minimum authorization expiration extension is not valid', function () {
         it('reverts', async function () {
           await expect(
-            requesterAuthorizerWhitelisterWithTokenPayment
+            authorizationExpirationSetterWithErc20Payment
               .connect(roles.maintainer)
-              .setMaximumWhitelistDuration(
-                (await requesterAuthorizerWhitelisterWithTokenPayment.minimumWhitelistExtension()).sub(1)
+              .setMaximumAuthorizationExpiration(
+                (await authorizationExpirationSetterWithErc20Payment.minimumAuthorizationExpiraitonExtension()).sub(1)
               )
           ).to.be.revertedWith('Invalid maximum duration');
         });
       });
     });
     context('Sender is manager', function () {
-      context('Minimum whitelist duration is valid', function () {
-        it('sets minimum whitelist extension', async function () {
+      context('Minimum authorization expiration extension is valid', function () {
+        it('sets minimum authorization expiration extension', async function () {
           await expect(
-            requesterAuthorizerWhitelisterWithTokenPayment.connect(roles.manager).setMaximumWhitelistDuration(123456)
+            authorizationExpirationSetterWithErc20Payment
+              .connect(roles.manager)
+              .setMaximumAuthorizationExpiration(123456)
           )
-            .to.emit(requesterAuthorizerWhitelisterWithTokenPayment, 'SetMaximumWhitelistDuration')
+            .to.emit(authorizationExpirationSetterWithErc20Payment, 'SetMaximumAuthorizationExpiration')
             .withArgs(123456, roles.manager.address);
-          expect(await requesterAuthorizerWhitelisterWithTokenPayment.maximumWhitelistDuration()).to.equal(123456);
+          expect(await authorizationExpirationSetterWithErc20Payment.maximumAuthorizationExpiration()).to.equal(123456);
         });
       });
-      context('Minimum whitelist duration is not valid', function () {
+      context('Minimum authorization expiration extension is not valid', function () {
         it('reverts', async function () {
           await expect(
-            requesterAuthorizerWhitelisterWithTokenPayment
+            authorizationExpirationSetterWithErc20Payment
               .connect(roles.manager)
-              .setMaximumWhitelistDuration(
-                (await requesterAuthorizerWhitelisterWithTokenPayment.minimumWhitelistExtension()).sub(1)
+              .setMaximumAuthorizationExpiration(
+                (await authorizationExpirationSetterWithErc20Payment.minimumAuthorizationExpiraitonExtension()).sub(1)
               )
           ).to.be.revertedWith('Invalid maximum duration');
         });
@@ -1033,7 +1041,9 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
     context('Sender is not maintainer and manager', function () {
       it('reverts', async function () {
         await expect(
-          requesterAuthorizerWhitelisterWithTokenPayment.connect(roles.randomPerson).setMaximumWhitelistDuration(123)
+          authorizationExpirationSetterWithErc20Payment
+            .connect(roles.randomPerson)
+            .setMaximumAuthorizationExpiration(123)
         ).to.be.revertedWith('Sender cannot maintain');
       });
     });
@@ -1044,93 +1054,107 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
       context('Chain ID is not zero', function () {
         context('Requester address is not zero', function () {
           context('Requester is not blocked globally or for the Airnode', function () {
-            context('Whitelist expirations is not smaller than minimum', function () {
+            context('Authorization expiration extension is not smaller than minimum', function () {
               context('Token transfer is successful', function () {
                 context('RequesterAuthorizer for the chain is set', function () {
-                  context('Resulting whitelist expiration is not larger than maximum', function () {
-                    it('sets whitelist expiration', async function () {
+                  context('Resulting authorization expiration is not larger than maximum', function () {
+                    it('sets authorization expiration', async function () {
                       const endpointId = testUtils.generateRandomBytes32();
                       const requester = testUtils.generateRandomAddress();
-                      const whitelistExtension = 7 * 24 * 60 * 60;
+                      const authorizationExpirationExtension = 7 * 24 * 60 * 60;
                       const price = hre.ethers.BigNumber.from(`100${'0'.repeat(18)}`); // $100
                       const expectedTokenAmount = price
                         .mul(priceCoefficient)
                         .div(tokenPrice)
-                        .mul(whitelistExtension)
+                        .mul(authorizationExpirationExtension)
                         .div(30 * 24 * 60 * 60);
                       await airnodeEndpointPriceRegistry
                         .connect(roles.manager)
                         .registerAirnodeChainEndpointPrice(roles.airnode.address, chainId, endpointId, price);
-                      await requesterAuthorizerWhitelisterWithTokenPayment
+                      await authorizationExpirationSetterWithErc20Payment
                         .connect(roles.maintainer)
                         .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
                       await token
                         .connect(roles.payer)
                         .approve(
-                          requesterAuthorizerWhitelisterWithTokenPayment.address,
+                          authorizationExpirationSetterWithErc20Payment.address,
                           hre.ethers.utils.parseEther('1')
                         );
-                      let whitelistStatus =
-                        await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToWhitelistStatus(
+                      let authorizationStatus =
+                        await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToAuthorizationStatus(
                           roles.airnode.address,
                           endpointId,
                           requester
                         );
-                      expect(whitelistStatus.expirationTimestamp).to.equal(0);
-                      expect(whitelistStatus.indefiniteWhitelistCount).to.equal(0);
+                      expect(authorizationStatus.expirationTimestamp).to.equal(0);
+                      expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(0);
                       const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
                       await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
                       await expect(
-                        requesterAuthorizerWhitelisterWithTokenPayment
+                        authorizationExpirationSetterWithErc20Payment
                           .connect(roles.payer)
-                          .payTokens(roles.airnode.address, chainId, endpointId, requester, whitelistExtension)
+                          .payTokens(
+                            roles.airnode.address,
+                            chainId,
+                            endpointId,
+                            requester,
+                            authorizationExpirationExtension
+                          )
                       )
-                        .to.emit(requesterAuthorizerWhitelisterWithTokenPayment, 'PaidTokens')
+                        .to.emit(authorizationExpirationSetterWithErc20Payment, 'PaidTokens')
                         .withArgs(
                           roles.airnode.address,
                           chainId,
                           endpointId,
                           requester,
-                          whitelistExtension,
+                          authorizationExpirationExtension,
                           roles.payer.address,
-                          nextTimestamp + whitelistExtension
+                          nextTimestamp + authorizationExpirationExtension
                         );
                       expect(await token.balanceOf(roles.proceedsDestination.address)).to.equal(expectedTokenAmount);
                       expect(await token.balanceOf(roles.payer.address)).to.equal(
                         hre.ethers.utils.parseEther('1').sub(expectedTokenAmount)
                       );
-                      whitelistStatus =
-                        await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToWhitelistStatus(
+                      authorizationStatus =
+                        await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToAuthorizationStatus(
                           roles.airnode.address,
                           endpointId,
                           requester
                         );
-                      expect(whitelistStatus.expirationTimestamp).to.equal(nextTimestamp + whitelistExtension);
-                      expect(whitelistStatus.indefiniteWhitelistCount).to.equal(0);
+                      expect(authorizationStatus.expirationTimestamp).to.equal(
+                        nextTimestamp + authorizationExpirationExtension
+                      );
+                      expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(0);
                     });
                   });
-                  context('Resulting whitelist expiration is larger than maximum', function () {
+                  context('Resulting authorization expiration is larger than maximum', function () {
                     it('reverts', async function () {
                       const endpointId = testUtils.generateRandomBytes32();
                       const requester = testUtils.generateRandomAddress();
-                      const whitelistExtension = 365 * 24 * 60 * 60 + 1;
+                      const authorizationExpirationExtension = 365 * 24 * 60 * 60 + 1;
                       const price = hre.ethers.BigNumber.from(`100${'0'.repeat(18)}`); // $100
                       await airnodeEndpointPriceRegistry
                         .connect(roles.manager)
                         .registerAirnodeChainEndpointPrice(roles.airnode.address, chainId, endpointId, price);
-                      await requesterAuthorizerWhitelisterWithTokenPayment
+                      await authorizationExpirationSetterWithErc20Payment
                         .connect(roles.maintainer)
                         .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
                       await token
                         .connect(roles.payer)
                         .approve(
-                          requesterAuthorizerWhitelisterWithTokenPayment.address,
+                          authorizationExpirationSetterWithErc20Payment.address,
                           hre.ethers.utils.parseEther('1')
                         );
                       await expect(
-                        requesterAuthorizerWhitelisterWithTokenPayment
+                        authorizationExpirationSetterWithErc20Payment
                           .connect(roles.payer)
-                          .payTokens(roles.airnode.address, chainId, endpointId, requester, whitelistExtension)
+                          .payTokens(
+                            roles.airnode.address,
+                            chainId,
+                            endpointId,
+                            requester,
+                            authorizationExpirationExtension
+                          )
                       ).to.be.revertedWith('Exceeds maximum duration');
                     });
                   });
@@ -1140,24 +1164,27 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
                     const anotherChainId = chainId + 1;
                     const endpointId = testUtils.generateRandomBytes32();
                     const requester = testUtils.generateRandomAddress();
-                    const whitelistExtension = 7 * 24 * 60 * 60;
+                    const authorizationExpirationExtension = 7 * 24 * 60 * 60;
                     const price = hre.ethers.BigNumber.from(`100${'0'.repeat(18)}`); // $100
                     await airnodeEndpointPriceRegistry
                       .connect(roles.manager)
                       .registerAirnodeChainEndpointPrice(roles.airnode.address, anotherChainId, endpointId, price);
-                    await requesterAuthorizerWhitelisterWithTokenPayment
+                    await authorizationExpirationSetterWithErc20Payment
                       .connect(roles.maintainer)
                       .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
                     await token
                       .connect(roles.payer)
-                      .approve(
-                        requesterAuthorizerWhitelisterWithTokenPayment.address,
-                        hre.ethers.utils.parseEther('1')
-                      );
+                      .approve(authorizationExpirationSetterWithErc20Payment.address, hre.ethers.utils.parseEther('1'));
                     await expect(
-                      requesterAuthorizerWhitelisterWithTokenPayment
+                      authorizationExpirationSetterWithErc20Payment
                         .connect(roles.payer)
-                        .payTokens(roles.airnode.address, anotherChainId, endpointId, requester, whitelistExtension)
+                        .payTokens(
+                          roles.airnode.address,
+                          anotherChainId,
+                          endpointId,
+                          requester,
+                          authorizationExpirationExtension
+                        )
                     ).to.be.revertedWith('No Authorizer set for chain');
                   });
                 });
@@ -1166,34 +1193,40 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
                 it('reverts', async function () {
                   const endpointId = testUtils.generateRandomBytes32();
                   const requester = testUtils.generateRandomAddress();
-                  const whitelistExtension = 7 * 24 * 60 * 60;
+                  const authorizationExpirationExtension = 7 * 24 * 60 * 60;
                   const price = hre.ethers.BigNumber.from(`100${'0'.repeat(18)}`); // $100
                   await airnodeEndpointPriceRegistry
                     .connect(roles.manager)
                     .registerAirnodeChainEndpointPrice(roles.airnode.address, chainId, endpointId, price);
-                  await requesterAuthorizerWhitelisterWithTokenPayment
+                  await authorizationExpirationSetterWithErc20Payment
                     .connect(roles.maintainer)
                     .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
                   await expect(
-                    requesterAuthorizerWhitelisterWithTokenPayment
+                    authorizationExpirationSetterWithErc20Payment
                       .connect(roles.payer)
-                      .payTokens(roles.airnode.address, chainId, endpointId, requester, whitelistExtension)
+                      .payTokens(
+                        roles.airnode.address,
+                        chainId,
+                        endpointId,
+                        requester,
+                        authorizationExpirationExtension
+                      )
                   ).to.be.revertedWith('ERC20: insufficient allowance');
                 });
               });
             });
-            context('Whitelist expirations is smaller than minimum', function () {
+            context('Authorization expiration extension is smaller than minimum', function () {
               it('reverts', async function () {
                 const endpointId = testUtils.generateRandomBytes32();
                 const requester = testUtils.generateRandomAddress();
-                const whitelistExtension = 123;
-                await requesterAuthorizerWhitelisterWithTokenPayment
+                const authorizationExpirationExtension = 123;
+                await authorizationExpirationSetterWithErc20Payment
                   .connect(roles.maintainer)
                   .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
                 await expect(
-                  requesterAuthorizerWhitelisterWithTokenPayment
+                  authorizationExpirationSetterWithErc20Payment
                     .connect(roles.payer)
-                    .payTokens(roles.airnode.address, chainId, endpointId, requester, whitelistExtension)
+                    .payTokens(roles.airnode.address, chainId, endpointId, requester, authorizationExpirationExtension)
                 ).to.be.revertedWith('Extension below minimum');
               });
             });
@@ -1202,17 +1235,17 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
             it('reverts', async function () {
               const endpointId = testUtils.generateRandomBytes32();
               const requester = testUtils.generateRandomAddress();
-              const whitelistExtension = 7 * 24 * 60 * 60;
-              await requesterAuthorizerWhitelisterWithTokenPayment
+              const authorizationExpirationExtension = 7 * 24 * 60 * 60;
+              await authorizationExpirationSetterWithErc20Payment
                 .connect(roles.maintainer)
                 .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
-              await requesterAuthorizerWhitelisterWithTokenPayment
+              await authorizationExpirationSetterWithErc20Payment
                 .connect(roles.blocker)
                 .setRequesterBlockStatus(requester, true);
               await expect(
-                requesterAuthorizerWhitelisterWithTokenPayment
+                authorizationExpirationSetterWithErc20Payment
                   .connect(roles.payer)
-                  .payTokens(roles.airnode.address, chainId, endpointId, requester, whitelistExtension)
+                  .payTokens(roles.airnode.address, chainId, endpointId, requester, authorizationExpirationExtension)
               ).to.be.revertedWith('Requester blocked');
             });
           });
@@ -1220,17 +1253,17 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
             it('reverts', async function () {
               const endpointId = testUtils.generateRandomBytes32();
               const requester = testUtils.generateRandomAddress();
-              const whitelistExtension = 7 * 24 * 60 * 60;
-              await requesterAuthorizerWhitelisterWithTokenPayment
+              const authorizationExpirationExtension = 7 * 24 * 60 * 60;
+              await authorizationExpirationSetterWithErc20Payment
                 .connect(roles.maintainer)
                 .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
-              await requesterAuthorizerWhitelisterWithTokenPayment
+              await authorizationExpirationSetterWithErc20Payment
                 .connect(roles.blocker)
                 .setRequesterBlockStatusForAirnode(roles.airnode.address, requester, true);
               await expect(
-                requesterAuthorizerWhitelisterWithTokenPayment
+                authorizationExpirationSetterWithErc20Payment
                   .connect(roles.payer)
-                  .payTokens(roles.airnode.address, chainId, endpointId, requester, whitelistExtension)
+                  .payTokens(roles.airnode.address, chainId, endpointId, requester, authorizationExpirationExtension)
               ).to.be.revertedWith('Requester blocked');
             });
           });
@@ -1239,14 +1272,14 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
           it('reverts', async function () {
             const endpointId = testUtils.generateRandomBytes32();
             const requester = hre.ethers.constants.AddressZero;
-            const whitelistExtension = 7 * 24 * 60 * 60;
-            await requesterAuthorizerWhitelisterWithTokenPayment
+            const authorizationExpirationExtension = 7 * 24 * 60 * 60;
+            await authorizationExpirationSetterWithErc20Payment
               .connect(roles.maintainer)
               .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
             await expect(
-              requesterAuthorizerWhitelisterWithTokenPayment
+              authorizationExpirationSetterWithErc20Payment
                 .connect(roles.payer)
-                .payTokens(roles.airnode.address, chainId, endpointId, requester, whitelistExtension)
+                .payTokens(roles.airnode.address, chainId, endpointId, requester, authorizationExpirationExtension)
             ).to.be.revertedWith('Requester address zero');
           });
         });
@@ -1255,14 +1288,14 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
         it('reverts', async function () {
           const endpointId = testUtils.generateRandomBytes32();
           const requester = testUtils.generateRandomAddress();
-          const whitelistExtension = 7 * 24 * 60 * 60;
-          await requesterAuthorizerWhitelisterWithTokenPayment
+          const authorizationExpirationExtension = 7 * 24 * 60 * 60;
+          await authorizationExpirationSetterWithErc20Payment
             .connect(roles.maintainer)
             .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
           await expect(
-            requesterAuthorizerWhitelisterWithTokenPayment
+            authorizationExpirationSetterWithErc20Payment
               .connect(roles.payer)
-              .payTokens(roles.airnode.address, 0, endpointId, requester, whitelistExtension)
+              .payTokens(roles.airnode.address, 0, endpointId, requester, authorizationExpirationExtension)
           ).to.be.revertedWith('Chain ID zero');
         });
       });
@@ -1271,107 +1304,109 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
       it('reverts', async function () {
         const endpointId = testUtils.generateRandomBytes32();
         const requester = testUtils.generateRandomAddress();
-        const whitelistExtension = 7 * 24 * 60 * 60;
+        const authorizationExpirationExtension = 7 * 24 * 60 * 60;
         await expect(
-          requesterAuthorizerWhitelisterWithTokenPayment
+          authorizationExpirationSetterWithErc20Payment
             .connect(roles.payer)
-            .payTokens(roles.airnode.address, chainId, endpointId, requester, whitelistExtension)
+            .payTokens(roles.airnode.address, chainId, endpointId, requester, authorizationExpirationExtension)
         ).to.be.revertedWith('Airnode not active');
       });
     });
   });
 
-  describe('resetWhitelistExpirationOfBlockedRequester', function () {
+  describe('resetAuthorizationExpirationOfBlockedRequester', function () {
     context('Requester is blocked globally', function () {
-      it('resets whitelist expiration of blocked requester', async function () {
+      it('resets authorization expiration of blocked requester', async function () {
         const endpointId = testUtils.generateRandomBytes32();
         const requester = testUtils.generateRandomAddress();
-        const whitelistExtension = 7 * 24 * 60 * 60;
+        const authorizationExpirationExtension = 7 * 24 * 60 * 60;
         const price = hre.ethers.BigNumber.from(`100${'0'.repeat(18)}`); // $100
         await airnodeEndpointPriceRegistry
           .connect(roles.manager)
           .registerAirnodeChainEndpointPrice(roles.airnode.address, chainId, endpointId, price);
-        await requesterAuthorizerWhitelisterWithTokenPayment
+        await authorizationExpirationSetterWithErc20Payment
           .connect(roles.maintainer)
           .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
         await token
           .connect(roles.payer)
-          .approve(requesterAuthorizerWhitelisterWithTokenPayment.address, hre.ethers.utils.parseEther('1'));
+          .approve(authorizationExpirationSetterWithErc20Payment.address, hre.ethers.utils.parseEther('1'));
         const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
         await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-        await requesterAuthorizerWhitelisterWithTokenPayment
+        await authorizationExpirationSetterWithErc20Payment
           .connect(roles.payer)
-          .payTokens(roles.airnode.address, chainId, endpointId, requester, whitelistExtension);
-        await requesterAuthorizerWhitelisterWithTokenPayment
+          .payTokens(roles.airnode.address, chainId, endpointId, requester, authorizationExpirationExtension);
+        await authorizationExpirationSetterWithErc20Payment
           .connect(roles.blocker)
           .setRequesterBlockStatus(requester, true);
-        let whitelistStatus = await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToWhitelistStatus(
-          roles.airnode.address,
-          endpointId,
-          requester
-        );
-        expect(whitelistStatus.expirationTimestamp).to.equal(nextTimestamp + whitelistExtension);
-        expect(whitelistStatus.indefiniteWhitelistCount).to.equal(0);
+        let authorizationStatus =
+          await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToAuthorizationStatus(
+            roles.airnode.address,
+            endpointId,
+            requester
+          );
+        expect(authorizationStatus.expirationTimestamp).to.equal(nextTimestamp + authorizationExpirationExtension);
+        expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(0);
         await expect(
-          requesterAuthorizerWhitelisterWithTokenPayment
+          authorizationExpirationSetterWithErc20Payment
             .connect(roles.randomPerson)
-            .resetWhitelistExpirationOfBlockedRequester(roles.airnode.address, chainId, endpointId, requester)
+            .resetAuthorizationExpirationOfBlockedRequester(roles.airnode.address, chainId, endpointId, requester)
         )
-          .to.emit(requesterAuthorizerWhitelisterWithTokenPayment, 'ResetWhitelistExpirationOfBlockedRequester')
+          .to.emit(authorizationExpirationSetterWithErc20Payment, 'ResetAuthorizationExpirationOfBlockedRequester')
           .withArgs(roles.airnode.address, chainId, endpointId, requester, roles.randomPerson.address);
-        whitelistStatus = await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToWhitelistStatus(
+        authorizationStatus = await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToAuthorizationStatus(
           roles.airnode.address,
           endpointId,
           requester
         );
-        expect(whitelistStatus.expirationTimestamp).to.equal(0);
-        expect(whitelistStatus.indefiniteWhitelistCount).to.equal(0);
+        expect(authorizationStatus.expirationTimestamp).to.equal(0);
+        expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(0);
       });
     });
     context('Requester is blocked for Airnode', function () {
-      it('resets whitelist expiration of blocked requester', async function () {
+      it('resets authorization expiration of blocked requester', async function () {
         const endpointId = testUtils.generateRandomBytes32();
         const requester = testUtils.generateRandomAddress();
-        const whitelistExtension = 7 * 24 * 60 * 60;
+        const authorizationExpirationExtension = 7 * 24 * 60 * 60;
         const price = hre.ethers.BigNumber.from(`100${'0'.repeat(18)}`); // $100
         await airnodeEndpointPriceRegistry
           .connect(roles.manager)
           .registerAirnodeChainEndpointPrice(roles.airnode.address, chainId, endpointId, price);
-        await requesterAuthorizerWhitelisterWithTokenPayment
+        await authorizationExpirationSetterWithErc20Payment
           .connect(roles.maintainer)
           .setAirnodeParticipationStatus(roles.airnode.address, AirnodeParticipationStatus.Active);
         await token
           .connect(roles.payer)
-          .approve(requesterAuthorizerWhitelisterWithTokenPayment.address, hre.ethers.utils.parseEther('1'));
+          .approve(authorizationExpirationSetterWithErc20Payment.address, hre.ethers.utils.parseEther('1'));
         const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
         await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-        await requesterAuthorizerWhitelisterWithTokenPayment
+        await authorizationExpirationSetterWithErc20Payment
           .connect(roles.payer)
-          .payTokens(roles.airnode.address, chainId, endpointId, requester, whitelistExtension);
-        await requesterAuthorizerWhitelisterWithTokenPayment
+          .payTokens(roles.airnode.address, chainId, endpointId, requester, authorizationExpirationExtension);
+        await authorizationExpirationSetterWithErc20Payment
           .connect(roles.blocker)
           .setRequesterBlockStatusForAirnode(roles.airnode.address, requester, true);
-        let whitelistStatus = await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToWhitelistStatus(
-          roles.airnode.address,
-          endpointId,
-          requester
-        );
-        expect(whitelistStatus.expirationTimestamp).to.equal(nextTimestamp + whitelistExtension);
-        expect(whitelistStatus.indefiniteWhitelistCount).to.equal(0);
+        let authorizationStatus =
+          await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToAuthorizationStatus(
+            roles.airnode.address,
+            endpointId,
+            requester
+          );
+        expect(authorizationStatus.expirationTimestamp).to.equal(nextTimestamp + authorizationExpirationExtension);
+        expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(0);
         await expect(
-          requesterAuthorizerWhitelisterWithTokenPayment
+          authorizationExpirationSetterWithErc20Payment
             .connect(roles.randomPerson)
-            .resetWhitelistExpirationOfBlockedRequester(roles.airnode.address, chainId, endpointId, requester)
+            .resetAuthorizationExpirationOfBlockedRequester(roles.airnode.address, chainId, endpointId, requester)
         )
-          .to.emit(requesterAuthorizerWhitelisterWithTokenPayment, 'ResetWhitelistExpirationOfBlockedRequester')
+          .to.emit(authorizationExpirationSetterWithErc20Payment, 'ResetAuthorizationExpirationOfBlockedRequester')
           .withArgs(roles.airnode.address, chainId, endpointId, requester, roles.randomPerson.address);
-        whitelistStatus = await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToWhitelistStatus(
+        authorizationStatus = await requesterAuthorizerWithManager.airnodeToEndpointIdToRequesterToAuthorizationStatus(
           roles.airnode.address,
           endpointId,
           requester
         );
-        expect(whitelistStatus.expirationTimestamp).to.equal(0);
-        expect(whitelistStatus.indefiniteWhitelistCount).to.equal(0);
+        expect(authorizationStatus.expirationTimestamp).to.equal(0);
+        expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(0);
       });
     });
     context('Requester is not blocked globally or for the Airnode', function () {
@@ -1379,9 +1414,9 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
         const endpointId = testUtils.generateRandomBytes32();
         const requester = testUtils.generateRandomAddress();
         await expect(
-          requesterAuthorizerWhitelisterWithTokenPayment
+          authorizationExpirationSetterWithErc20Payment
             .connect(roles.randomPerson)
-            .resetWhitelistExpirationOfBlockedRequester(roles.airnode.address, chainId, endpointId, requester)
+            .resetAuthorizationExpirationOfBlockedRequester(roles.airnode.address, chainId, endpointId, requester)
         ).to.be.revertedWith('Requester not blocked');
       });
     });
@@ -1391,7 +1426,7 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
     context('Price registry returns a value', function () {
       it('gets token payment amount', async function () {
         const endpointId = testUtils.generateRandomBytes32();
-        const whitelistExtension = 7 * 24 * 60 * 60;
+        const authorizationExpirationExtension = 7 * 24 * 60 * 60;
         const price = hre.ethers.BigNumber.from(`100${'0'.repeat(18)}`); // $100
         await airnodeEndpointPriceRegistry
           .connect(roles.manager)
@@ -1400,14 +1435,14 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
         const expectedTokenAmount = price
           .mul(priceCoefficient)
           .div(tokenPrice)
-          .mul(whitelistExtension)
+          .mul(authorizationExpirationExtension)
           .div(30 * 24 * 60 * 60);
         expect(
-          await requesterAuthorizerWhitelisterWithTokenPayment.getTokenPaymentAmount(
+          await authorizationExpirationSetterWithErc20Payment.getTokenPaymentAmount(
             roles.airnode.address,
             chainId,
             endpointId,
-            whitelistExtension
+            authorizationExpirationExtension
           )
         ).to.equal(expectedTokenAmount);
       });
@@ -1415,13 +1450,13 @@ describe('RequesterAuthorizerWhitelisterWithTokenPayment', function () {
     context('Price registry reverts', function () {
       it('reverts', async function () {
         const endpointId = testUtils.generateRandomBytes32();
-        const whitelistExtension = 7 * 24 * 60 * 60;
+        const authorizationExpirationExtension = 7 * 24 * 60 * 60;
         await expect(
-          requesterAuthorizerWhitelisterWithTokenPayment.getTokenPaymentAmount(
+          authorizationExpirationSetterWithErc20Payment.getTokenPaymentAmount(
             roles.airnode.address,
             chainId,
             endpointId,
-            whitelistExtension
+            authorizationExpirationExtension
           )
         ).to.be.revertedWith('No default price set');
       });

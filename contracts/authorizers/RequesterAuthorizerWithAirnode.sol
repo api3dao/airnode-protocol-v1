@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.9;
 
-import "../whitelist/WhitelistRolesWithAirnode.sol";
+import "../access-control-registry/AccessControlRegistryAdminned.sol";
 import "./RequesterAuthorizer.sol";
 import "./interfaces/IRequesterAuthorizerWithAirnode.sol";
 
 /// @title Authorizer contract that Airnode operators can use to temporarily or
-/// indefinitely whitelist requesters for Airnode–endpoint pairs or Airnodes
+/// indefinitely authorize requesters for Airnode–endpoint pairs or Airnodes
 contract RequesterAuthorizerWithAirnode is
-    WhitelistRolesWithAirnode,
+    AccessControlRegistryAdminned,
     RequesterAuthorizer,
     IRequesterAuthorizerWithAirnode
 {
@@ -21,32 +21,35 @@ contract RequesterAuthorizerWithAirnode is
         string memory _adminRoleDescription,
         address _trustedForwarder
     )
-        WhitelistRolesWithAirnode(_accessControlRegistry, _adminRoleDescription)
+        AccessControlRegistryAdminned(
+            _accessControlRegistry,
+            _adminRoleDescription
+        )
         RequesterAuthorizer(_trustedForwarder)
     {}
 
-    /// @notice Extends the expiration of the temporary whitelist of
-    /// `requester` for the `airnode`–`endpointId` pair if the sender is
-    /// allowed to extend whitelist expiration
+    /// @notice Extends the expiration of the temporary authorization of
+    /// `requester` for `airnode`–`endpointId` pair if the sender is
+    /// allowed to extend authorization expiration
     /// @param airnode Airnode address
     /// @param endpointId Endpoint ID
     /// @param requester Requester address
-    /// @param expirationTimestamp Timestamp at which the temporary whitelist
-    /// will expire
-    function extendWhitelistExpiration(
+    /// @param expirationTimestamp Timestamp at which the temporary
+    /// authorization will expire
+    function extendAuthorizerExpiration(
         address airnode,
         bytes32 endpointId,
         address requester,
         uint64 expirationTimestamp
     ) external override {
         require(
-            hasWhitelistExpirationExtenderRoleOrIsAirnode(
+            hasAuthorizationExpirationExtenderRoleOrIsAirnode(
                 airnode,
                 _msgSender()
             ),
             "Cannot extend expiration"
         );
-        _extendWhitelistExpirationAndEmit(
+        _extendAuthorizationExpiration(
             airnode,
             endpointId,
             requester,
@@ -54,26 +57,29 @@ contract RequesterAuthorizerWithAirnode is
         );
     }
 
-    /// @notice Sets the expiration of the temporary whitelist of `requester`
-    /// for the `airnode`–`endpointId` pair if the sender is allowed to set
-    /// expiration
-    /// @dev Unlike `extendWhitelistExpiration()`, this can hasten expiration
+    /// @notice Sets the expiration of the temporary authorization of
+    /// `requester` for `airnode`–`endpointId` pair if the sender is allowed to
+    /// set expiration
+    /// @dev Unlike `extendAuthorizerExpiration()`, this can hasten expiration
     /// @param airnode Airnode address
     /// @param endpointId Endpoint ID
     /// @param requester Requester address
-    /// @param expirationTimestamp Timestamp at which the temporary whitelist
-    /// will expire
-    function setWhitelistExpiration(
+    /// @param expirationTimestamp Timestamp at which the temporary
+    /// authorization will expire
+    function setAuthorizationExpiration(
         address airnode,
         bytes32 endpointId,
         address requester,
         uint64 expirationTimestamp
     ) external override {
         require(
-            hasWhitelistExpirationSetterRoleOrIsAirnode(airnode, _msgSender()),
+            hasAuthorizationExpirationSetterRoleOrIsAirnode(
+                airnode,
+                _msgSender()
+            ),
             "Cannot set expiration"
         );
-        _setWhitelistExpirationAndEmit(
+        _setAuthorizationExpiration(
             airnode,
             endpointId,
             requester,
@@ -81,24 +87,24 @@ contract RequesterAuthorizerWithAirnode is
         );
     }
 
-    /// @notice Sets the indefinite whitelist status of `requester` for the
-    /// `airnode`–`endpointId` pair if the sender is allowed to whitelist
+    /// @notice Sets the indefinite authorization status of `requester` for
+    /// `airnode`–`endpointId` pair if the sender is allowed to authorize
     /// indefinitely
     /// @param airnode Airnode address
     /// @param endpointId Endpoint ID
     /// @param requester Requester address
-    /// @param status Indefinite whitelist status
-    function setIndefiniteWhitelistStatus(
+    /// @param status Indefinite authorization status
+    function setIndefiniteAuthorizationStatus(
         address airnode,
         bytes32 endpointId,
         address requester,
         bool status
     ) external override {
         require(
-            hasIndefiniteWhitelisterRoleOrIsAirnode(airnode, _msgSender()),
+            hasIndefiniteAuthorizerRoleOrIsAirnode(airnode, _msgSender()),
             "Cannot set indefinite status"
         );
-        _setIndefiniteWhitelistStatusAndEmit(
+        _setIndefiniteAuthorizationStatus(
             airnode,
             endpointId,
             requester,
@@ -106,27 +112,142 @@ contract RequesterAuthorizerWithAirnode is
         );
     }
 
-    /// @notice Revokes the indefinite whitelist status granted by a specific
-    /// account that no longer has the indefinite whitelister role
+    /// @notice Revokes the indefinite authorization status granted by a
+    /// specific account that no longer has the indefinite authorizer role
     /// @param airnode Airnode address
     /// @param endpointId Endpoint ID
     /// @param requester Requester address
-    /// @param setter Setter of the indefinite whitelist status
-    function revokeIndefiniteWhitelistStatus(
+    /// @param setter Setter of the indefinite authorization status
+    function revokeIndefiniteAuthorizationStatus(
         address airnode,
         bytes32 endpointId,
         address requester,
         address setter
     ) external override {
         require(
-            !hasIndefiniteWhitelisterRoleOrIsAirnode(airnode, setter),
+            !hasIndefiniteAuthorizerRoleOrIsAirnode(airnode, setter),
             "setter can set indefinite status"
         );
-        _revokeIndefiniteWhitelistStatusAndEmit(
+        _revokeIndefiniteAuthorizationStatus(
             airnode,
             endpointId,
             requester,
             setter
         );
+    }
+
+    /// @notice Derives the admin role for the Airnode
+    /// @param airnode Airnode address
+    /// @return adminRole Admin role
+    function deriveAdminRole(address airnode)
+        external
+        view
+        override
+        returns (bytes32 adminRole)
+    {
+        adminRole = _deriveAdminRole(airnode);
+    }
+
+    /// @notice Derives the authorization expiration extender role for the
+    /// Airnode
+    /// @param airnode Airnode address
+    /// @return authorizationExpirationExtenderRole Authorization expiration
+    /// extender role
+    function deriveAuthorizationExpirationExtenderRole(address airnode)
+        public
+        view
+        override
+        returns (bytes32 authorizationExpirationExtenderRole)
+    {
+        authorizationExpirationExtenderRole = _deriveRole(
+            _deriveAdminRole(airnode),
+            AUTHORIZATION_EXPIRATION_EXTENDER_ROLE_DESCRIPTION_HASH
+        );
+    }
+
+    /// @notice Derives the authorization expiration setter role for the
+    /// Airnode
+    /// @param airnode Airnode address
+    /// @return authorizationExpirationSetterRole Authorization expiration
+    /// setter role
+    function deriveAuthorizationExpirationSetterRole(address airnode)
+        public
+        view
+        override
+        returns (bytes32 authorizationExpirationSetterRole)
+    {
+        authorizationExpirationSetterRole = _deriveRole(
+            _deriveAdminRole(airnode),
+            AUTHORIZATION_EXPIRATION_SETTER_ROLE_DESCRIPTION_HASH
+        );
+    }
+
+    /// @notice Derives the indefinite authorizer role for the Airnode
+    /// @param airnode Airnode address
+    /// @return indefiniteAuthorizerRole Indefinite authorizer role
+    function deriveIndefiniteAuthorizerRole(address airnode)
+        public
+        view
+        override
+        returns (bytes32 indefiniteAuthorizerRole)
+    {
+        indefiniteAuthorizerRole = _deriveRole(
+            _deriveAdminRole(airnode),
+            INDEFINITE_AUTHORIZER_ROLE_DESCRIPTION_HASH
+        );
+    }
+
+    /// @dev Returns if the account has the authorization expiration extender
+    /// role or is the Airnode address
+    /// @param airnode Airnode address
+    /// @param account Account address
+    /// @return If the account has the authorization extender role or is the
+    /// Airnode address
+    function hasAuthorizationExpirationExtenderRoleOrIsAirnode(
+        address airnode,
+        address account
+    ) private view returns (bool) {
+        return
+            airnode == account ||
+            IAccessControlRegistry(accessControlRegistry).hasRole(
+                deriveAuthorizationExpirationExtenderRole(airnode),
+                account
+            );
+    }
+
+    /// @dev Returns if the account has the authorization expriation setter
+    /// role or is the Airnode address
+    /// @param airnode Airnode address
+    /// @param account Account address
+    /// @return If the account has the authorization expiration setter role or
+    /// is the Airnode address
+    function hasAuthorizationExpirationSetterRoleOrIsAirnode(
+        address airnode,
+        address account
+    ) private view returns (bool) {
+        return
+            airnode == account ||
+            IAccessControlRegistry(accessControlRegistry).hasRole(
+                deriveAuthorizationExpirationSetterRole(airnode),
+                account
+            );
+    }
+
+    /// @dev Returns if the account has the indefinite authorizer role or is
+    /// the Airnode address
+    /// @param airnode Airnode address
+    /// @param account Account address
+    /// @return If the account has the indefinite authorizer role or is the
+    /// Airnode addrss
+    function hasIndefiniteAuthorizerRoleOrIsAirnode(
+        address airnode,
+        address account
+    ) private view returns (bool) {
+        return
+            airnode == account ||
+            IAccessControlRegistry(accessControlRegistry).hasRole(
+                deriveIndefiniteAuthorizerRole(airnode),
+                account
+            );
     }
 }

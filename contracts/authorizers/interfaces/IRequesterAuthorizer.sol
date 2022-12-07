@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import "./IAuthorizerV0.sol";
 
 interface IRequesterAuthorizer is IAuthorizerV0 {
-    event ExtendedWhitelistExpiration(
+    event ExtendedAuthorizationExpiration(
         address indexed airnode,
         bytes32 endpointId,
         address indexed requester,
@@ -12,7 +12,7 @@ interface IRequesterAuthorizer is IAuthorizerV0 {
         uint256 expiration
     );
 
-    event SetWhitelistExpiration(
+    event SetAuthorizationExpiration(
         address indexed airnode,
         bytes32 endpointId,
         address indexed requester,
@@ -20,71 +20,92 @@ interface IRequesterAuthorizer is IAuthorizerV0 {
         uint256 expiration
     );
 
-    event SetIndefiniteWhitelistStatus(
+    event SetIndefiniteAuthorizationStatus(
         address indexed airnode,
         bytes32 endpointId,
         address indexed requester,
         address indexed sender,
         bool status,
-        uint192 indefiniteWhitelistCount
+        uint192 indefiniteAuthorizationCount
     );
 
-    event RevokedIndefiniteWhitelistStatus(
+    event RevokedIndefiniteAuthorizationStatus(
         address indexed airnode,
         bytes32 endpointId,
         address indexed requester,
         address indexed setter,
         address sender,
-        uint192 indefiniteWhitelistCount
+        uint192 indefiniteAuthorizationCount
     );
 
-    function extendWhitelistExpiration(
+    function extendAuthorizerExpiration(
         address airnode,
         bytes32 endpointId,
         address requester,
         uint64 expirationTimestamp
     ) external;
 
-    function setWhitelistExpiration(
+    function setAuthorizationExpiration(
         address airnode,
         bytes32 endpointId,
         address requester,
         uint64 expirationTimestamp
     ) external;
 
-    function setIndefiniteWhitelistStatus(
+    function setIndefiniteAuthorizationStatus(
         address airnode,
         bytes32 endpointId,
         address requester,
         bool status
     ) external;
 
-    function revokeIndefiniteWhitelistStatus(
+    function revokeIndefiniteAuthorizationStatus(
         address airnode,
         bytes32 endpointId,
         address requester,
         address setter
     ) external;
 
-    function airnodeToEndpointIdToRequesterToWhitelistStatus(
+    function airnodeToEndpointIdToRequesterToAuthorizationStatus(
         address airnode,
         bytes32 endpointId,
         address requester
     )
         external
         view
-        returns (uint64 expirationTimestamp, uint192 indefiniteWhitelistCount);
+        returns (
+            uint64 expirationTimestamp,
+            uint192 indefiniteAuthorizationCount
+        );
 
-    function airnodeToEndpointIdToRequesterToSetterToIndefiniteWhitelistStatus(
+    function airnodeToEndpointIdToRequesterToSetterToIndefiniteAuthorizationStatus(
         address airnode,
         bytes32 endpointId,
         address requester,
         address setter
-    ) external view returns (bool indefiniteWhitelistStatus);
+    ) external view returns (bool indefiniteAuthorizationStatus);
 
     function isAuthorized(
         address airnode,
         bytes32 endpointId,
         address requester
     ) external view returns (bool);
+
+    // solhint-disable-next-line func-name-mixedcase
+    function AUTHORIZATION_EXPIRATION_EXTENDER_ROLE_DESCRIPTION()
+        external
+        view
+        returns (string memory);
+
+    // solhint-disable-next-line func-name-mixedcase
+    function AUTHORIZATION_EXPIRATION_SETTER_ROLE_DESCRIPTION()
+        external
+        view
+        returns (string memory);
+
+    // solhint-disable-next-line func-name-mixedcase
+    function INDEFINITE_AUTHORIZER_ROLE_DESCRIPTION()
+        external
+        view
+        returns (string memory);
 }

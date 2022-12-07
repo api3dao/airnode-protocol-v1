@@ -6,16 +6,16 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../access-control-registry/AccessControlRegistryAdminnedWithManager.sol";
 import "./AirnodeEndpointPriceRegistryUser.sol";
 import "./RequesterAuthorizerRegistryUser.sol";
-import "./interfaces/IRequesterAuthorizerWhitelisterWithToken.sol";
+import "./interfaces/IAuthorizerWithErc20.sol";
 import "../authorizers/interfaces/IRequesterAuthorizer.sol";
 
 /// @title Contract to be inherited by RequesterAuthorizer contracts that will
-/// whitelist based on token interaction
-contract RequesterAuthorizerWhitelisterWithToken is
+/// authorize based on ERC20 token interaction
+contract AuthorizerWithErc20 is
     AccessControlRegistryAdminnedWithManager,
     AirnodeEndpointPriceRegistryUser,
     RequesterAuthorizerRegistryUser,
-    IRequesterAuthorizerWhitelisterWithToken
+    IAuthorizerWithErc20
 {
     /// @notice Maintainer role description
     string public constant override MAINTAINER_ROLE_DESCRIPTION = "Maintainer";
@@ -313,7 +313,7 @@ contract RequesterAuthorizerWhitelisterWithToken is
         );
     }
 
-    /// @notice Amount of tokens needed to be whitelisted for the
+    /// @notice Amount of tokens needed to be authorized for the
     /// Airnode–endpoint pair on the chain
     /// @param airnode Airnode address
     /// @param chainId Chain ID

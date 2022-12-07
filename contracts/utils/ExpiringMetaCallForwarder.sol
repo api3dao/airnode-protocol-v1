@@ -35,7 +35,7 @@ contract ExpiringMetaCallForwarder is EIP712, SelfMulticall {
     /// @notice Verifies the signature and executes the meta-call
     /// @dev This implementation is intended for use-cases where both `from`
     /// and the meta-call executor benefit from the meta-call being executed
-    /// directly (e.g., `from` wants to whitelist the executor but does not
+    /// directly (e.g., `from` wants to authorize the executor but does not
     /// have funds, so they give the executor a meta-call to execute on their
     /// behalf). This means a lot of the security considerations that apply in
     /// general relayer network implementations are irrelevant here.
