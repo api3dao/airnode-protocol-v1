@@ -61,6 +61,11 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
         uint256 value,
         uint256 timestamp
     );
+    event UpdatedBeaconWithDomainSignedData(
+        bytes32 indexed beaconId,
+        uint256 value,
+        uint256 timestamp
+    );
 
     event UpdatedBeaconSetWithBeacons(
         bytes32 indexed beaconSetId,
@@ -69,6 +74,12 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
     );
 
     event UpdatedBeaconSetWithSignedData(
+        bytes32 indexed dapiId,
+        uint224 value,
+        uint32 timestamp
+    );
+
+    event UpdatedBeaconSetWithDomainSignedData(
         bytes32 indexed dapiId,
         uint224 value,
         uint32 timestamp

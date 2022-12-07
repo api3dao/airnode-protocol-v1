@@ -526,7 +526,11 @@ contract DapiServer is
         );
         bytes32 beaconId = deriveBeaconId(airnode, templateId);
         uint256 decodedData = processBeaconUpdate(beaconId, timestamp, data);
-        emit UpdatedBeaconWithSignedData(beaconId, decodedData, timestamp);
+        emit UpdatedBeaconWithDomainSignedData(
+            beaconId,
+            decodedData,
+            timestamp
+        );
     }
 
     ///                     ~~~PSP Beacon set updates~~~
@@ -797,7 +801,7 @@ contract DapiServer is
             value: updatedValue,
             timestamp: updatedTimestamp
         });
-        emit UpdatedBeaconSetWithSignedData(
+        emit UpdatedBeaconSetWithDomainSignedData(
             beaconSetId,
             updatedValue,
             updatedTimestamp

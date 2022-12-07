@@ -1874,7 +1874,7 @@ describe('DapiServer', function () {
                   .connect(roles.randomPerson)
                   .updateBeaconWithDomainSignedData(airnodeAddress, templateId, timestamp, data, signature)
               )
-                .to.emit(dapiServer, 'UpdatedBeaconWithSignedData')
+                .to.emit(dapiServer, 'UpdatedBeaconWithDomainSignedData')
                 .withArgs(beaconId, 123, timestamp);
               const beacon = await dapiServer.readDataFeedWithId(beaconId);
               expect(beacon.value).to.equal(123);
@@ -2758,7 +2758,7 @@ describe('DapiServer', function () {
                           ['0x', signature1, signature2]
                         )
                     )
-                      .to.emit(dapiServer, 'UpdatedBeaconSetWithSignedData')
+                      .to.emit(dapiServer, 'UpdatedBeaconSetWithDomainSignedData')
                       .withArgs(beaconSetId, 105, timestamp);
                     const beaconSet = await dapiServer.readDataFeedWithId(beaconSetId);
                     expect(beaconSet.value).to.equal(105);
