@@ -73,6 +73,11 @@ contract DapiServer is
     /// @notice Data feed with ID
     mapping(bytes32 => DataFeed) public override dataFeeds;
 
+    /// @notice Data feed with ID specific to the OEV proxy
+    mapping(address => mapping(bytes32 => DataFeed))
+        public
+        override oevProxyToIdToDataFeed;
+
     /// @notice Data feed ID mapped to the dAPI name hash
     mapping(bytes32 => bytes32) public override dapiNameHashToDataFeedId;
 
@@ -811,6 +816,143 @@ contract DapiServer is
         );
     }
 
+    ///                     ~~~OEV~~~
+
+    /// @notice Updates an OEV proxy Beacon using data signed by the respective
+    /// Airnode, without requiring a request or subscription
+    /// @param airnode Airnode address
+    /// @param templateId Template ID
+    /// @param timestamp Timestamp used in the signature
+    /// @param data Response data (a `uint256` encoded in contract ABI)
+    /// @param metadata Metadata that the OEV proxy will use (e.g., auction bid
+    /// parameters)
+    /// @param signature Template ID, a timestamp, response data and metadata
+    /// signed by the Airnode address
+    function updateOevProxyBeaconWithSignedData(
+        address airnode,
+        bytes32 templateId,
+        uint256 timestamp,
+        bytes calldata data,
+        bytes calldata metadata,
+        bytes calldata signature
+    ) external override onlyValidTimestamp(timestamp) {
+        require(
+            (
+                keccak256(
+                    abi.encodePacked(templateId, timestamp, data, metadata)
+                ).toEthSignedMessageHash()
+            ).recover(signature) == airnode,
+            "Signature mismatch"
+        );
+        bytes32 beaconId = deriveBeaconId(airnode, templateId);
+        int224 updatedBeaconValue = decodeFulfillmentData(data);
+        require(
+            timestamp > oevProxyToIdToDataFeed[msg.sender][beaconId].timestamp,
+            "Fulfillment older than Beacon"
+        );
+        // Timestamp validity is already checked by `onlyValidTimestamp`, which
+        // means it will be small enough to be typecast into `uint32`
+        oevProxyToIdToDataFeed[msg.sender][beaconId] = DataFeed({
+            value: updatedBeaconValue,
+            timestamp: uint32(timestamp)
+        });
+        emit UpdatedOevProxyBeaconWithSignedData(
+            beaconId,
+            msg.sender,
+            updatedBeaconValue,
+            timestamp
+        );
+    }
+
+    /// @notice Updates an OEV Beacon set using data signed by the respective
+    /// Airnodes without requiring a request or subscription. The Beacons for
+    /// which the signature is omitted will be read from the storage.
+    /// @param airnodes Airnode addresses
+    /// @param templateIds Template IDs
+    /// @param timestamps Timestamps used in the signatures
+    /// @param data Response data (a `uint256` encoded in contract ABI per
+    /// Beacon)
+    /// @param metadata Metadata that the OEV proxy will use (e.g., auction bid
+    /// parameters)
+    /// @param signatures Template ID, a timestamp, response data and metadata
+    /// signed by the respective Airnode address per Beacon
+    /// @return beaconSetId Beacon set ID
+    function updateOevProxyBeaconSetWithSignedData(
+        address[] memory airnodes,
+        bytes32[] memory templateIds,
+        uint256[] memory timestamps,
+        bytes[] memory data,
+        bytes memory metadata,
+        bytes[] memory signatures
+    ) external override returns (bytes32 beaconSetId) {
+        uint256 beaconCount = airnodes.length;
+        require(
+            beaconCount == templateIds.length &&
+                beaconCount == timestamps.length &&
+                beaconCount == data.length &&
+                beaconCount == signatures.length,
+            "Parameter length mismatch"
+        );
+        require(beaconCount > 1, "Specified less than two Beacons");
+        bytes32[] memory beaconIds = new bytes32[](beaconCount);
+        int256[] memory values = new int256[](beaconCount);
+        uint256 accumulatedTimestamp = 0;
+        for (uint256 ind = 0; ind < beaconCount; ind++) {
+            if (signatures[ind].length != 0) {
+                uint256 timestamp = timestamps[ind];
+                require(timestampIsValid(timestamp), "Timestamp not valid");
+                require(
+                    (
+                        keccak256(
+                            abi.encodePacked(
+                                templateIds[ind],
+                                timestamp,
+                                data[ind],
+                                metadata
+                            )
+                        ).toEthSignedMessageHash()
+                    ).recover(signatures[ind]) == airnodes[ind],
+                    "Signature mismatch"
+                );
+                values[ind] = decodeFulfillmentData(data[ind]);
+                // Timestamp validity is already checked, which means it will
+                // be small enough to be typecast into `uint32`
+                accumulatedTimestamp += timestamp;
+                beaconIds[ind] = deriveBeaconId(
+                    airnodes[ind],
+                    templateIds[ind]
+                );
+            } else {
+                bytes32 beaconId = deriveBeaconId(
+                    airnodes[ind],
+                    templateIds[ind]
+                );
+                DataFeed storage dataFeed = dataFeeds[beaconId];
+                values[ind] = dataFeed.value;
+                accumulatedTimestamp += dataFeed.timestamp;
+                beaconIds[ind] = beaconId;
+            }
+        }
+        beaconSetId = deriveBeaconSetId(beaconIds);
+        uint32 updatedTimestamp = uint32(accumulatedTimestamp / beaconCount);
+        require(
+            updatedTimestamp >=
+                oevProxyToIdToDataFeed[msg.sender][beaconSetId].timestamp,
+            "Updated value outdated"
+        );
+        int224 updatedValue = int224(median(values));
+        oevProxyToIdToDataFeed[msg.sender][beaconSetId] = DataFeed({
+            value: updatedValue,
+            timestamp: updatedTimestamp
+        });
+        emit UpdatedOevProxyBeaconSetWithSignedData(
+            beaconSetId,
+            msg.sender,
+            updatedValue,
+            updatedTimestamp
+        );
+    }
+
     /// @notice Sets the data feed ID the dAPI name points to
     /// @dev While a data feed ID refers to a specific Beacon or Beacon set,
     /// dAPI names provide a more abstract interface for convenience. This
@@ -863,6 +1005,50 @@ contract DapiServer is
         require(dataFeedId != bytes32(0), "dAPI name not set");
         DataFeed storage dataFeed = dataFeeds[dataFeedId];
         return (dataFeed.value, dataFeed.timestamp);
+    }
+
+    /// @notice Reads the data feed as the OEV proxy with ID
+    /// @param dataFeedId Data feed ID
+    /// @return value Data feed value
+    /// @return timestamp Data feed timestamp
+    function readDataFeedWithIdAsOevProxy(bytes32 dataFeedId)
+        external
+        view
+        override
+        returns (int224 value, uint32 timestamp)
+    {
+        DataFeed storage oevDataFeed = oevProxyToIdToDataFeed[msg.sender][
+            dataFeedId
+        ];
+        DataFeed storage dataFeed = dataFeeds[dataFeedId];
+        if (oevDataFeed.timestamp > dataFeed.timestamp) {
+            return (oevDataFeed.value, oevDataFeed.timestamp);
+        } else {
+            return (dataFeed.value, dataFeed.timestamp);
+        }
+    }
+
+    /// @notice Reads the data feed as the OEV proxy with dAPI name hash
+    /// @param dapiNameHash dAPI name hash
+    /// @return value Data feed value
+    /// @return timestamp Data feed timestamp
+    function readDataFeedWithDapiNameHashAsOevProxy(bytes32 dapiNameHash)
+        external
+        view
+        override
+        returns (int224 value, uint32 timestamp)
+    {
+        bytes32 dataFeedId = dapiNameHashToDataFeedId[dapiNameHash];
+        require(dataFeedId != bytes32(0), "dAPI name not set");
+        DataFeed storage oevDataFeed = oevProxyToIdToDataFeed[msg.sender][
+            dataFeedId
+        ];
+        DataFeed storage dataFeed = dataFeeds[dataFeedId];
+        if (oevDataFeed.timestamp > dataFeed.timestamp) {
+            return (oevDataFeed.value, oevDataFeed.timestamp);
+        } else {
+            return (dataFeed.value, dataFeed.timestamp);
+        }
     }
 
     /// @notice Aggregates the Beacons and returns the result
