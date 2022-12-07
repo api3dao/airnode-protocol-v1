@@ -9,7 +9,7 @@ describe('DapiServer', function () {
   let dapiNameSetterRole;
   let airnodeAddress, airnodeWallet, relayerAddress;
   let airnodeRrpSponsorWallet, airnodePspSponsorWallet, relayerRrpSponsorWallet, relayerPspSponsorWallet;
-  let templateId, beaconSetTemplateIds;
+  let endpointId, parameters, templateId, beaconSetTemplateIds;
   let beaconId;
   let beaconUpdateSubscriptionId,
     beaconUpdateSubscriptionRelayedId,
@@ -88,7 +88,9 @@ describe('DapiServer', function () {
   }
 
   async function setUpTemplate() {
-    templateId = testUtils.generateRandomBytes32();
+    endpointId = testUtils.generateRandomBytes32();
+    parameters = testUtils.generateRandomBytes();
+    templateId = hre.ethers.utils.solidityKeccak256(['bytes32', 'bytes'], [endpointId, parameters]);
     beaconSetTemplateIds = [
       testUtils.generateRandomBytes32(),
       testUtils.generateRandomBytes32(),
@@ -454,17 +456,19 @@ describe('DapiServer', function () {
     });
   });
 
-  describe('requestRrpBeaconUpdate', function () {
+  describe('requestRrpBeaconUpdateWithTemplate', function () {
     context('Request updater is the sponsor', function () {
       it('requests RRP Beacon update', async function () {
         const requestId = await deriveRegularRequestId();
         expect(
           await dapiServer
             .connect(roles.sponsor)
-            .callStatic.requestRrpBeaconUpdate(airnodeAddress, templateId, roles.sponsor.address)
+            .callStatic.requestRrpBeaconUpdateWithTemplate(airnodeAddress, templateId, roles.sponsor.address)
         ).to.equal(requestId);
         await expect(
-          dapiServer.connect(roles.sponsor).requestRrpBeaconUpdate(airnodeAddress, templateId, roles.sponsor.address)
+          dapiServer
+            .connect(roles.sponsor)
+            .requestRrpBeaconUpdateWithTemplate(airnodeAddress, templateId, roles.sponsor.address)
         )
           .to.emit(dapiServer, 'RequestedRrpBeaconUpdate')
           .withArgs(beaconId, roles.sponsor.address, roles.sponsor.address, requestId, airnodeAddress, templateId);
@@ -476,12 +480,12 @@ describe('DapiServer', function () {
         expect(
           await dapiServer
             .connect(roles.updateRequester)
-            .callStatic.requestRrpBeaconUpdate(airnodeAddress, templateId, roles.sponsor.address)
+            .callStatic.requestRrpBeaconUpdateWithTemplate(airnodeAddress, templateId, roles.sponsor.address)
         ).to.equal(requestId);
         await expect(
           dapiServer
             .connect(roles.updateRequester)
-            .requestRrpBeaconUpdate(airnodeAddress, templateId, roles.sponsor.address)
+            .requestRrpBeaconUpdateWithTemplate(airnodeAddress, templateId, roles.sponsor.address)
         )
           .to.emit(dapiServer, 'RequestedRrpBeaconUpdate')
           .withArgs(
@@ -499,27 +503,130 @@ describe('DapiServer', function () {
         await expect(
           dapiServer
             .connect(roles.randomPerson)
-            .requestRrpBeaconUpdate(airnodeAddress, templateId, roles.sponsor.address)
+            .requestRrpBeaconUpdateWithTemplate(airnodeAddress, templateId, roles.sponsor.address)
         ).to.be.revertedWith('Sender not permitted');
       });
     });
   });
 
-  describe('requestRrpBeaconUpdateRelayed', function () {
+  describe('requestRrpBeaconUpdateWithEndpoint', function () {
+    context('Request updater is the sponsor', function () {
+      it('requests RRP Beacon update', async function () {
+        const requestId = hre.ethers.utils.keccak256(
+          hre.ethers.utils.solidityPack(
+            ['uint256', 'address', 'address', 'uint256', 'address', 'bytes32', 'bytes', 'address', 'bytes4'],
+            [
+              (await hre.ethers.provider.getNetwork()).chainId,
+              airnodeProtocol.address,
+              dapiServer.address,
+              (await airnodeProtocol.requesterToRequestCount(dapiServer.address)).add(1),
+              airnodeAddress,
+              endpointId,
+              parameters,
+              roles.sponsor.address,
+              dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
+            ]
+          )
+        );
+        expect(
+          await dapiServer
+            .connect(roles.sponsor)
+            .callStatic.requestRrpBeaconUpdateWithEndpoint(
+              airnodeAddress,
+              endpointId,
+              parameters,
+              roles.sponsor.address
+            )
+        ).to.equal(requestId);
+        await expect(
+          dapiServer
+            .connect(roles.sponsor)
+            .requestRrpBeaconUpdateWithEndpoint(airnodeAddress, endpointId, parameters, roles.sponsor.address)
+        )
+          .to.emit(dapiServer, 'RequestedRrpBeaconUpdate')
+          .withArgs(beaconId, roles.sponsor.address, roles.sponsor.address, requestId, airnodeAddress, templateId);
+      });
+    });
+    context('Request updater is permitted', function () {
+      it('requests RRP Beacon update', async function () {
+        const requestId = hre.ethers.utils.keccak256(
+          hre.ethers.utils.solidityPack(
+            ['uint256', 'address', 'address', 'uint256', 'address', 'bytes32', 'bytes', 'address', 'bytes4'],
+            [
+              (await hre.ethers.provider.getNetwork()).chainId,
+              airnodeProtocol.address,
+              dapiServer.address,
+              (await airnodeProtocol.requesterToRequestCount(dapiServer.address)).add(1),
+              airnodeAddress,
+              endpointId,
+              parameters,
+              roles.sponsor.address,
+              dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
+            ]
+          )
+        );
+        expect(
+          await dapiServer
+            .connect(roles.updateRequester)
+            .callStatic.requestRrpBeaconUpdateWithEndpoint(
+              airnodeAddress,
+              endpointId,
+              parameters,
+              roles.sponsor.address
+            )
+        ).to.equal(requestId);
+        await expect(
+          dapiServer
+            .connect(roles.updateRequester)
+            .requestRrpBeaconUpdateWithEndpoint(airnodeAddress, endpointId, parameters, roles.sponsor.address)
+        )
+          .to.emit(dapiServer, 'RequestedRrpBeaconUpdate')
+          .withArgs(
+            beaconId,
+            roles.sponsor.address,
+            roles.updateRequester.address,
+            requestId,
+            airnodeAddress,
+            templateId
+          );
+      });
+    });
+    context('Request updater is not permitted', function () {
+      it('reverts', async function () {
+        await expect(
+          dapiServer
+            .connect(roles.randomPerson)
+            .requestRrpBeaconUpdateWithEndpoint(airnodeAddress, endpointId, parameters, roles.sponsor.address)
+        ).to.be.revertedWith('Sender not permitted');
+      });
+    });
+  });
+
+  describe('requestRelayedRrpBeaconUpdateWithTemplate', function () {
     context('Request updater is the sponsor', function () {
       it('requests RRP Beacon update', async function () {
         const requestId = await deriveRelayedRequestId();
         expect(
           await dapiServer
             .connect(roles.sponsor)
-            .callStatic.requestRrpBeaconUpdateRelayed(airnodeAddress, templateId, relayerAddress, roles.sponsor.address)
+            .callStatic.requestRelayedRrpBeaconUpdateWithTemplate(
+              airnodeAddress,
+              templateId,
+              relayerAddress,
+              roles.sponsor.address
+            )
         ).to.equal(requestId);
         await expect(
           dapiServer
             .connect(roles.sponsor)
-            .requestRrpBeaconUpdateRelayed(airnodeAddress, templateId, relayerAddress, roles.sponsor.address)
+            .requestRelayedRrpBeaconUpdateWithTemplate(
+              airnodeAddress,
+              templateId,
+              relayerAddress,
+              roles.sponsor.address
+            )
         )
-          .to.emit(dapiServer, 'RequestedRrpBeaconUpdateRelayed')
+          .to.emit(dapiServer, 'RequestedRelayedRrpBeaconUpdate')
           .withArgs(
             beaconId,
             roles.sponsor.address,
@@ -537,14 +644,24 @@ describe('DapiServer', function () {
         expect(
           await dapiServer
             .connect(roles.updateRequester)
-            .callStatic.requestRrpBeaconUpdateRelayed(airnodeAddress, templateId, relayerAddress, roles.sponsor.address)
+            .callStatic.requestRelayedRrpBeaconUpdateWithTemplate(
+              airnodeAddress,
+              templateId,
+              relayerAddress,
+              roles.sponsor.address
+            )
         ).to.equal(requestId);
         await expect(
           dapiServer
             .connect(roles.updateRequester)
-            .requestRrpBeaconUpdateRelayed(airnodeAddress, templateId, relayerAddress, roles.sponsor.address)
+            .requestRelayedRrpBeaconUpdateWithTemplate(
+              airnodeAddress,
+              templateId,
+              relayerAddress,
+              roles.sponsor.address
+            )
         )
-          .to.emit(dapiServer, 'RequestedRrpBeaconUpdateRelayed')
+          .to.emit(dapiServer, 'RequestedRelayedRrpBeaconUpdate')
           .withArgs(
             beaconId,
             roles.sponsor.address,
@@ -561,7 +678,136 @@ describe('DapiServer', function () {
         await expect(
           dapiServer
             .connect(roles.randomPerson)
-            .requestRrpBeaconUpdateRelayed(airnodeAddress, templateId, relayerAddress, roles.sponsor.address)
+            .requestRelayedRrpBeaconUpdateWithTemplate(
+              airnodeAddress,
+              templateId,
+              relayerAddress,
+              roles.sponsor.address
+            )
+        ).to.be.revertedWith('Sender not permitted');
+      });
+    });
+  });
+
+  describe('requestRelayedRrpBeaconUpdateWithEndpoint', function () {
+    context('Request updater is the sponsor', function () {
+      it('requests RRP Beacon update', async function () {
+        const requestId = hre.ethers.utils.keccak256(
+          hre.ethers.utils.solidityPack(
+            ['uint256', 'address', 'address', 'uint256', 'address', 'bytes32', 'bytes', 'address', 'address', 'bytes4'],
+            [
+              (await hre.ethers.provider.getNetwork()).chainId,
+              airnodeProtocol.address,
+              dapiServer.address,
+              (await airnodeProtocol.requesterToRequestCount(dapiServer.address)).add(1),
+              airnodeAddress,
+              endpointId,
+              parameters,
+              relayerAddress,
+              roles.sponsor.address,
+              dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
+            ]
+          )
+        );
+        expect(
+          await dapiServer
+            .connect(roles.sponsor)
+            .callStatic.requestRelayedRrpBeaconUpdateWithEndpoint(
+              airnodeAddress,
+              endpointId,
+              parameters,
+              relayerAddress,
+              roles.sponsor.address
+            )
+        ).to.equal(requestId);
+        await expect(
+          dapiServer
+            .connect(roles.sponsor)
+            .requestRelayedRrpBeaconUpdateWithEndpoint(
+              airnodeAddress,
+              endpointId,
+              parameters,
+              relayerAddress,
+              roles.sponsor.address
+            )
+        )
+          .to.emit(dapiServer, 'RequestedRelayedRrpBeaconUpdate')
+          .withArgs(
+            beaconId,
+            roles.sponsor.address,
+            roles.sponsor.address,
+            requestId,
+            airnodeAddress,
+            relayerAddress,
+            templateId
+          );
+      });
+    });
+    context('Request updater is permitted', function () {
+      it('requests RRP Beacon update', async function () {
+        const requestId = hre.ethers.utils.keccak256(
+          hre.ethers.utils.solidityPack(
+            ['uint256', 'address', 'address', 'uint256', 'address', 'bytes32', 'bytes', 'address', 'address', 'bytes4'],
+            [
+              (await hre.ethers.provider.getNetwork()).chainId,
+              airnodeProtocol.address,
+              dapiServer.address,
+              (await airnodeProtocol.requesterToRequestCount(dapiServer.address)).add(1),
+              airnodeAddress,
+              endpointId,
+              parameters,
+              relayerAddress,
+              roles.sponsor.address,
+              dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
+            ]
+          )
+        );
+        expect(
+          await dapiServer
+            .connect(roles.updateRequester)
+            .callStatic.requestRelayedRrpBeaconUpdateWithEndpoint(
+              airnodeAddress,
+              endpointId,
+              parameters,
+              relayerAddress,
+              roles.sponsor.address
+            )
+        ).to.equal(requestId);
+        await expect(
+          dapiServer
+            .connect(roles.updateRequester)
+            .requestRelayedRrpBeaconUpdateWithEndpoint(
+              airnodeAddress,
+              endpointId,
+              parameters,
+              relayerAddress,
+              roles.sponsor.address
+            )
+        )
+          .to.emit(dapiServer, 'RequestedRelayedRrpBeaconUpdate')
+          .withArgs(
+            beaconId,
+            roles.sponsor.address,
+            roles.updateRequester.address,
+            requestId,
+            airnodeAddress,
+            relayerAddress,
+            templateId
+          );
+      });
+    });
+    context('Request updater is not permitted', function () {
+      it('reverts', async function () {
+        await expect(
+          dapiServer
+            .connect(roles.randomPerson)
+            .requestRelayedRrpBeaconUpdateWithEndpoint(
+              airnodeAddress,
+              endpointId,
+              parameters,
+              relayerAddress,
+              roles.sponsor.address
+            )
         ).to.be.revertedWith('Sender not permitted');
       });
     });
@@ -581,7 +827,7 @@ describe('DapiServer', function () {
                   const requestId = await deriveRegularRequestId();
                   await dapiServer
                     .connect(roles.updateRequester)
-                    .requestRrpBeaconUpdate(airnodeAddress, templateId, roles.sponsor.address);
+                    .requestRrpBeaconUpdateWithTemplate(airnodeAddress, templateId, roles.sponsor.address);
                   const decodedData = 123;
                   const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
                   await hre.ethers.provider.send('evm_setNextBlockTimestamp', [timestamp]);
@@ -620,7 +866,12 @@ describe('DapiServer', function () {
                   const requestId = await deriveRelayedRequestId();
                   await dapiServer
                     .connect(roles.updateRequester)
-                    .requestRrpBeaconUpdateRelayed(airnodeAddress, templateId, relayerAddress, roles.sponsor.address);
+                    .requestRelayedRrpBeaconUpdateWithTemplate(
+                      airnodeAddress,
+                      templateId,
+                      relayerAddress,
+                      roles.sponsor.address
+                    );
                   const decodedData = 123;
                   const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
                   await hre.ethers.provider.send('evm_setNextBlockTimestamp', [timestamp]);
@@ -659,7 +910,7 @@ describe('DapiServer', function () {
                 const requestId = await deriveRegularRequestId();
                 await dapiServer
                   .connect(roles.updateRequester)
-                  .requestRrpBeaconUpdate(airnodeAddress, templateId, roles.sponsor.address);
+                  .requestRrpBeaconUpdateWithTemplate(airnodeAddress, templateId, roles.sponsor.address);
                 const [data, signature] = await encodeAndSignFulfillment(
                   456,
                   requestId,
@@ -710,7 +961,7 @@ describe('DapiServer', function () {
                 const requestId = await deriveRegularRequestId();
                 await dapiServer
                   .connect(roles.updateRequester)
-                  .requestRrpBeaconUpdate(airnodeAddress, templateId, roles.sponsor.address);
+                  .requestRrpBeaconUpdateWithTemplate(airnodeAddress, templateId, roles.sponsor.address);
                 const largeDecodedData = hre.ethers.BigNumber.from(2).pow(223);
                 const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
                 await hre.ethers.provider.send('evm_setNextBlockTimestamp', [timestamp]);
@@ -758,7 +1009,7 @@ describe('DapiServer', function () {
                 const requestId = await deriveRegularRequestId();
                 await dapiServer
                   .connect(roles.updateRequester)
-                  .requestRrpBeaconUpdate(airnodeAddress, templateId, roles.sponsor.address);
+                  .requestRrpBeaconUpdateWithTemplate(airnodeAddress, templateId, roles.sponsor.address);
                 const smallDecodedData = hre.ethers.BigNumber.from(2).pow(223).add(1).mul(-1);
                 const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
                 await hre.ethers.provider.send('evm_setNextBlockTimestamp', [timestamp]);
@@ -808,7 +1059,7 @@ describe('DapiServer', function () {
             const requestId = await deriveRegularRequestId();
             await dapiServer
               .connect(roles.updateRequester)
-              .requestRrpBeaconUpdate(airnodeAddress, templateId, roles.sponsor.address);
+              .requestRrpBeaconUpdateWithTemplate(airnodeAddress, templateId, roles.sponsor.address);
             const decodedData = 123;
             const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
             await hre.ethers.provider.send('evm_setNextBlockTimestamp', [timestamp]);
@@ -857,7 +1108,7 @@ describe('DapiServer', function () {
             const requestId = await deriveRegularRequestId();
             await dapiServer
               .connect(roles.updateRequester)
-              .requestRrpBeaconUpdate(airnodeAddress, templateId, roles.sponsor.address);
+              .requestRrpBeaconUpdateWithTemplate(airnodeAddress, templateId, roles.sponsor.address);
             const decodedData = 123;
             const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
             await hre.ethers.provider.send('evm_setNextBlockTimestamp', [timestamp]);
@@ -907,7 +1158,7 @@ describe('DapiServer', function () {
           const requestId = await deriveRegularRequestId();
           await dapiServer
             .connect(roles.updateRequester)
-            .requestRrpBeaconUpdate(airnodeAddress, templateId, roles.sponsor.address);
+            .requestRrpBeaconUpdateWithTemplate(airnodeAddress, templateId, roles.sponsor.address);
           const decodedData = 123;
           const currentTimestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
           await hre.ethers.provider.send('evm_setNextBlockTimestamp', [currentTimestamp + 1]);
@@ -956,7 +1207,7 @@ describe('DapiServer', function () {
           const requestId = await deriveRegularRequestId();
           await dapiServer
             .connect(roles.updateRequester)
-            .requestRrpBeaconUpdate(airnodeAddress, templateId, roles.sponsor.address);
+            .requestRrpBeaconUpdateWithTemplate(airnodeAddress, templateId, roles.sponsor.address);
           const currentTimestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
           await hre.ethers.provider.send('evm_setNextBlockTimestamp', [currentTimestamp + 1]);
           const timestamp = currentTimestamp + 15 * 60 + 1;

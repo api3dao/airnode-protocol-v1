@@ -133,7 +133,7 @@ describe('StorageUtils', function () {
                       const subscription = await airnodeProtocol.subscriptions(subscriptionId);
                       expect(subscription.chainId).to.equal(0);
                       expect(subscription.airnode).to.equal(hre.ethers.constants.AddressZero);
-                      expect(subscription.templateId).to.equal(hre.ethers.constants.HashZero);
+                      expect(subscription.endpointOrTemplateId).to.equal(hre.ethers.constants.HashZero);
                       expect(subscription.parameters).to.equal('0x');
                       expect(subscription.conditions).to.equal('0x');
                       expect(subscription.relayer).to.equal(hre.ethers.constants.AddressZero);
@@ -336,7 +336,7 @@ describe('StorageUtils', function () {
       const subscription = await airnodeProtocol.subscriptions(subscriptionId);
       expect(subscription.chainId).to.equal(chainId);
       expect(subscription.airnode).to.equal(airnodeAddress);
-      expect(subscription.templateId).to.equal(templateId);
+      expect(subscription.endpointOrTemplateId).to.equal(templateId);
       expect(subscription.parameters).to.equal(subscriptionParameters);
       expect(subscription.conditions).to.equal(subscriptionConditions);
       expect(subscription.relayer).to.equal(relayer);

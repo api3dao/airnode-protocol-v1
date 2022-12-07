@@ -171,7 +171,7 @@ describe('AirnodeProtocol', function () {
                 roles.sponsor.address,
                 airnodeRequester.interface.getSighash('fulfillRequest')
               )
-            ).to.be.revertedWith('Template ID zero');
+            ).to.be.revertedWith('Endpoint or template ID zero');
           });
         });
       });
@@ -1084,7 +1084,7 @@ describe('AirnodeProtocol', function () {
               roles.sponsor.address,
               airnodeRequester.interface.getSighash('fulfillRequest')
             )
-          ).to.be.revertedWith('Template ID zero');
+          ).to.be.revertedWith('Endpoint or template ID zero');
         });
       });
     });

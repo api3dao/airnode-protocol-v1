@@ -10,14 +10,14 @@ contract MockAirnodeRequester is AirnodeRequester {
 
     function makeRequest(
         address airnode,
-        bytes32 templateId,
+        bytes32 endpointOrTemplateId,
         bytes calldata parameters,
         address sponsor,
         bytes4 fulfillFunctionId
     ) external returns (bytes32 requestId) {
         requestId = IAirnodeProtocol(airnodeProtocol).makeRequest(
             airnode,
-            templateId,
+            endpointOrTemplateId,
             parameters,
             sponsor,
             fulfillFunctionId
@@ -26,7 +26,7 @@ contract MockAirnodeRequester is AirnodeRequester {
 
     function makeRequestRelayed(
         address airnode,
-        bytes32 templateId,
+        bytes32 endpointOrTemplateId,
         bytes calldata parameters,
         address relayer,
         address sponsor,
@@ -34,7 +34,7 @@ contract MockAirnodeRequester is AirnodeRequester {
     ) external returns (bytes32 requestId) {
         requestId = IAirnodeProtocol(airnodeProtocol).makeRequestRelayed(
             airnode,
-            templateId,
+            endpointOrTemplateId,
             parameters,
             relayer,
             sponsor,
