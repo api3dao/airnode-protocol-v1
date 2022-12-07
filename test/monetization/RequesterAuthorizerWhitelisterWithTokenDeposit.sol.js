@@ -4,7 +4,8 @@ const testUtils = require('../test-utils');
 
 describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
   let roles;
-  let accessControlRegistry,
+  let expiringMetaCallForwarder,
+    accessControlRegistry,
     airnodeEndpointPriceRegistry,
     requesterAuthorizerRegistry,
     requesterAuthorizerWithManager,
@@ -32,6 +33,11 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
       anotherDepositor: accounts[7],
       randomPerson: accounts[9],
     };
+    const expiringMetaCallForwarderFactory = await hre.ethers.getContractFactory(
+      'ExpiringMetaCallForwarder',
+      roles.deployer
+    );
+    expiringMetaCallForwarder = await expiringMetaCallForwarderFactory.deploy();
     const accessControlRegistryFactory = await hre.ethers.getContractFactory('AccessControlRegistry', roles.deployer);
     accessControlRegistry = await accessControlRegistryFactory.deploy();
     const airnodeEndpointPriceRegistryFactory = await hre.ethers.getContractFactory(
@@ -59,7 +65,8 @@ describe('RequesterAuthorizerWhitelisterWithTokenDeposit', function () {
     requesterAuthorizerWithManager = await requesterAuthorizerWithManagerFactory.deploy(
       accessControlRegistry.address,
       'RequesterAuthorizerWithManager admin',
-      roles.manager.address
+      roles.manager.address,
+      expiringMetaCallForwarder.address
     );
     await requesterAuthorizerRegistry
       .connect(roles.manager)

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 import "../whitelist/Whitelist.sol";
 import "./interfaces/IRequesterAuthorizer.sol";
 
@@ -9,7 +10,15 @@ import "./interfaces/IRequesterAuthorizer.sol";
 /// or Airnodes
 /// @dev An authorization for an Airnode with endpoint ID `bytes32(0)`
 /// represents a blanket authorization across all endpoints of the Airnode
-abstract contract RequesterAuthorizer is Whitelist, IRequesterAuthorizer {
+abstract contract RequesterAuthorizer is
+    ERC2771Context,
+    Whitelist,
+    IRequesterAuthorizer
+{
+    /// @param _trustedForwarder Trusted forwarder that verifies and executes
+    /// signed meta-calls
+    constructor(address _trustedForwarder) ERC2771Context(_trustedForwarder) {}
+
     /// @notice Extends the expiration of the temporary whitelist of
     /// `requester` for the `airnode`–`endpointId` pair and emits an event
     /// @param airnode Airnode address
@@ -34,7 +43,7 @@ abstract contract RequesterAuthorizer is Whitelist, IRequesterAuthorizer {
             airnode,
             endpointId,
             requester,
-            msg.sender,
+            _msgSender(),
             expirationTimestamp
         );
     }
@@ -64,7 +73,7 @@ abstract contract RequesterAuthorizer is Whitelist, IRequesterAuthorizer {
             airnode,
             endpointId,
             requester,
-            msg.sender,
+            _msgSender(),
             expirationTimestamp
         );
     }
@@ -93,7 +102,7 @@ abstract contract RequesterAuthorizer is Whitelist, IRequesterAuthorizer {
             airnode,
             endpointId,
             requester,
-            msg.sender,
+            _msgSender(),
             status,
             indefiniteWhitelistCount
         );
@@ -130,7 +139,7 @@ abstract contract RequesterAuthorizer is Whitelist, IRequesterAuthorizer {
                 endpointId,
                 requester,
                 setter,
-                msg.sender,
+                _msgSender(),
                 indefiniteWhitelistCount
             );
         }

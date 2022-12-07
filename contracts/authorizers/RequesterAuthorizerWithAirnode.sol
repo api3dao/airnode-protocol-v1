@@ -14,11 +14,15 @@ contract RequesterAuthorizerWithAirnode is
 {
     /// @param _accessControlRegistry AccessControlRegistry contract address
     /// @param _adminRoleDescription Admin role description
+    /// @param _trustedForwarder Trusted forwarder that verifies and executes
+    /// signed meta-calls
     constructor(
         address _accessControlRegistry,
-        string memory _adminRoleDescription
+        string memory _adminRoleDescription,
+        address _trustedForwarder
     )
         WhitelistRolesWithAirnode(_accessControlRegistry, _adminRoleDescription)
+        RequesterAuthorizer(_trustedForwarder)
     {}
 
     /// @notice Extends the expiration of the temporary whitelist of
@@ -36,7 +40,10 @@ contract RequesterAuthorizerWithAirnode is
         uint64 expirationTimestamp
     ) external override {
         require(
-            hasWhitelistExpirationExtenderRoleOrIsAirnode(airnode, msg.sender),
+            hasWhitelistExpirationExtenderRoleOrIsAirnode(
+                airnode,
+                _msgSender()
+            ),
             "Cannot extend expiration"
         );
         _extendWhitelistExpirationAndEmit(
@@ -63,7 +70,7 @@ contract RequesterAuthorizerWithAirnode is
         uint64 expirationTimestamp
     ) external override {
         require(
-            hasWhitelistExpirationSetterRoleOrIsAirnode(airnode, msg.sender),
+            hasWhitelistExpirationSetterRoleOrIsAirnode(airnode, _msgSender()),
             "Cannot set expiration"
         );
         _setWhitelistExpirationAndEmit(
@@ -88,7 +95,7 @@ contract RequesterAuthorizerWithAirnode is
         bool status
     ) external override {
         require(
-            hasIndefiniteWhitelisterRoleOrIsAirnode(airnode, msg.sender),
+            hasIndefiniteWhitelisterRoleOrIsAirnode(airnode, _msgSender()),
             "Cannot set indefinite status"
         );
         _setIndefiniteWhitelistStatusAndEmit(
