@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "../interfaces/IProxyWithOev.sol";
+import "../interfaces/IOevUpdater.sol";
 
 contract MockOevBeneficiary {
     receive() external payable {
@@ -9,6 +9,6 @@ contract MockOevBeneficiary {
     }
 
     function withdraw(address proxyWithOev) external {
-        IProxyWithOev(proxyWithOev).withdraw();
+        IOevUpdater(proxyWithOev).withdraw();
     }
 }

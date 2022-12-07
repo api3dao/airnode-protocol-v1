@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./IDapiProxy.sol";
-
-interface IProxyWithOev is IDapiProxy {
+interface IOevUpdater {
     function withdraw() external;
 
     function updateOevProxyBeaconWithSignedData(
@@ -25,4 +23,6 @@ interface IProxyWithOev is IDapiProxy {
         uint256 bidAmount,
         bytes[] memory signatures
     ) external payable;
+
+    function oevBeneficiary() external view returns (address);
 }

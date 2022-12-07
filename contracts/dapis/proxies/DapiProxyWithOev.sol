@@ -2,12 +2,12 @@
 pragma solidity ^0.8.0;
 
 import "./interfaces/IDapiProxy.sol";
-import "./interfaces/IProxyWithOev.sol";
+import "./interfaces/IOevUpdater.sol";
 
-contract DapiProxyWithOev is IDapiProxy, IProxyWithOev {
-    address public immutable dapiServer;
-    bytes32 public immutable dapiNameHash;
-    address public immutable oevBeneficiary;
+contract DapiProxyWithOev is IDapiProxy, IOevUpdater {
+    address public immutable override dapiServer;
+    bytes32 public immutable override dapiNameHash;
+    address public immutable override oevBeneficiary;
 
     constructor(
         address _dapiServer,
@@ -86,7 +86,7 @@ contract DapiProxyWithOev is IDapiProxy, IProxyWithOev {
         view
         virtual
         override
-        returns (uint224 value, uint32 timestamp)
+        returns (int224 value, uint32 timestamp)
     {
         (value, timestamp) = IDapiServer(dapiServer)
             .readDataFeedWithDapiNameHashAsOevProxy(dapiNameHash);

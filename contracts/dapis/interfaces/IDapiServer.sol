@@ -88,14 +88,14 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
     event UpdatedOevProxyBeaconWithSignedData(
         bytes32 indexed beaconId,
         address indexed proxy,
-        uint256 value,
+        int256 value,
         uint256 timestamp
     );
 
     event UpdatedOevProxyBeaconSetWithSignedData(
         bytes32 indexed beaconSetId,
         address indexed proxy,
-        uint256 value,
+        int256 value,
         uint256 timestamp
     );
 
@@ -253,12 +253,12 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
     function readDataFeedWithIdAsOevProxy(bytes32 dataFeedId)
         external
         view
-        returns (uint224 value, uint32 timestamp);
+        returns (int224 value, uint32 timestamp);
 
     function readDataFeedWithDapiNameHashAsOevProxy(bytes32 dapiNameHash)
         external
         view
-        returns (uint224 value, uint32 timestamp);
+        returns (int224 value, uint32 timestamp);
 
     function aggregateBeacons(bytes32[] memory beaconIds)
         external
@@ -304,7 +304,7 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
     function oevProxyToIdToDataFeed(address proxy, bytes32 dataFeedId)
         external
         view
-        returns (uint224 value, uint32 timestamp);
+        returns (int224 value, uint32 timestamp);
 
     function dapiNameHashToDataFeedId(bytes32 dapiNameHash)
         external

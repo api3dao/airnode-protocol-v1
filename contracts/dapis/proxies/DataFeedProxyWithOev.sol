@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./interfaces/IDapiProxy.sol";
+import "./interfaces/IDataFeedProxy.sol";
+import "./interfaces/IOevUpdater.sol";
 
-contract DataFeedProxyWithOev is IDapiProxy {
-    address public immutable dapiServer;
-    bytes32 public immutable dataFeedId;
-    address public immutable oevBeneficiary;
+contract DataFeedProxyWithOev is IDataFeedProxy, IOevUpdater {
+    address public immutable override dapiServer;
+    bytes32 public immutable override dataFeedId;
+    address public immutable override oevBeneficiary;
 
     constructor(
         address _dapiServer,
@@ -85,7 +86,7 @@ contract DataFeedProxyWithOev is IDapiProxy {
         view
         virtual
         override
-        returns (uint224 value, uint32 timestamp)
+        returns (int224 value, uint32 timestamp)
     {
         (value, timestamp) = IDapiServer(dapiServer)
             .readDataFeedWithIdAsOevProxy(dataFeedId);

@@ -845,10 +845,9 @@ contract DapiServer is
             "Signature mismatch"
         );
         bytes32 beaconId = deriveBeaconId(airnode, templateId);
-        uint224 updatedBeaconValue = decodeFulfillmentData(data);
+        int224 updatedBeaconValue = decodeFulfillmentData(data);
         require(
-            timestamp >
-                oevProxyToIdToDataFeed[msg.sender][beaconId].timestamp,
+            timestamp > oevProxyToIdToDataFeed[msg.sender][beaconId].timestamp,
             "Fulfillment older than Beacon"
         );
         // Timestamp validity is already checked by `onlyValidTimestamp`, which
@@ -896,7 +895,7 @@ contract DapiServer is
         );
         require(beaconCount > 1, "Specified less than two Beacons");
         bytes32[] memory beaconIds = new bytes32[](beaconCount);
-        uint256[] memory values = new uint256[](beaconCount);
+        int256[] memory values = new int256[](beaconCount);
         uint256 accumulatedTimestamp = 0;
         for (uint256 ind = 0; ind < beaconCount; ind++) {
             if (signatures[ind].length != 0) {
@@ -938,11 +937,10 @@ contract DapiServer is
         uint32 updatedTimestamp = uint32(accumulatedTimestamp / beaconCount);
         require(
             updatedTimestamp >=
-                oevProxyToIdToDataFeed[msg.sender][beaconSetId]
-                    .timestamp,
+                oevProxyToIdToDataFeed[msg.sender][beaconSetId].timestamp,
             "Updated value outdated"
         );
-        uint224 updatedValue = uint224(median(values));
+        int224 updatedValue = int224(median(values));
         oevProxyToIdToDataFeed[msg.sender][beaconSetId] = DataFeed({
             value: updatedValue,
             timestamp: updatedTimestamp
@@ -1017,11 +1015,11 @@ contract DapiServer is
         external
         view
         override
-        returns (uint224 value, uint32 timestamp)
+        returns (int224 value, uint32 timestamp)
     {
-        DataFeed storage oevDataFeed = oevProxyToIdToDataFeed[
-            msg.sender
-        ][dataFeedId];
+        DataFeed storage oevDataFeed = oevProxyToIdToDataFeed[msg.sender][
+            dataFeedId
+        ];
         DataFeed storage dataFeed = dataFeeds[dataFeedId];
         if (oevDataFeed.timestamp > dataFeed.timestamp) {
             return (oevDataFeed.value, oevDataFeed.timestamp);
@@ -1038,13 +1036,13 @@ contract DapiServer is
         external
         view
         override
-        returns (uint224 value, uint32 timestamp)
+        returns (int224 value, uint32 timestamp)
     {
         bytes32 dataFeedId = dapiNameHashToDataFeedId[dapiNameHash];
         require(dataFeedId != bytes32(0), "dAPI name not set");
-        DataFeed storage oevDataFeed = oevProxyToIdToDataFeed[
-            msg.sender
-        ][dataFeedId];
+        DataFeed storage oevDataFeed = oevProxyToIdToDataFeed[msg.sender][
+            dataFeedId
+        ];
         DataFeed storage dataFeed = dataFeeds[dataFeedId];
         if (oevDataFeed.timestamp > dataFeed.timestamp) {
             return (oevDataFeed.value, oevDataFeed.timestamp);
