@@ -831,11 +831,13 @@ contract DapiServer is
 
     /// @notice Called privately to calculate the update magnitude in
     /// percentages where 100% is represented as `HUNDRED_PERCENT`
-    /// @dev The percentage changes will be more pronounced when the first
-    /// value is almost zero, which may trigger updates more frequently than
-    /// wanted. To avoid this, Beacons should be defined in a way that the
-    /// expected values are not small numbers floating around zero, i.e.,
-    /// offset and scale.
+    /// @dev The percentage changes will be more pronounced when the initial
+    /// value is closer to the deviation reference. Therefore, while deciding
+    /// on the subscription conditions, one should choose a deviation reference
+    /// that will produce the desired update behavior. In general, the
+    /// deviation reference should not be close to the operational range of the
+    /// data feed (e.g., if the value is expected to change between -10 and 10,
+    /// a deviation reference of -30 may be suitable.)
     /// @param initialValue Initial value
     /// @param updatedValue Updated value
     /// @param deviationReference Reference value that deviation will be
