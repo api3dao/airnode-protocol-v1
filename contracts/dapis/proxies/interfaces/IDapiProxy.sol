@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "../../interfaces/IDapiServer.sol";
+import "./IProxy.sol";
 
-interface IDapiProxy {
-    function read() external view returns (uint224 value, uint32 timestamp);
+interface IDapiProxy is IProxy {
+    function dapiNameHash() external view returns (bytes32);
 }

@@ -4,8 +4,8 @@ pragma solidity ^0.8.0;
 import "./interfaces/IDapiProxy.sol";
 
 contract DapiProxy is IDapiProxy {
-    address public immutable dapiServer;
-    bytes32 public immutable dapiNameHash;
+    address public immutable override dapiServer;
+    bytes32 public immutable override dapiNameHash;
 
     constructor(address _dapiServer, bytes32 _dapiName) {
         dapiServer = _dapiServer;
@@ -17,7 +17,7 @@ contract DapiProxy is IDapiProxy {
         view
         virtual
         override
-        returns (uint224 value, uint32 timestamp)
+        returns (int224 value, uint32 timestamp)
     {
         (value, timestamp) = IDapiServer(dapiServer)
             .readDataFeedWithDapiNameHash(dapiNameHash);
