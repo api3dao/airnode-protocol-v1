@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./interfaces/IDapiProxy.sol";
+import "./interfaces/IProxy.sol";
 
-contract DataFeedProxy is IDapiProxy {
+contract DataFeedProxy is IProxy {
     address public immutable dapiServer;
     bytes32 public immutable dataFeedId;
 
