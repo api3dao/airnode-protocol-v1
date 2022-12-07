@@ -33,7 +33,7 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
     event UpdatedBeaconWithRrp(
         bytes32 indexed beaconId,
         bytes32 requestId,
-        uint256 value,
+        int256 value,
         uint256 timestamp
     );
 
@@ -52,25 +52,36 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
     event UpdatedBeaconWithPsp(
         bytes32 indexed beaconId,
         bytes32 subscriptionId,
-        uint224 value,
+        int224 value,
         uint32 timestamp
     );
 
     event UpdatedBeaconWithSignedData(
         bytes32 indexed beaconId,
-        uint256 value,
+        int256 value,
+        uint256 timestamp
+    );
+    event UpdatedBeaconWithDomainSignedData(
+        bytes32 indexed beaconId,
+        int256 value,
         uint256 timestamp
     );
 
     event UpdatedBeaconSetWithBeacons(
         bytes32 indexed beaconSetId,
-        uint224 value,
+        int224 value,
         uint32 timestamp
     );
 
     event UpdatedBeaconSetWithSignedData(
+        bytes32 indexed beaconSetId,
+        int224 value,
+        uint32 timestamp
+    );
+
+    event UpdatedBeaconSetWithDomainSignedData(
         bytes32 indexed dapiId,
-        uint224 value,
+        int224 value,
         uint32 timestamp
     );
 
@@ -205,12 +216,12 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
     function readDataFeedWithDapiNameHash(bytes32 dapiNameHash)
         external
         view
-        returns (uint224 value, uint32 timestamp);
+        returns (int224 value, uint32 timestamp);
 
     function aggregateBeacons(bytes32[] memory beaconIds)
         external
         view
-        returns (uint224 value, uint32 timestamp);
+        returns (int224 value, uint32 timestamp);
 
     function deriveBeaconId(address airnode, bytes32 templateId)
         external
@@ -246,7 +257,7 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
     function dataFeeds(bytes32 dataFeedId)
         external
         view
-        returns (uint224 value, uint32 timestamp);
+        returns (int224 value, uint32 timestamp);
 
     function dapiNameHashToDataFeedId(bytes32 dapiNameHash)
         external

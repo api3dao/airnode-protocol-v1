@@ -55,6 +55,7 @@ describe('AllocatorWithAirnode', function () {
   describe('constructor', function () {
     it('constructs', async function () {
       expect(await allocatorWithAirnode.SLOT_SETTER_ROLE_DESCRIPTION()).to.equal(slotSetterRoleDescription);
+      expect(await allocatorWithAirnode.isTrustedForwarder(expiringMetaCallForwarder.address)).to.equal(true);
     });
   });
 

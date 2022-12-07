@@ -17,7 +17,7 @@ contract DapiProxy is IDapiProxy {
         view
         virtual
         override
-        returns (uint224 value, uint32 timestamp)
+        returns (int224 value, uint32 timestamp)
     {
         (value, timestamp) = IDapiServer(dapiServer)
             .readDataFeedWithDapiNameHash(dapiNameHash);

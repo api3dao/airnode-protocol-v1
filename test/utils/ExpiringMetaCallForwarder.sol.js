@@ -272,4 +272,56 @@ describe('ExpiringMetaCallForwarder', function () {
       expect(await expiringMetaCallForwarderTarget.counter()).to.be.equal(counterBefore.add(2));
     });
   });
+
+  describe('tryMulticall', function () {
+    it('tries to execute multiple calls', async function () {
+      const from = roles.deployer.address;
+      const to = expiringMetaCallForwarderTarget.address;
+      const data = expiringMetaCallForwarderTarget.interface.encodeFunctionData('incrementCounter', []);
+      const expirationTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 3600;
+
+      const domainName = 'ExpiringMetaCallForwarder';
+      const domainVersion = '1.0.0';
+      const domainChainId = (await hre.ethers.provider.getNetwork()).chainId;
+      const domainAddress = expiringMetaCallForwarder.address;
+
+      const domain = {
+        name: domainName,
+        version: domainVersion,
+        chainId: domainChainId,
+        verifyingContract: domainAddress,
+      };
+      const types = {
+        ExpiringMetaCall: [
+          { name: 'from', type: 'address' },
+          { name: 'to', type: 'address' },
+          { name: 'data', type: 'bytes' },
+          { name: 'expirationTimestamp', type: 'uint256' },
+        ],
+      };
+      const value1 = {
+        from,
+        to,
+        data,
+        expirationTimestamp,
+      };
+      const value2 = {
+        from,
+        to,
+        data,
+        expirationTimestamp: expirationTimestamp + 1,
+      };
+      const signature1 = await roles.deployer._signTypedData(domain, types, value1);
+      const signature2 = '0x123456';
+      const multicallData = [
+        expiringMetaCallForwarder.interface.encodeFunctionData('execute', [value1, signature1]),
+        expiringMetaCallForwarder.interface.encodeFunctionData('execute', [value2, signature2]),
+      ];
+
+      const counterBefore = await expiringMetaCallForwarderTarget.counter();
+      await expect(expiringMetaCallForwarder.connect(roles.randomPerson).tryMulticall(multicallData)).to.not.be
+        .reverted;
+      expect(await expiringMetaCallForwarderTarget.counter()).to.be.equal(counterBefore.add(1));
+    });
+  });
 });
