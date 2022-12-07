@@ -69,6 +69,7 @@ describe('AllocatorWithManager', function () {
         hre.ethers.utils.solidityPack(['bytes32', 'bytes32'], [adminRole, slotSetterRoleDescriptionHash])
       );
       expect(await allocatorWithManager.slotSetterRole()).to.equal(derivedSlotSetterRole);
+      expect(await allocatorWithManager.isTrustedForwarder(expiringMetaCallForwarder.address)).to.equal(true);
     });
   });
 

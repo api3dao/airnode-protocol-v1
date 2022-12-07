@@ -161,6 +161,9 @@ describe('RequesterAuthorizerWithAirnode', function () {
           expect(await requesterAuthorizerWithAirnode.adminRoleDescription()).to.equal(
             requesterAuthorizerWithAirnodeAdminRoleDescription
           );
+          expect(await requesterAuthorizerWithAirnode.isTrustedForwarder(expiringMetaCallForwarder.address)).to.equal(
+            true
+          );
         });
       });
       context('Admin role description string is empty', function () {

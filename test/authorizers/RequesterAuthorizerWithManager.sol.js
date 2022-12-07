@@ -148,6 +148,9 @@ describe('RequesterAuthorizerWithManager', function () {
               requesterAuthorizerWithManagerAdminRoleDescription
             );
             expect(await requesterAuthorizerWithManager.manager()).to.equal(roles.manager.address);
+            expect(await requesterAuthorizerWithManager.isTrustedForwarder(expiringMetaCallForwarder.address)).to.equal(
+              true
+            );
           });
         });
         context('Manager address is zero', function () {
