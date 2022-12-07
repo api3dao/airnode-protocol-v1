@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./interfaces/IProxy.sol";
+import "./interfaces/IDapiProxy.sol";
 
-contract DapiProxy is IProxy {
+contract DapiProxy is IDapiProxy {
     address public immutable override dapiServer;
-    bytes32 public immutable dapiNameHash;
+    bytes32 public immutable override dapiNameHash;
 
     constructor(address _dapiServer, bytes32 _dapiName) {
         dapiServer = _dapiServer;
