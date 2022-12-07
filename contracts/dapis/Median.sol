@@ -14,7 +14,7 @@ contract Median is Sort, Quickselect {
     /// quickselect for longer arrays for gas cost efficiency
     /// @param array Array whose median is to be calculated
     /// @return Median of the array
-    function median(uint256[] memory array) internal pure returns (uint256) {
+    function median(int256[] memory array) internal pure returns (int256) {
         uint256 arrayLength = array.length;
         if (arrayLength <= MAX_SORT_LENGTH) {
             sort(array);
