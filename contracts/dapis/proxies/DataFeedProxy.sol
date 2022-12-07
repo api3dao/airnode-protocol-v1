@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import "./interfaces/IProxy.sol";
 
 contract DataFeedProxy is IProxy {
-    address public immutable dapiServer;
+    address public immutable override dapiServer;
     bytes32 public immutable dataFeedId;
 
     constructor(address _dapiServer, bytes32 _dataFeedId) {
