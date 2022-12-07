@@ -63,7 +63,7 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
     );
     event UpdatedBeaconWithDomainSignedData(
         bytes32 indexed beaconId,
-        uint256 value,
+        int256 value,
         uint256 timestamp
     );
 
@@ -81,7 +81,7 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
 
     event UpdatedBeaconSetWithDomainSignedData(
         bytes32 indexed dapiId,
-        uint224 value,
+        int224 value,
         uint32 timestamp
     );
 
@@ -213,25 +213,10 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
         view
         returns (bytes32);
 
-    function readDataFeedWithId(bytes32 dataFeedId)
+    function readDataFeedWithDapiNameHash(bytes32 dapiNameHash)
         external
         view
         returns (int224 value, uint32 timestamp);
-
-    function readDataFeedValueWithId(bytes32 dataFeedId)
-        external
-        view
-        returns (int224 value);
-
-    function readDataFeedWithDapiName(bytes32 dapiName)
-        external
-        view
-        returns (int224 value, uint32 timestamp);
-
-    function readDataFeedValueWithDapiName(bytes32 dapiName)
-        external
-        view
-        returns (int224 value);
 
     function aggregateBeacons(bytes32[] memory beaconIds)
         external
@@ -268,4 +253,14 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
         external
         view
         returns (bytes32);
+
+    function dataFeeds(bytes32 dataFeedId)
+        external
+        view
+        returns (int224 value, uint32 timestamp);
+
+    function dapiNameHashToDataFeedId(bytes32 dapiNameHash)
+        external
+        view
+        returns (bytes32 dataFeedId);
 }

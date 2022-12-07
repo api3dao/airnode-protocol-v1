@@ -70,13 +70,15 @@ contract DapiServer is
     /// @notice ID of the Beacon that the subscription is registered to update
     mapping(bytes32 => bytes32) public override subscriptionIdToBeaconId;
 
-    mapping(bytes32 => DataFeed) private dataFeeds;
+    /// @notice Data feed with ID
+    mapping(bytes32 => DataFeed) public override dataFeeds;
+
+    /// @notice Data feed ID mapped to the dAPI name hash
+    mapping(bytes32 => bytes32) public override dapiNameHashToDataFeedId;
 
     mapping(bytes32 => bytes32) private requestIdToBeaconId;
 
     mapping(bytes32 => bytes32) private subscriptionIdToHash;
-
-    mapping(bytes32 => bytes32) private dapiNameHashToDataFeedId;
 
     /// @dev Reverts if the sender is not permitted to request an RRP-based
     /// update with the sponsor and is not the sponsor
@@ -526,7 +528,7 @@ contract DapiServer is
             "Signature mismatch"
         );
         bytes32 beaconId = deriveBeaconId(airnode, templateId);
-        uint256 decodedData = processBeaconUpdate(beaconId, timestamp, data);
+        int256 decodedData = processBeaconUpdate(beaconId, timestamp, data);
         emit UpdatedBeaconWithDomainSignedData(
             beaconId,
             decodedData,
@@ -750,7 +752,7 @@ contract DapiServer is
         );
         require(beaconCount > 1, "Specified less than two Beacons");
         bytes32[] memory beaconIds = new bytes32[](beaconCount);
-        uint256[] memory values = new uint256[](beaconCount);
+        int256[] memory values = new int256[](beaconCount);
         uint256 accumulatedTimestamp = 0;
         for (uint256 ind = 0; ind < beaconCount; ind++) {
             if (signatures[ind].length != 0) {
@@ -797,7 +799,7 @@ contract DapiServer is
             updatedTimestamp >= dataFeeds[beaconSetId].timestamp,
             "Updated value outdated"
         );
-        uint224 updatedValue = uint224(median(values));
+        int224 updatedValue = int224(median(values));
         dataFeeds[beaconSetId] = DataFeed({
             value: updatedValue,
             timestamp: updatedTimestamp
@@ -847,67 +849,20 @@ contract DapiServer is
         return dapiNameHashToDataFeedId[keccak256(abi.encodePacked(dapiName))];
     }
 
-    /// @notice Reads the data feed with ID
-    /// @param dataFeedId Data feed ID
+    /// @notice Reads the data feed with dAPI name hash
+    /// @param dapiNameHash dAPI name hash
     /// @return value Data feed value
     /// @return timestamp Data feed timestamp
-    function readDataFeedWithId(bytes32 dataFeedId)
+    function readDataFeedWithDapiNameHash(bytes32 dapiNameHash)
         external
         view
         override
         returns (int224 value, uint32 timestamp)
     {
-        DataFeed storage dataFeed = dataFeeds[dataFeedId];
-        return (dataFeed.value, dataFeed.timestamp);
-    }
-
-    /// @notice Reads the data feed value with ID
-    /// @param dataFeedId Data feed ID
-    /// @return value Data feed value
-    function readDataFeedValueWithId(bytes32 dataFeedId)
-        external
-        view
-        override
-        returns (int224 value)
-    {
-        DataFeed storage dataFeed = dataFeeds[dataFeedId];
-        require(dataFeed.timestamp != 0, "Data feed does not exist");
-        return dataFeed.value;
-    }
-
-    /// @notice Reads the data feed with dAPI name
-    /// @param dapiName dAPI name
-    /// @return value Data feed value
-    /// @return timestamp Data feed timestamp
-    function readDataFeedWithDapiName(bytes32 dapiName)
-        external
-        view
-        override
-        returns (int224 value, uint32 timestamp)
-    {
-        bytes32 dataFeedId = dapiNameHashToDataFeedId[
-            keccak256(abi.encodePacked(dapiName))
-        ];
+        bytes32 dataFeedId = dapiNameHashToDataFeedId[dapiNameHash];
         require(dataFeedId != bytes32(0), "dAPI name not set");
         DataFeed storage dataFeed = dataFeeds[dataFeedId];
         return (dataFeed.value, dataFeed.timestamp);
-    }
-
-    /// @notice Reads the data feed value with dAPI name
-    /// @param dapiName dAPI name
-    /// @return value Data feed value
-    function readDataFeedValueWithDapiName(bytes32 dapiName)
-        external
-        view
-        override
-        returns (int224 value)
-    {
-        bytes32 dapiNameHash = keccak256(abi.encodePacked(dapiName));
-        DataFeed storage dataFeed = dataFeeds[
-            dapiNameHashToDataFeedId[dapiNameHash]
-        ];
-        require(dataFeed.timestamp != 0, "Data feed does not exist");
-        return dataFeed.value;
     }
 
     /// @notice Aggregates the Beacons and returns the result

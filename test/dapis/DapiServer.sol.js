@@ -836,7 +836,7 @@ describe('DapiServer', function () {
             context('Data is fresher than Beacon', function () {
               context('Request is regular', function () {
                 it('updates Beacon', async function () {
-                  const initialBeacon = await dapiServer.readDataFeedWithId(beaconId);
+                  const initialBeacon = await dapiServer.dataFeeds(beaconId);
                   expect(initialBeacon.value).to.equal(0);
                   expect(initialBeacon.timestamp).to.equal(0);
                   const requestId = await deriveRegularRequestId();
@@ -868,14 +868,14 @@ describe('DapiServer', function () {
                   )
                     .to.emit(dapiServer, 'UpdatedBeaconWithRrp')
                     .withArgs(beaconId, requestId, decodedData, timestamp);
-                  const beacon = await dapiServer.readDataFeedWithId(beaconId);
+                  const beacon = await dapiServer.dataFeeds(beaconId);
                   expect(beacon.value).to.equal(decodedData);
                   expect(beacon.timestamp).to.equal(timestamp);
                 });
               });
               context('Request is relayed', function () {
                 it('updates Beacon', async function () {
-                  const initialBeacon = await dapiServer.readDataFeedWithId(beaconId);
+                  const initialBeacon = await dapiServer.dataFeeds(beaconId);
                   expect(initialBeacon.value).to.equal(0);
                   expect(initialBeacon.timestamp).to.equal(0);
                   const requestId = await deriveRelayedRequestId();
@@ -913,7 +913,7 @@ describe('DapiServer', function () {
                   )
                     .to.emit(dapiServer, 'UpdatedBeaconWithRrp')
                     .withArgs(beaconId, requestId, decodedData, timestamp);
-                  const beacon = await dapiServer.readDataFeedWithId(beaconId);
+                  const beacon = await dapiServer.dataFeeds(beaconId);
                   expect(beacon.value).to.equal(decodedData);
                   expect(beacon.timestamp).to.equal(timestamp);
                 });
@@ -964,7 +964,7 @@ describe('DapiServer', function () {
                       { gasLimit: 500000 }
                     )
                 ).to.not.emit(dapiServer, 'UpdatedBeaconWithRrp');
-                const beacon = await dapiServer.readDataFeedWithId(beaconId);
+                const beacon = await dapiServer.dataFeeds(beaconId);
                 expect(beacon.value).to.equal(123);
                 expect(beacon.timestamp).to.equal(futureTimestamp);
               });
@@ -1014,7 +1014,7 @@ describe('DapiServer', function () {
                       { gasLimit: 500000 }
                     )
                 ).to.not.emit(dapiServer, 'UpdatedBeaconWithRrp');
-                const beacon = await dapiServer.readDataFeedWithId(beaconId);
+                const beacon = await dapiServer.dataFeeds(beaconId);
                 expect(beacon.value).to.equal(0);
                 expect(beacon.timestamp).to.equal(0);
               });
@@ -1062,7 +1062,7 @@ describe('DapiServer', function () {
                       { gasLimit: 500000 }
                     )
                 ).to.not.emit(dapiServer, 'UpdatedBeaconWithRrp');
-                const beacon = await dapiServer.readDataFeedWithId(beaconId);
+                const beacon = await dapiServer.dataFeeds(beaconId);
                 expect(beacon.value).to.equal(0);
                 expect(beacon.timestamp).to.equal(0);
               });
@@ -1113,7 +1113,7 @@ describe('DapiServer', function () {
                   { gasLimit: 500000 }
                 )
             ).to.not.emit(dapiServer, 'UpdatedBeaconWithRrp');
-            const beacon = await dapiServer.readDataFeedWithId(beaconId);
+            const beacon = await dapiServer.dataFeeds(beaconId);
             expect(beacon.value).to.equal(0);
             expect(beacon.timestamp).to.equal(0);
           });
@@ -1162,7 +1162,7 @@ describe('DapiServer', function () {
                   { gasLimit: 500000 }
                 )
             ).to.not.emit(dapiServer, 'UpdatedBeaconWithRrp');
-            const beacon = await dapiServer.readDataFeedWithId(beaconId);
+            const beacon = await dapiServer.dataFeeds(beaconId);
             expect(beacon.value).to.equal(0);
             expect(beacon.timestamp).to.equal(0);
           });
@@ -1212,7 +1212,7 @@ describe('DapiServer', function () {
                 { gasLimit: 500000 }
               )
           ).to.not.emit(dapiServer, 'UpdatedBeaconWithRrp');
-          const beacon = await dapiServer.readDataFeedWithId(beaconId);
+          const beacon = await dapiServer.dataFeeds(beaconId);
           expect(beacon.value).to.equal(0);
           expect(beacon.timestamp).to.equal(0);
         });
@@ -1261,7 +1261,7 @@ describe('DapiServer', function () {
                 { gasLimit: 500000 }
               )
           ).to.not.emit(dapiServer, 'UpdatedBeaconWithRrp');
-          const beacon = await dapiServer.readDataFeedWithId(beaconId);
+          const beacon = await dapiServer.dataFeeds(beaconId);
           expect(beacon.value).to.equal(0);
           expect(beacon.timestamp).to.equal(0);
         });
@@ -1679,7 +1679,7 @@ describe('DapiServer', function () {
                   )
                     .to.emit(dapiServer, 'UpdatedBeaconWithPsp')
                     .withArgs(beaconId, beaconUpdateSubscriptionId, 123, timestamp);
-                  const beacon = await dapiServer.readDataFeedWithId(beaconId);
+                  const beacon = await dapiServer.dataFeeds(beaconId);
                   expect(beacon.value).to.equal(123);
                   expect(beacon.timestamp).to.equal(timestamp);
                 });
@@ -1733,7 +1733,7 @@ describe('DapiServer', function () {
                   )
                     .to.emit(dapiServer, 'UpdatedBeaconWithPsp')
                     .withArgs(beaconId, beaconUpdateSubscriptionRelayedId, 123, timestamp);
-                  const beacon = await dapiServer.readDataFeedWithId(beaconId);
+                  const beacon = await dapiServer.dataFeeds(beaconId);
                   expect(beacon.value).to.equal(123);
                   expect(beacon.timestamp).to.equal(timestamp);
                 });
@@ -1888,7 +1888,7 @@ describe('DapiServer', function () {
               )
                 .to.emit(dapiServer, 'UpdatedBeaconWithSignedData')
                 .withArgs(beaconId, 123, timestamp);
-              const beacon = await dapiServer.readDataFeedWithId(beaconId);
+              const beacon = await dapiServer.dataFeeds(beaconId);
               expect(beacon.value).to.equal(123);
               expect(beacon.timestamp).to.equal(timestamp);
             });
@@ -1969,7 +1969,7 @@ describe('DapiServer', function () {
               )
                 .to.emit(dapiServer, 'UpdatedBeaconWithDomainSignedData')
                 .withArgs(beaconId, 123, timestamp);
-              const beacon = await dapiServer.readDataFeedWithId(beaconId);
+              const beacon = await dapiServer.dataFeeds(beaconId);
               expect(beacon.value).to.equal(123);
               expect(beacon.timestamp).to.equal(timestamp);
             });
@@ -2054,7 +2054,7 @@ describe('DapiServer', function () {
             timestamp++;
             await setBeacon(beaconSetTemplateIds[ind], beaconData[ind], timestamp);
           }
-          const beaconSetInitial = await dapiServer.readDataFeedWithId(beaconSetId);
+          const beaconSetInitial = await dapiServer.dataFeeds(beaconSetId);
           expect(beaconSetInitial.value).to.equal(0);
           expect(beaconSetInitial.timestamp).to.equal(0);
           expect(
@@ -2475,7 +2475,7 @@ describe('DapiServer', function () {
           )
             .to.emit(dapiServer, 'UpdatedBeaconSetWithBeacons')
             .withArgs(beaconSetId, 95, timestamp - 1);
-          const beaconSet = await dapiServer.readDataFeedWithId(beaconSetId);
+          const beaconSet = await dapiServer.dataFeeds(beaconSetId);
           expect(beaconSet.value).to.equal(95);
           expect(beaconSet.timestamp).to.equal(timestamp - 1);
         });
@@ -2517,7 +2517,7 @@ describe('DapiServer', function () {
           )
             .to.emit(dapiServer, 'UpdatedBeaconSetWithBeacons')
             .withArgs(beaconSetId, 95, timestamp - 1);
-          const beaconSet = await dapiServer.readDataFeedWithId(beaconSetId);
+          const beaconSet = await dapiServer.dataFeeds(beaconSetId);
           expect(beaconSet.value).to.equal(95);
           expect(beaconSet.timestamp).to.equal(timestamp - 1);
         });
@@ -2587,7 +2587,7 @@ describe('DapiServer', function () {
                     )
                       .to.emit(dapiServer, 'UpdatedBeaconSetWithSignedData')
                       .withArgs(beaconSetId, 105, timestamp);
-                    const beaconSet = await dapiServer.readDataFeedWithId(beaconSetId);
+                    const beaconSet = await dapiServer.dataFeeds(beaconSetId);
                     expect(beaconSet.value).to.equal(105);
                     expect(beaconSet.timestamp).to.equal(timestamp);
                   });
@@ -2853,7 +2853,7 @@ describe('DapiServer', function () {
                     )
                       .to.emit(dapiServer, 'UpdatedBeaconSetWithDomainSignedData')
                       .withArgs(beaconSetId, 105, timestamp);
-                    const beaconSet = await dapiServer.readDataFeedWithId(beaconSetId);
+                    const beaconSet = await dapiServer.dataFeeds(beaconSetId);
                     expect(beaconSet.value).to.equal(105);
                     expect(beaconSet.timestamp).to.equal(timestamp);
                   });
@@ -3164,82 +3164,15 @@ describe('DapiServer', function () {
     });
   });
 
-  describe('readDataFeedWithId', function () {
-    context('Data feed is Beacon', function () {
-      it('reads Beacon', async function () {
-        const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-        await setBeacon(templateId, 123, timestamp);
-        const beacon = await dapiServer.connect(roles.randomPerson).readDataFeedWithId(beaconId);
-        expect(beacon.value).to.be.equal(123);
-        expect(beacon.timestamp).to.be.equal(timestamp);
-      });
-    });
-    context('Data feed is Beacon set', function () {
-      it('reads Beacon set', async function () {
-        const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-        await setBeaconSet(
-          airnodeAddress,
-          beaconSetTemplateIds,
-          [123, 456, 789],
-          [timestamp - 2, timestamp, timestamp + 2]
-        );
-        const beaconSet = await dapiServer.connect(roles.randomPerson).readDataFeedWithId(beaconSetId);
-        expect(beaconSet.value).to.be.equal(456);
-        expect(beaconSet.timestamp).to.be.equal(timestamp);
-      });
-    });
-  });
-
-  describe('readDataFeedValueWithId', function () {
-    context('Data feed is Beacon', function () {
-      context('Beacon is initialized', function () {
-        it('reads Beacon', async function () {
-          const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-          await setBeacon(templateId, 123, timestamp);
-          const beaconValue = await dapiServer.connect(roles.randomPerson).readDataFeedValueWithId(beaconId);
-          expect(beaconValue).to.be.equal(123);
-        });
-      });
-      context('Beacon is not initialized', function () {
-        it('reverts', async function () {
-          await expect(dapiServer.connect(roles.randomPerson).readDataFeedValueWithId(beaconId)).to.be.revertedWith(
-            'Data feed does not exist'
-          );
-        });
-      });
-    });
-    context('Data feed is Beacon set', function () {
-      context('Beacon set is initialized', function () {
-        it('reads Beacon set', async function () {
-          const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-          await setBeaconSet(
-            airnodeAddress,
-            beaconSetTemplateIds,
-            [123, 456, 789],
-            [timestamp - 2, timestamp, timestamp + 2]
-          );
-          const beaconSetValue = await dapiServer.connect(roles.randomPerson).readDataFeedValueWithId(beaconSetId);
-          expect(beaconSetValue).to.be.equal(456);
-        });
-      });
-      context('Beacon set is not initialized', function () {
-        it('reverts', async function () {
-          await expect(dapiServer.connect(roles.randomPerson).readDataFeedValueWithId(beaconSetId)).to.be.revertedWith(
-            'Data feed does not exist'
-          );
-        });
-      });
-    });
-  });
-
-  describe('readDataFeedWithDapiName', function () {
+  describe('readDataFeedWithDapiNameHash', function () {
     context('dAPI name set to Beacon', function () {
       it('reads Beacon', async function () {
         const dapiName = hre.ethers.utils.formatBytes32String('My beacon');
+        const dapiNameHash = hre.ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
         await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconId);
         const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
         await setBeacon(templateId, 123, timestamp);
-        const beacon = await dapiServer.connect(roles.randomPerson).readDataFeedWithDapiName(dapiName);
+        const beacon = await dapiServer.connect(roles.randomPerson).readDataFeedWithDapiNameHash(dapiNameHash);
         expect(beacon.value).to.be.equal(123);
         expect(beacon.timestamp).to.be.equal(timestamp);
       });
@@ -3247,6 +3180,7 @@ describe('DapiServer', function () {
     context('dAPI name set to Beacon set', function () {
       it('reads Beacon set', async function () {
         const dapiName = hre.ethers.utils.formatBytes32String('My dAPI');
+        const dapiNameHash = hre.ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
         await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSetId);
         const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
         await setBeaconSet(
@@ -3255,7 +3189,7 @@ describe('DapiServer', function () {
           [123, 456, 789],
           [timestamp - 2, timestamp, timestamp + 2]
         );
-        const beaconSet = await dapiServer.connect(roles.randomPerson).readDataFeedWithDapiName(dapiName);
+        const beaconSet = await dapiServer.connect(roles.randomPerson).readDataFeedWithDapiNameHash(dapiNameHash);
         expect(beaconSet.value).to.be.equal(456);
         expect(beaconSet.timestamp).to.be.equal(timestamp);
       });
@@ -3263,59 +3197,10 @@ describe('DapiServer', function () {
     context('dAPI name not set', function () {
       it('reverts', async function () {
         const dapiName = hre.ethers.utils.formatBytes32String('My beacon');
-        await expect(dapiServer.connect(roles.randomPerson).readDataFeedWithDapiName(dapiName)).to.be.revertedWith(
-          'dAPI name not set'
-        );
-      });
-    });
-  });
-
-  describe('readDataFeedValueWithDapiName', function () {
-    context('Data feed is Beacon', function () {
-      context('Beacon is initialized', function () {
-        it('reads Beacon', async function () {
-          const dapiName = hre.ethers.utils.formatBytes32String('My beacon');
-          await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconId);
-          const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-          await setBeacon(templateId, 123, timestamp);
-          const beaconValue = await dapiServer.connect(roles.randomPerson).readDataFeedValueWithDapiName(dapiName);
-          expect(beaconValue).to.be.equal(123);
-        });
-      });
-      context('Beacon is not initialized', function () {
-        it('reverts', async function () {
-          const dapiName = hre.ethers.utils.formatBytes32String('My beacon');
-          await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconId);
-          await expect(
-            dapiServer.connect(roles.randomPerson).readDataFeedValueWithDapiName(dapiName)
-          ).to.be.revertedWith('Data feed does not exist');
-        });
-      });
-    });
-    context('Data feed is Beacon set', function () {
-      context('Beacon set is initialized', function () {
-        it('reads Beacon set', async function () {
-          const dapiName = hre.ethers.utils.formatBytes32String('My dAPI');
-          await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSetId);
-          const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-          await setBeaconSet(
-            airnodeAddress,
-            beaconSetTemplateIds,
-            [123, 456, 789],
-            [timestamp - 2, timestamp, timestamp + 2]
-          );
-          const beaconSetValue = await dapiServer.connect(roles.randomPerson).readDataFeedValueWithDapiName(dapiName);
-          expect(beaconSetValue).to.be.equal(456);
-        });
-      });
-      context('Beacon set is not initialized', function () {
-        it('reverts', async function () {
-          const dapiName = hre.ethers.utils.formatBytes32String('My dAPI');
-          await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSetId);
-          await expect(
-            dapiServer.connect(roles.randomPerson).readDataFeedValueWithDapiName(dapiName)
-          ).to.be.revertedWith('Data feed does not exist');
-        });
+        const dapiNameHash = hre.ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
+        await expect(
+          dapiServer.connect(roles.randomPerson).readDataFeedWithDapiNameHash(dapiNameHash)
+        ).to.be.revertedWith('dAPI name not set');
       });
     });
   });
