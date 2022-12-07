@@ -6,6 +6,9 @@ import "./interfaces/IRequesterAuthorizer.sol";
 
 /// @title Abstract contract to be inherited by Authorizer contracts that
 /// temporarily or permanently whitelist requesters for Airnode–endpoint pairs
+/// or Airnodes
+/// @dev An authorization for an Airnode with endpoint ID `bytes32(0)`
+/// represents a blanket authorization across all endpoints of the Airnode
 abstract contract RequesterAuthorizer is Whitelist, IRequesterAuthorizer {
     /// @notice Extends the expiration of the temporary whitelist of
     /// `requester` for the `airnode`–`endpointId` pair and emits an event
@@ -142,8 +145,12 @@ abstract contract RequesterAuthorizer is Whitelist, IRequesterAuthorizer {
         address airnode,
         bytes32 endpointId,
         address requester
-    ) external view override returns (bool) {
+    ) public view override returns (bool) {
         return
+            userIsWhitelisted(
+                deriveServiceId(airnode, bytes32(0)),
+                requester
+            ) ||
             userIsWhitelisted(deriveServiceId(airnode, endpointId), requester);
     }
 
@@ -164,8 +171,7 @@ abstract contract RequesterAuthorizer is Whitelist, IRequesterAuthorizer {
         address sponsor, // solhint-disable-line no-unused-vars
         address requester
     ) external view override returns (bool) {
-        return
-            userIsWhitelisted(deriveServiceId(airnode, endpointId), requester);
+        return isAuthorized(airnode, endpointId, requester);
     }
 
     /// @notice Returns the whitelist status of `requester` for the
