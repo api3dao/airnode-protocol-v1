@@ -104,8 +104,8 @@ describe('DapiServer', function () {
     );
     // Deviation threshold is 10% and heartbeat interval is 1 day
     beaconUpdateSubscriptionConditionParameters = hre.ethers.utils.defaultAbiCoder.encode(
-      ['uint256', 'uint256'],
-      [(await dapiServer.HUNDRED_PERCENT()).div(10), 24 * 60 * 60]
+      ['uint256', 'int224', 'uint256'],
+      [(await dapiServer.HUNDRED_PERCENT()).div(10), 0, 24 * 60 * 60]
     );
     // Create Beacon update conditions using Airnode ABI
     beaconUpdateSubscriptionConditions = hre.ethers.utils.defaultAbiCoder.encode(
@@ -191,8 +191,8 @@ describe('DapiServer', function () {
     );
     // Deviation threshold is 5% and heartbeat interval is 2 days
     beaconSetUpdateSubscriptionConditionParameters = hre.ethers.utils.defaultAbiCoder.encode(
-      ['uint256', 'uint256'],
-      [(await dapiServer.HUNDRED_PERCENT()).div(20), 2 * 24 * 60 * 60]
+      ['uint256', 'int224', 'uint256'],
+      [(await dapiServer.HUNDRED_PERCENT()).div(20), 0, 2 * 24 * 60 * 60]
     );
     // Create Beacon set update conditions using Airnode ABI
     const beaconSetUpdateSubscriptionConditions = hre.ethers.utils.defaultAbiCoder.encode(
@@ -1283,7 +1283,10 @@ describe('DapiServer', function () {
               // Even if the deviation and heartbeat interval is zero, since the Beacon timestamp
               // is zero, the condition will return true
               const conditionData = encodeData(0);
-              const conditionParameters = hre.ethers.utils.defaultAbiCoder.encode(['uint256', 'uint256'], [0, 0]);
+              const conditionParameters = hre.ethers.utils.defaultAbiCoder.encode(
+                ['uint256', 'int224', 'uint256'],
+                [0, 0, 0]
+              );
               expect(
                 await dapiServer.callStatic.conditionPspBeaconUpdate(
                   beaconUpdateSubscriptionId,
@@ -1391,17 +1394,15 @@ describe('DapiServer', function () {
             });
             context('Data does not make a larger update than the threshold', function () {
               context('Update is upwards', function () {
-                context('It has been at least heartbeat interval seconds since the last update', function () {
+                context('Initial value is deviation reference', function () {
                   it('returns true', async function () {
-                    // Set the Beacon to 100 first
+                    // Set the Beacon to 0 first
                     const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                    await setBeacon(templateId, 100, timestamp);
-                    // beaconUpdateSubscriptionConditionParameters is 10% and 1 day
-                    // 100 -> 109 doesn't satisfy the condition
-                    const conditionData = encodeData(109);
-                    // It has been 1 day since the Beacon timestamp
-                    await hre.ethers.provider.send('evm_setNextBlockTimestamp', [timestamp + 24 * 60 * 60]);
-                    await hre.ethers.provider.send('evm_mine');
+                    await setBeacon(templateId, 0, timestamp);
+                    // beaconUpdateSubscriptionConditionParameters is 10%
+                    // 0 -> 1 doesn't satisfy the condition but the initial value is deviation reference,
+                    // so this will always return true
+                    const conditionData = encodeData(1);
                     expect(
                       await dapiServer.callStatic.conditionPspBeaconUpdate(
                         beaconUpdateSubscriptionId,
@@ -1411,36 +1412,56 @@ describe('DapiServer', function () {
                     ).to.equal(true);
                   });
                 });
-                context('It has not been at least heartbeat interval seconds since the last update', function () {
-                  it('returns false', async function () {
-                    // Set the Beacon to 100 first
-                    const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                    await setBeacon(templateId, 100, timestamp);
-                    // beaconUpdateSubscriptionConditionParameters is 10%
-                    // 100 -> 109 doesn't satisfy the condition and returns false
-                    const conditionData = encodeData(109);
-                    expect(
-                      await dapiServer.callStatic.conditionPspBeaconUpdate(
-                        beaconUpdateSubscriptionId,
-                        conditionData,
-                        beaconUpdateSubscriptionConditionParameters
-                      )
-                    ).to.equal(false);
+                context('Initial value is not deviation reference', function () {
+                  context('It has been at least heartbeat interval seconds since the last update', function () {
+                    it('returns true', async function () {
+                      // Set the Beacon to 100 first
+                      const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
+                      await setBeacon(templateId, 100, timestamp);
+                      // beaconUpdateSubscriptionConditionParameters is 10% and 1 day
+                      // 100 -> 109 doesn't satisfy the condition
+                      const conditionData = encodeData(109);
+                      // It has been 1 day since the Beacon timestamp
+                      await hre.ethers.provider.send('evm_setNextBlockTimestamp', [timestamp + 24 * 60 * 60]);
+                      await hre.ethers.provider.send('evm_mine');
+                      expect(
+                        await dapiServer.callStatic.conditionPspBeaconUpdate(
+                          beaconUpdateSubscriptionId,
+                          conditionData,
+                          beaconUpdateSubscriptionConditionParameters
+                        )
+                      ).to.equal(true);
+                    });
+                  });
+                  context('It has not been at least heartbeat interval seconds since the last update', function () {
+                    it('returns false', async function () {
+                      // Set the Beacon to 100 first
+                      const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
+                      await setBeacon(templateId, 100, timestamp);
+                      // beaconUpdateSubscriptionConditionParameters is 10%
+                      // 100 -> 109 doesn't satisfy the condition and returns false
+                      const conditionData = encodeData(109);
+                      expect(
+                        await dapiServer.callStatic.conditionPspBeaconUpdate(
+                          beaconUpdateSubscriptionId,
+                          conditionData,
+                          beaconUpdateSubscriptionConditionParameters
+                        )
+                      ).to.equal(false);
+                    });
                   });
                 });
               });
               context('Update is downwards', function () {
-                context('It has been at least heartbeat interval seconds since the last update', function () {
+                context('Initial value is deviation reference', function () {
                   it('returns true', async function () {
-                    // Set the Beacon to 100 first
+                    // Set the Beacon to 0 first
                     const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                    await setBeacon(templateId, 100, timestamp);
-                    // beaconUpdateSubscriptionConditionParameters is 10% and 1 day
-                    // 100 -> 91 doesn't satisfy the condition
-                    const conditionData = encodeData(91);
-                    // It has been 1 day since the Beacon timestamp
-                    await hre.ethers.provider.send('evm_setNextBlockTimestamp', [timestamp + 24 * 60 * 60]);
-                    await hre.ethers.provider.send('evm_mine');
+                    await setBeacon(templateId, 0, timestamp);
+                    // beaconUpdateSubscriptionConditionParameters is 10%
+                    // 0 -> -1 doesn't satisfy the condition but the initial value is deviation reference,
+                    // so this will always return true
+                    const conditionData = encodeData(-1);
                     expect(
                       await dapiServer.callStatic.conditionPspBeaconUpdate(
                         beaconUpdateSubscriptionId,
@@ -1450,21 +1471,43 @@ describe('DapiServer', function () {
                     ).to.equal(true);
                   });
                 });
-                context('It has not been at least heartbeat interval seconds since the last update', function () {
-                  it('returns false', async function () {
-                    // Set the Beacon to 100 first
-                    const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                    await setBeacon(templateId, 100, timestamp);
-                    // beaconUpdateSubscriptionConditionParameters is 10%
-                    // 100 -> 91 doesn't satisfy the condition and returns false
-                    const conditionData = encodeData(91);
-                    expect(
-                      await dapiServer.callStatic.conditionPspBeaconUpdate(
-                        beaconUpdateSubscriptionId,
-                        conditionData,
-                        beaconUpdateSubscriptionConditionParameters
-                      )
-                    ).to.equal(false);
+                context('Initial value is not deviation reference', function () {
+                  context('It has been at least heartbeat interval seconds since the last update', function () {
+                    it('returns true', async function () {
+                      // Set the Beacon to 100 first
+                      const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
+                      await setBeacon(templateId, 100, timestamp);
+                      // beaconUpdateSubscriptionConditionParameters is 10% and 1 day
+                      // 100 -> 91 doesn't satisfy the condition
+                      const conditionData = encodeData(91);
+                      // It has been 1 day since the Beacon timestamp
+                      await hre.ethers.provider.send('evm_setNextBlockTimestamp', [timestamp + 24 * 60 * 60]);
+                      await hre.ethers.provider.send('evm_mine');
+                      expect(
+                        await dapiServer.callStatic.conditionPspBeaconUpdate(
+                          beaconUpdateSubscriptionId,
+                          conditionData,
+                          beaconUpdateSubscriptionConditionParameters
+                        )
+                      ).to.equal(true);
+                    });
+                  });
+                  context('It has not been at least heartbeat interval seconds since the last update', function () {
+                    it('returns false', async function () {
+                      // Set the Beacon to 100 first
+                      const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
+                      await setBeacon(templateId, 100, timestamp);
+                      // beaconUpdateSubscriptionConditionParameters is 10%
+                      // 100 -> 91 doesn't satisfy the condition and returns false
+                      const conditionData = encodeData(91);
+                      expect(
+                        await dapiServer.callStatic.conditionPspBeaconUpdate(
+                          beaconUpdateSubscriptionId,
+                          conditionData,
+                          beaconUpdateSubscriptionConditionParameters
+                        )
+                      ).to.equal(false);
+                    });
                   });
                 });
               });

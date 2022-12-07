@@ -69,8 +69,8 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
     );
 
     event UpdatedBeaconSetWithSignedData(
-        bytes32 indexed dapiId,
-        uint224 value,
+        bytes32 indexed beaconSetId,
+        int224 value,
         uint32 timestamp
     );
 
