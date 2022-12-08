@@ -67,14 +67,14 @@ describe('ProxyFactory', function () {
           hre.ethers.utils.defaultAbiCoder.encode(['address', 'bytes32'], [dapiServer.address, beaconId]),
         ]
       );
+      // metadata includes information like policy hash, commission recipient, etc.
+      const metadata = testUtils.generateRandomBytes();
       const proxyAddress = hre.ethers.utils.getCreate2Address(
         proxyFactory.address,
-        hre.ethers.constants.HashZero,
+        hre.ethers.utils.keccak256(metadata),
         hre.ethers.utils.keccak256(initcode)
       );
 
-      // metadata includes information like policy hash, commission recipient, etc.
-      const metadata = testUtils.generateRandomBytes();
       // Can only deploy once
       await expect(proxyFactory.deployDataFeedProxy(beaconId, metadata))
         .to.emit(proxyFactory, 'DeployedDataFeedProxy')
