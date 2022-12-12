@@ -80,7 +80,7 @@ describe('ProxyFactory', function () {
         .to.emit(proxyFactory, 'DeployedDataFeedProxy')
         .withArgs(proxyAddress, beaconId, metadata);
       // Subsequent deployments will revert
-      await expect(proxyFactory.deployDataFeedProxy(beaconId, metadata)).to.be.revertedWith('Proxy already deployed');
+      await expect(proxyFactory.deployDataFeedProxy(beaconId, metadata)).to.be.reverted;
 
       // Confirm that the bytecode is the same
       const dataFeedProxyFactory = await hre.ethers.getContractFactory('DataFeedProxy', roles.deployer);

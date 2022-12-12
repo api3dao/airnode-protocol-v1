@@ -44,21 +44,9 @@ contract ProxyFactory {
         external
         returns (address proxyAddress)
     {
-        bytes memory initcode = abi.encodePacked(
-            type(DataFeedProxy).creationCode,
-            abi.encode(dapiServer, dataFeedId)
+        proxyAddress = address(
+            new DataFeedProxy{salt: keccak256(metadata)}(dapiServer, dataFeedId)
         );
-        bytes32 metadataHash = keccak256(metadata);
-        // solhint-disable-next-line no-inline-assembly
-        assembly {
-            proxyAddress := create2(
-                0,
-                add(initcode, 0x20),
-                mload(initcode),
-                metadataHash
-            )
-        }
-        require(proxyAddress != address(0), "Proxy already deployed");
         emit DeployedDataFeedProxy(proxyAddress, dataFeedId, metadata);
     }
 
@@ -66,21 +54,9 @@ contract ProxyFactory {
         external
         returns (address proxyAddress)
     {
-        bytes memory initcode = abi.encodePacked(
-            type(DapiProxy).creationCode,
-            abi.encode(dapiServer, dapiName)
+        proxyAddress = address(
+            new DapiProxy{salt: keccak256(metadata)}(dapiServer, dapiName)
         );
-        bytes32 metadataHash = keccak256(metadata);
-        // solhint-disable-next-line no-inline-assembly
-        assembly {
-            proxyAddress := create2(
-                0,
-                add(initcode, 0x20),
-                mload(initcode),
-                metadataHash
-            )
-        }
-        require(proxyAddress != address(0), "Proxy already deployed");
         emit DeployedDapiProxy(proxyAddress, dapiName, metadata);
     }
 
@@ -89,21 +65,13 @@ contract ProxyFactory {
         address oevBeneficiary,
         bytes calldata metadata
     ) external returns (address proxyAddress) {
-        bytes memory initcode = abi.encodePacked(
-            type(DataFeedProxyWithOev).creationCode,
-            abi.encode(dapiServer, dataFeedId, oevBeneficiary)
-        );
-        bytes32 metadataHash = keccak256(metadata);
-        // solhint-disable-next-line no-inline-assembly
-        assembly {
-            proxyAddress := create2(
-                0,
-                add(initcode, 0x20),
-                mload(initcode),
-                metadataHash
+        proxyAddress = address(
+            new DataFeedProxyWithOev{salt: keccak256(metadata)}(
+                dapiServer,
+                dataFeedId,
+                oevBeneficiary
             )
-        }
-        require(proxyAddress != address(0), "Proxy already deployed");
+        );
         emit DeployedDataFeedProxyWithOev(
             proxyAddress,
             dataFeedId,
@@ -117,21 +85,13 @@ contract ProxyFactory {
         address oevBeneficiary,
         bytes calldata metadata
     ) external returns (address proxyAddress) {
-        bytes memory initcode = abi.encodePacked(
-            type(DapiProxyWithOev).creationCode,
-            abi.encode(dapiServer, dapiName, oevBeneficiary)
-        );
-        bytes32 metadataHash = keccak256(metadata);
-        // solhint-disable-next-line no-inline-assembly
-        assembly {
-            proxyAddress := create2(
-                0,
-                add(initcode, 0x20),
-                mload(initcode),
-                metadataHash
+        proxyAddress = address(
+            new DapiProxyWithOev{salt: keccak256(metadata)}(
+                dapiServer,
+                dapiName,
+                oevBeneficiary
             )
-        }
-        require(proxyAddress != address(0), "Proxy already deployed");
+        );
         emit DeployedDapiProxyWithOev(
             proxyAddress,
             dapiName,
