@@ -15,7 +15,6 @@ contract DapiProxy is IDapiProxy {
     function read()
         external
         view
-        virtual
         override
         returns (int224 value, uint32 timestamp)
     {
