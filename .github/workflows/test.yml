@@ -12,5 +12,7 @@ jobs:
           node-version: '14'
       - name: Install dependencies
         run: yarn
+      - name: Lint
+        run: yarn lint
       - name: Run unit tests
         run: yarn test
