@@ -27,12 +27,31 @@ contract ProxyFactory2 is IProxyFactory {
         require(_dapiServer != address(0), "DapiServer address zero");
         dapiServer = _dapiServer; // Not used
         dataFeedProxyImplementation = address(new DataFeedProxy2(_dapiServer));
+        IDataFeedProxy2(dataFeedProxyImplementation).initialize(
+            bytes32(type(uint256).max)
+        );
         dapiProxyImplementation = address(new DapiProxy2(_dapiServer));
+        IDapiProxy2(dapiProxyImplementation).initialize(
+            bytes32(type(uint256).max)
+        );
         dataFeedProxyWithOevImplementation = address(
             new DataFeedProxyWithOev2(_dapiServer)
         );
+        IDataFeedProxy2(dataFeedProxyWithOevImplementation).initialize(
+            bytes32(type(uint256).max)
+        );
+        IOevUpdater2(dataFeedProxyWithOevImplementation)
+            .initializeOevBeneficiary(
+                0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF
+            );
         dapiProxyWithOevImplementation = address(
             new DapiProxyWithOev2(_dapiServer)
+        );
+        IDapiProxy2(dapiProxyWithOevImplementation).initialize(
+            bytes32(type(uint256).max)
+        );
+        IOevUpdater2(dapiProxyWithOevImplementation).initializeOevBeneficiary(
+            0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF
         );
     }
 
