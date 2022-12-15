@@ -204,7 +204,6 @@ describe('ProxyFactory2', function () {
           const dapi = await dapiProxyWithOev.read();
           expect(dapi.value).to.equal(beaconValue);
           expect(dapi.timestamp).to.equal(beaconTimestamp);
-          console.log(await dapiProxyWithOev.estimateGas.read());
         });
       });
       context('OEV beneficiary is zero', function () {
