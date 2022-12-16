@@ -816,6 +816,57 @@ contract DapiServer is
 
     ///                     ~~~OEV~~~
 
+    /// @notice Updates an OEV data feed using data signed by the respective
+    /// Airnodes without requiring a request or subscription. The Beacons for
+    /// which the signature is omitted will be read from the storage.
+    /// @param airnodes Airnode addresses
+    /// @param templateIds Template IDs
+    /// @param timestamps Timestamps used in the signatures
+    /// @param data Response data (a `uint256` encoded in contract ABI per
+    /// Beacon)
+    /// @param metadata Metadata that the OEV proxy will use (e.g., auction bid
+    /// parameters)
+    /// @param signatures Template ID, a timestamp, response data and metadata
+    /// signed by the respective Airnode address per Beacon
+    /// @return dataFeedId Data feed ID
+    function updateOevProxyDataFeedWithSignedData(
+        address[] memory airnodes,
+        bytes32[] memory templateIds,
+        uint256[] memory timestamps,
+        bytes[] memory data,
+        bytes memory metadata,
+        bytes[] memory signatures
+    ) external override returns (bytes32 dataFeedId) {
+        uint256 beaconCount = airnodes.length;
+        require(
+            beaconCount == templateIds.length &&
+                beaconCount == timestamps.length &&
+                beaconCount == data.length &&
+                beaconCount == signatures.length,
+            "Parameter length mismatch"
+        );
+        require(beaconCount != 0, "Did not specify Beacons");
+        if (beaconCount == 1) {
+            dataFeedId = updateOevProxyBeaconWithSignedData(
+                airnodes[0],
+                templateIds[0],
+                timestamps[0],
+                data[0],
+                metadata,
+                signatures[0]
+            );
+        } else {
+            dataFeedId = updateOevProxyBeaconSetWithSignedData(
+                airnodes,
+                templateIds,
+                timestamps,
+                data,
+                metadata,
+                signatures
+            );
+        }
+    }
+
     /// @notice Updates an OEV proxy Beacon using data signed by the respective
     /// Airnode, without requiring a request or subscription
     /// @param airnode Airnode address
@@ -830,10 +881,10 @@ contract DapiServer is
         address airnode,
         bytes32 templateId,
         uint256 timestamp,
-        bytes calldata data,
-        bytes calldata metadata,
-        bytes calldata signature
-    ) external override onlyValidTimestamp(timestamp) {
+        bytes memory data,
+        bytes memory metadata,
+        bytes memory signature
+    ) private onlyValidTimestamp(timestamp) returns (bytes32 beaconId) {
         require(
             (
                 keccak256(
@@ -842,7 +893,7 @@ contract DapiServer is
             ).recover(signature) == airnode,
             "Signature mismatch"
         );
-        bytes32 beaconId = deriveBeaconId(airnode, templateId);
+        beaconId = deriveBeaconId(airnode, templateId);
         int224 updatedBeaconValue = decodeFulfillmentData(data);
         require(
             timestamp > oevProxyToIdToDataFeed[msg.sender][beaconId].timestamp,
@@ -882,7 +933,7 @@ contract DapiServer is
         bytes[] memory data,
         bytes memory metadata,
         bytes[] memory signatures
-    ) external override returns (bytes32 beaconSetId) {
+    ) private returns (bytes32 beaconSetId) {
         uint256 beaconCount = airnodes.length;
         require(
             beaconCount == templateIds.length &&

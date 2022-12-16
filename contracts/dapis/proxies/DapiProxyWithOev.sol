@@ -34,46 +34,7 @@ contract DapiProxyWithOev is DapiProxy, IOevUpdater {
     }
 
     /// @notice Called by the OEV auction winner along with the bid payment to
-    /// update the OEV proxy Beacon
-    /// @dev The winner of the auction calls this in a `multicall()` and
-    /// extracts the OEV in subsequent calls of the same transaction
-    /// @param airnode Airnode address
-    /// @param templateId Template ID
-    /// @param timestamp Timestamp used in the signature
-    /// @param data Response data (an `int256` encoded in contract ABI)
-    /// @param expirationTimestamp Expiration timestamp of the signature
-    /// @param bidAmount Amount of the bid that won the OEV auction
-    /// @param signature Template ID, a timestamp and the response data signed
-    /// for the specific bid by the Airnode address
-    function updateOevProxyBeaconWithSignedData(
-        address airnode,
-        bytes32 templateId,
-        uint256 timestamp,
-        bytes memory data,
-        uint256 expirationTimestamp,
-        uint256 bidAmount,
-        bytes memory signature
-    ) external payable override {
-        require(block.timestamp < expirationTimestamp, "Expired signature");
-        require(msg.value == bidAmount, "Invalid bid amount");
-        IDapiServer(dapiServer).updateOevProxyBeaconWithSignedData(
-            airnode,
-            templateId,
-            timestamp,
-            data,
-            abi.encodePacked(
-                block.chainid,
-                address(this),
-                msg.sender,
-                expirationTimestamp,
-                bidAmount
-            ),
-            signature
-        );
-    }
-
-    /// @notice Called by the OEV auction winner along with the bid payment to
-    /// update the OEV proxy Beacon set
+    /// update the OEV proxy data feed
     /// @dev The winner of the auction calls this in a `multicall()` and
     /// extracts the OEV in subsequent calls of the same transaction
     /// @param airnodes Airnode addresses
@@ -85,7 +46,7 @@ contract DapiProxyWithOev is DapiProxy, IOevUpdater {
     /// @param bidAmount Amount of the bid that won the OEV auction
     /// @param signatures Template ID, a timestamp and the response data signed
     /// for the specific bid by the respective Airnode address per Beacon
-    function updateOevProxyBeaconSetWithSignedData(
+    function updateOevProxyDataFeedWithSignedData(
         address[] memory airnodes,
         bytes32[] memory templateIds,
         uint256[] memory timestamps,
@@ -96,7 +57,7 @@ contract DapiProxyWithOev is DapiProxy, IOevUpdater {
     ) external payable override {
         require(block.timestamp < expirationTimestamp, "Expired signature");
         require(msg.value == bidAmount, "Invalid bid amount");
-        IDapiServer(dapiServer).updateOevProxyBeaconSetWithSignedData(
+        IDapiServer(dapiServer).updateOevProxyDataFeedWithSignedData(
             airnodes,
             templateIds,
             timestamps,

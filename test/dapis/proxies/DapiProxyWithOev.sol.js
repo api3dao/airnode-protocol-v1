@@ -122,14 +122,14 @@ describe('DapiProxyWithOev', function () {
           );
           await dapiProxyWithOev
             .connect(roles.searcher)
-            .updateOevProxyBeaconWithSignedData(
-              airnodeAddress,
-              templateId,
-              timestamp,
-              data,
+            .updateOevProxyDataFeedWithSignedData(
+              [airnodeAddress],
+              [templateId],
+              [timestamp],
+              [data],
               expirationTimestamp,
               bidAmount,
-              signature,
+              [signature],
               {
                 value: bidAmount,
               }
@@ -177,14 +177,14 @@ describe('DapiProxyWithOev', function () {
           );
           await dapiProxyWithOev
             .connect(roles.searcher)
-            .updateOevProxyBeaconWithSignedData(
-              airnodeAddress,
-              templateId,
-              timestamp,
-              data,
+            .updateOevProxyDataFeedWithSignedData(
+              [airnodeAddress],
+              [templateId],
+              [timestamp],
+              [data],
               expirationTimestamp,
               bidAmount,
-              signature,
+              [signature],
               {
                 value: bidAmount,
               }
@@ -202,12 +202,104 @@ describe('DapiProxyWithOev', function () {
     });
   });
 
-  describe('updateOevProxyBeacon', function () {
-    context('Signature has not expired', function () {
-      context('Message value equals bid amount', function () {
-        it('updates OEV proxy Beacon', async function () {
+  describe('updateOevProxyDataFeedWithSignedData', function () {
+    context('Data feed is a Beacon', function () {
+      context('Signature has not expired', function () {
+        context('Message value equals bid amount', function () {
+          it('updates OEV proxy Beacon', async function () {
+            const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
+            const expirationTimestamp = timestamp + 3600;
+            const bidAmount = 456;
+            const metadata = hre.ethers.utils.solidityPack(
+              ['uint256', 'address', 'address', 'uint256', 'uint256'],
+              [
+                (await hre.ethers.provider.getNetwork()).chainId,
+                dapiProxyWithOev.address,
+                roles.searcher.address,
+                expirationTimestamp,
+                bidAmount,
+              ]
+            );
+            const data = encodeData(123);
+            const signature = await airnodeWallet.signMessage(
+              hre.ethers.utils.arrayify(
+                hre.ethers.utils.keccak256(
+                  hre.ethers.utils.solidityPack(
+                    ['bytes32', 'uint256', 'bytes', 'bytes'],
+                    [templateId, timestamp, data, metadata]
+                  )
+                )
+              )
+            );
+            await expect(
+              dapiProxyWithOev
+                .connect(roles.searcher)
+                .updateOevProxyDataFeedWithSignedData(
+                  [airnodeAddress],
+                  [templateId],
+                  [timestamp],
+                  [data],
+                  expirationTimestamp,
+                  bidAmount,
+                  [signature],
+                  {
+                    value: bidAmount,
+                  }
+                )
+            )
+              .to.emit(dapiServer, 'UpdatedOevProxyBeaconWithSignedData')
+              .withArgs(beaconId, dapiProxyWithOev.address, 123, timestamp);
+            const beacon = await dapiProxyWithOev.read();
+            expect(beacon.value).to.equal(123);
+            expect(beacon.timestamp).to.equal(timestamp);
+          });
+        });
+        context('Message value does not equal bid amount', function () {
+          it('reverts', async function () {
+            const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
+            const expirationTimestamp = timestamp + 3600;
+            const bidAmount = 456;
+            const metadata = hre.ethers.utils.solidityPack(
+              ['uint256', 'address', 'address', 'uint256', 'uint256'],
+              [
+                (await hre.ethers.provider.getNetwork()).chainId,
+                dapiProxyWithOev.address,
+                roles.searcher.address,
+                expirationTimestamp,
+                bidAmount,
+              ]
+            );
+            const data = encodeData(123);
+            const signature = await airnodeWallet.signMessage(
+              hre.ethers.utils.arrayify(
+                hre.ethers.utils.keccak256(
+                  hre.ethers.utils.solidityPack(
+                    ['bytes32', 'uint256', 'bytes', 'bytes'],
+                    [templateId, timestamp, data, metadata]
+                  )
+                )
+              )
+            );
+            await expect(
+              dapiProxyWithOev
+                .connect(roles.searcher)
+                .updateOevProxyDataFeedWithSignedData(
+                  [airnodeAddress],
+                  [templateId],
+                  [timestamp],
+                  [data],
+                  expirationTimestamp,
+                  bidAmount,
+                  [signature]
+                )
+            ).to.be.revertedWith('Invalid bid amount');
+          });
+        });
+      });
+      context('Signature has expired', function () {
+        it('reverts', async function () {
           const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-          const expirationTimestamp = timestamp + 3600;
+          const expirationTimestamp = timestamp - 3600;
           const bidAmount = 456;
           const metadata = hre.ethers.utils.solidityPack(
             ['uint256', 'address', 'address', 'uint256', 'uint256'],
@@ -233,121 +325,162 @@ describe('DapiProxyWithOev', function () {
           await expect(
             dapiProxyWithOev
               .connect(roles.searcher)
-              .updateOevProxyBeaconWithSignedData(
-                airnodeAddress,
-                templateId,
-                timestamp,
-                data,
+              .updateOevProxyDataFeedWithSignedData(
+                [airnodeAddress],
+                [templateId],
+                [timestamp],
+                [data],
                 expirationTimestamp,
                 bidAmount,
-                signature,
+                [signature],
                 {
                   value: bidAmount,
                 }
               )
-          )
-            .to.emit(dapiServer, 'UpdatedOevProxyBeaconWithSignedData')
-            .withArgs(beaconId, dapiProxyWithOev.address, 123, timestamp);
-          const beacon = await dapiProxyWithOev.read();
-          expect(beacon.value).to.equal(123);
-          expect(beacon.timestamp).to.equal(timestamp);
+          ).to.be.revertedWith('Expired signature');
         });
       });
-      context('Message value does not equal bid amount', function () {
-        it('reverts', async function () {
-          const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-          const expirationTimestamp = timestamp + 3600;
-          const bidAmount = 456;
-          const metadata = hre.ethers.utils.solidityPack(
-            ['uint256', 'address', 'address', 'uint256', 'uint256'],
-            [
-              (await hre.ethers.provider.getNetwork()).chainId,
-              dapiProxyWithOev.address,
-              roles.searcher.address,
-              expirationTimestamp,
-              bidAmount,
-            ]
-          );
-          const data = encodeData(123);
-          const signature = await airnodeWallet.signMessage(
-            hre.ethers.utils.arrayify(
-              hre.ethers.utils.keccak256(
-                hre.ethers.utils.solidityPack(
-                  ['bytes32', 'uint256', 'bytes', 'bytes'],
-                  [templateId, timestamp, data, metadata]
-                )
-              )
-            )
-          );
-          await expect(
-            dapiProxyWithOev
-              .connect(roles.searcher)
-              .updateOevProxyBeaconWithSignedData(
-                airnodeAddress,
-                templateId,
-                timestamp,
-                data,
+    });
+    context('Data feed is a Beacon set', function () {
+      context('Signature has not expired', function () {
+        context('Message value equals bid amount', function () {
+          it('updates OEV proxy Beacon', async function () {
+            await dapiServer.connect(roles.manager).setDapiName(dapiName, beaconSetId);
+            const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
+            const expirationTimestamp = timestamp + 3600;
+            const bidAmount = 456;
+            const metadata = hre.ethers.utils.solidityPack(
+              ['uint256', 'address', 'address', 'uint256', 'uint256'],
+              [
+                (await hre.ethers.provider.getNetwork()).chainId,
+                dapiProxyWithOev.address,
+                roles.searcher.address,
                 expirationTimestamp,
                 bidAmount,
-                signature
+              ]
+            );
+            const data = encodeData(789);
+            const signature0 = await airnodeWallet.signMessage(
+              hre.ethers.utils.arrayify(
+                hre.ethers.utils.keccak256(
+                  hre.ethers.utils.solidityPack(
+                    ['bytes32', 'uint256', 'bytes', 'bytes'],
+                    [beaconSetTemplateIds[0], timestamp, data, metadata]
+                  )
+                )
               )
-          ).to.be.revertedWith('Invalid bid amount');
+            );
+            const signature1 = await airnodeWallet.signMessage(
+              hre.ethers.utils.arrayify(
+                hre.ethers.utils.keccak256(
+                  hre.ethers.utils.solidityPack(
+                    ['bytes32', 'uint256', 'bytes', 'bytes'],
+                    [beaconSetTemplateIds[1], timestamp, data, metadata]
+                  )
+                )
+              )
+            );
+            const signature2 = await airnodeWallet.signMessage(
+              hre.ethers.utils.arrayify(
+                hre.ethers.utils.keccak256(
+                  hre.ethers.utils.solidityPack(
+                    ['bytes32', 'uint256', 'bytes', 'bytes'],
+                    [beaconSetTemplateIds[2], timestamp, data, metadata]
+                  )
+                )
+              )
+            );
+            await expect(
+              dapiProxyWithOev
+                .connect(roles.searcher)
+                .updateOevProxyDataFeedWithSignedData(
+                  [airnodeAddress, airnodeAddress, airnodeAddress],
+                  beaconSetTemplateIds,
+                  [timestamp, timestamp, timestamp],
+                  [data, data, data],
+                  expirationTimestamp,
+                  bidAmount,
+                  [signature0, signature1, signature2],
+                  {
+                    value: bidAmount,
+                  }
+                )
+            )
+              .to.emit(dapiServer, 'UpdatedOevProxyBeaconSetWithSignedData')
+              .withArgs(beaconSetId, dapiProxyWithOev.address, 789, timestamp);
+            const beaconSet = await dapiProxyWithOev.read();
+            expect(beaconSet.value).to.equal(789);
+            expect(beaconSet.timestamp).to.equal(timestamp);
+          });
+        });
+        context('Message value does not equal bid amount', function () {
+          it('reverts', async function () {
+            await dapiServer.connect(roles.manager).setDapiName(dapiName, beaconSetId);
+            const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
+            const expirationTimestamp = timestamp + 3600;
+            const bidAmount = 456;
+            const metadata = hre.ethers.utils.solidityPack(
+              ['uint256', 'address', 'address', 'uint256', 'uint256'],
+              [
+                (await hre.ethers.provider.getNetwork()).chainId,
+                dapiProxyWithOev.address,
+                roles.searcher.address,
+                expirationTimestamp,
+                bidAmount,
+              ]
+            );
+            const data = encodeData(789);
+            const signature0 = await airnodeWallet.signMessage(
+              hre.ethers.utils.arrayify(
+                hre.ethers.utils.keccak256(
+                  hre.ethers.utils.solidityPack(
+                    ['bytes32', 'uint256', 'bytes', 'bytes'],
+                    [beaconSetTemplateIds[0], timestamp, data, metadata]
+                  )
+                )
+              )
+            );
+            const signature1 = await airnodeWallet.signMessage(
+              hre.ethers.utils.arrayify(
+                hre.ethers.utils.keccak256(
+                  hre.ethers.utils.solidityPack(
+                    ['bytes32', 'uint256', 'bytes', 'bytes'],
+                    [beaconSetTemplateIds[1], timestamp, data, metadata]
+                  )
+                )
+              )
+            );
+            const signature2 = await airnodeWallet.signMessage(
+              hre.ethers.utils.arrayify(
+                hre.ethers.utils.keccak256(
+                  hre.ethers.utils.solidityPack(
+                    ['bytes32', 'uint256', 'bytes', 'bytes'],
+                    [beaconSetTemplateIds[2], timestamp, data, metadata]
+                  )
+                )
+              )
+            );
+            await expect(
+              dapiProxyWithOev
+                .connect(roles.searcher)
+                .updateOevProxyDataFeedWithSignedData(
+                  [airnodeAddress, airnodeAddress, airnodeAddress],
+                  beaconSetTemplateIds,
+                  [timestamp, timestamp, timestamp],
+                  [data, data, data],
+                  expirationTimestamp,
+                  bidAmount,
+                  [signature0, signature1, signature2]
+                )
+            ).to.be.revertedWith('Invalid bid amount');
+          });
         });
       });
-    });
-    context('Signature has expired', function () {
-      it('reverts', async function () {
-        const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-        const expirationTimestamp = timestamp - 3600;
-        const bidAmount = 456;
-        const metadata = hre.ethers.utils.solidityPack(
-          ['uint256', 'address', 'address', 'uint256', 'uint256'],
-          [
-            (await hre.ethers.provider.getNetwork()).chainId,
-            dapiProxyWithOev.address,
-            roles.searcher.address,
-            expirationTimestamp,
-            bidAmount,
-          ]
-        );
-        const data = encodeData(123);
-        const signature = await airnodeWallet.signMessage(
-          hre.ethers.utils.arrayify(
-            hre.ethers.utils.keccak256(
-              hre.ethers.utils.solidityPack(
-                ['bytes32', 'uint256', 'bytes', 'bytes'],
-                [templateId, timestamp, data, metadata]
-              )
-            )
-          )
-        );
-        await expect(
-          dapiProxyWithOev
-            .connect(roles.searcher)
-            .updateOevProxyBeaconWithSignedData(
-              airnodeAddress,
-              templateId,
-              timestamp,
-              data,
-              expirationTimestamp,
-              bidAmount,
-              signature,
-              {
-                value: bidAmount,
-              }
-            )
-        ).to.be.revertedWith('Expired signature');
-      });
-    });
-  });
-
-  describe('updateOevProxyBeaconSetWithSignedData', function () {
-    context('Signature has not expired', function () {
-      context('Message value equals bid amount', function () {
-        it('updates OEV proxy Beacon', async function () {
+      context('Signature has expired', function () {
+        it('reverts', async function () {
           await dapiServer.connect(roles.manager).setDapiName(dapiName, beaconSetId);
           const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-          const expirationTimestamp = timestamp + 3600;
+          const expirationTimestamp = timestamp - 3600;
           const bidAmount = 456;
           const metadata = hre.ethers.utils.solidityPack(
             ['uint256', 'address', 'address', 'uint256', 'uint256'],
@@ -393,7 +526,7 @@ describe('DapiProxyWithOev', function () {
           await expect(
             dapiProxyWithOev
               .connect(roles.searcher)
-              .updateOevProxyBeaconSetWithSignedData(
+              .updateOevProxyDataFeedWithSignedData(
                 [airnodeAddress, airnodeAddress, airnodeAddress],
                 beaconSetTemplateIds,
                 [timestamp, timestamp, timestamp],
@@ -405,140 +538,8 @@ describe('DapiProxyWithOev', function () {
                   value: bidAmount,
                 }
               )
-          )
-            .to.emit(dapiServer, 'UpdatedOevProxyBeaconSetWithSignedData')
-            .withArgs(beaconSetId, dapiProxyWithOev.address, 789, timestamp);
-          const beaconSet = await dapiProxyWithOev.read();
-          expect(beaconSet.value).to.equal(789);
-          expect(beaconSet.timestamp).to.equal(timestamp);
+          ).to.be.revertedWith('Expired signature');
         });
-      });
-      context('Message value does not equal bid amount', function () {
-        it('reverts', async function () {
-          await dapiServer.connect(roles.manager).setDapiName(dapiName, beaconSetId);
-          const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-          const expirationTimestamp = timestamp + 3600;
-          const bidAmount = 456;
-          const metadata = hre.ethers.utils.solidityPack(
-            ['uint256', 'address', 'address', 'uint256', 'uint256'],
-            [
-              (await hre.ethers.provider.getNetwork()).chainId,
-              dapiProxyWithOev.address,
-              roles.searcher.address,
-              expirationTimestamp,
-              bidAmount,
-            ]
-          );
-          const data = encodeData(789);
-          const signature0 = await airnodeWallet.signMessage(
-            hre.ethers.utils.arrayify(
-              hre.ethers.utils.keccak256(
-                hre.ethers.utils.solidityPack(
-                  ['bytes32', 'uint256', 'bytes', 'bytes'],
-                  [beaconSetTemplateIds[0], timestamp, data, metadata]
-                )
-              )
-            )
-          );
-          const signature1 = await airnodeWallet.signMessage(
-            hre.ethers.utils.arrayify(
-              hre.ethers.utils.keccak256(
-                hre.ethers.utils.solidityPack(
-                  ['bytes32', 'uint256', 'bytes', 'bytes'],
-                  [beaconSetTemplateIds[1], timestamp, data, metadata]
-                )
-              )
-            )
-          );
-          const signature2 = await airnodeWallet.signMessage(
-            hre.ethers.utils.arrayify(
-              hre.ethers.utils.keccak256(
-                hre.ethers.utils.solidityPack(
-                  ['bytes32', 'uint256', 'bytes', 'bytes'],
-                  [beaconSetTemplateIds[2], timestamp, data, metadata]
-                )
-              )
-            )
-          );
-          await expect(
-            dapiProxyWithOev
-              .connect(roles.searcher)
-              .updateOevProxyBeaconSetWithSignedData(
-                [airnodeAddress, airnodeAddress, airnodeAddress],
-                beaconSetTemplateIds,
-                [timestamp, timestamp, timestamp],
-                [data, data, data],
-                expirationTimestamp,
-                bidAmount,
-                [signature0, signature1, signature2]
-              )
-          ).to.be.revertedWith('Invalid bid amount');
-        });
-      });
-    });
-    context('Signature has expired', function () {
-      it('reverts', async function () {
-        await dapiServer.connect(roles.manager).setDapiName(dapiName, beaconSetId);
-        const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-        const expirationTimestamp = timestamp - 3600;
-        const bidAmount = 456;
-        const metadata = hre.ethers.utils.solidityPack(
-          ['uint256', 'address', 'address', 'uint256', 'uint256'],
-          [
-            (await hre.ethers.provider.getNetwork()).chainId,
-            dapiProxyWithOev.address,
-            roles.searcher.address,
-            expirationTimestamp,
-            bidAmount,
-          ]
-        );
-        const data = encodeData(789);
-        const signature0 = await airnodeWallet.signMessage(
-          hre.ethers.utils.arrayify(
-            hre.ethers.utils.keccak256(
-              hre.ethers.utils.solidityPack(
-                ['bytes32', 'uint256', 'bytes', 'bytes'],
-                [beaconSetTemplateIds[0], timestamp, data, metadata]
-              )
-            )
-          )
-        );
-        const signature1 = await airnodeWallet.signMessage(
-          hre.ethers.utils.arrayify(
-            hre.ethers.utils.keccak256(
-              hre.ethers.utils.solidityPack(
-                ['bytes32', 'uint256', 'bytes', 'bytes'],
-                [beaconSetTemplateIds[1], timestamp, data, metadata]
-              )
-            )
-          )
-        );
-        const signature2 = await airnodeWallet.signMessage(
-          hre.ethers.utils.arrayify(
-            hre.ethers.utils.keccak256(
-              hre.ethers.utils.solidityPack(
-                ['bytes32', 'uint256', 'bytes', 'bytes'],
-                [beaconSetTemplateIds[2], timestamp, data, metadata]
-              )
-            )
-          )
-        );
-        await expect(
-          dapiProxyWithOev
-            .connect(roles.searcher)
-            .updateOevProxyBeaconSetWithSignedData(
-              [airnodeAddress, airnodeAddress, airnodeAddress],
-              beaconSetTemplateIds,
-              [timestamp, timestamp, timestamp],
-              [data, data, data],
-              expirationTimestamp,
-              bidAmount,
-              [signature0, signature1, signature2],
-              {
-                value: bidAmount,
-              }
-            )
-        ).to.be.revertedWith('Expired signature');
       });
     });
   });
