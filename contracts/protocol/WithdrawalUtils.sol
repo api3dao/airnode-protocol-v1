@@ -37,10 +37,10 @@ contract WithdrawalUtils is IWithdrawalUtils {
     /// @notice Called by a sponsor to request a withdrawal
     /// @param airnodeOrRelayer Airnode/relayer address
     /// @param protocolId Protocol ID
-    function requestWithdrawal(address airnodeOrRelayer, uint256 protocolId)
-        external
-        override
-    {
+    function requestWithdrawal(
+        address airnodeOrRelayer,
+        uint256 protocolId
+    ) external override {
         require(airnodeOrRelayer != address(0), "Airnode/relayer address zero");
         require(protocolId != 0, "Protocol ID zero");
         bytes32 withdrawalRequestId = keccak256(
@@ -126,12 +126,9 @@ contract WithdrawalUtils is IWithdrawalUtils {
     /// @param withdrawalRequestId Withdrawal request ID
     /// @return isAwaitingFulfillment If the withdrawal request is awaiting
     /// fulfillment
-    function withdrawalRequestIsAwaitingFulfillment(bytes32 withdrawalRequestId)
-        external
-        view
-        override
-        returns (bool)
-    {
+    function withdrawalRequestIsAwaitingFulfillment(
+        bytes32 withdrawalRequestId
+    ) external view override returns (bool) {
         return
             withdrawalRequestIdToParameters[withdrawalRequestId] != bytes32(0);
     }

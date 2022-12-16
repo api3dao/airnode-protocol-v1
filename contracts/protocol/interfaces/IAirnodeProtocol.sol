@@ -124,13 +124,11 @@ interface IAirnodeProtocol is
         bytes calldata signature
     ) external;
 
-    function requestIsAwaitingFulfillment(bytes32 requestId)
-        external
-        view
-        returns (bool);
+    function requestIsAwaitingFulfillment(
+        bytes32 requestId
+    ) external view returns (bool);
 
-    function requesterToRequestCount(address requester)
-        external
-        view
-        returns (uint256);
+    function requesterToRequestCount(
+        address requester
+    ) external view returns (uint256);
 }

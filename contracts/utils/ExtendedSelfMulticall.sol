@@ -17,12 +17,9 @@ contract ExtendedSelfMulticall is SelfMulticall, IExtendedSelfMulticall {
     /// @notice Returns the account balance
     /// @param account Account address
     /// @return Account balance
-    function getBalance(address account)
-        external
-        view
-        override
-        returns (uint256)
-    {
+    function getBalance(
+        address account
+    ) external view override returns (uint256) {
         return account.balance;
     }
 

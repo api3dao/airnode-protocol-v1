@@ -204,11 +204,9 @@ contract AuthorizerWithErc20 is
 
     /// @notice Sets token price
     /// @param _tokenPrice Token price in USD (times 10^18)
-    function setTokenPrice(uint256 _tokenPrice)
-        external
-        override
-        onlyMaintainerOrManager
-    {
+    function setTokenPrice(
+        uint256 _tokenPrice
+    ) external override onlyMaintainerOrManager {
         _setTokenPrice(_tokenPrice);
         emit SetTokenPrice(_tokenPrice, msg.sender);
     }
@@ -216,11 +214,9 @@ contract AuthorizerWithErc20 is
     /// @notice Sets price coefficient
     /// @param _priceCoefficient Price coefficient (has the same number of
     /// decimals as the token)
-    function setPriceCoefficient(uint256 _priceCoefficient)
-        external
-        override
-        onlyMaintainerOrManager
-    {
+    function setPriceCoefficient(
+        uint256 _priceCoefficient
+    ) external override onlyMaintainerOrManager {
         _setPriceCoefficient(_priceCoefficient);
         emit SetPriceCoefficient(_priceCoefficient, msg.sender);
     }
@@ -267,10 +263,9 @@ contract AuthorizerWithErc20 is
 
     /// @notice Sets destination of proceeds
     /// @param _proceedsDestination Destination of proceeds
-    function setProceedsDestination(address _proceedsDestination)
-        external
-        override
-    {
+    function setProceedsDestination(
+        address _proceedsDestination
+    ) external override {
         require(msg.sender == manager, "Sender not manager");
         _setProceedsDestination(_proceedsDestination);
         emit SetProceedsDestination(_proceedsDestination);
@@ -279,12 +274,10 @@ contract AuthorizerWithErc20 is
     /// @notice Blocks requester globally
     /// @param requester Requester address
     /// @param status Requester block status (`true` represents being blocked)
-    function setRequesterBlockStatus(address requester, bool status)
-        external
-        override
-        onlyBlockerOrManager
-        onlyNonZeroRequester(requester)
-    {
+    function setRequesterBlockStatus(
+        address requester,
+        bool status
+    ) external override onlyBlockerOrManager onlyNonZeroRequester(requester) {
         requesterToBlockStatus[requester] = status;
         emit SetRequesterBlockStatus(requester, status, msg.sender);
     }
@@ -333,11 +326,10 @@ contract AuthorizerWithErc20 is
     /// @dev Requesters can be blocked globally or for the specific Airnode
     /// @param airnode Airnode address
     /// @param requester Requester address
-    function requesterIsBlocked(address airnode, address requester)
-        internal
-        view
-        returns (bool)
-    {
+    function requesterIsBlocked(
+        address airnode,
+        address requester
+    ) internal view returns (bool) {
         return
             requesterToBlockStatus[requester] ||
             airnodeToRequesterToBlockStatus[airnode][requester];
@@ -347,11 +339,9 @@ contract AuthorizerWithErc20 is
     /// @dev Reverts if the contract address has not been registered beforehand
     /// @param chainId Chain ID
     /// @return RequesterAuthorizer address
-    function getRequesterAuthorizerAddress(uint256 chainId)
-        internal
-        view
-        returns (address)
-    {
+    function getRequesterAuthorizerAddress(
+        uint256 chainId
+    ) internal view returns (address) {
         (
             bool success,
             address requesterAuthorizer

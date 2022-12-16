@@ -21,13 +21,15 @@ interface IStorageUtils {
         bytes4 fulfillFunctionId
     );
 
-    function announceTemplate(bytes32 endpointId, bytes calldata parameters)
-        external
-        returns (bytes32 templateId);
+    function announceTemplate(
+        bytes32 endpointId,
+        bytes calldata parameters
+    ) external returns (bytes32 templateId);
 
-    function storeTemplate(bytes32 endpointId, bytes calldata parameters)
-        external
-        returns (bytes32 templateId);
+    function storeTemplate(
+        bytes32 endpointId,
+        bytes calldata parameters
+    ) external returns (bytes32 templateId);
 
     function announceSubscription(
         uint256 chainId,
@@ -56,12 +58,13 @@ interface IStorageUtils {
     // solhint-disable-next-line func-name-mixedcase
     function MAXIMUM_PARAMETER_LENGTH() external view returns (uint256);
 
-    function templates(bytes32 templateId)
-        external
-        view
-        returns (bytes32 endpointId, bytes memory parameters);
+    function templates(
+        bytes32 templateId
+    ) external view returns (bytes32 endpointId, bytes memory parameters);
 
-    function subscriptions(bytes32 subscriptionId)
+    function subscriptions(
+        bytes32 subscriptionId
+    )
         external
         view
         returns (

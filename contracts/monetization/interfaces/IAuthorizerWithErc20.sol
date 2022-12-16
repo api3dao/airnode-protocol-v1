@@ -74,20 +74,18 @@ interface IAuthorizerWithErc20 is
 
     function proceedsDestination() external view returns (address);
 
-    function airnodeToParticipationStatus(address airnode)
-        external
-        view
-        returns (AirnodeParticipationStatus);
+    function airnodeToParticipationStatus(
+        address airnode
+    ) external view returns (AirnodeParticipationStatus);
 
-    function requesterToBlockStatus(address requester)
-        external
-        view
-        returns (bool);
+    function requesterToBlockStatus(
+        address requester
+    ) external view returns (bool);
 
-    function airnodeToRequesterToBlockStatus(address airnode, address requester)
-        external
-        view
-        returns (bool);
+    function airnodeToRequesterToBlockStatus(
+        address airnode,
+        address requester
+    ) external view returns (bool);
 
     // solhint-disable-next-line func-name-mixedcase
     function MAINTAINER_ROLE_DESCRIPTION()

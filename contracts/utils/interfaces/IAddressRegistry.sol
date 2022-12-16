@@ -4,8 +4,7 @@ pragma solidity ^0.8.0;
 import "./IRegistryRolesWithManager.sol";
 
 interface IAddressRegistry is IRegistryRolesWithManager {
-    function tryReadRegisteredAddress(bytes32 id)
-        external
-        view
-        returns (bool success, address address_);
+    function tryReadRegisteredAddress(
+        bytes32 id
+    ) external view returns (bool success, address address_);
 }

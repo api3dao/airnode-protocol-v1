@@ -30,12 +30,9 @@ contract Uint256Registry is RegistryRolesWithManager, IUint256Registry {
     /// @param id Registry ID
     /// @return success If there is a registered unsigned integer with the ID
     /// @return uint256_ Registered unsigned integer
-    function tryReadRegisteredUint256(bytes32 id)
-        public
-        view
-        override
-        returns (bool success, uint256 uint256_)
-    {
+    function tryReadRegisteredUint256(
+        bytes32 id
+    ) public view override returns (bool success, uint256 uint256_) {
         uint256_ = idToUint256[id];
         success = uint256_ != 0;
     }
@@ -44,10 +41,10 @@ contract Uint256Registry is RegistryRolesWithManager, IUint256Registry {
     /// integer with the ID
     /// @param id Registry ID
     /// @param uint256_ Unsigned integer to be registered
-    function _registerUint256(bytes32 id, uint256 uint256_)
-        internal
-        onlyRegistrarOrManager
-    {
+    function _registerUint256(
+        bytes32 id,
+        uint256 uint256_
+    ) internal onlyRegistrarOrManager {
         require(uint256_ != 0, "Cannot register zero");
         idToUint256[id] = uint256_;
     }

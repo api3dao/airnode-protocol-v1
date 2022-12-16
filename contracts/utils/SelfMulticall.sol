@@ -11,11 +11,9 @@ contract SelfMulticall is ISelfMulticall {
     /// least one of the batched calls reverts
     /// @param data Array of calldata of batched calls
     /// @return returndata Array of returndata of batched calls
-    function multicall(bytes[] calldata data)
-        external
-        override
-        returns (bytes[] memory returndata)
-    {
+    function multicall(
+        bytes[] calldata data
+    ) external override returns (bytes[] memory returndata) {
         returndata = new bytes[](data.length);
         for (uint256 i = 0; i < data.length; i++) {
             bool success;
@@ -45,7 +43,9 @@ contract SelfMulticall is ISelfMulticall {
     /// @param data Array of calldata of batched calls
     /// @return successes Array of success conditions of batched calls
     /// @return returndata Array of returndata of batched calls
-    function tryMulticall(bytes[] calldata data)
+    function tryMulticall(
+        bytes[] calldata data
+    )
         external
         override
         returns (bool[] memory successes, bytes[] memory returndata)

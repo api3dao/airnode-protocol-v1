@@ -29,12 +29,9 @@ contract AddressRegistry is RegistryRolesWithManager, IAddressRegistry {
     /// @param id Registry ID
     /// @return success If there is a registered address with the ID
     /// @return address_ Registered address
-    function tryReadRegisteredAddress(bytes32 id)
-        public
-        view
-        override
-        returns (bool success, address address_)
-    {
+    function tryReadRegisteredAddress(
+        bytes32 id
+    ) public view override returns (bool success, address address_) {
         address_ = idToAddress[id];
         success = address_ != address(0);
     }
@@ -43,10 +40,10 @@ contract AddressRegistry is RegistryRolesWithManager, IAddressRegistry {
     /// with the ID
     /// @param id Registry ID
     /// @param address_ Address to be registered
-    function _registerAddress(bytes32 id, address address_)
-        internal
-        onlyRegistrarOrManager
-    {
+    function _registerAddress(
+        bytes32 id,
+        address address_
+    ) internal onlyRegistrarOrManager {
         require(address_ != address(0), "Cannot register zero address");
         idToAddress[id] = address_;
     }

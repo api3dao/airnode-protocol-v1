@@ -49,12 +49,9 @@ contract RequesterAuthorizerRegistry is
     /// @param chainId Chain ID
     /// @return success If the RequesterAuthorizer was registered
     /// @return requesterAuthorizer Registered address
-    function tryReadChainRequesterAuthorizer(uint256 chainId)
-        public
-        view
-        override
-        returns (bool success, address requesterAuthorizer)
-    {
+    function tryReadChainRequesterAuthorizer(
+        uint256 chainId
+    ) public view override returns (bool success, address requesterAuthorizer) {
         (success, requesterAuthorizer) = tryReadRegisteredAddress(
             keccak256(abi.encodePacked(chainId))
         );

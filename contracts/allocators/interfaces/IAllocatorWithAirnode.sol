@@ -5,18 +5,16 @@ import "../../access-control-registry/interfaces/IAccessControlRegistryAdminned.
 import "./IAllocator.sol";
 
 interface IAllocatorWithAirnode is IAccessControlRegistryAdminned, IAllocator {
-    function hasSlotSetterRoleOrIsAirnode(address airnode, address account)
-        external
-        view
-        returns (bool);
+    function hasSlotSetterRoleOrIsAirnode(
+        address airnode,
+        address account
+    ) external view returns (bool);
 
-    function deriveAdminRole(address airnode)
-        external
-        view
-        returns (bytes32 adminRole);
+    function deriveAdminRole(
+        address airnode
+    ) external view returns (bytes32 adminRole);
 
-    function deriveSlotSetterRole(address airnode)
-        external
-        view
-        returns (bytes32 slotSetterRole);
+    function deriveSlotSetterRole(
+        address airnode
+    ) external view returns (bytes32 slotSetterRole);
 }

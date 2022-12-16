@@ -317,11 +317,10 @@ abstract contract RequesterAuthorizer is ERC2771Context, IRequesterAuthorizer {
     /// @param airnode Airnode address
     /// @param endpointId Endpoint ID
     /// @return serviceId Service ID
-    function deriveServiceId(address airnode, bytes32 endpointId)
-        private
-        pure
-        returns (bytes32 serviceId)
-    {
+    function deriveServiceId(
+        address airnode,
+        bytes32 endpointId
+    ) private pure returns (bytes32 serviceId) {
         serviceId = keccak256(abi.encodePacked(airnode, endpointId));
     }
 
@@ -329,11 +328,10 @@ abstract contract RequesterAuthorizer is ERC2771Context, IRequesterAuthorizer {
     /// @param serviceId Service ID
     /// @param user User address
     /// @return isAuthorized If the user is authorized
-    function userIsAuthorized(bytes32 serviceId, address user)
-        private
-        view
-        returns (bool)
-    {
+    function userIsAuthorized(
+        bytes32 serviceId,
+        address user
+    ) private view returns (bool) {
         AuthorizationStatus
             storage authorizationStatus = serviceIdToUserToAuthorizationStatus[
                 serviceId

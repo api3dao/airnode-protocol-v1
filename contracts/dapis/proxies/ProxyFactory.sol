@@ -25,11 +25,10 @@ contract ProxyFactory is IProxyFactory {
     /// @notice Deterministically deploys a data feed proxy
     /// @param dataFeedId Data feed ID
     /// @param metadata Metadata associated with the proxy
-    function deployDataFeedProxy(bytes32 dataFeedId, bytes calldata metadata)
-        external
-        override
-        returns (address proxyAddress)
-    {
+    function deployDataFeedProxy(
+        bytes32 dataFeedId,
+        bytes calldata metadata
+    ) external override returns (address proxyAddress) {
         require(dataFeedId != bytes32(0), "Data feed ID zero");
         proxyAddress = address(
             new DataFeedProxy{salt: keccak256(metadata)}(dapiServer, dataFeedId)
@@ -40,11 +39,10 @@ contract ProxyFactory is IProxyFactory {
     /// @notice Deterministically deploys a dAPI proxy
     /// @param dapiName dAPI name
     /// @param metadata Metadata associated with the proxy
-    function deployDapiProxy(bytes32 dapiName, bytes calldata metadata)
-        external
-        override
-        returns (address proxyAddress)
-    {
+    function deployDapiProxy(
+        bytes32 dapiName,
+        bytes calldata metadata
+    ) external override returns (address proxyAddress) {
         require(dapiName != bytes32(0), "dAPI name zero");
         proxyAddress = address(
             new DapiProxy{salt: keccak256(metadata)}(dapiServer, dapiName)

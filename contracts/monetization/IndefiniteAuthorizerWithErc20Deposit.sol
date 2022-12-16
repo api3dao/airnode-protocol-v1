@@ -68,11 +68,9 @@ contract IndefiniteAuthorizerWithErc20Deposit is
 
     /// @notice Called by the manager to set the withdrawal lead time
     /// @param _withdrawalLeadTime Withdrawal lead time
-    function setWithdrawalLeadTime(uint256 _withdrawalLeadTime)
-        external
-        override
-        onlyMaintainerOrManager
-    {
+    function setWithdrawalLeadTime(
+        uint256 _withdrawalLeadTime
+    ) external override onlyMaintainerOrManager {
         require(
             _withdrawalLeadTime <= 30 days,
             "Withdrawal lead time too long"

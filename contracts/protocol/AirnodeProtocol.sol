@@ -389,12 +389,9 @@ contract AirnodeProtocol is
     /// called back `failRequest()`/`failRequestRelayed()` instead.
     /// @param requestId Request ID
     /// @return If the request is awaiting fulfillment
-    function requestIsAwaitingFulfillment(bytes32 requestId)
-        external
-        view
-        override
-        returns (bool)
-    {
+    function requestIsAwaitingFulfillment(
+        bytes32 requestId
+    ) external view override returns (bool) {
         return requestIdToFulfillmentParameters[requestId] != bytes32(0);
     }
 }

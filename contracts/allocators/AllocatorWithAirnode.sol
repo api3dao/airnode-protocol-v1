@@ -52,12 +52,10 @@ contract AllocatorWithAirnode is
     /// @param airnode Airnode address
     /// @param slotIndex Index of the subscription slot that was set
     /// @return If the setter of the slot can still set slots
-    function setterOfSlotIsCanStillSet(address airnode, uint256 slotIndex)
-        public
-        view
-        override(Allocator, IAllocator)
-        returns (bool)
-    {
+    function setterOfSlotIsCanStillSet(
+        address airnode,
+        uint256 slotIndex
+    ) public view override(Allocator, IAllocator) returns (bool) {
         return
             hasSlotSetterRoleOrIsAirnode(
                 airnode,
@@ -69,12 +67,10 @@ contract AllocatorWithAirnode is
     /// respective Airnode address
     /// @param airnode Airnode address
     /// @param account Account address
-    function hasSlotSetterRoleOrIsAirnode(address airnode, address account)
-        public
-        view
-        override
-        returns (bool)
-    {
+    function hasSlotSetterRoleOrIsAirnode(
+        address airnode,
+        address account
+    ) public view override returns (bool) {
         return
             airnode == account ||
             IAccessControlRegistry(accessControlRegistry).hasRole(
@@ -86,12 +82,9 @@ contract AllocatorWithAirnode is
     /// @notice Derives the admin role for the specific Airnode address
     /// @param airnode Airnode address
     /// @return adminRole Admin role
-    function deriveAdminRole(address airnode)
-        public
-        view
-        override
-        returns (bytes32 adminRole)
-    {
+    function deriveAdminRole(
+        address airnode
+    ) public view override returns (bytes32 adminRole) {
         adminRole = _deriveRole(
             _deriveRootRole(airnode),
             adminRoleDescriptionHash
@@ -101,12 +94,9 @@ contract AllocatorWithAirnode is
     /// @notice Derives the slot setter role for the specific Airnode address
     /// @param airnode Airnode address
     /// @return slotSetterRole Slot setter role
-    function deriveSlotSetterRole(address airnode)
-        public
-        view
-        override
-        returns (bytes32 slotSetterRole)
-    {
+    function deriveSlotSetterRole(
+        address airnode
+    ) public view override returns (bytes32 slotSetterRole) {
         slotSetterRole = _deriveRole(
             deriveAdminRole(airnode),
             SLOT_SETTER_ROLE_DESCRIPTION_HASH

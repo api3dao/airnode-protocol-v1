@@ -8,10 +8,9 @@ interface IAllocatorWithManager is
     IAccessControlRegistryAdminnedWithManager,
     IAllocator
 {
-    function hasSlotSetterRoleOrIsManager(address account)
-        external
-        view
-        returns (bool);
+    function hasSlotSetterRoleOrIsManager(
+        address account
+    ) external view returns (bool);
 
     function slotSetterRole() external view returns (bytes32);
 }
