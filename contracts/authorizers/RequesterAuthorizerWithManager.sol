@@ -162,11 +162,9 @@ contract RequesterAuthorizerWithManager is
     /// @param account Account address
     /// @return If the account has the authorization extender role or is the
     /// manager
-    function hasAuthorizationExpirationExtenderRoleOrIsManager(address account)
-        private
-        view
-        returns (bool)
-    {
+    function hasAuthorizationExpirationExtenderRoleOrIsManager(
+        address account
+    ) private view returns (bool) {
         return
             manager == account ||
             IAccessControlRegistry(accessControlRegistry).hasRole(
@@ -180,11 +178,9 @@ contract RequesterAuthorizerWithManager is
     /// @param account Account address
     /// @return If the account has the authorization expiration setter role or
     /// is the manager
-    function hasAuthorizationExpirationSetterRoleOrIsManager(address account)
-        private
-        view
-        returns (bool)
-    {
+    function hasAuthorizationExpirationSetterRoleOrIsManager(
+        address account
+    ) private view returns (bool) {
         return
             manager == account ||
             IAccessControlRegistry(accessControlRegistry).hasRole(
@@ -198,11 +194,9 @@ contract RequesterAuthorizerWithManager is
     /// @param account Account address
     /// @return If the account has the indefinite authorizer role or is the
     /// manager
-    function hasIndefiniteAuthorizerRoleOrIsManager(address account)
-        private
-        view
-        returns (bool)
-    {
+    function hasIndefiniteAuthorizerRoleOrIsManager(
+        address account
+    ) private view returns (bool) {
         return
             manager == account ||
             IAccessControlRegistry(accessControlRegistry).hasRole(

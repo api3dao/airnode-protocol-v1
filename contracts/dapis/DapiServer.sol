@@ -549,11 +549,9 @@ contract DapiServer is
     /// use.
     /// @param beaconIds Beacon IDs
     /// @return beaconSetId Beacon set ID
-    function updateBeaconSetWithBeacons(bytes32[] memory beaconIds)
-        public
-        override
-        returns (bytes32 beaconSetId)
-    {
+    function updateBeaconSetWithBeacons(
+        bytes32[] memory beaconIds
+    ) public override returns (bytes32 beaconSetId) {
         (int224 updatedValue, uint32 updatedTimestamp) = aggregateBeacons(
             beaconIds
         );
@@ -960,10 +958,10 @@ contract DapiServer is
     /// Beacon set, then another Beacon set, etc.
     /// @param dapiName Human-readable dAPI name
     /// @param dataFeedId Data feed ID the dAPI name will point to
-    function setDapiName(bytes32 dapiName, bytes32 dataFeedId)
-        external
-        override
-    {
+    function setDapiName(
+        bytes32 dapiName,
+        bytes32 dataFeedId
+    ) external override {
         require(dapiName != bytes32(0), "dAPI name zero");
         require(
             msg.sender == manager ||
@@ -982,12 +980,9 @@ contract DapiServer is
     /// @notice Returns the data feed ID the dAPI name is set to
     /// @param dapiName dAPI name
     /// @return Data feed ID
-    function dapiNameToDataFeedId(bytes32 dapiName)
-        external
-        view
-        override
-        returns (bytes32)
-    {
+    function dapiNameToDataFeedId(
+        bytes32 dapiName
+    ) external view override returns (bytes32) {
         return dapiNameHashToDataFeedId[keccak256(abi.encodePacked(dapiName))];
     }
 
@@ -995,12 +990,9 @@ contract DapiServer is
     /// @param dapiNameHash dAPI name hash
     /// @return value Data feed value
     /// @return timestamp Data feed timestamp
-    function readDataFeedWithDapiNameHash(bytes32 dapiNameHash)
-        external
-        view
-        override
-        returns (int224 value, uint32 timestamp)
-    {
+    function readDataFeedWithDapiNameHash(
+        bytes32 dapiNameHash
+    ) external view override returns (int224 value, uint32 timestamp) {
         bytes32 dataFeedId = dapiNameHashToDataFeedId[dapiNameHash];
         require(dataFeedId != bytes32(0), "dAPI name not set");
         DataFeed storage dataFeed = dataFeeds[dataFeedId];
@@ -1011,12 +1003,9 @@ contract DapiServer is
     /// @param dataFeedId Data feed ID
     /// @return value Data feed value
     /// @return timestamp Data feed timestamp
-    function readDataFeedWithIdAsOevProxy(bytes32 dataFeedId)
-        external
-        view
-        override
-        returns (int224 value, uint32 timestamp)
-    {
+    function readDataFeedWithIdAsOevProxy(
+        bytes32 dataFeedId
+    ) external view override returns (int224 value, uint32 timestamp) {
         DataFeed storage oevDataFeed = oevProxyToIdToDataFeed[msg.sender][
             dataFeedId
         ];
@@ -1032,12 +1021,9 @@ contract DapiServer is
     /// @param dapiNameHash dAPI name hash
     /// @return value Data feed value
     /// @return timestamp Data feed timestamp
-    function readDataFeedWithDapiNameHashAsOevProxy(bytes32 dapiNameHash)
-        external
-        view
-        override
-        returns (int224 value, uint32 timestamp)
-    {
+    function readDataFeedWithDapiNameHashAsOevProxy(
+        bytes32 dapiNameHash
+    ) external view override returns (int224 value, uint32 timestamp) {
         bytes32 dataFeedId = dapiNameHashToDataFeedId[dapiNameHash];
         require(dataFeedId != bytes32(0), "dAPI name not set");
         DataFeed storage oevDataFeed = oevProxyToIdToDataFeed[msg.sender][
@@ -1058,12 +1044,9 @@ contract DapiServer is
     /// @param beaconIds Beacon IDs
     /// @return value Aggregation value
     /// @return timestamp Aggregation timestamp
-    function aggregateBeacons(bytes32[] memory beaconIds)
-        public
-        view
-        override
-        returns (int224 value, uint32 timestamp)
-    {
+    function aggregateBeacons(
+        bytes32[] memory beaconIds
+    ) public view override returns (int224 value, uint32 timestamp) {
         uint256 beaconCount = beaconIds.length;
         require(beaconCount > 1, "Specified less than two Beacons");
         int256[] memory values = new int256[](beaconCount);
@@ -1081,12 +1064,10 @@ contract DapiServer is
     /// @param airnode Airnode address
     /// @param templateId Template ID
     /// @return beaconId Beacon ID
-    function deriveBeaconId(address airnode, bytes32 templateId)
-        public
-        pure
-        override
-        returns (bytes32 beaconId)
-    {
+    function deriveBeaconId(
+        address airnode,
+        bytes32 templateId
+    ) public pure override returns (bytes32 beaconId) {
         require(airnode != address(0), "Airnode address zero");
         require(templateId != bytes32(0), "Template ID zero");
         beaconId = keccak256(abi.encodePacked(airnode, templateId));
@@ -1096,12 +1077,9 @@ contract DapiServer is
     /// @dev Notice that `abi.encode()` is used over `abi.encodePacked()`
     /// @param beaconIds Beacon IDs
     /// @return beaconSetId Beacon set ID
-    function deriveBeaconSetId(bytes32[] memory beaconIds)
-        public
-        pure
-        override
-        returns (bytes32 beaconSetId)
-    {
+    function deriveBeaconSetId(
+        bytes32[] memory beaconIds
+    ) public pure override returns (bytes32 beaconSetId) {
         beaconSetId = keccak256(abi.encode(beaconIds));
     }
 
@@ -1131,11 +1109,9 @@ contract DapiServer is
     /// @notice Called privately to decode the fulfillment data
     /// @param data Fulfillment data (an `int256` encoded in contract ABI)
     /// @return decodedData Decoded fulfillment data
-    function decodeFulfillmentData(bytes memory data)
-        private
-        pure
-        returns (int224)
-    {
+    function decodeFulfillmentData(
+        bytes memory data
+    ) private pure returns (int224) {
         require(data.length == 32, "Data length not correct");
         int256 decodedData = abi.decode(data, (int256));
         require(

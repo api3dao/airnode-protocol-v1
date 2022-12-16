@@ -69,11 +69,10 @@ contract AirnodeEndpointPriceRegistry is
     /// default chain price
     /// @param chainId Chain ID
     /// @param price 30 day price in USD (times 10^18)
-    function registerDefaultChainPrice(uint256 chainId, uint256 price)
-        external
-        override
-        onlyNonZeroChainId(chainId)
-    {
+    function registerDefaultChainPrice(
+        uint256 chainId,
+        uint256 price
+    ) external override onlyNonZeroChainId(chainId) {
         _registerUint256(
             keccak256(abi.encodePacked(DEFAULT_PRICE_ID, chainId)),
             price
@@ -85,11 +84,10 @@ contract AirnodeEndpointPriceRegistry is
     /// Airnode price
     /// @param airnode Airnode address
     /// @param price 30 day price in USD (times 10^18)
-    function registerAirnodePrice(address airnode, uint256 price)
-        external
-        override
-        onlyNonZeroAirnode(airnode)
-    {
+    function registerAirnodePrice(
+        address airnode,
+        uint256 price
+    ) external override onlyNonZeroAirnode(airnode) {
         _registerUint256(keccak256(abi.encodePacked(airnode)), price);
         emit RegisterAirnodePrice(airnode, price, msg.sender);
     }
@@ -173,12 +171,10 @@ contract AirnodeEndpointPriceRegistry is
     /// @param airnode Airnode address
     /// @param status Flag status, `true` prioritizes the endpoint price,
     /// `false` prioritizes the chain price (default)
-    function setEndpointAndChainPricePriority(address airnode, bool status)
-        external
-        override
-        onlyRegistrarOrManager
-        onlyNonZeroAirnode(airnode)
-    {
+    function setEndpointAndChainPricePriority(
+        address airnode,
+        bool status
+    ) external override onlyRegistrarOrManager onlyNonZeroAirnode(airnode) {
         prioritizeEndpointPriceOverChainPrice[airnode] = status;
         emit SetEndpointAndChainPricePriority(airnode, status, msg.sender);
     }
@@ -200,12 +196,9 @@ contract AirnodeEndpointPriceRegistry is
     /// @param chainId Chain ID
     /// @return success If the price was registered
     /// @return price 30 day price in USD (times 10^18)
-    function tryReadDefaultChainPrice(uint256 chainId)
-        public
-        view
-        override
-        returns (bool success, uint256 price)
-    {
+    function tryReadDefaultChainPrice(
+        uint256 chainId
+    ) public view override returns (bool success, uint256 price) {
         (success, price) = tryReadRegisteredUint256(
             keccak256(abi.encodePacked(DEFAULT_PRICE_ID, chainId))
         );
@@ -215,12 +208,9 @@ contract AirnodeEndpointPriceRegistry is
     /// @param airnode Airnode address
     /// @return success If the price was registered
     /// @return price 30 day price in USD (times 10^18)
-    function tryReadAirnodePrice(address airnode)
-        public
-        view
-        override
-        returns (bool success, uint256 price)
-    {
+    function tryReadAirnodePrice(
+        address airnode
+    ) public view override returns (bool success, uint256 price) {
         (success, price) = tryReadRegisteredUint256(
             keccak256(abi.encodePacked(airnode))
         );
@@ -232,12 +222,10 @@ contract AirnodeEndpointPriceRegistry is
     /// @param chainId Chain ID
     /// @return success If the price was registered
     /// @return price 30 day price in USD (times 10^18)
-    function tryReadAirnodeChainPrice(address airnode, uint256 chainId)
-        public
-        view
-        override
-        returns (bool success, uint256 price)
-    {
+    function tryReadAirnodeChainPrice(
+        address airnode,
+        uint256 chainId
+    ) public view override returns (bool success, uint256 price) {
         (success, price) = tryReadRegisteredUint256(
             keccak256(abi.encodePacked(airnode, chainId))
         );
@@ -252,12 +240,10 @@ contract AirnodeEndpointPriceRegistry is
     /// @param endpointId Endpoint ID
     /// @return success If the price was registered
     /// @return price 30 day price in USD (times 10^18)
-    function tryReadAirnodeEndpointPrice(address airnode, bytes32 endpointId)
-        public
-        view
-        override
-        returns (bool success, uint256 price)
-    {
+    function tryReadAirnodeEndpointPrice(
+        address airnode,
+        bytes32 endpointId
+    ) public view override returns (bool success, uint256 price) {
         (success, price) = tryReadRegisteredUint256(
             keccak256(abi.encodePacked(SALT, airnode, endpointId))
         );

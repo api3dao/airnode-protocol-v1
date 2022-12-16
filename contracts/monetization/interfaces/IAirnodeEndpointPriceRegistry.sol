@@ -65,33 +65,33 @@ interface IAirnodeEndpointPriceRegistry {
         uint256 price
     ) external;
 
-    function setEndpointAndChainPricePriority(address airnode, bool status)
-        external;
+    function setEndpointAndChainPricePriority(
+        address airnode,
+        bool status
+    ) external;
 
     function tryReadDefaultPrice()
         external
         view
         returns (bool success, uint256 price);
 
-    function tryReadDefaultChainPrice(uint256 chainId)
-        external
-        view
-        returns (bool success, uint256 price);
+    function tryReadDefaultChainPrice(
+        uint256 chainId
+    ) external view returns (bool success, uint256 price);
 
-    function tryReadAirnodePrice(address airnode)
-        external
-        view
-        returns (bool success, uint256 price);
+    function tryReadAirnodePrice(
+        address airnode
+    ) external view returns (bool success, uint256 price);
 
-    function tryReadAirnodeChainPrice(address airnode, uint256 chainId)
-        external
-        view
-        returns (bool success, uint256 price);
+    function tryReadAirnodeChainPrice(
+        address airnode,
+        uint256 chainId
+    ) external view returns (bool success, uint256 price);
 
-    function tryReadAirnodeEndpointPrice(address airnode, bytes32 endpointId)
-        external
-        view
-        returns (bool success, uint256 price);
+    function tryReadAirnodeEndpointPrice(
+        address airnode,
+        bytes32 endpointId
+    ) external view returns (bool success, uint256 price);
 
     function tryReadAirnodeChainEndpointPrice(
         address airnode,
@@ -105,10 +105,9 @@ interface IAirnodeEndpointPriceRegistry {
         bytes32 endpointId
     ) external view returns (uint256 price);
 
-    function prioritizeEndpointPriceOverChainPrice(address airnode)
-        external
-        view
-        returns (bool);
+    function prioritizeEndpointPriceOverChainPrice(
+        address airnode
+    ) external view returns (bool);
 
     // solhint-disable-next-line func-name-mixedcase
     function DENOMINATION() external view returns (string memory);

@@ -28,13 +28,15 @@ interface IProxyFactory {
         bytes metadata
     );
 
-    function deployDataFeedProxy(bytes32 dataFeedId, bytes calldata metadata)
-        external
-        returns (address proxyAddress);
+    function deployDataFeedProxy(
+        bytes32 dataFeedId,
+        bytes calldata metadata
+    ) external returns (address proxyAddress);
 
-    function deployDapiProxy(bytes32 dapiName, bytes calldata metadata)
-        external
-        returns (address proxyAddress);
+    function deployDapiProxy(
+        bytes32 dapiName,
+        bytes calldata metadata
+    ) external returns (address proxyAddress);
 
     function deployDataFeedProxyWithOev(
         bytes32 dataFeedId,

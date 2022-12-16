@@ -57,11 +57,10 @@ contract StorageUtils is IStorageUtils {
     /// @param endpointId Endpoint ID (allowed to be `bytes32(0)`)
     /// @param parameters Template parameters, encoded in Airnode ABI
     /// @return templateId Template ID
-    function announceTemplate(bytes32 endpointId, bytes calldata parameters)
-        public
-        override
-        returns (bytes32 templateId)
-    {
+    function announceTemplate(
+        bytes32 endpointId,
+        bytes calldata parameters
+    ) public override returns (bytes32 templateId) {
         require(
             parameters.length <= MAXIMUM_PARAMETER_LENGTH,
             "Parameters too long"
@@ -74,11 +73,10 @@ contract StorageUtils is IStorageUtils {
     /// @param endpointId Endpoint ID (allowed to be `bytes32(0)`)
     /// @param parameters Template parameters, encoded in Airnode ABI
     /// @return templateId Template ID
-    function storeTemplate(bytes32 endpointId, bytes calldata parameters)
-        external
-        override
-        returns (bytes32 templateId)
-    {
+    function storeTemplate(
+        bytes32 endpointId,
+        bytes calldata parameters
+    ) external override returns (bytes32 templateId) {
         templateId = announceTemplate(endpointId, parameters);
         templates[templateId] = Template({
             endpointId: endpointId,

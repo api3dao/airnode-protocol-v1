@@ -184,9 +184,9 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
         bytes calldata signature
     ) external;
 
-    function updateBeaconSetWithBeacons(bytes32[] memory beaconIds)
-        external
-        returns (bytes32 beaconSetId);
+    function updateBeaconSetWithBeacons(
+        bytes32[] memory beaconIds
+    ) external returns (bytes32 beaconSetId);
 
     function conditionPspBeaconSetUpdate(
         bytes32 subscriptionId,
@@ -240,40 +240,34 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
 
     function setDapiName(bytes32 dapiName, bytes32 dataFeedId) external;
 
-    function dapiNameToDataFeedId(bytes32 dapiName)
-        external
-        view
-        returns (bytes32);
+    function dapiNameToDataFeedId(
+        bytes32 dapiName
+    ) external view returns (bytes32);
 
-    function readDataFeedWithDapiNameHash(bytes32 dapiNameHash)
-        external
-        view
-        returns (int224 value, uint32 timestamp);
+    function readDataFeedWithDapiNameHash(
+        bytes32 dapiNameHash
+    ) external view returns (int224 value, uint32 timestamp);
 
-    function readDataFeedWithIdAsOevProxy(bytes32 dataFeedId)
-        external
-        view
-        returns (int224 value, uint32 timestamp);
+    function readDataFeedWithIdAsOevProxy(
+        bytes32 dataFeedId
+    ) external view returns (int224 value, uint32 timestamp);
 
-    function readDataFeedWithDapiNameHashAsOevProxy(bytes32 dapiNameHash)
-        external
-        view
-        returns (int224 value, uint32 timestamp);
+    function readDataFeedWithDapiNameHashAsOevProxy(
+        bytes32 dapiNameHash
+    ) external view returns (int224 value, uint32 timestamp);
 
-    function aggregateBeacons(bytes32[] memory beaconIds)
-        external
-        view
-        returns (int224 value, uint32 timestamp);
+    function aggregateBeacons(
+        bytes32[] memory beaconIds
+    ) external view returns (int224 value, uint32 timestamp);
 
-    function deriveBeaconId(address airnode, bytes32 templateId)
-        external
-        pure
-        returns (bytes32 beaconId);
+    function deriveBeaconId(
+        address airnode,
+        bytes32 templateId
+    ) external pure returns (bytes32 beaconId);
 
-    function deriveBeaconSetId(bytes32[] memory beaconIds)
-        external
-        pure
-        returns (bytes32 beaconSetId);
+    function deriveBeaconSetId(
+        bytes32[] memory beaconIds
+    ) external pure returns (bytes32 beaconSetId);
 
     // solhint-disable-next-line func-name-mixedcase
     function DAPI_NAME_SETTER_ROLE_DESCRIPTION()
@@ -291,23 +285,20 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
         address updateRequester
     ) external view returns (bool);
 
-    function subscriptionIdToBeaconId(bytes32 subscriptionId)
-        external
-        view
-        returns (bytes32);
+    function subscriptionIdToBeaconId(
+        bytes32 subscriptionId
+    ) external view returns (bytes32);
 
-    function dataFeeds(bytes32 dataFeedId)
-        external
-        view
-        returns (int224 value, uint32 timestamp);
+    function dataFeeds(
+        bytes32 dataFeedId
+    ) external view returns (int224 value, uint32 timestamp);
 
-    function oevProxyToIdToDataFeed(address proxy, bytes32 dataFeedId)
-        external
-        view
-        returns (int224 value, uint32 timestamp);
+    function oevProxyToIdToDataFeed(
+        address proxy,
+        bytes32 dataFeedId
+    ) external view returns (int224 value, uint32 timestamp);
 
-    function dapiNameHashToDataFeedId(bytes32 dapiNameHash)
-        external
-        view
-        returns (bytes32 dataFeedId);
+    function dapiNameHashToDataFeedId(
+        bytes32 dapiNameHash
+    ) external view returns (bytes32 dataFeedId);
 }

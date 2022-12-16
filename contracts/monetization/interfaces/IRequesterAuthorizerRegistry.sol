@@ -15,8 +15,7 @@ interface IRequesterAuthorizerRegistry is IAddressRegistry {
         address requesterAuthorizer
     ) external;
 
-    function tryReadChainRequesterAuthorizer(uint256 chainId)
-        external
-        view
-        returns (bool success, address requesterAuthorizer);
+    function tryReadChainRequesterAuthorizer(
+        uint256 chainId
+    ) external view returns (bool success, address requesterAuthorizer);
 }

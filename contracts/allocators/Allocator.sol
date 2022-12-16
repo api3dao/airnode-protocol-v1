@@ -81,12 +81,10 @@ abstract contract Allocator is ERC2771Context, IAllocator {
     /// @param airnode Airnode address
     /// @param slotIndex Index of the subscription slot that was set
     /// @return If the setter of the slot can still set slots
-    function setterOfSlotIsCanStillSet(address airnode, uint256 slotIndex)
-        public
-        view
-        virtual
-        override
-        returns (bool);
+    function setterOfSlotIsCanStillSet(
+        address airnode,
+        uint256 slotIndex
+    ) public view virtual override returns (bool);
 
     /// @notice Called privately to reset a slot
     /// @param airnode Airnode address

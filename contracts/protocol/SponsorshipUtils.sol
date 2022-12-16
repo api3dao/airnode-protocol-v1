@@ -35,10 +35,10 @@ contract SponsorshipUtils is ISponsorshipUtils {
     /// a state change has occurred or not.
     /// @param requester RRP requester address
     /// @param status Sponsorship status
-    function setRrpSponsorshipStatus(address requester, bool status)
-        external
-        override
-    {
+    function setRrpSponsorshipStatus(
+        address requester,
+        bool status
+    ) external override {
         require(requester != address(0), "Requester address zero");
         sponsorToRequesterToRrpSponsorshipStatus[msg.sender][
             requester
@@ -50,10 +50,10 @@ contract SponsorshipUtils is ISponsorshipUtils {
     /// subscription
     /// @param subscriptionId Subscription ID
     /// @param status Sponsorship status
-    function setPspSponsorshipStatus(bytes32 subscriptionId, bool status)
-        external
-        override
-    {
+    function setPspSponsorshipStatus(
+        bytes32 subscriptionId,
+        bool status
+    ) external override {
         require(subscriptionId != bytes32(0), "Subscription ID zero");
         sponsorToSubscriptionIdToPspSponsorshipStatus[msg.sender][
             subscriptionId

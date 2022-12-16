@@ -16,8 +16,10 @@ interface ISponsorshipUtils {
 
     function setRrpSponsorshipStatus(address requester, bool status) external;
 
-    function setPspSponsorshipStatus(bytes32 subscriptionId, bool status)
-        external;
+    function setPspSponsorshipStatus(
+        bytes32 subscriptionId,
+        bool status
+    ) external;
 
     function sponsorToRequesterToRrpSponsorshipStatus(
         address sponsor,

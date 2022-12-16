@@ -139,12 +139,9 @@ contract RequesterAuthorizerWithAirnode is
     /// @notice Derives the admin role for the Airnode
     /// @param airnode Airnode address
     /// @return adminRole Admin role
-    function deriveAdminRole(address airnode)
-        external
-        view
-        override
-        returns (bytes32 adminRole)
-    {
+    function deriveAdminRole(
+        address airnode
+    ) external view override returns (bytes32 adminRole) {
         adminRole = _deriveAdminRole(airnode);
     }
 
@@ -153,7 +150,9 @@ contract RequesterAuthorizerWithAirnode is
     /// @param airnode Airnode address
     /// @return authorizationExpirationExtenderRole Authorization expiration
     /// extender role
-    function deriveAuthorizationExpirationExtenderRole(address airnode)
+    function deriveAuthorizationExpirationExtenderRole(
+        address airnode
+    )
         public
         view
         override
@@ -170,12 +169,9 @@ contract RequesterAuthorizerWithAirnode is
     /// @param airnode Airnode address
     /// @return authorizationExpirationSetterRole Authorization expiration
     /// setter role
-    function deriveAuthorizationExpirationSetterRole(address airnode)
-        public
-        view
-        override
-        returns (bytes32 authorizationExpirationSetterRole)
-    {
+    function deriveAuthorizationExpirationSetterRole(
+        address airnode
+    ) public view override returns (bytes32 authorizationExpirationSetterRole) {
         authorizationExpirationSetterRole = _deriveRole(
             _deriveAdminRole(airnode),
             AUTHORIZATION_EXPIRATION_SETTER_ROLE_DESCRIPTION_HASH
@@ -185,12 +181,9 @@ contract RequesterAuthorizerWithAirnode is
     /// @notice Derives the indefinite authorizer role for the Airnode
     /// @param airnode Airnode address
     /// @return indefiniteAuthorizerRole Indefinite authorizer role
-    function deriveIndefiniteAuthorizerRole(address airnode)
-        public
-        view
-        override
-        returns (bytes32 indefiniteAuthorizerRole)
-    {
+    function deriveIndefiniteAuthorizerRole(
+        address airnode
+    ) public view override returns (bytes32 indefiniteAuthorizerRole) {
         indefiniteAuthorizerRole = _deriveRole(
             _deriveAdminRole(airnode),
             INDEFINITE_AUTHORIZER_ROLE_DESCRIPTION_HASH

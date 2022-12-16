@@ -8,23 +8,19 @@ interface IRequesterAuthorizerWithAirnode is
     IAccessControlRegistryAdminned,
     IRequesterAuthorizer
 {
-    function deriveAdminRole(address airnode)
-        external
-        view
-        returns (bytes32 role);
+    function deriveAdminRole(
+        address airnode
+    ) external view returns (bytes32 role);
 
-    function deriveAuthorizationExpirationExtenderRole(address airnode)
-        external
-        view
-        returns (bytes32 role);
+    function deriveAuthorizationExpirationExtenderRole(
+        address airnode
+    ) external view returns (bytes32 role);
 
-    function deriveAuthorizationExpirationSetterRole(address airnode)
-        external
-        view
-        returns (bytes32 role);
+    function deriveAuthorizationExpirationSetterRole(
+        address airnode
+    ) external view returns (bytes32 role);
 
-    function deriveIndefiniteAuthorizerRole(address airnode)
-        external
-        view
-        returns (bytes32 role);
+    function deriveIndefiniteAuthorizerRole(
+        address airnode
+    ) external view returns (bytes32 role);
 }

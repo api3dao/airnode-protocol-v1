@@ -6,9 +6,10 @@ import "../AirnodeRequester.sol";
 contract MockSponsor is AirnodeRequester {
     constructor(address _airnodeProtocol) AirnodeRequester(_airnodeProtocol) {}
 
-    function requestWithdrawal(address airnodeOrRelayer, uint256 protocolId)
-        external
-    {
+    function requestWithdrawal(
+        address airnodeOrRelayer,
+        uint256 protocolId
+    ) external {
         IAirnodeProtocol(airnodeProtocol).requestWithdrawal(
             airnodeOrRelayer,
             protocolId

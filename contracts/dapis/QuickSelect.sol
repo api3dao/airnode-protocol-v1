@@ -10,11 +10,10 @@ contract Quickselect {
     /// @param array Array in which k-th largest element will be searched
     /// @param k K
     /// @return indK Index of the k-th largest element
-    function quickselectK(int256[] memory array, uint256 k)
-        internal
-        pure
-        returns (uint256 indK)
-    {
+    function quickselectK(
+        int256[] memory array,
+        uint256 k
+    ) internal pure returns (uint256 indK) {
         (indK, ) = quickselect(array, 0, array.length - 1, k, false);
     }
 
@@ -25,11 +24,10 @@ contract Quickselect {
     /// @param k K
     /// @return indK Index of the k-th largest element
     /// @return indKPlusOne Index of the (k+1)-th largest element
-    function quickselectKPlusOne(int256[] memory array, uint256 k)
-        internal
-        pure
-        returns (uint256 indK, uint256 indKPlusOne)
-    {
+    function quickselectKPlusOne(
+        int256[] memory array,
+        uint256 k
+    ) internal pure returns (uint256 indK, uint256 indKPlusOne) {
         uint256 arrayLength = array.length;
         require(arrayLength > 1, "Array too short to select k+1");
         return quickselect(array, 0, arrayLength - 1, k, true);
