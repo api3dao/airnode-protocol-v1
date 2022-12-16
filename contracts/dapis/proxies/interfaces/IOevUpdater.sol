@@ -11,7 +11,6 @@ interface IOevUpdater {
         bytes32[] memory templateIds,
         uint256[] memory timestamps,
         bytes[] memory data,
-        uint256 expirationTimestamp,
         bytes[] memory signatures
     ) external payable;
 
