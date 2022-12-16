@@ -44,6 +44,5 @@ contract DapiProxy is IDapiProxy {
     {
         (value, timestamp) = IDapiServer(dapiServer)
             .readDataFeedWithDapiNameHash(dapiNameHash);
-        require(timestamp > 0, "dAPI not initialized");
     }
 }

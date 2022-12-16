@@ -66,21 +66,21 @@ describe('DapiProxy', function () {
 
   describe('read', function () {
     context('dAPI name is set', function () {
-      context('dAPI is initialized', function () {
+      context('Data feed is initialized', function () {
         it('reads', async function () {
           const dataFeed = await dapiProxy.read();
           expect(dataFeed.value).to.equal(beaconValue);
           expect(dataFeed.timestamp).to.equal(beaconTimestamp);
         });
       });
-      context('dAPI is not initialized', function () {
+      context('Data feed is not initialized', function () {
         it('reverts', async function () {
           const uninitializedDapiName = hre.ethers.utils.formatBytes32String('My uninitialized dAPI');
           const uninitializedDapiNameHash = hre.ethers.utils.solidityKeccak256(['bytes32'], [uninitializedDapiName]);
           await dapiServer.connect(roles.manager).setDapiName(uninitializedDapiName, testUtils.generateRandomBytes32());
           const dapiProxyFactory = await hre.ethers.getContractFactory('DapiProxy', roles.deployer);
           dapiProxy = await dapiProxyFactory.deploy(dapiServer.address, uninitializedDapiNameHash);
-          await expect(dapiProxy.read()).to.be.revertedWith('dAPI not initialized');
+          await expect(dapiProxy.read()).to.be.revertedWith('Data feed not initialized');
         });
       });
     });

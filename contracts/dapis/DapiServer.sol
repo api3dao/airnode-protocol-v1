@@ -996,7 +996,8 @@ contract DapiServer is
         bytes32 dataFeedId = dapiNameHashToDataFeedId[dapiNameHash];
         require(dataFeedId != bytes32(0), "dAPI name not set");
         DataFeed storage dataFeed = dataFeeds[dataFeedId];
-        return (dataFeed.value, dataFeed.timestamp);
+        (value, timestamp) = (dataFeed.value, dataFeed.timestamp);
+        require(timestamp > 0, "Data feed not initialized");
     }
 
     /// @notice Reads the data feed as the OEV proxy with ID
@@ -1031,10 +1032,11 @@ contract DapiServer is
         ];
         DataFeed storage dataFeed = dataFeeds[dataFeedId];
         if (oevDataFeed.timestamp > dataFeed.timestamp) {
-            return (oevDataFeed.value, oevDataFeed.timestamp);
+            (value, timestamp) = (oevDataFeed.value, oevDataFeed.timestamp);
         } else {
-            return (dataFeed.value, dataFeed.timestamp);
+            (value, timestamp) = (dataFeed.value, dataFeed.timestamp);
         }
+        require(timestamp > 0, "Data feed not initialized");
     }
 
     /// @notice Aggregates the Beacons and returns the result

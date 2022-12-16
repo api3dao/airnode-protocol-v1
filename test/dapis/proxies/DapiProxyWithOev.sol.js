@@ -545,14 +545,14 @@ describe('DapiProxyWithOev', function () {
 
   describe('read', function () {
     context('dAPI name is set', function () {
-      context('dAPI is initialized', function () {
+      context('Data feed is initialized', function () {
         it('reads', async function () {
           const dataFeed = await dapiProxyWithOev.read();
           expect(dataFeed.value).to.equal(beaconValue);
           expect(dataFeed.timestamp).to.equal(beaconTimestamp);
         });
       });
-      context('dAPI is not initialized', function () {
+      context('Data feed is not initialized', function () {
         it('reverts', async function () {
           const uninitializedDapiName = hre.ethers.utils.formatBytes32String('My uninitialized dAPI');
           const uninitializedDapiNameHash = hre.ethers.utils.solidityKeccak256(['bytes32'], [uninitializedDapiName]);
@@ -563,7 +563,7 @@ describe('DapiProxyWithOev', function () {
             uninitializedDapiNameHash,
             roles.oevBeneficiary.address
           );
-          await expect(dapiProxyWithOev.read()).to.be.revertedWith('dAPI not initialized');
+          await expect(dapiProxyWithOev.read()).to.be.revertedWith('Data feed not initialized');
         });
       });
     });

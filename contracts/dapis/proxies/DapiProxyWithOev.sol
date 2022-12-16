@@ -124,6 +124,5 @@ contract DapiProxyWithOev is DapiProxy, IOevUpdater {
     {
         (value, timestamp) = IDapiServer(dapiServer)
             .readDataFeedWithDapiNameHashAsOevProxy(dapiNameHash);
-        require(timestamp > 0, "dAPI not initialized");
     }
 }
