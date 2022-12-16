@@ -43,7 +43,6 @@ contract DataFeedProxyWithOev is DataFeedProxy, IOevUpdater {
     /// @param data Response data (an `int256` encoded in contract ABI per
     /// Beacon)
     /// @param expirationTimestamp Expiration timestamp of the signatures
-    /// @param bidAmount Amount of the bid that won the OEV auction
     /// @param signatures Template ID, a timestamp and the response data signed
     /// for the specific bid by the respective Airnode address per Beacon
     function updateOevProxyDataFeedWithSignedData(
@@ -52,11 +51,9 @@ contract DataFeedProxyWithOev is DataFeedProxy, IOevUpdater {
         uint256[] memory timestamps,
         bytes[] memory data,
         uint256 expirationTimestamp,
-        uint256 bidAmount,
         bytes[] memory signatures
     ) external payable {
         require(block.timestamp < expirationTimestamp, "Expired signature");
-        require(msg.value == bidAmount, "Invalid bid amount");
         IDapiServer(dapiServer).updateOevProxyDataFeedWithSignedData(
             airnodes,
             templateIds,
@@ -67,7 +64,7 @@ contract DataFeedProxyWithOev is DataFeedProxy, IOevUpdater {
                 address(this),
                 msg.sender,
                 expirationTimestamp,
-                bidAmount
+                msg.value
             ),
             signatures
         );

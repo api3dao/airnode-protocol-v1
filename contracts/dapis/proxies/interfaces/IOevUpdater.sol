@@ -10,7 +10,6 @@ interface IOevUpdater {
         uint256[] memory timestamps,
         bytes[] memory data,
         uint256 expirationTimestamp,
-        uint256 bidAmount,
         bytes[] memory signatures
     ) external payable;
 

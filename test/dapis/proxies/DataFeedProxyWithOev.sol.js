@@ -124,7 +124,6 @@ describe('DataFeedProxyWithOev', function () {
               [timestamp],
               [data],
               expirationTimestamp,
-              bidAmount,
               [signature],
               {
                 value: bidAmount,
@@ -179,7 +178,6 @@ describe('DataFeedProxyWithOev', function () {
               [timestamp],
               [data],
               expirationTimestamp,
-              bidAmount,
               [signature],
               {
                 value: bidAmount,
@@ -236,7 +234,6 @@ describe('DataFeedProxyWithOev', function () {
                   [timestamp],
                   [data],
                   expirationTimestamp,
-                  bidAmount,
                   [signature],
                   {
                     value: bidAmount,
@@ -285,10 +282,9 @@ describe('DataFeedProxyWithOev', function () {
                   [timestamp],
                   [data],
                   expirationTimestamp,
-                  bidAmount,
                   [signature]
                 )
-            ).to.be.revertedWith('Invalid bid amount');
+            ).to.be.revertedWith('Signature mismatch');
           });
         });
       });
@@ -327,7 +323,6 @@ describe('DataFeedProxyWithOev', function () {
                 [timestamp],
                 [data],
                 expirationTimestamp,
-                bidAmount,
                 [signature],
                 {
                   value: bidAmount,
@@ -403,7 +398,6 @@ describe('DataFeedProxyWithOev', function () {
                   [timestamp, timestamp, timestamp],
                   [data, data, data],
                   expirationTimestamp,
-                  bidAmount,
                   [signature0, signature1, signature2],
                   {
                     value: bidAmount,
@@ -481,10 +475,9 @@ describe('DataFeedProxyWithOev', function () {
                   [timestamp, timestamp, timestamp],
                   [data, data, data],
                   expirationTimestamp,
-                  bidAmount,
                   [signature0, signature1, signature2]
                 )
-            ).to.be.revertedWith('Invalid bid amount');
+            ).to.be.revertedWith('Signature mismatch');
           });
         });
       });
@@ -552,7 +545,6 @@ describe('DataFeedProxyWithOev', function () {
                 [timestamp, timestamp, timestamp],
                 [data, data, data],
                 expirationTimestamp,
-                bidAmount,
                 [signature0, signature1, signature2],
                 {
                   value: bidAmount,
