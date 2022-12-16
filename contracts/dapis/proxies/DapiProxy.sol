@@ -26,10 +26,10 @@ contract DapiProxy is IDapiProxy {
     bytes32 public immutable override dapiNameHash;
 
     /// @param _dapiServer DapiServer address
-    /// @param _dapiName dAPI name
-    constructor(address _dapiServer, bytes32 _dapiName) {
+    /// @param _dapiNameHash Hash of the dAPI name
+    constructor(address _dapiServer, bytes32 _dapiNameHash) {
         dapiServer = _dapiServer;
-        dapiNameHash = keccak256(abi.encodePacked(_dapiName));
+        dapiNameHash = _dapiNameHash;
     }
 
     /// @notice Reads the dAPI that this proxy maps to

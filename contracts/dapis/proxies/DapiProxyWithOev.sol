@@ -13,13 +13,13 @@ contract DapiProxyWithOev is DapiProxy, IOevUpdater {
     address public immutable override oevBeneficiary;
 
     /// @param _dapiServer DapiServer address
-    /// @param _dapiName dAPI name
+    /// @param _dapiNameHash Hash of the dAPI name
     /// @param _oevBeneficiary OEV beneficiary
     constructor(
         address _dapiServer,
-        bytes32 _dapiName,
+        bytes32 _dapiNameHash,
         address _oevBeneficiary
-    ) DapiProxy(_dapiServer, _dapiName) {
+    ) DapiProxy(_dapiServer, _dapiNameHash) {
         oevBeneficiary = _oevBeneficiary;
     }
 

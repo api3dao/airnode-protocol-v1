@@ -8,6 +8,7 @@ describe('ProxyFactory', function () {
   let dapiServerAdminRoleDescription = 'DapiServer admin';
   let beaconId, beaconValue, beaconTimestamp;
   const dapiName = hre.ethers.utils.formatBytes32String('My dAPI');
+  const dapiNameHash = hre.ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
 
   beforeEach(async () => {
     const accounts = await hre.ethers.getSigners();
@@ -135,7 +136,7 @@ describe('ProxyFactory', function () {
           ['bytes', 'bytes'],
           [
             DapiProxy.bytecode,
-            hre.ethers.utils.defaultAbiCoder.encode(['address', 'bytes32'], [dapiServer.address, dapiName]),
+            hre.ethers.utils.defaultAbiCoder.encode(['address', 'bytes32'], [dapiServer.address, dapiNameHash]),
           ]
         );
         // metadata includes information like coverage policy ID, etc.
@@ -155,7 +156,7 @@ describe('ProxyFactory', function () {
 
         // Confirm that the bytecode is the same
         const dapiProxyFactory = await hre.ethers.getContractFactory('DapiProxy', roles.deployer);
-        const eoaDeployedDapiProxy = await dapiProxyFactory.deploy(dapiServer.address, dapiName);
+        const eoaDeployedDapiProxy = await dapiProxyFactory.deploy(dapiServer.address, dapiNameHash);
         expect(await hre.ethers.provider.getCode(proxyAddress)).to.equal(
           await hre.ethers.provider.getCode(eoaDeployedDapiProxy.address)
         );
@@ -268,7 +269,7 @@ describe('ProxyFactory', function () {
               DapiProxyWithOev.bytecode,
               hre.ethers.utils.defaultAbiCoder.encode(
                 ['address', 'bytes32', 'address'],
-                [dapiServer.address, dapiName, roles.oevBeneficiary.address]
+                [dapiServer.address, dapiNameHash, roles.oevBeneficiary.address]
               ),
             ]
           );
@@ -293,7 +294,7 @@ describe('ProxyFactory', function () {
           const dataFeedProxyFactory = await hre.ethers.getContractFactory('DapiProxyWithOev', roles.deployer);
           const eoaDeployedDapiProxyWithOev = await dataFeedProxyFactory.deploy(
             dapiServer.address,
-            dapiName,
+            dapiNameHash,
             roles.oevBeneficiary.address
           );
           expect(await hre.ethers.provider.getCode(proxyAddress)).to.equal(

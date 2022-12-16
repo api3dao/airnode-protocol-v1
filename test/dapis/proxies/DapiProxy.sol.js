@@ -30,7 +30,7 @@ describe('DapiProxy', function () {
       airnodeProtocol.address
     );
     const dapiProxyFactory = await hre.ethers.getContractFactory('DapiProxy', roles.deployer);
-    dapiProxy = await dapiProxyFactory.deploy(dapiServer.address, dapiName);
+    dapiProxy = await dapiProxyFactory.deploy(dapiServer.address, dapiNameHash);
     const airnodeData = testUtils.generateRandomAirnodeWallet();
     const airnodeAddress = airnodeData.airnodeAddress;
     const airnodeWallet = hre.ethers.Wallet.fromMnemonic(airnodeData.airnodeMnemonic, "m/44'/60'/0'/0/0");
@@ -75,10 +75,11 @@ describe('DapiProxy', function () {
       });
       context('dAPI is not initialized', function () {
         it('reverts', async function () {
-          const dapiName = hre.ethers.utils.formatBytes32String('My uninitialized dAPI');
-          await dapiServer.connect(roles.manager).setDapiName(dapiName, testUtils.generateRandomBytes32());
+          const uninitializedDapiName = hre.ethers.utils.formatBytes32String('My uninitialized dAPI');
+          const uninitializedDapiNameHash = hre.ethers.utils.solidityKeccak256(['bytes32'], [uninitializedDapiName]);
+          await dapiServer.connect(roles.manager).setDapiName(uninitializedDapiName, testUtils.generateRandomBytes32());
           const dapiProxyFactory = await hre.ethers.getContractFactory('DapiProxy', roles.deployer);
-          dapiProxy = await dapiProxyFactory.deploy(dapiServer.address, dapiName);
+          dapiProxy = await dapiProxyFactory.deploy(dapiServer.address, uninitializedDapiNameHash);
           await expect(dapiProxy.read()).to.be.revertedWith('dAPI not initialized');
         });
       });
@@ -86,8 +87,9 @@ describe('DapiProxy', function () {
     context('dAPI name is not set', function () {
       it('reverts', async function () {
         const unsetDapiName = hre.ethers.utils.formatBytes32String('My unset dAPI');
+        const unsetDapiNameHash = hre.ethers.utils.solidityKeccak256(['bytes32'], [unsetDapiName]);
         const dapiProxyFactory = await hre.ethers.getContractFactory('DapiProxy', roles.deployer);
-        dapiProxy = await dapiProxyFactory.deploy(dapiServer.address, unsetDapiName);
+        dapiProxy = await dapiProxyFactory.deploy(dapiServer.address, unsetDapiNameHash);
         await expect(dapiProxy.read()).to.be.revertedWith('dAPI name not set');
       });
     });

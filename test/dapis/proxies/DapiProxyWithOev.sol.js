@@ -39,7 +39,11 @@ describe('DapiProxyWithOev', function () {
       airnodeProtocol.address
     );
     const dapiProxyWithOevFactory = await hre.ethers.getContractFactory('DapiProxyWithOev', roles.deployer);
-    dapiProxyWithOev = await dapiProxyWithOevFactory.deploy(dapiServer.address, dapiName, roles.oevBeneficiary.address);
+    dapiProxyWithOev = await dapiProxyWithOevFactory.deploy(
+      dapiServer.address,
+      dapiNameHash,
+      roles.oevBeneficiary.address
+    );
     const airnodeData = testUtils.generateRandomAirnodeWallet();
     airnodeAddress = airnodeData.airnodeAddress;
     airnodeWallet = hre.ethers.Wallet.fromMnemonic(airnodeData.airnodeMnemonic, "m/44'/60'/0'/0/0");
@@ -144,7 +148,7 @@ describe('DapiProxyWithOev', function () {
           const dapiProxyWithOevFactory = await hre.ethers.getContractFactory('DapiProxyWithOev', roles.deployer);
           dapiProxyWithOev = await dapiProxyWithOevFactory.deploy(
             dapiServer.address,
-            dapiName,
+            dapiNameHash,
             mockOevBeneficiary.address
           );
           const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
@@ -550,12 +554,13 @@ describe('DapiProxyWithOev', function () {
       });
       context('dAPI is not initialized', function () {
         it('reverts', async function () {
-          const dapiName = hre.ethers.utils.formatBytes32String('My uninitialized dAPI');
-          await dapiServer.connect(roles.manager).setDapiName(dapiName, testUtils.generateRandomBytes32());
+          const uninitializedDapiName = hre.ethers.utils.formatBytes32String('My uninitialized dAPI');
+          const uninitializedDapiNameHash = hre.ethers.utils.solidityKeccak256(['bytes32'], [uninitializedDapiName]);
+          await dapiServer.connect(roles.manager).setDapiName(uninitializedDapiName, testUtils.generateRandomBytes32());
           const dapiProxyWithOevFactory = await hre.ethers.getContractFactory('DapiProxyWithOev', roles.deployer);
           dapiProxyWithOev = await dapiProxyWithOevFactory.deploy(
             dapiServer.address,
-            dapiName,
+            uninitializedDapiNameHash,
             roles.oevBeneficiary.address
           );
           await expect(dapiProxyWithOev.read()).to.be.revertedWith('dAPI not initialized');
@@ -565,10 +570,11 @@ describe('DapiProxyWithOev', function () {
     context('dAPI name is not set', function () {
       it('reverts', async function () {
         const unsetDapiName = hre.ethers.utils.formatBytes32String('My unset dAPI');
+        const unsetDapiNameHash = hre.ethers.utils.solidityKeccak256(['bytes32'], [unsetDapiName]);
         const dapiProxyWithOevFactory = await hre.ethers.getContractFactory('DapiProxyWithOev', roles.deployer);
         dapiProxyWithOev = await dapiProxyWithOevFactory.deploy(
           dapiServer.address,
-          unsetDapiName,
+          unsetDapiNameHash,
           roles.oevBeneficiary.address
         );
         await expect(dapiProxyWithOev.read()).to.be.revertedWith('dAPI name not set');
