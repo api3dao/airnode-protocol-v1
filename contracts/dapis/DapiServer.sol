@@ -986,6 +986,18 @@ contract DapiServer is
         return dapiNameHashToDataFeedId[keccak256(abi.encodePacked(dapiName))];
     }
 
+    /// @notice Reads the data feed with ID
+    /// @param dataFeedId Data feed ID
+    /// @return value Data feed value
+    /// @return timestamp Data feed timestamp
+    function readDataFeedWithId(
+        bytes32 dataFeedId
+    ) external view override returns (int224 value, uint32 timestamp) {
+        DataFeed storage dataFeed = dataFeeds[dataFeedId];
+        (value, timestamp) = (dataFeed.value, dataFeed.timestamp);
+        require(timestamp > 0, "Data feed not initialized");
+    }
+
     /// @notice Reads the data feed with dAPI name hash
     /// @param dapiNameHash dAPI name hash
     /// @return value Data feed value
@@ -1012,10 +1024,11 @@ contract DapiServer is
         ];
         DataFeed storage dataFeed = dataFeeds[dataFeedId];
         if (oevDataFeed.timestamp > dataFeed.timestamp) {
-            return (oevDataFeed.value, oevDataFeed.timestamp);
+            (value, timestamp) = (oevDataFeed.value, oevDataFeed.timestamp);
         } else {
-            return (dataFeed.value, dataFeed.timestamp);
+            (value, timestamp) = (dataFeed.value, dataFeed.timestamp);
         }
+        require(timestamp > 0, "Data feed not initialized");
     }
 
     /// @notice Reads the data feed as the OEV proxy with dAPI name hash

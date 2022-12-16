@@ -42,7 +42,8 @@ contract DataFeedProxy is IDataFeedProxy {
         override
         returns (int224 value, uint32 timestamp)
     {
-        (value, timestamp) = IDapiServer(dapiServer).dataFeeds(dataFeedId);
-        require(timestamp > 0, "Data feed not initialized");
+        (value, timestamp) = IDapiServer(dapiServer).readDataFeedWithId(
+            dataFeedId
+        );
     }
 }

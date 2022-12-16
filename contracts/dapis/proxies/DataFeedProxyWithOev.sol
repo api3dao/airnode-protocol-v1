@@ -124,6 +124,5 @@ contract DataFeedProxyWithOev is DataFeedProxy, IOevUpdater {
     {
         (value, timestamp) = IDapiServer(dapiServer)
             .readDataFeedWithIdAsOevProxy(dataFeedId);
-        require(timestamp > 0, "Data feed not initialized");
     }
 }
