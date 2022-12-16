@@ -830,12 +830,12 @@ contract DapiServer is
     /// signed by the respective Airnode address per Beacon
     /// @return dataFeedId Data feed ID
     function updateOevProxyDataFeedWithSignedData(
-        address[] memory airnodes,
-        bytes32[] memory templateIds,
-        uint256[] memory timestamps,
-        bytes[] memory data,
-        bytes memory metadata,
-        bytes[] memory signatures
+        address[] calldata airnodes,
+        bytes32[] calldata templateIds,
+        uint256[] calldata timestamps,
+        bytes[] calldata data,
+        bytes calldata metadata,
+        bytes[] calldata signatures
     ) external override returns (bytes32 dataFeedId) {
         uint256 beaconCount = airnodes.length;
         require(
@@ -881,9 +881,9 @@ contract DapiServer is
         address airnode,
         bytes32 templateId,
         uint256 timestamp,
-        bytes memory data,
-        bytes memory metadata,
-        bytes memory signature
+        bytes calldata data,
+        bytes calldata metadata,
+        bytes calldata signature
     ) private onlyValidTimestamp(timestamp) returns (bytes32 beaconId) {
         require(
             (
