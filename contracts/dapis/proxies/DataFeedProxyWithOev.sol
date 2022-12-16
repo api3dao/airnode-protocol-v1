@@ -47,11 +47,11 @@ contract DataFeedProxyWithOev is DataFeedProxy, IOevUpdater {
     /// @param signatures Template ID, a timestamp and the response data signed
     /// for the specific bid by the respective Airnode address per Beacon
     function updateOevProxyDataFeedWithSignedData(
-        address[] memory airnodes,
-        bytes32[] memory templateIds,
-        uint256[] memory timestamps,
-        bytes[] memory data,
-        bytes[] memory signatures
+        address[] calldata airnodes,
+        bytes32[] calldata templateIds,
+        uint256[] calldata timestamps,
+        bytes[] calldata data,
+        bytes[] calldata signatures
     ) external payable {
         IDapiServer(dapiServer).updateOevProxyDataFeedWithSignedData(
             airnodes,

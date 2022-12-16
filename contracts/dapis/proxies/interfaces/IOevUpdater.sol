@@ -7,11 +7,11 @@ interface IOevUpdater {
     function withdraw() external;
 
     function updateOevProxyDataFeedWithSignedData(
-        address[] memory airnodes,
-        bytes32[] memory templateIds,
-        uint256[] memory timestamps,
-        bytes[] memory data,
-        bytes[] memory signatures
+        address[] calldata airnodes,
+        bytes32[] calldata templateIds,
+        uint256[] calldata timestamps,
+        bytes[] calldata data,
+        bytes[] calldata signatures
     ) external payable;
 
     function oevBeneficiary() external view returns (address);
