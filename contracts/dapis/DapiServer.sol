@@ -819,24 +819,25 @@ contract DapiServer is
     /// @notice Updates an OEV data feed using data signed by the respective
     /// Airnodes without requiring a request or subscription. The Beacons for
     /// which the signature is omitted will be read from the storage.
-    /// @param airnodes Airnode addresses
-    /// @param templateIds Template IDs
-    /// @param timestamps Timestamps used in the signatures
-    /// @param data Response data (a `uint256` encoded in contract ABI per
-    /// Beacon)
+    /// @param encodedSignedData Encoded data signed for the specific bid by
+    /// the respective Airnode address per Beacon
     /// @param metadata Metadata that the OEV proxy will use (e.g., auction bid
     /// parameters)
-    /// @param signatures Template ID, a timestamp, response data and metadata
-    /// signed by the respective Airnode address per Beacon
     /// @return dataFeedId Data feed ID
-    function updateOevProxyDataFeedWithSignedData(
-        address[] calldata airnodes,
-        bytes32[] calldata templateIds,
-        uint256[] calldata timestamps,
-        bytes[] calldata data,
-        bytes calldata metadata,
-        bytes[] calldata signatures
+    function updateOevProxyDataFeedWithEncodedSignedData(
+        bytes calldata encodedSignedData,
+        bytes calldata metadata
     ) external override returns (bytes32 dataFeedId) {
+        (
+            address[] memory airnodes,
+            bytes32[] memory templateIds,
+            uint256[] memory timestamps,
+            bytes[] memory data,
+            bytes[] memory signatures
+        ) = abi.decode(
+                encodedSignedData,
+                (address[], bytes32[], uint256[], bytes[], bytes[])
+            );
         uint256 beaconCount = airnodes.length;
         require(
             beaconCount == templateIds.length &&
@@ -881,9 +882,9 @@ contract DapiServer is
         address airnode,
         bytes32 templateId,
         uint256 timestamp,
-        bytes calldata data,
-        bytes calldata metadata,
-        bytes calldata signature
+        bytes memory data,
+        bytes memory metadata,
+        bytes memory signature
     ) private onlyValidTimestamp(timestamp) returns (bytes32 beaconId) {
         require(
             (

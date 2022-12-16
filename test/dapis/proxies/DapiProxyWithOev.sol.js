@@ -119,9 +119,15 @@ describe('DapiProxyWithOev', function () {
         );
         await dapiProxyWithOev
           .connect(roles.searcher)
-          .updateOevProxyDataFeedWithSignedData([airnodeAddress], [templateId], [timestamp], [data], [signature], {
-            value: bidAmount,
-          });
+          .updateOevProxyDataFeedWithEncodedSignedData(
+            hre.ethers.utils.defaultAbiCoder.encode(
+              ['address[]', 'bytes32[]', 'uint256[]', 'bytes[]', 'bytes[]'],
+              [[airnodeAddress], [templateId], [timestamp], [data], [signature]]
+            ),
+            {
+              value: bidAmount,
+            }
+          );
         const balanceBefore = await hre.ethers.provider.getBalance(roles.oevBeneficiary.address);
         await dapiProxyWithOev.connect(roles.oevBeneficiary).withdraw();
         const balanceAfter = await hre.ethers.provider.getBalance(roles.oevBeneficiary.address);
@@ -163,15 +169,21 @@ describe('DapiProxyWithOev', function () {
         );
         await dapiProxyWithOev
           .connect(roles.searcher)
-          .updateOevProxyDataFeedWithSignedData([airnodeAddress], [templateId], [timestamp], [data], [signature], {
-            value: bidAmount,
-          });
+          .updateOevProxyDataFeedWithEncodedSignedData(
+            hre.ethers.utils.defaultAbiCoder.encode(
+              ['address[]', 'bytes32[]', 'uint256[]', 'bytes[]', 'bytes[]'],
+              [[airnodeAddress], [templateId], [timestamp], [data], [signature]]
+            ),
+            {
+              value: bidAmount,
+            }
+          );
         await expect(mockOevBeneficiary.withdraw(dapiProxyWithOev.address)).to.be.revertedWith('WithdrawalReverted');
       });
     });
   });
 
-  describe('updateOevProxyDataFeedWithSignedData', function () {
+  describe('updateOevProxyDataFeedWithEncodedSignedData', function () {
     context('Data feed is a Beacon', function () {
       context('Message value equals bid amount', function () {
         it('updates OEV proxy Beacon', async function () {
@@ -200,9 +212,15 @@ describe('DapiProxyWithOev', function () {
           await expect(
             dapiProxyWithOev
               .connect(roles.searcher)
-              .updateOevProxyDataFeedWithSignedData([airnodeAddress], [templateId], [timestamp], [data], [signature], {
-                value: bidAmount,
-              })
+              .updateOevProxyDataFeedWithEncodedSignedData(
+                hre.ethers.utils.defaultAbiCoder.encode(
+                  ['address[]', 'bytes32[]', 'uint256[]', 'bytes[]', 'bytes[]'],
+                  [[airnodeAddress], [templateId], [timestamp], [data], [signature]]
+                ),
+                {
+                  value: bidAmount,
+                }
+              )
           )
             .to.emit(dapiServer, 'UpdatedOevProxyBeaconWithSignedData')
             .withArgs(beaconId, dapiProxyWithOev.address, 123, timestamp);
@@ -238,7 +256,12 @@ describe('DapiProxyWithOev', function () {
           await expect(
             dapiProxyWithOev
               .connect(roles.searcher)
-              .updateOevProxyDataFeedWithSignedData([airnodeAddress], [templateId], [timestamp], [data], [signature])
+              .updateOevProxyDataFeedWithEncodedSignedData(
+                hre.ethers.utils.defaultAbiCoder.encode(
+                  ['address[]', 'bytes32[]', 'uint256[]', 'bytes[]', 'bytes[]'],
+                  [[airnodeAddress], [templateId], [timestamp], [data], [signature]]
+                )
+              )
           ).to.be.revertedWith('Signature mismatch');
         });
       });
@@ -292,12 +315,17 @@ describe('DapiProxyWithOev', function () {
           await expect(
             dapiProxyWithOev
               .connect(roles.searcher)
-              .updateOevProxyDataFeedWithSignedData(
-                [airnodeAddress, airnodeAddress, airnodeAddress],
-                beaconSetTemplateIds,
-                [timestamp, timestamp, timestamp],
-                [data, data, data],
-                [signature0, signature1, signature2],
+              .updateOevProxyDataFeedWithEncodedSignedData(
+                hre.ethers.utils.defaultAbiCoder.encode(
+                  ['address[]', 'bytes32[]', 'uint256[]', 'bytes[]', 'bytes[]'],
+                  [
+                    [airnodeAddress, airnodeAddress, airnodeAddress],
+                    beaconSetTemplateIds,
+                    [timestamp, timestamp, timestamp],
+                    [data, data, data],
+                    [signature0, signature1, signature2],
+                  ]
+                ),
                 {
                   value: bidAmount,
                 }
@@ -358,12 +386,17 @@ describe('DapiProxyWithOev', function () {
           await expect(
             dapiProxyWithOev
               .connect(roles.searcher)
-              .updateOevProxyDataFeedWithSignedData(
-                [airnodeAddress, airnodeAddress, airnodeAddress],
-                beaconSetTemplateIds,
-                [timestamp, timestamp, timestamp],
-                [data, data, data],
-                [signature0, signature1, signature2]
+              .updateOevProxyDataFeedWithEncodedSignedData(
+                hre.ethers.utils.defaultAbiCoder.encode(
+                  ['address[]', 'bytes32[]', 'uint256[]', 'bytes[]', 'bytes[]'],
+                  [
+                    [airnodeAddress, airnodeAddress, airnodeAddress],
+                    beaconSetTemplateIds,
+                    [timestamp, timestamp, timestamp],
+                    [data, data, data],
+                    [signature0, signature1, signature2],
+                  ]
+                )
               )
           ).to.be.revertedWith('Signature mismatch');
         });

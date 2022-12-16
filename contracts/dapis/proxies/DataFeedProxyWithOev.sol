@@ -39,32 +39,19 @@ contract DataFeedProxyWithOev is DataFeedProxy, IOevUpdater {
     /// update the OEV proxy Beacon set
     /// @dev The winner of the auction calls this in a `multicall()` and
     /// extracts the OEV in subsequent calls of the same transaction
-    /// @param airnodes Airnode addresses
-    /// @param templateIds Template IDs
-    /// @param timestamps Timestamps used in the signatures
-    /// @param data Response data (an `int256` encoded in contract ABI per
-    /// Beacon)
-    /// @param signatures Template ID, a timestamp and the response data signed
-    /// for the specific bid by the respective Airnode address per Beacon
-    function updateOevProxyDataFeedWithSignedData(
-        address[] calldata airnodes,
-        bytes32[] calldata templateIds,
-        uint256[] calldata timestamps,
-        bytes[] calldata data,
-        bytes[] calldata signatures
+    /// @param encodedSignedData Encoded data signed for the specific bid by
+    /// the respective Airnode address per Beacon
+    function updateOevProxyDataFeedWithEncodedSignedData(
+        bytes calldata encodedSignedData
     ) external payable {
-        IDapiServer(dapiServer).updateOevProxyDataFeedWithSignedData(
-            airnodes,
-            templateIds,
-            timestamps,
-            data,
+        IDapiServer(dapiServer).updateOevProxyDataFeedWithEncodedSignedData(
+            encodedSignedData,
             abi.encodePacked(
                 block.chainid,
                 address(this),
                 msg.sender,
                 msg.value
-            ),
-            signatures
+            )
         );
     }
 

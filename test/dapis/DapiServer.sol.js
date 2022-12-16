@@ -3110,7 +3110,7 @@ describe('DapiServer', function () {
     });
   });
 
-  describe('updateOevProxyDataFeedWithSignedData', function () {
+  describe('updateOevProxyDataFeedWithEncodedSignedData', function () {
     context('Parameter lengths match', function () {
       context('Specified more than one Beacon', function () {
         context('All signed timestamps are valid', function () {
@@ -3151,13 +3151,18 @@ describe('DapiServer', function () {
                     await expect(
                       dapiServer
                         .connect(roles.oevProxy)
-                        .updateOevProxyDataFeedWithSignedData(
-                          Array(3).fill(airnodeAddress),
-                          beaconSetTemplateIds,
-                          [0, timestamp, timestamp],
-                          ['0x', data1, data2],
-                          metadata,
-                          ['0x', signature1, signature2]
+                        .updateOevProxyDataFeedWithEncodedSignedData(
+                          hre.ethers.utils.defaultAbiCoder.encode(
+                            ['address[]', 'bytes32[]', 'uint256[]', 'bytes[]', 'bytes[]'],
+                            [
+                              Array(3).fill(airnodeAddress),
+                              beaconSetTemplateIds,
+                              [0, timestamp, timestamp],
+                              ['0x', data1, data2],
+                              ['0x', signature1, signature2],
+                            ]
+                          ),
+                          metadata
                         )
                     )
                       .to.emit(dapiServer, 'UpdatedOevProxyBeaconSetWithSignedData')
@@ -3207,13 +3212,18 @@ describe('DapiServer', function () {
                     );
                     await dapiServer
                       .connect(roles.oevProxy)
-                      .updateOevProxyDataFeedWithSignedData(
-                        Array(3).fill(airnodeAddress),
-                        beaconSetTemplateIds,
-                        [timestamp, timestamp, timestamp],
-                        [data, data, data],
-                        metadata,
-                        [initSignature0, initSignature1, initSignature2]
+                      .updateOevProxyDataFeedWithEncodedSignedData(
+                        hre.ethers.utils.defaultAbiCoder.encode(
+                          ['address[]', 'bytes32[]', 'uint256[]', 'bytes[]', 'bytes[]'],
+                          [
+                            Array(3).fill(airnodeAddress),
+                            beaconSetTemplateIds,
+                            [timestamp, timestamp, timestamp],
+                            [data, data, data],
+                            [initSignature0, initSignature1, initSignature2],
+                          ]
+                        ),
+                        metadata
                       );
                     // Set the first beacon to a value
                     timestamp++;
@@ -3243,13 +3253,18 @@ describe('DapiServer', function () {
                     await expect(
                       dapiServer
                         .connect(roles.oevProxy)
-                        .updateOevProxyDataFeedWithSignedData(
-                          Array(3).fill(airnodeAddress),
-                          beaconSetTemplateIds,
-                          [0, timestamp - 5, timestamp - 5],
-                          ['0x', data, data],
-                          metadata,
-                          ['0x', signature1, signature2]
+                        .updateOevProxyDataFeedWithEncodedSignedData(
+                          hre.ethers.utils.defaultAbiCoder.encode(
+                            ['address[]', 'bytes32[]', 'uint256[]', 'bytes[]', 'bytes[]'],
+                            [
+                              Array(3).fill(airnodeAddress),
+                              beaconSetTemplateIds,
+                              [0, timestamp - 5, timestamp - 5],
+                              ['0x', data, data],
+                              ['0x', signature1, signature2],
+                            ]
+                          ),
+                          metadata
                         )
                     ).to.be.revertedWith('Updated value outdated');
                   });
@@ -3290,13 +3305,18 @@ describe('DapiServer', function () {
                   await expect(
                     dapiServer
                       .connect(roles.oevProxy)
-                      .updateOevProxyDataFeedWithSignedData(
-                        Array(3).fill(airnodeAddress),
-                        beaconSetTemplateIds,
-                        [0, timestamp, timestamp],
-                        ['0x', data1, data2],
-                        metadata,
-                        ['0x', signature1, signature2]
+                      .updateOevProxyDataFeedWithEncodedSignedData(
+                        hre.ethers.utils.defaultAbiCoder.encode(
+                          ['address[]', 'bytes32[]', 'uint256[]', 'bytes[]', 'bytes[]'],
+                          [
+                            Array(3).fill(airnodeAddress),
+                            beaconSetTemplateIds,
+                            [0, timestamp, timestamp],
+                            ['0x', data1, data2],
+                            ['0x', signature1, signature2],
+                          ]
+                        ),
+                        metadata
                       )
                   ).to.be.revertedWith('Value typecasting error');
                 });
@@ -3337,13 +3357,18 @@ describe('DapiServer', function () {
                 await expect(
                   dapiServer
                     .connect(roles.oevProxy)
-                    .updateOevProxyDataFeedWithSignedData(
-                      Array(3).fill(airnodeAddress),
-                      beaconSetTemplateIds,
-                      [0, timestamp, timestamp],
-                      ['0x', data1, data2],
-                      metadata,
-                      ['0x', signature1, signature2]
+                    .updateOevProxyDataFeedWithEncodedSignedData(
+                      hre.ethers.utils.defaultAbiCoder.encode(
+                        ['address[]', 'bytes32[]', 'uint256[]', 'bytes[]', 'bytes[]'],
+                        [
+                          Array(3).fill(airnodeAddress),
+                          beaconSetTemplateIds,
+                          [0, timestamp, timestamp],
+                          ['0x', data1, data2],
+                          ['0x', signature1, signature2],
+                        ]
+                      ),
+                      metadata
                     )
                 ).to.be.revertedWith('Data length not correct');
               });
@@ -3374,13 +3399,18 @@ describe('DapiServer', function () {
               await expect(
                 dapiServer
                   .connect(roles.oevProxy)
-                  .updateOevProxyDataFeedWithSignedData(
-                    Array(3).fill(airnodeAddress),
-                    beaconSetTemplateIds,
-                    [0, timestamp, timestamp],
-                    ['0x', data1, data2],
-                    metadata,
-                    ['0x', signature1, '0x12345678']
+                  .updateOevProxyDataFeedWithEncodedSignedData(
+                    hre.ethers.utils.defaultAbiCoder.encode(
+                      ['address[]', 'bytes32[]', 'uint256[]', 'bytes[]', 'bytes[]'],
+                      [
+                        Array(3).fill(airnodeAddress),
+                        beaconSetTemplateIds,
+                        [0, timestamp, timestamp],
+                        ['0x', data1, data2],
+                        ['0x', signature1, '0x12345678'],
+                      ]
+                    ),
+                    metadata
                   )
               ).to.be.revertedWith('ECDSA: invalid signature length');
             });
@@ -3421,13 +3451,18 @@ describe('DapiServer', function () {
             await expect(
               dapiServer
                 .connect(roles.oevProxy)
-                .updateOevProxyDataFeedWithSignedData(
-                  Array(3).fill(airnodeAddress),
-                  beaconSetTemplateIds,
-                  [0, timestamp, 0],
-                  ['0x', data1, data2],
-                  metadata,
-                  ['0x', signature1, signature2]
+                .updateOevProxyDataFeedWithEncodedSignedData(
+                  hre.ethers.utils.defaultAbiCoder.encode(
+                    ['address[]', 'bytes32[]', 'uint256[]', 'bytes[]', 'bytes[]'],
+                    [
+                      Array(3).fill(airnodeAddress),
+                      beaconSetTemplateIds,
+                      [0, timestamp, 0],
+                      ['0x', data1, data2],
+                      ['0x', signature1, signature2],
+                    ]
+                  ),
+                  metadata
                 )
             ).to.be.revertedWith('Timestamp not valid');
           });
@@ -3456,13 +3491,12 @@ describe('DapiServer', function () {
                   await expect(
                     dapiServer
                       .connect(roles.oevProxy)
-                      .updateOevProxyDataFeedWithSignedData(
-                        [airnodeAddress],
-                        [templateId],
-                        [timestamp],
-                        [data],
-                        metadata,
-                        [signature]
+                      .updateOevProxyDataFeedWithEncodedSignedData(
+                        hre.ethers.utils.defaultAbiCoder.encode(
+                          ['address[]', 'bytes32[]', 'uint256[]', 'bytes[]', 'bytes[]'],
+                          [[airnodeAddress], [templateId], [timestamp], [data], [signature]]
+                        ),
+                        metadata
                       )
                   )
                     .to.emit(dapiServer, 'UpdatedOevProxyBeaconWithSignedData')
@@ -3491,13 +3525,12 @@ describe('DapiServer', function () {
                   await hre.ethers.provider.send('evm_setNextBlockTimestamp', [futureTimestamp]);
                   await dapiServer
                     .connect(roles.oevProxy)
-                    .updateOevProxyDataFeedWithSignedData(
-                      [airnodeAddress],
-                      [templateId],
-                      [futureTimestamp],
-                      [data1],
-                      metadata,
-                      [signature1]
+                    .updateOevProxyDataFeedWithEncodedSignedData(
+                      hre.ethers.utils.defaultAbiCoder.encode(
+                        ['address[]', 'bytes32[]', 'uint256[]', 'bytes[]', 'bytes[]'],
+                        [[airnodeAddress], [templateId], [futureTimestamp], [data1], [signature1]]
+                      ),
+                      metadata
                     );
                   await hre.ethers.provider.send('evm_setNextBlockTimestamp', [futureTimestamp + 1]);
                   const data2 = encodeData(456);
@@ -3514,13 +3547,12 @@ describe('DapiServer', function () {
                   await expect(
                     dapiServer
                       .connect(roles.oevProxy)
-                      .updateOevProxyDataFeedWithSignedData(
-                        [airnodeAddress],
-                        [templateId],
-                        [initialTimestamp],
-                        [data2],
-                        metadata,
-                        [signature2]
+                      .updateOevProxyDataFeedWithEncodedSignedData(
+                        hre.ethers.utils.defaultAbiCoder.encode(
+                          ['address[]', 'bytes32[]', 'uint256[]', 'bytes[]', 'bytes[]'],
+                          [[airnodeAddress], [templateId], [initialTimestamp], [data2], [signature2]]
+                        ),
+                        metadata
                       )
                   ).to.be.revertedWith('Fulfillment older than Beacon');
                 });
@@ -3546,13 +3578,12 @@ describe('DapiServer', function () {
                 await expect(
                   dapiServer
                     .connect(roles.oevProxy)
-                    .updateOevProxyDataFeedWithSignedData(
-                      [airnodeAddress],
-                      [templateId],
-                      [timestamp],
-                      [longData],
-                      metadata,
-                      [signature]
+                    .updateOevProxyDataFeedWithEncodedSignedData(
+                      hre.ethers.utils.defaultAbiCoder.encode(
+                        ['address[]', 'bytes32[]', 'uint256[]', 'bytes[]', 'bytes[]'],
+                        [[airnodeAddress], [templateId], [timestamp], [longData], [signature]]
+                      ),
+                      metadata
                     )
                 ).to.be.revertedWith('Data length not correct');
               });
@@ -3565,9 +3596,13 @@ describe('DapiServer', function () {
               await expect(
                 dapiServer
                   .connect(roles.oevProxy)
-                  .updateOevProxyDataFeedWithSignedData([airnodeAddress], [templateId], [timestamp], ['0x'], '0x', [
-                    '0x',
-                  ])
+                  .updateOevProxyDataFeedWithEncodedSignedData(
+                    hre.ethers.utils.defaultAbiCoder.encode(
+                      ['address[]', 'bytes32[]', 'uint256[]', 'bytes[]', 'bytes[]'],
+                      [[airnodeAddress], [templateId], [timestamp], ['0x'], ['0x']]
+                    ),
+                    '0x'
+                  )
               ).to.be.revertedWith('ECDSA: invalid signature length');
             });
           });
@@ -3578,7 +3613,13 @@ describe('DapiServer', function () {
             await expect(
               dapiServer
                 .connect(roles.oevProxy)
-                .updateOevProxyDataFeedWithSignedData([airnodeAddress], [templateId], [timestamp], ['0x'], '0x', ['0x'])
+                .updateOevProxyDataFeedWithEncodedSignedData(
+                  hre.ethers.utils.defaultAbiCoder.encode(
+                    ['address[]', 'bytes32[]', 'uint256[]', 'bytes[]', 'bytes[]'],
+                    [[airnodeAddress], [templateId], [timestamp], ['0x'], ['0x']]
+                  ),
+                  '0x'
+                )
             ).to.be.revertedWith('Timestamp not valid');
           });
         });
@@ -3588,7 +3629,13 @@ describe('DapiServer', function () {
           await expect(
             dapiServer
               .connect(roles.oevProxy)
-              .updateOevProxyDataFeedWithSignedData([], [], [], [], testUtils.generateRandomBytes(), [])
+              .updateOevProxyDataFeedWithEncodedSignedData(
+                hre.ethers.utils.defaultAbiCoder.encode(
+                  ['address[]', 'bytes32[]', 'uint256[]', 'bytes[]', 'bytes[]'],
+                  [[], [], [], [], []]
+                ),
+                testUtils.generateRandomBytes()
+              )
           ).to.be.revertedWith('Did not specify Beacons');
         });
       });
@@ -3598,61 +3645,86 @@ describe('DapiServer', function () {
         await expect(
           dapiServer
             .connect(roles.oevProxy)
-            .updateOevProxyDataFeedWithSignedData(
-              Array(4).fill(testUtils.generateRandomAddress()),
-              Array(3).fill(testUtils.generateRandomBytes32()),
-              Array(3).fill(0),
-              Array(3).fill(testUtils.generateRandomBytes()),
-              testUtils.generateRandomBytes(),
-              Array(3).fill(testUtils.generateRandomBytes())
+            .updateOevProxyDataFeedWithEncodedSignedData(
+              hre.ethers.utils.defaultAbiCoder.encode(
+                ['address[]', 'bytes32[]', 'uint256[]', 'bytes[]', 'bytes[]'],
+                [
+                  Array(4).fill(testUtils.generateRandomAddress()),
+                  Array(3).fill(testUtils.generateRandomBytes32()),
+                  Array(3).fill(0),
+                  Array(3).fill(testUtils.generateRandomBytes()),
+                  Array(3).fill(testUtils.generateRandomBytes()),
+                ]
+              ),
+              testUtils.generateRandomBytes()
             )
         ).to.be.revertedWith('Parameter length mismatch');
         await expect(
           dapiServer
             .connect(roles.oevProxy)
-            .updateOevProxyDataFeedWithSignedData(
-              Array(3).fill(testUtils.generateRandomAddress()),
-              Array(4).fill(testUtils.generateRandomBytes32()),
-              Array(3).fill(0),
-              Array(3).fill(testUtils.generateRandomBytes()),
-              testUtils.generateRandomBytes(),
-              Array(3).fill(testUtils.generateRandomBytes())
+            .updateOevProxyDataFeedWithEncodedSignedData(
+              hre.ethers.utils.defaultAbiCoder.encode(
+                ['address[]', 'bytes32[]', 'uint256[]', 'bytes[]', 'bytes[]'],
+                [
+                  Array(3).fill(testUtils.generateRandomAddress()),
+                  Array(4).fill(testUtils.generateRandomBytes32()),
+                  Array(3).fill(0),
+                  Array(3).fill(testUtils.generateRandomBytes()),
+                  Array(3).fill(testUtils.generateRandomBytes()),
+                ]
+              ),
+              testUtils.generateRandomBytes()
             )
         ).to.be.revertedWith('Parameter length mismatch');
         await expect(
           dapiServer
             .connect(roles.oevProxy)
-            .updateOevProxyDataFeedWithSignedData(
-              Array(3).fill(testUtils.generateRandomAddress()),
-              Array(3).fill(testUtils.generateRandomBytes32()),
-              Array(4).fill(0),
-              Array(3).fill(testUtils.generateRandomBytes()),
-              testUtils.generateRandomBytes(),
-              Array(3).fill(testUtils.generateRandomBytes())
+            .updateOevProxyDataFeedWithEncodedSignedData(
+              hre.ethers.utils.defaultAbiCoder.encode(
+                ['address[]', 'bytes32[]', 'uint256[]', 'bytes[]', 'bytes[]'],
+                [
+                  Array(3).fill(testUtils.generateRandomAddress()),
+                  Array(3).fill(testUtils.generateRandomBytes32()),
+                  Array(4).fill(0),
+                  Array(3).fill(testUtils.generateRandomBytes()),
+                  Array(3).fill(testUtils.generateRandomBytes()),
+                ]
+              ),
+              testUtils.generateRandomBytes()
             )
         ).to.be.revertedWith('Parameter length mismatch');
         await expect(
           dapiServer
             .connect(roles.oevProxy)
-            .updateOevProxyDataFeedWithSignedData(
-              Array(3).fill(testUtils.generateRandomAddress()),
-              Array(3).fill(testUtils.generateRandomBytes32()),
-              Array(3).fill(0),
-              Array(4).fill(testUtils.generateRandomBytes()),
-              testUtils.generateRandomBytes(),
-              Array(3).fill(testUtils.generateRandomBytes())
+            .updateOevProxyDataFeedWithEncodedSignedData(
+              hre.ethers.utils.defaultAbiCoder.encode(
+                ['address[]', 'bytes32[]', 'uint256[]', 'bytes[]', 'bytes[]'],
+                [
+                  Array(3).fill(testUtils.generateRandomAddress()),
+                  Array(3).fill(testUtils.generateRandomBytes32()),
+                  Array(3).fill(0),
+                  Array(4).fill(testUtils.generateRandomBytes()),
+                  Array(3).fill(testUtils.generateRandomBytes()),
+                ]
+              ),
+              testUtils.generateRandomBytes()
             )
         ).to.be.revertedWith('Parameter length mismatch');
         await expect(
           dapiServer
             .connect(roles.oevProxy)
-            .updateOevProxyDataFeedWithSignedData(
-              Array(3).fill(testUtils.generateRandomAddress()),
-              Array(3).fill(testUtils.generateRandomBytes32()),
-              Array(3).fill(0),
-              Array(3).fill(testUtils.generateRandomBytes()),
-              testUtils.generateRandomBytes(),
-              Array(4).fill(testUtils.generateRandomBytes())
+            .updateOevProxyDataFeedWithEncodedSignedData(
+              hre.ethers.utils.defaultAbiCoder.encode(
+                ['address[]', 'bytes32[]', 'uint256[]', 'bytes[]', 'bytes[]'],
+                [
+                  Array(3).fill(testUtils.generateRandomAddress()),
+                  Array(3).fill(testUtils.generateRandomBytes32()),
+                  Array(3).fill(0),
+                  Array(3).fill(testUtils.generateRandomBytes()),
+                  Array(4).fill(testUtils.generateRandomBytes()),
+                ]
+              ),
+              testUtils.generateRandomBytes()
             )
         ).to.be.revertedWith('Parameter length mismatch');
       });
@@ -3773,9 +3845,13 @@ describe('DapiServer', function () {
         );
         await dapiServer
           .connect(roles.oevProxy)
-          .updateOevProxyDataFeedWithSignedData([airnodeAddress], [templateId], [timestamp], [data], metadata, [
-            signature,
-          ]);
+          .updateOevProxyDataFeedWithEncodedSignedData(
+            hre.ethers.utils.defaultAbiCoder.encode(
+              ['address[]', 'bytes32[]', 'uint256[]', 'bytes[]', 'bytes[]'],
+              [[airnodeAddress], [templateId], [timestamp], [data], [signature]]
+            ),
+            metadata
+          );
         const beacon = await dapiServer.connect(roles.oevProxy).readDataFeedWithIdAsOevProxy(beaconId);
         expect(beacon.value).to.equal(123);
         expect(beacon.timestamp).to.equal(timestamp);
@@ -3814,9 +3890,13 @@ describe('DapiServer', function () {
           );
           await dapiServer
             .connect(roles.oevProxy)
-            .updateOevProxyDataFeedWithSignedData([airnodeAddress], [templateId], [timestamp], [data], metadata, [
-              signature,
-            ]);
+            .updateOevProxyDataFeedWithEncodedSignedData(
+              hre.ethers.utils.defaultAbiCoder.encode(
+                ['address[]', 'bytes32[]', 'uint256[]', 'bytes[]', 'bytes[]'],
+                [[airnodeAddress], [templateId], [timestamp], [data], [signature]]
+              ),
+              metadata
+            );
           const beacon = await dapiServer.connect(roles.oevProxy).readDataFeedWithDapiNameHashAsOevProxy(dapiNameHash);
           expect(beacon.value).to.equal(123);
           expect(beacon.timestamp).to.equal(timestamp);
@@ -3878,13 +3958,18 @@ describe('DapiServer', function () {
           );
           await dapiServer
             .connect(roles.oevProxy)
-            .updateOevProxyDataFeedWithSignedData(
-              [airnodeAddress, airnodeAddress, airnodeAddress],
-              beaconSetTemplateIds,
-              [timestamp, timestamp, timestamp],
-              [data0, data1, data2],
-              metadata,
-              [signature0, signature1, signature2]
+            .updateOevProxyDataFeedWithEncodedSignedData(
+              hre.ethers.utils.defaultAbiCoder.encode(
+                ['address[]', 'bytes32[]', 'uint256[]', 'bytes[]', 'bytes[]'],
+                [
+                  [airnodeAddress, airnodeAddress, airnodeAddress],
+                  beaconSetTemplateIds,
+                  [timestamp, timestamp, timestamp],
+                  [data0, data1, data2],
+                  [signature0, signature1, signature2],
+                ]
+              ),
+              metadata
             );
           const beaconSet = await dapiServer
             .connect(roles.oevProxy)
