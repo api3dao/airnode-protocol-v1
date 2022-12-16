@@ -26,11 +26,13 @@ contract DataFeedProxyWithOev is DataFeedProxy, IOevUpdater {
     /// @notice Called by anyone to withdraw the OEV proceeds to the
     /// beneficiary account
     function withdraw() external {
-        uint256 balance = address(this).balance;
-        require(balance > 0, "Zero balance");
         // solhint-disable-next-line avoid-low-level-calls
-        (bool success, ) = oevBeneficiary.call{value: balance}("");
-        require(success, "Beneficiary reverted withdrawal");
+        (bool success, ) = oevBeneficiary.call{value: address(this).balance}(
+            ""
+        );
+        if (!success) {
+            revert WithdrawalReverted();
+        }
     }
 
     /// @notice Called by the OEV auction winner along with the bid payment to

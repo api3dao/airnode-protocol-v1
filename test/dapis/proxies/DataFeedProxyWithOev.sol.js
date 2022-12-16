@@ -89,109 +89,102 @@ describe('DataFeedProxyWithOev', function () {
   });
 
   describe('withdraw', function () {
-    context('Balance is not zero', function () {
-      context('Beneficiary does not revert withdrawal', function () {
-        it('withdraws', async function () {
-          const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-          const expirationTimestamp = timestamp + 3600;
-          const bidAmount = hre.ethers.utils.parseEther('1');
-          const metadata = hre.ethers.utils.solidityPack(
-            ['uint256', 'address', 'address', 'uint256', 'uint256'],
-            [
-              (await hre.ethers.provider.getNetwork()).chainId,
-              dataFeedProxyWithOev.address,
-              roles.searcher.address,
-              expirationTimestamp,
-              bidAmount,
-            ]
-          );
-          const data = encodeData(123);
-          const signature = await airnodeWallet.signMessage(
-            hre.ethers.utils.arrayify(
-              hre.ethers.utils.keccak256(
-                hre.ethers.utils.solidityPack(
-                  ['bytes32', 'uint256', 'bytes', 'bytes'],
-                  [templateId, timestamp, data, metadata]
-                )
+    context('Beneficiary does not revert withdrawal', function () {
+      it('withdraws', async function () {
+        const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
+        const expirationTimestamp = timestamp + 3600;
+        const bidAmount = hre.ethers.utils.parseEther('1');
+        const metadata = hre.ethers.utils.solidityPack(
+          ['uint256', 'address', 'address', 'uint256', 'uint256'],
+          [
+            (await hre.ethers.provider.getNetwork()).chainId,
+            dataFeedProxyWithOev.address,
+            roles.searcher.address,
+            expirationTimestamp,
+            bidAmount,
+          ]
+        );
+        const data = encodeData(123);
+        const signature = await airnodeWallet.signMessage(
+          hre.ethers.utils.arrayify(
+            hre.ethers.utils.keccak256(
+              hre.ethers.utils.solidityPack(
+                ['bytes32', 'uint256', 'bytes', 'bytes'],
+                [templateId, timestamp, data, metadata]
               )
             )
+          )
+        );
+        await dataFeedProxyWithOev
+          .connect(roles.searcher)
+          .updateOevProxyDataFeedWithSignedData(
+            [airnodeAddress],
+            [templateId],
+            [timestamp],
+            [data],
+            expirationTimestamp,
+            [signature],
+            {
+              value: bidAmount,
+            }
           );
-          await dataFeedProxyWithOev
-            .connect(roles.searcher)
-            .updateOevProxyDataFeedWithSignedData(
-              [airnodeAddress],
-              [templateId],
-              [timestamp],
-              [data],
-              expirationTimestamp,
-              [signature],
-              {
-                value: bidAmount,
-              }
-            );
-          const balanceBefore = await hre.ethers.provider.getBalance(roles.oevBeneficiary.address);
-          await dataFeedProxyWithOev.connect(roles.oevBeneficiary).withdraw();
-          const balanceAfter = await hre.ethers.provider.getBalance(roles.oevBeneficiary.address);
-          // Some goes to withdrawal gas cost
-          expect(balanceAfter.sub(balanceBefore)).to.gt(hre.ethers.utils.parseEther('0.99'));
-        });
-      });
-      context('Beneficiary reverts withdrawal', function () {
-        it('reverts', async function () {
-          const mockOevBeneficiaryFactory = await hre.ethers.getContractFactory('MockOevBeneficiary', roles.deployer);
-          const mockOevBeneficiary = await mockOevBeneficiaryFactory.deploy();
-          const dataFeedProxyWithOevFactory = await hre.ethers.getContractFactory('DapiProxyWithOev', roles.deployer);
-          dataFeedProxyWithOev = await dataFeedProxyWithOevFactory.deploy(
-            dapiServer.address,
-            beaconId,
-            mockOevBeneficiary.address
-          );
-          const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-          const expirationTimestamp = timestamp + 3600;
-          const bidAmount = 456;
-          const metadata = hre.ethers.utils.solidityPack(
-            ['uint256', 'address', 'address', 'uint256', 'uint256'],
-            [
-              (await hre.ethers.provider.getNetwork()).chainId,
-              dataFeedProxyWithOev.address,
-              roles.searcher.address,
-              expirationTimestamp,
-              bidAmount,
-            ]
-          );
-          const data = encodeData(123);
-          const signature = await airnodeWallet.signMessage(
-            hre.ethers.utils.arrayify(
-              hre.ethers.utils.keccak256(
-                hre.ethers.utils.solidityPack(
-                  ['bytes32', 'uint256', 'bytes', 'bytes'],
-                  [templateId, timestamp, data, metadata]
-                )
-              )
-            )
-          );
-          await dataFeedProxyWithOev
-            .connect(roles.searcher)
-            .updateOevProxyDataFeedWithSignedData(
-              [airnodeAddress],
-              [templateId],
-              [timestamp],
-              [data],
-              expirationTimestamp,
-              [signature],
-              {
-                value: bidAmount,
-              }
-            );
-          await expect(mockOevBeneficiary.withdraw(dataFeedProxyWithOev.address)).to.be.revertedWith(
-            'Beneficiary reverted withdrawal'
-          );
-        });
+        const balanceBefore = await hre.ethers.provider.getBalance(roles.oevBeneficiary.address);
+        await dataFeedProxyWithOev.connect(roles.oevBeneficiary).withdraw();
+        const balanceAfter = await hre.ethers.provider.getBalance(roles.oevBeneficiary.address);
+        // Some goes to withdrawal gas cost
+        expect(balanceAfter.sub(balanceBefore)).to.gt(hre.ethers.utils.parseEther('0.99'));
       });
     });
-    context('Balance is zero', function () {
+    context('Beneficiary reverts withdrawal', function () {
       it('reverts', async function () {
-        await expect(dataFeedProxyWithOev.connect(roles.oevBeneficiary).withdraw()).to.be.revertedWith('Zero balance');
+        const mockOevBeneficiaryFactory = await hre.ethers.getContractFactory('MockOevBeneficiary', roles.deployer);
+        const mockOevBeneficiary = await mockOevBeneficiaryFactory.deploy();
+        const dataFeedProxyWithOevFactory = await hre.ethers.getContractFactory('DapiProxyWithOev', roles.deployer);
+        dataFeedProxyWithOev = await dataFeedProxyWithOevFactory.deploy(
+          dapiServer.address,
+          beaconId,
+          mockOevBeneficiary.address
+        );
+        const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
+        const expirationTimestamp = timestamp + 3600;
+        const bidAmount = 456;
+        const metadata = hre.ethers.utils.solidityPack(
+          ['uint256', 'address', 'address', 'uint256', 'uint256'],
+          [
+            (await hre.ethers.provider.getNetwork()).chainId,
+            dataFeedProxyWithOev.address,
+            roles.searcher.address,
+            expirationTimestamp,
+            bidAmount,
+          ]
+        );
+        const data = encodeData(123);
+        const signature = await airnodeWallet.signMessage(
+          hre.ethers.utils.arrayify(
+            hre.ethers.utils.keccak256(
+              hre.ethers.utils.solidityPack(
+                ['bytes32', 'uint256', 'bytes', 'bytes'],
+                [templateId, timestamp, data, metadata]
+              )
+            )
+          )
+        );
+        await dataFeedProxyWithOev
+          .connect(roles.searcher)
+          .updateOevProxyDataFeedWithSignedData(
+            [airnodeAddress],
+            [templateId],
+            [timestamp],
+            [data],
+            expirationTimestamp,
+            [signature],
+            {
+              value: bidAmount,
+            }
+          );
+        await expect(mockOevBeneficiary.withdraw(dataFeedProxyWithOev.address)).to.be.revertedWith(
+          'WithdrawalReverted'
+        );
       });
     });
   });
