@@ -816,6 +816,58 @@ contract DapiServer is
 
     ///                     ~~~OEV~~~
 
+    /// @notice Updates an OEV data feed using data signed by the respective
+    /// Airnodes without requiring a request or subscription. The Beacons for
+    /// which the signature is omitted will be read from the storage.
+    /// @param encodedSignedData Encoded data signed for the specific bid by
+    /// the respective Airnode address per Beacon
+    /// @param metadata Metadata that the OEV proxy will use (e.g., auction bid
+    /// parameters)
+    /// @return dataFeedId Data feed ID
+    function updateOevProxyDataFeedWithEncodedSignedData(
+        bytes calldata encodedSignedData,
+        bytes calldata metadata
+    ) external override returns (bytes32 dataFeedId) {
+        (
+            address[] memory airnodes,
+            bytes32[] memory templateIds,
+            uint256[] memory timestamps,
+            bytes[] memory data,
+            bytes[] memory signatures
+        ) = abi.decode(
+                encodedSignedData,
+                (address[], bytes32[], uint256[], bytes[], bytes[])
+            );
+        uint256 beaconCount = airnodes.length;
+        require(
+            beaconCount == templateIds.length &&
+                beaconCount == timestamps.length &&
+                beaconCount == data.length &&
+                beaconCount == signatures.length,
+            "Parameter length mismatch"
+        );
+        require(beaconCount != 0, "Did not specify Beacons");
+        if (beaconCount == 1) {
+            dataFeedId = updateOevProxyBeaconWithSignedData(
+                airnodes[0],
+                templateIds[0],
+                timestamps[0],
+                data[0],
+                metadata,
+                signatures[0]
+            );
+        } else {
+            dataFeedId = updateOevProxyBeaconSetWithSignedData(
+                airnodes,
+                templateIds,
+                timestamps,
+                data,
+                metadata,
+                signatures
+            );
+        }
+    }
+
     /// @notice Updates an OEV proxy Beacon using data signed by the respective
     /// Airnode, without requiring a request or subscription
     /// @param airnode Airnode address
@@ -830,10 +882,10 @@ contract DapiServer is
         address airnode,
         bytes32 templateId,
         uint256 timestamp,
-        bytes calldata data,
-        bytes calldata metadata,
-        bytes calldata signature
-    ) external override onlyValidTimestamp(timestamp) {
+        bytes memory data,
+        bytes memory metadata,
+        bytes memory signature
+    ) private onlyValidTimestamp(timestamp) returns (bytes32 beaconId) {
         require(
             (
                 keccak256(
@@ -842,7 +894,7 @@ contract DapiServer is
             ).recover(signature) == airnode,
             "Signature mismatch"
         );
-        bytes32 beaconId = deriveBeaconId(airnode, templateId);
+        beaconId = deriveBeaconId(airnode, templateId);
         int224 updatedBeaconValue = decodeFulfillmentData(data);
         require(
             timestamp > oevProxyToIdToDataFeed[msg.sender][beaconId].timestamp,
@@ -882,7 +934,7 @@ contract DapiServer is
         bytes[] memory data,
         bytes memory metadata,
         bytes[] memory signatures
-    ) external override returns (bytes32 beaconSetId) {
+    ) private returns (bytes32 beaconSetId) {
         uint256 beaconCount = airnodes.length;
         require(
             beaconCount == templateIds.length &&
@@ -986,6 +1038,18 @@ contract DapiServer is
         return dapiNameHashToDataFeedId[keccak256(abi.encodePacked(dapiName))];
     }
 
+    /// @notice Reads the data feed with ID
+    /// @param dataFeedId Data feed ID
+    /// @return value Data feed value
+    /// @return timestamp Data feed timestamp
+    function readDataFeedWithId(
+        bytes32 dataFeedId
+    ) external view override returns (int224 value, uint32 timestamp) {
+        DataFeed storage dataFeed = dataFeeds[dataFeedId];
+        (value, timestamp) = (dataFeed.value, dataFeed.timestamp);
+        require(timestamp > 0, "Data feed not initialized");
+    }
+
     /// @notice Reads the data feed with dAPI name hash
     /// @param dapiNameHash dAPI name hash
     /// @return value Data feed value
@@ -996,7 +1060,8 @@ contract DapiServer is
         bytes32 dataFeedId = dapiNameHashToDataFeedId[dapiNameHash];
         require(dataFeedId != bytes32(0), "dAPI name not set");
         DataFeed storage dataFeed = dataFeeds[dataFeedId];
-        return (dataFeed.value, dataFeed.timestamp);
+        (value, timestamp) = (dataFeed.value, dataFeed.timestamp);
+        require(timestamp > 0, "Data feed not initialized");
     }
 
     /// @notice Reads the data feed as the OEV proxy with ID
@@ -1011,10 +1076,11 @@ contract DapiServer is
         ];
         DataFeed storage dataFeed = dataFeeds[dataFeedId];
         if (oevDataFeed.timestamp > dataFeed.timestamp) {
-            return (oevDataFeed.value, oevDataFeed.timestamp);
+            (value, timestamp) = (oevDataFeed.value, oevDataFeed.timestamp);
         } else {
-            return (dataFeed.value, dataFeed.timestamp);
+            (value, timestamp) = (dataFeed.value, dataFeed.timestamp);
         }
+        require(timestamp > 0, "Data feed not initialized");
     }
 
     /// @notice Reads the data feed as the OEV proxy with dAPI name hash
@@ -1031,10 +1097,11 @@ contract DapiServer is
         ];
         DataFeed storage dataFeed = dataFeeds[dataFeedId];
         if (oevDataFeed.timestamp > dataFeed.timestamp) {
-            return (oevDataFeed.value, oevDataFeed.timestamp);
+            (value, timestamp) = (oevDataFeed.value, oevDataFeed.timestamp);
         } else {
-            return (dataFeed.value, dataFeed.timestamp);
+            (value, timestamp) = (dataFeed.value, dataFeed.timestamp);
         }
+        require(timestamp > 0, "Data feed not initialized");
     }
 
     /// @notice Aggregates the Beacons and returns the result

@@ -45,7 +45,10 @@ contract ProxyFactory is IProxyFactory {
     ) external override returns (address proxyAddress) {
         require(dapiName != bytes32(0), "dAPI name zero");
         proxyAddress = address(
-            new DapiProxy{salt: keccak256(metadata)}(dapiServer, dapiName)
+            new DapiProxy{salt: keccak256(metadata)}(
+                dapiServer,
+                keccak256(abi.encodePacked(dapiName))
+            )
         );
         emit DeployedDapiProxy(proxyAddress, dapiName, metadata);
     }
@@ -90,7 +93,7 @@ contract ProxyFactory is IProxyFactory {
         proxyAddress = address(
             new DapiProxyWithOev{salt: keccak256(metadata)}(
                 dapiServer,
-                dapiName,
+                keccak256(abi.encodePacked(dapiName)),
                 oevBeneficiary
             )
         );

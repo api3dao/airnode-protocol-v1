@@ -220,29 +220,20 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
         bytes[] memory signatures
     ) external returns (bytes32 beaconSetId);
 
-    function updateOevProxyBeaconWithSignedData(
-        address airnode,
-        bytes32 templateId,
-        uint256 timestamp,
-        bytes calldata data,
-        bytes calldata metadata,
-        bytes calldata signature
-    ) external;
-
-    function updateOevProxyBeaconSetWithSignedData(
-        address[] memory airnodes,
-        bytes32[] memory templateIds,
-        uint256[] memory timestamps,
-        bytes[] memory data,
-        bytes memory metadata,
-        bytes[] memory signatures
-    ) external returns (bytes32 beaconSetId);
+    function updateOevProxyDataFeedWithEncodedSignedData(
+        bytes calldata encodedSignedData,
+        bytes calldata metadata
+    ) external returns (bytes32 dataFeedId);
 
     function setDapiName(bytes32 dapiName, bytes32 dataFeedId) external;
 
     function dapiNameToDataFeedId(
         bytes32 dapiName
     ) external view returns (bytes32);
+
+    function readDataFeedWithId(
+        bytes32 dataFeedId
+    ) external view returns (int224 value, uint32 timestamp);
 
     function readDataFeedWithDapiNameHash(
         bytes32 dapiNameHash
