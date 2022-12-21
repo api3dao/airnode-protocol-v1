@@ -99,6 +99,8 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
         uint256 timestamp
     );
 
+    event Withdrew(address indexed oevProxy, uint256 amount);
+
     event SetDapiName(
         bytes32 indexed dapiName,
         bytes32 dataFeedId,
@@ -168,22 +170,6 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
         bytes calldata signature
     ) external;
 
-    function updateBeaconWithSignedData(
-        address airnode,
-        bytes32 beaconId,
-        uint256 timestamp,
-        bytes calldata data,
-        bytes calldata signature
-    ) external;
-
-    function updateBeaconWithDomainSignedData(
-        address airnode,
-        bytes32 templateId,
-        uint256 timestamp,
-        bytes calldata data,
-        bytes calldata signature
-    ) external;
-
     function updateBeaconSetWithBeacons(
         bytes32[] memory beaconIds
     ) external returns (bytes32 beaconSetId);
@@ -204,26 +190,19 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
         bytes calldata signature
     ) external;
 
-    function updateBeaconSetWithSignedData(
-        address[] memory airnodes,
-        bytes32[] memory templateIds,
-        uint256[] memory timestamps,
-        bytes[] memory data,
-        bytes[] memory signatures
-    ) external returns (bytes32 beaconSetId);
+    function updateDataFeedWithSignedData(bytes[] calldata signedData) external;
 
-    function updateBeaconSetWithDomainSignedData(
-        address[] memory airnodes,
-        bytes32[] memory templateIds,
-        uint256[] memory timestamps,
-        bytes[] memory data,
-        bytes[] memory signatures
-    ) external returns (bytes32 beaconSetId);
+    function updateDataFeedWithDomainSignedData(
+        bytes[] calldata signedData
+    ) external;
 
-    function updateOevProxyDataFeedWithEncodedSignedData(
-        bytes calldata encodedSignedData,
-        bytes calldata metadata
-    ) external returns (bytes32 dataFeedId);
+    function updateOevProxyDataFeedWithSignedData(
+        address oevProxy,
+        uint256 signatureCount,
+        bytes[] calldata signedData
+    ) external payable;
+
+    function withdraw(address oevProxy) external;
 
     function setDapiName(bytes32 dapiName, bytes32 dataFeedId) external;
 
@@ -250,15 +229,6 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
     function aggregateBeacons(
         bytes32[] memory beaconIds
     ) external view returns (int224 value, uint32 timestamp);
-
-    function deriveBeaconId(
-        address airnode,
-        bytes32 templateId
-    ) external pure returns (bytes32 beaconId);
-
-    function deriveBeaconSetId(
-        bytes32[] memory beaconIds
-    ) external pure returns (bytes32 beaconSetId);
 
     // solhint-disable-next-line func-name-mixedcase
     function DAPI_NAME_SETTER_ROLE_DESCRIPTION()
@@ -292,4 +262,8 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
     function dapiNameHashToDataFeedId(
         bytes32 dapiNameHash
     ) external view returns (bytes32 dataFeedId);
+
+    function oevProxyToBalance(
+        address oevProxy
+    ) external view returns (uint256 balance);
 }

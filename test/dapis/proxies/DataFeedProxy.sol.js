@@ -50,7 +50,12 @@ describe('DataFeedProxy', function () {
       )
     );
     await hre.ethers.provider.send('evm_setNextBlockTimestamp', [beaconTimestamp + 1]);
-    await dapiServer.updateBeaconWithSignedData(airnodeAddress, templateId, beaconTimestamp, data, signature);
+    await dapiServer.updateDataFeedWithSignedData([
+      hre.ethers.utils.defaultAbiCoder.encode(
+        ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
+        [airnodeAddress, templateId, beaconTimestamp, data, signature]
+      ),
+    ]);
   });
 
   describe('constructor', function () {

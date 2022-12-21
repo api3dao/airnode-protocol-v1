@@ -52,7 +52,12 @@ describe('ProxyFactory', function () {
       )
     );
     await hre.ethers.provider.send('evm_setNextBlockTimestamp', [beaconTimestamp + 1]);
-    await dapiServer.updateBeaconWithSignedData(airnodeAddress, templateId, beaconTimestamp, data, signature);
+    await dapiServer.updateDataFeedWithSignedData([
+      hre.ethers.utils.defaultAbiCoder.encode(
+        ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
+        [airnodeAddress, templateId, beaconTimestamp, data, signature]
+      ),
+    ]);
 
     const proxyFactoryFactory = await hre.ethers.getContractFactory('ProxyFactory', roles.deployer);
     proxyFactory = await proxyFactoryFactory.deploy(dapiServer.address);
