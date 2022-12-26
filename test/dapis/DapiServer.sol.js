@@ -2407,8 +2407,8 @@ describe('DapiServer', function () {
     context('More than one Beacon is specified', function () {
       context('All signed data is decodable', function () {
         context('Signed data with no signature has no data', function () {
-          context('All signature are valid', function () {
-            context('All fulfillment data length is correct', function () {
+          context('All signatures are valid', function () {
+            context('All fulfillment data lengths are correct', function () {
               context('All decoded fulfillment data can be typecasted into int224', function () {
                 context('All timestamps are valid', function () {
                   context('Updates timestamp', function () {
@@ -3165,8 +3165,8 @@ describe('DapiServer', function () {
     context('More than one Beacon is specified', function () {
       context('All signed data is decodable', function () {
         context('Signed data with no signature has no data', function () {
-          context('All signature are valid', function () {
-            context('All fulfillment data length is correct', function () {
+          context('All signatures are valid', function () {
+            context('All fulfillment data lengths are correct', function () {
               context('All decoded fulfillment data can be typecasted into int224', function () {
                 context('All timestamps are valid', function () {
                   context('Updates timestamp', function () {
@@ -4194,8 +4194,8 @@ describe('DapiServer', function () {
     context('More than one Beacon is specified', function () {
       context('All signed data is decodable', function () {
         context('Signed data with no signature has no data', function () {
-          context('All signature are valid', function () {
-            context('All fulfillment data length is correct', function () {
+          context('All signatures are valid', function () {
+            context('All fulfillment data lengths are correct', function () {
               context('All decoded fulfillment data can be typecasted into int224', function () {
                 context('All timestamps are valid', function () {
                   context('Updates timestamp', function () {
