@@ -745,7 +745,7 @@ contract DapiServer is
         uint256 signatureCount,
         bytes[] calldata signedData
     ) external payable override {
-        bytes32 bidMetadataHash = keccak256(
+        bytes32 metadataHash = keccak256(
             abi.encodePacked(
                 block.chainid,
                 address(this),
@@ -765,7 +765,7 @@ contract DapiServer is
                     bytes32 beaconId,
                     int224 beaconValue,
                     uint32 beaconTimestamp
-                ) = decodeOevSignedData(bidMetadataHash, signedData[ind]);
+                ) = decodeOevSignedData(metadataHash, signedData[ind]);
                 beaconIds[ind] = beaconId;
                 if (beaconTimestamp != 0) {
                     values[ind] = beaconValue;
@@ -804,7 +804,7 @@ contract DapiServer is
                 bytes32 beaconId,
                 int224 beaconValue,
                 uint32 beaconTimestamp
-            ) = decodeOevSignedData(bidMetadataHash, signedData[0]);
+            ) = decodeOevSignedData(metadataHash, signedData[0]);
             require(beaconTimestamp != 0, "Missing data");
             require(
                 beaconTimestamp >
@@ -1179,7 +1179,7 @@ contract DapiServer is
 
     /// @notice Decodes data signed by the respective Airnode for the specific
     /// bid to update the Beacon that a OEV proxy reads
-    /// @param bidMetadataHash Hash of the metadata of the bid that won the OEV
+    /// @param metadataHash Hash of the metadata of the bid that won the OEV
     /// auction
     /// @param signedData ABI-encoded Airnode address, template ID, timestamp,
     /// fulfillment data and bid metadata that is signed by the respective
@@ -1188,7 +1188,7 @@ contract DapiServer is
     /// @return beaconValue Beacon value
     /// @return beaconTimestamp Beacon timestamp
     function decodeOevSignedData(
-        bytes32 bidMetadataHash,
+        bytes32 metadataHash,
         bytes calldata signedData
     )
         private
@@ -1210,7 +1210,7 @@ contract DapiServer is
                 (
                     keccak256(
                         abi.encodePacked(
-                            bidMetadataHash,
+                            metadataHash,
                             templateId,
                             timestamp,
                             data

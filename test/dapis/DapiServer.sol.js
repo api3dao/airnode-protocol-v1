@@ -4209,7 +4209,7 @@ describe('DapiServer', function () {
                       await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
                       const data1 = encodeData(105);
                       const bidAmount = 10000;
-                      const bidMetadataHash = hre.ethers.utils.solidityKeccak256(
+                      const metadataHash = hre.ethers.utils.solidityKeccak256(
                         ['uint256', 'address', 'address', 'address', 'uint256', 'uint256'],
                         [
                           (await hre.ethers.provider.getNetwork()).chainId,
@@ -4225,7 +4225,7 @@ describe('DapiServer', function () {
                           hre.ethers.utils.keccak256(
                             hre.ethers.utils.solidityPack(
                               ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                              [bidMetadataHash, beaconSetTemplateIds[1], nextTimestamp, data1]
+                              [metadataHash, beaconSetTemplateIds[1], nextTimestamp, data1]
                             )
                           )
                         )
@@ -4240,7 +4240,7 @@ describe('DapiServer', function () {
                           hre.ethers.utils.keccak256(
                             hre.ethers.utils.solidityPack(
                               ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                              [bidMetadataHash, beaconSetTemplateIds[2], nextTimestamp, data2]
+                              [metadataHash, beaconSetTemplateIds[2], nextTimestamp, data2]
                             )
                           )
                         )
@@ -4278,7 +4278,7 @@ describe('DapiServer', function () {
                       await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
                       const data1 = encodeData(105);
                       const bidAmount = 10000;
-                      const bidMetadataHash = hre.ethers.utils.solidityKeccak256(
+                      const metadataHash = hre.ethers.utils.solidityKeccak256(
                         ['uint256', 'address', 'address', 'address', 'uint256', 'uint256'],
                         [
                           (await hre.ethers.provider.getNetwork()).chainId,
@@ -4294,7 +4294,7 @@ describe('DapiServer', function () {
                           hre.ethers.utils.keccak256(
                             hre.ethers.utils.solidityPack(
                               ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                              [bidMetadataHash, beaconSetTemplateIds[1], nextTimestamp, data1]
+                              [metadataHash, beaconSetTemplateIds[1], nextTimestamp, data1]
                             )
                           )
                         )
@@ -4309,7 +4309,7 @@ describe('DapiServer', function () {
                           hre.ethers.utils.keccak256(
                             hre.ethers.utils.solidityPack(
                               ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                              [bidMetadataHash, beaconSetTemplateIds[2], nextTimestamp, data2]
+                              [metadataHash, beaconSetTemplateIds[2], nextTimestamp, data2]
                             )
                           )
                         )
@@ -4350,7 +4350,7 @@ describe('DapiServer', function () {
                     await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
                     const data1 = encodeData(105);
                     const bidAmount = 10000;
-                    const bidMetadataHash = hre.ethers.utils.solidityKeccak256(
+                    const metadataHash = hre.ethers.utils.solidityKeccak256(
                       ['uint256', 'address', 'address', 'address', 'uint256', 'uint256'],
                       [
                         (await hre.ethers.provider.getNetwork()).chainId,
@@ -4366,7 +4366,7 @@ describe('DapiServer', function () {
                         hre.ethers.utils.keccak256(
                           hre.ethers.utils.solidityPack(
                             ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                            [bidMetadataHash, beaconSetTemplateIds[1], nextTimestamp, data1]
+                            [metadataHash, beaconSetTemplateIds[1], nextTimestamp, data1]
                           )
                         )
                       )
@@ -4382,7 +4382,7 @@ describe('DapiServer', function () {
                         hre.ethers.utils.keccak256(
                           hre.ethers.utils.solidityPack(
                             ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                            [bidMetadataHash, beaconSetTemplateIds[2], timestampThatIsTooOld, data2]
+                            [metadataHash, beaconSetTemplateIds[2], timestampThatIsTooOld, data2]
                           )
                         )
                       )
@@ -4413,7 +4413,7 @@ describe('DapiServer', function () {
                         hre.ethers.utils.keccak256(
                           hre.ethers.utils.solidityPack(
                             ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                            [bidMetadataHash, beaconSetTemplateIds[2], timestampThatIsTooNew, data2]
+                            [metadataHash, beaconSetTemplateIds[2], timestampThatIsTooNew, data2]
                           )
                         )
                       )
@@ -4452,7 +4452,7 @@ describe('DapiServer', function () {
                   await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
                   const data1 = encodeData(105);
                   const bidAmount = 10000;
-                  const bidMetadataHash = hre.ethers.utils.solidityKeccak256(
+                  const metadataHash = hre.ethers.utils.solidityKeccak256(
                     ['uint256', 'address', 'address', 'address', 'uint256', 'uint256'],
                     [
                       (await hre.ethers.provider.getNetwork()).chainId,
@@ -4468,7 +4468,7 @@ describe('DapiServer', function () {
                       hre.ethers.utils.keccak256(
                         hre.ethers.utils.solidityPack(
                           ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                          [bidMetadataHash, beaconSetTemplateIds[1], nextTimestamp, data1]
+                          [metadataHash, beaconSetTemplateIds[1], nextTimestamp, data1]
                         )
                       )
                     )
@@ -4483,7 +4483,7 @@ describe('DapiServer', function () {
                       hre.ethers.utils.keccak256(
                         hre.ethers.utils.solidityPack(
                           ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                          [bidMetadataHash, beaconSetTemplateIds[2], nextTimestamp, overflowingData2]
+                          [metadataHash, beaconSetTemplateIds[2], nextTimestamp, overflowingData2]
                         )
                       )
                     )
@@ -4514,7 +4514,7 @@ describe('DapiServer', function () {
                       hre.ethers.utils.keccak256(
                         hre.ethers.utils.solidityPack(
                           ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                          [bidMetadataHash, beaconSetTemplateIds[2], nextTimestamp, underflowingData2]
+                          [metadataHash, beaconSetTemplateIds[2], nextTimestamp, underflowingData2]
                         )
                       )
                     )
@@ -4553,7 +4553,7 @@ describe('DapiServer', function () {
                 await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
                 const data1 = encodeData(105);
                 const bidAmount = 10000;
-                const bidMetadataHash = hre.ethers.utils.solidityKeccak256(
+                const metadataHash = hre.ethers.utils.solidityKeccak256(
                   ['uint256', 'address', 'address', 'address', 'uint256', 'uint256'],
                   [
                     (await hre.ethers.provider.getNetwork()).chainId,
@@ -4569,7 +4569,7 @@ describe('DapiServer', function () {
                     hre.ethers.utils.keccak256(
                       hre.ethers.utils.solidityPack(
                         ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                        [bidMetadataHash, beaconSetTemplateIds[1], nextTimestamp, data1]
+                        [metadataHash, beaconSetTemplateIds[1], nextTimestamp, data1]
                       )
                     )
                   )
@@ -4584,7 +4584,7 @@ describe('DapiServer', function () {
                     hre.ethers.utils.keccak256(
                       hre.ethers.utils.solidityPack(
                         ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                        [bidMetadataHash, beaconSetTemplateIds[2], nextTimestamp, data2WithWrongLength]
+                        [metadataHash, beaconSetTemplateIds[2], nextTimestamp, data2WithWrongLength]
                       )
                     )
                   )
@@ -4617,7 +4617,7 @@ describe('DapiServer', function () {
               await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
               const data1 = encodeData(105);
               const bidAmount = 10000;
-              const bidMetadataHash = hre.ethers.utils.solidityKeccak256(
+              const metadataHash = hre.ethers.utils.solidityKeccak256(
                 ['uint256', 'address', 'address', 'address', 'uint256', 'uint256'],
                 [
                   (await hre.ethers.provider.getNetwork()).chainId,
@@ -4633,7 +4633,7 @@ describe('DapiServer', function () {
                   hre.ethers.utils.keccak256(
                     hre.ethers.utils.solidityPack(
                       ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                      [bidMetadataHash, beaconSetTemplateIds[1], nextTimestamp, data1]
+                      [metadataHash, beaconSetTemplateIds[1], nextTimestamp, data1]
                     )
                   )
                 )
@@ -4643,7 +4643,7 @@ describe('DapiServer', function () {
                 [airnodeAddress, beaconSetTemplateIds[1], nextTimestamp, data1, signature1]
               );
               const data2 = encodeData(110);
-              const signature2OfWrongBidMetadataHash = await airnodeWallet.signMessage(
+              const signature2OfWrongMetadataHash = await airnodeWallet.signMessage(
                 hre.ethers.utils.arrayify(
                   hre.ethers.utils.keccak256(
                     hre.ethers.utils.solidityPack(
@@ -4653,9 +4653,9 @@ describe('DapiServer', function () {
                   )
                 )
               );
-              const signedData2WithSignatureOfWrongBidMetadataHash = hre.ethers.utils.defaultAbiCoder.encode(
+              const signedData2WithSignatureOfWrongMetadataHash = hre.ethers.utils.defaultAbiCoder.encode(
                 ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, beaconSetTemplateIds[2], nextTimestamp, data2, signature2OfWrongBidMetadataHash]
+                [airnodeAddress, beaconSetTemplateIds[2], nextTimestamp, data2, signature2OfWrongMetadataHash]
               );
               await expect(
                 dapiServer
@@ -4663,7 +4663,7 @@ describe('DapiServer', function () {
                   .updateOevProxyDataFeedWithSignedData(
                     oevProxy.address,
                     2,
-                    [signedData0, signedData1, signedData2WithSignatureOfWrongBidMetadataHash],
+                    [signedData0, signedData1, signedData2WithSignatureOfWrongMetadataHash],
                     { value: bidAmount }
                   )
               ).to.be.revertedWith('Signature mismatch');
@@ -4672,7 +4672,7 @@ describe('DapiServer', function () {
                   hre.ethers.utils.keccak256(
                     hre.ethers.utils.solidityPack(
                       ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                      [bidMetadataHash, beaconSetTemplateIds[2], nextTimestamp, data2]
+                      [metadataHash, beaconSetTemplateIds[2], nextTimestamp, data2]
                     )
                   )
                 )
@@ -4761,7 +4761,7 @@ describe('DapiServer', function () {
             );
             const data1 = encodeData(105);
             const bidAmount = 10000;
-            const bidMetadataHash = hre.ethers.utils.solidityKeccak256(
+            const metadataHash = hre.ethers.utils.solidityKeccak256(
               ['uint256', 'address', 'address', 'address', 'uint256', 'uint256'],
               [
                 (await hre.ethers.provider.getNetwork()).chainId,
@@ -4777,7 +4777,7 @@ describe('DapiServer', function () {
                 hre.ethers.utils.keccak256(
                   hre.ethers.utils.solidityPack(
                     ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                    [bidMetadataHash, beaconSetTemplateIds[1], nextTimestamp, data1]
+                    [metadataHash, beaconSetTemplateIds[1], nextTimestamp, data1]
                   )
                 )
               )
@@ -4792,7 +4792,7 @@ describe('DapiServer', function () {
                 hre.ethers.utils.keccak256(
                   hre.ethers.utils.solidityPack(
                     ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                    [bidMetadataHash, beaconSetTemplateIds[2], nextTimestamp, data2]
+                    [metadataHash, beaconSetTemplateIds[2], nextTimestamp, data2]
                   )
                 )
               )
@@ -4822,7 +4822,7 @@ describe('DapiServer', function () {
           await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
           const data1 = encodeData(105);
           const bidAmount = 10000;
-          const bidMetadataHash = hre.ethers.utils.solidityKeccak256(
+          const metadataHash = hre.ethers.utils.solidityKeccak256(
             ['uint256', 'address', 'address', 'address', 'uint256', 'uint256'],
             [
               (await hre.ethers.provider.getNetwork()).chainId,
@@ -4838,7 +4838,7 @@ describe('DapiServer', function () {
               hre.ethers.utils.keccak256(
                 hre.ethers.utils.solidityPack(
                   ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                  [bidMetadataHash, beaconSetTemplateIds[1], nextTimestamp, data1]
+                  [metadataHash, beaconSetTemplateIds[1], nextTimestamp, data1]
                 )
               )
             )
@@ -4871,7 +4871,7 @@ describe('DapiServer', function () {
                       await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
                       const data = encodeData(100);
                       const bidAmount = 10000;
-                      const bidMetadataHash = hre.ethers.utils.solidityKeccak256(
+                      const metadataHash = hre.ethers.utils.solidityKeccak256(
                         ['uint256', 'address', 'address', 'address', 'uint256', 'uint256'],
                         [
                           (await hre.ethers.provider.getNetwork()).chainId,
@@ -4887,7 +4887,7 @@ describe('DapiServer', function () {
                           hre.ethers.utils.keccak256(
                             hre.ethers.utils.solidityPack(
                               ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                              [bidMetadataHash, templateId, nextTimestamp, data]
+                              [metadataHash, templateId, nextTimestamp, data]
                             )
                           )
                         )
@@ -4914,7 +4914,7 @@ describe('DapiServer', function () {
                       await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
                       const data = encodeData(100);
                       const bidAmount = 10000;
-                      const bidMetadataHash = hre.ethers.utils.solidityKeccak256(
+                      const metadataHash = hre.ethers.utils.solidityKeccak256(
                         ['uint256', 'address', 'address', 'address', 'uint256', 'uint256'],
                         [
                           (await hre.ethers.provider.getNetwork()).chainId,
@@ -4930,7 +4930,7 @@ describe('DapiServer', function () {
                           hre.ethers.utils.keccak256(
                             hre.ethers.utils.solidityPack(
                               ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                              [bidMetadataHash, templateId, nextTimestamp, data]
+                              [metadataHash, templateId, nextTimestamp, data]
                             )
                           )
                         )
@@ -4957,7 +4957,7 @@ describe('DapiServer', function () {
                     const timestampThatIsTooOld = nextTimestamp - 60 * 60;
                     const data = encodeData(100);
                     const bidAmount = 10000;
-                    const bidMetadataHash = hre.ethers.utils.solidityKeccak256(
+                    const metadataHash = hre.ethers.utils.solidityKeccak256(
                       ['uint256', 'address', 'address', 'address', 'uint256', 'uint256'],
                       [
                         (await hre.ethers.provider.getNetwork()).chainId,
@@ -4973,7 +4973,7 @@ describe('DapiServer', function () {
                         hre.ethers.utils.keccak256(
                           hre.ethers.utils.solidityPack(
                             ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                            [bidMetadataHash, templateId, timestampThatIsTooOld, data]
+                            [metadataHash, templateId, timestampThatIsTooOld, data]
                           )
                         )
                       )
@@ -4998,7 +4998,7 @@ describe('DapiServer', function () {
                         hre.ethers.utils.keccak256(
                           hre.ethers.utils.solidityPack(
                             ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                            [bidMetadataHash, templateId, timestampThatIsTooNew, data]
+                            [metadataHash, templateId, timestampThatIsTooNew, data]
                           )
                         )
                       )
@@ -5026,7 +5026,7 @@ describe('DapiServer', function () {
                   await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
                   const overflowingData = encodeData(hre.ethers.BigNumber.from(2).pow(223));
                   const bidAmount = 10000;
-                  const bidMetadataHash = hre.ethers.utils.solidityKeccak256(
+                  const metadataHash = hre.ethers.utils.solidityKeccak256(
                     ['uint256', 'address', 'address', 'address', 'uint256', 'uint256'],
                     [
                       (await hre.ethers.provider.getNetwork()).chainId,
@@ -5042,7 +5042,7 @@ describe('DapiServer', function () {
                       hre.ethers.utils.keccak256(
                         hre.ethers.utils.solidityPack(
                           ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                          [bidMetadataHash, templateId, nextTimestamp, overflowingData]
+                          [metadataHash, templateId, nextTimestamp, overflowingData]
                         )
                       )
                     )
@@ -5064,7 +5064,7 @@ describe('DapiServer', function () {
                       hre.ethers.utils.keccak256(
                         hre.ethers.utils.solidityPack(
                           ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                          [bidMetadataHash, templateId, nextTimestamp, underflowingData]
+                          [metadataHash, templateId, nextTimestamp, underflowingData]
                         )
                       )
                     )
@@ -5089,7 +5089,7 @@ describe('DapiServer', function () {
                 await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
                 const dataWithWrongLength = hre.ethers.utils.defaultAbiCoder.encode(['int256', 'int256'], [100, 100]);
                 const bidAmount = 10000;
-                const bidMetadataHash = hre.ethers.utils.solidityKeccak256(
+                const metadataHash = hre.ethers.utils.solidityKeccak256(
                   ['uint256', 'address', 'address', 'address', 'uint256', 'uint256'],
                   [
                     (await hre.ethers.provider.getNetwork()).chainId,
@@ -5105,7 +5105,7 @@ describe('DapiServer', function () {
                     hre.ethers.utils.keccak256(
                       hre.ethers.utils.solidityPack(
                         ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                        [bidMetadataHash, templateId, nextTimestamp, dataWithWrongLength]
+                        [metadataHash, templateId, nextTimestamp, dataWithWrongLength]
                       )
                     )
                   )
@@ -5130,7 +5130,7 @@ describe('DapiServer', function () {
               await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
               const data = encodeData(100);
               const bidAmount = 10000;
-              const bidMetadataHash = hre.ethers.utils.solidityKeccak256(
+              const metadataHash = hre.ethers.utils.solidityKeccak256(
                 ['uint256', 'address', 'address', 'address', 'uint256', 'uint256'],
                 [
                   (await hre.ethers.provider.getNetwork()).chainId,
@@ -5141,7 +5141,7 @@ describe('DapiServer', function () {
                   1,
                 ]
               );
-              const signatureOfWrongBidMetadataHash = await airnodeWallet.signMessage(
+              const signatureOfWrongMetadataHash = await airnodeWallet.signMessage(
                 hre.ethers.utils.arrayify(
                   hre.ethers.utils.keccak256(
                     hre.ethers.utils.solidityPack(
@@ -5151,9 +5151,9 @@ describe('DapiServer', function () {
                   )
                 )
               );
-              const signedDataWithSignatureOfWrongBidMetadataHash = hre.ethers.utils.defaultAbiCoder.encode(
+              const signedDataWithSignatureOfWrongMetadataHash = hre.ethers.utils.defaultAbiCoder.encode(
                 ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, templateId, nextTimestamp, data, signatureOfWrongBidMetadataHash]
+                [airnodeAddress, templateId, nextTimestamp, data, signatureOfWrongMetadataHash]
               );
               await expect(
                 dapiServer
@@ -5161,7 +5161,7 @@ describe('DapiServer', function () {
                   .updateOevProxyDataFeedWithSignedData(
                     oevProxy.address,
                     1,
-                    [signedDataWithSignatureOfWrongBidMetadataHash],
+                    [signedDataWithSignatureOfWrongMetadataHash],
                     {
                       value: bidAmount,
                     }
@@ -5172,7 +5172,7 @@ describe('DapiServer', function () {
                   hre.ethers.utils.keccak256(
                     hre.ethers.utils.solidityPack(
                       ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                      [bidMetadataHash, templateId, nextTimestamp, data]
+                      [metadataHash, templateId, nextTimestamp, data]
                     )
                   )
                 )
@@ -5461,7 +5461,7 @@ describe('DapiServer', function () {
           const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
           const data = encodeData(123);
           const bidAmount = 10000;
-          const bidMetadataHash = hre.ethers.utils.solidityKeccak256(
+          const metadataHash = hre.ethers.utils.solidityKeccak256(
             ['uint256', 'address', 'address', 'address', 'uint256', 'uint256'],
             [
               (await hre.ethers.provider.getNetwork()).chainId,
@@ -5477,7 +5477,7 @@ describe('DapiServer', function () {
               hre.ethers.utils.keccak256(
                 hre.ethers.utils.solidityPack(
                   ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                  [bidMetadataHash, templateId, timestamp, data]
+                  [metadataHash, templateId, timestamp, data]
                 )
               )
             )
@@ -5530,7 +5530,7 @@ describe('DapiServer', function () {
             const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
             const data = encodeData(123);
             const bidAmount = 10000;
-            const bidMetadataHash = hre.ethers.utils.solidityKeccak256(
+            const metadataHash = hre.ethers.utils.solidityKeccak256(
               ['uint256', 'address', 'address', 'address', 'uint256', 'uint256'],
               [
                 (await hre.ethers.provider.getNetwork()).chainId,
@@ -5546,7 +5546,7 @@ describe('DapiServer', function () {
                 hre.ethers.utils.keccak256(
                   hre.ethers.utils.solidityPack(
                     ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                    [bidMetadataHash, templateId, timestamp, data]
+                    [metadataHash, templateId, timestamp, data]
                   )
                 )
               )
@@ -5607,7 +5607,7 @@ describe('DapiServer', function () {
             const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
             const data0 = encodeData(123);
             const bidAmount = 10000;
-            const bidMetadataHash = hre.ethers.utils.solidityKeccak256(
+            const metadataHash = hre.ethers.utils.solidityKeccak256(
               ['uint256', 'address', 'address', 'address', 'uint256', 'uint256'],
               [
                 (await hre.ethers.provider.getNetwork()).chainId,
@@ -5623,7 +5623,7 @@ describe('DapiServer', function () {
                 hre.ethers.utils.keccak256(
                   hre.ethers.utils.solidityPack(
                     ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                    [bidMetadataHash, beaconSetTemplateIds[0], timestamp, data0]
+                    [metadataHash, beaconSetTemplateIds[0], timestamp, data0]
                   )
                 )
               )
@@ -5634,7 +5634,7 @@ describe('DapiServer', function () {
                 hre.ethers.utils.keccak256(
                   hre.ethers.utils.solidityPack(
                     ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                    [bidMetadataHash, beaconSetTemplateIds[1], timestamp, data1]
+                    [metadataHash, beaconSetTemplateIds[1], timestamp, data1]
                   )
                 )
               )
@@ -5645,7 +5645,7 @@ describe('DapiServer', function () {
                 hre.ethers.utils.keccak256(
                   hre.ethers.utils.solidityPack(
                     ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                    [bidMetadataHash, beaconSetTemplateIds[2], timestamp, data2]
+                    [metadataHash, beaconSetTemplateIds[2], timestamp, data2]
                   )
                 )
               )
