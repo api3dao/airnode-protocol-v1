@@ -17,7 +17,7 @@ describe('Median', function () {
     context('Array length is 1-21', function () {
       it('computes median of randomly shuffled arrays', async function () {
         for (let arrayLength = 1; arrayLength <= 21; arrayLength++) {
-          for (let iterationCount = 0; iterationCount <= 10; iterationCount++) {
+          for (let iterationCount = 0; iterationCount <= 100; iterationCount++) {
             const array = Array.from(Array(arrayLength), (_, i) => i - Math.floor(arrayLength / 2));
             const shuffledArray = array
               .map((value) => ({ value, sort: Math.random() }))
