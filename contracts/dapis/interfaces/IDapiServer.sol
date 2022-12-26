@@ -88,6 +88,7 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
     event UpdatedOevProxyBeaconWithSignedData(
         bytes32 indexed beaconId,
         address indexed proxy,
+        bytes32 indexed updateId,
         int256 value,
         uint256 timestamp
     );
@@ -95,6 +96,7 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
     event UpdatedOevProxyBeaconSetWithSignedData(
         bytes32 indexed beaconSetId,
         address indexed proxy,
+        bytes32 indexed updateId,
         int256 value,
         uint256 timestamp
     );
@@ -198,6 +200,7 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
 
     function updateOevProxyDataFeedWithSignedData(
         address oevProxy,
+        bytes32 updateId,
         uint256 signatureCount,
         bytes[] calldata signedData
     ) external payable;

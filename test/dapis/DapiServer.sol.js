@@ -4209,16 +4209,18 @@ describe('DapiServer', function () {
                       await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
                       const data1 = encodeData(105);
                       const bidAmount = 10000;
+                      const updateId = testUtils.generateRandomBytes32();
                       const metadataHash = hre.ethers.utils.solidityKeccak256(
-                        ['uint256', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256'],
+                        ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
                         [
                           (await hre.ethers.provider.getNetwork()).chainId,
                           dapiServer.address,
                           oevProxy.address,
                           roles.searcher.address,
                           bidAmount,
-                          3,
+                          updateId,
                           2,
+                          3,
                         ]
                       );
                       const signature1 = await airnodeWallet.signMessage(
@@ -4256,13 +4258,14 @@ describe('DapiServer', function () {
                           .connect(roles.searcher)
                           .updateOevProxyDataFeedWithSignedData(
                             oevProxy.address,
+                            updateId,
                             2,
                             [signedData0, signedData1, signedData2],
                             { value: bidAmount }
                           )
                       )
                         .to.emit(dapiServer, 'UpdatedOevProxyBeaconSetWithSignedData')
-                        .withArgs(beaconSetId, oevProxy.address, 105, expectedTimestamp);
+                        .withArgs(beaconSetId, oevProxy.address, updateId, 105, expectedTimestamp);
                       const oevProxyBeaconSet = await dapiServer.oevProxyToIdToDataFeed(oevProxy.address, beaconSetId);
                       expect(oevProxyBeaconSet.value).to.equal(105);
                       expect(oevProxyBeaconSet.timestamp).to.equal(expectedTimestamp);
@@ -4279,16 +4282,18 @@ describe('DapiServer', function () {
                       await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
                       const data1 = encodeData(105);
                       const bidAmount = 10000;
+                      const updateId = testUtils.generateRandomBytes32();
                       const metadataHash = hre.ethers.utils.solidityKeccak256(
-                        ['uint256', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256'],
+                        ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
                         [
                           (await hre.ethers.provider.getNetwork()).chainId,
                           dapiServer.address,
                           oevProxy.address,
                           roles.searcher.address,
                           bidAmount,
-                          3,
+                          updateId,
                           2,
+                          3,
                         ]
                       );
                       const signature1 = await airnodeWallet.signMessage(
@@ -4324,6 +4329,7 @@ describe('DapiServer', function () {
                         .connect(roles.searcher)
                         .updateOevProxyDataFeedWithSignedData(
                           oevProxy.address,
+                          updateId,
                           2,
                           [signedData0, signedData1, signedData2],
                           { value: bidAmount }
@@ -4333,6 +4339,7 @@ describe('DapiServer', function () {
                           .connect(roles.searcher)
                           .updateOevProxyDataFeedWithSignedData(
                             oevProxy.address,
+                            updateId,
                             2,
                             [signedData0, signedData1, signedData2],
                             { value: bidAmount }
@@ -4352,16 +4359,18 @@ describe('DapiServer', function () {
                     await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
                     const data1 = encodeData(105);
                     const bidAmount = 10000;
+                    const updateId = testUtils.generateRandomBytes32();
                     const metadataHash = hre.ethers.utils.solidityKeccak256(
-                      ['uint256', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256'],
+                      ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
                       [
                         (await hre.ethers.provider.getNetwork()).chainId,
                         dapiServer.address,
                         oevProxy.address,
                         roles.searcher.address,
                         bidAmount,
-                        3,
+                        updateId,
                         2,
+                        3,
                       ]
                     );
                     const signature1 = await airnodeWallet.signMessage(
@@ -4405,6 +4414,7 @@ describe('DapiServer', function () {
                         .connect(roles.searcher)
                         .updateOevProxyDataFeedWithSignedData(
                           oevProxy.address,
+                          updateId,
                           2,
                           [signedData0, signedData1, signedData2WithTimestampThatIsTooOld],
                           { value: bidAmount }
@@ -4436,6 +4446,7 @@ describe('DapiServer', function () {
                         .connect(roles.searcher)
                         .updateOevProxyDataFeedWithSignedData(
                           oevProxy.address,
+                          updateId,
                           2,
                           [signedData0, signedData1, signedData2WithTimestampThatIsTooNew],
                           { value: bidAmount }
@@ -4455,16 +4466,18 @@ describe('DapiServer', function () {
                   await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
                   const data1 = encodeData(105);
                   const bidAmount = 10000;
+                  const updateId = testUtils.generateRandomBytes32();
                   const metadataHash = hre.ethers.utils.solidityKeccak256(
-                    ['uint256', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256'],
+                    ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
                     [
                       (await hre.ethers.provider.getNetwork()).chainId,
                       dapiServer.address,
                       oevProxy.address,
                       roles.searcher.address,
                       bidAmount,
-                      3,
+                      updateId,
                       2,
+                      3,
                     ]
                   );
                   const signature1 = await airnodeWallet.signMessage(
@@ -4507,6 +4520,7 @@ describe('DapiServer', function () {
                       .connect(roles.searcher)
                       .updateOevProxyDataFeedWithSignedData(
                         oevProxy.address,
+                        updateId,
                         2,
                         [signedData0, signedData1, signedData2WithOverflowingData],
                         { value: bidAmount }
@@ -4538,6 +4552,7 @@ describe('DapiServer', function () {
                       .connect(roles.searcher)
                       .updateOevProxyDataFeedWithSignedData(
                         oevProxy.address,
+                        updateId,
                         2,
                         [signedData0, signedData1, signedData2WithUnderflowingData],
                         { value: bidAmount }
@@ -4557,16 +4572,18 @@ describe('DapiServer', function () {
                 await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
                 const data1 = encodeData(105);
                 const bidAmount = 10000;
+                const updateId = testUtils.generateRandomBytes32();
                 const metadataHash = hre.ethers.utils.solidityKeccak256(
-                  ['uint256', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256'],
+                  ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
                   [
                     (await hre.ethers.provider.getNetwork()).chainId,
                     dapiServer.address,
                     oevProxy.address,
                     roles.searcher.address,
                     bidAmount,
-                    3,
+                    updateId,
                     2,
+                    3,
                   ]
                 );
                 const signature1 = await airnodeWallet.signMessage(
@@ -4603,6 +4620,7 @@ describe('DapiServer', function () {
                     .connect(roles.searcher)
                     .updateOevProxyDataFeedWithSignedData(
                       oevProxy.address,
+                      updateId,
                       2,
                       [signedData0, signedData1, signedData2WithDataWithWrongLength],
                       { value: bidAmount }
@@ -4622,16 +4640,18 @@ describe('DapiServer', function () {
               await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
               const data1 = encodeData(105);
               const bidAmount = 10000;
+              const updateId = testUtils.generateRandomBytes32();
               const metadataHash = hre.ethers.utils.solidityKeccak256(
-                ['uint256', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256'],
+                ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
                 [
                   (await hre.ethers.provider.getNetwork()).chainId,
                   dapiServer.address,
                   oevProxy.address,
                   roles.searcher.address,
                   bidAmount,
-                  3,
+                  updateId,
                   2,
+                  3,
                 ]
               );
               const signature1 = await airnodeWallet.signMessage(
@@ -4668,6 +4688,7 @@ describe('DapiServer', function () {
                   .connect(roles.searcher)
                   .updateOevProxyDataFeedWithSignedData(
                     oevProxy.address,
+                    updateId,
                     2,
                     [signedData0, signedData1, signedData2WithSignatureOfWrongMetadataHash],
                     { value: bidAmount }
@@ -4692,6 +4713,7 @@ describe('DapiServer', function () {
                   .connect(roles.searcher)
                   .updateOevProxyDataFeedWithSignedData(
                     oevProxy.address,
+                    updateId,
                     2,
                     [signedData0, signedData1, signedData2WithWrongAirnodeAddress],
                     { value: bidAmount }
@@ -4706,6 +4728,7 @@ describe('DapiServer', function () {
                   .connect(roles.searcher)
                   .updateOevProxyDataFeedWithSignedData(
                     oevProxy.address,
+                    updateId,
                     2,
                     [signedData0, signedData1, signedData2WithWrongTemplateId],
                     { value: bidAmount }
@@ -4720,6 +4743,7 @@ describe('DapiServer', function () {
                   .connect(roles.searcher)
                   .updateOevProxyDataFeedWithSignedData(
                     oevProxy.address,
+                    updateId,
                     2,
                     [signedData0, signedData1, signedData2WithWrongTimestamp],
                     { value: bidAmount }
@@ -4734,6 +4758,7 @@ describe('DapiServer', function () {
                   .connect(roles.searcher)
                   .updateOevProxyDataFeedWithSignedData(
                     oevProxy.address,
+                    updateId,
                     2,
                     [signedData0, signedData1, signedData2WithWrongData],
                     { value: bidAmount }
@@ -4748,6 +4773,7 @@ describe('DapiServer', function () {
                   .connect(roles.searcher)
                   .updateOevProxyDataFeedWithSignedData(
                     oevProxy.address,
+                    updateId,
                     2,
                     [signedData0, signedData1, signedData2WithInvalidSignature],
                     { value: bidAmount }
@@ -4767,16 +4793,18 @@ describe('DapiServer', function () {
             );
             const data1 = encodeData(105);
             const bidAmount = 10000;
+            const updateId = testUtils.generateRandomBytes32();
             const metadataHash = hre.ethers.utils.solidityKeccak256(
-              ['uint256', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256'],
+              ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
               [
                 (await hre.ethers.provider.getNetwork()).chainId,
                 dapiServer.address,
                 oevProxy.address,
                 roles.searcher.address,
                 bidAmount,
-                3,
+                updateId,
                 2,
+                3,
               ]
             );
             const signature1 = await airnodeWallet.signMessage(
@@ -4811,9 +4839,15 @@ describe('DapiServer', function () {
             await expect(
               dapiServer
                 .connect(roles.searcher)
-                .updateOevProxyDataFeedWithSignedData(oevProxy.address, 2, [signedData0, signedData1, signedData2], {
-                  value: bidAmount,
-                })
+                .updateOevProxyDataFeedWithSignedData(
+                  oevProxy.address,
+                  updateId,
+                  2,
+                  [signedData0, signedData1, signedData2],
+                  {
+                    value: bidAmount,
+                  }
+                )
             ).to.be.revertedWith('Missing signature');
           });
         });
@@ -4829,16 +4863,18 @@ describe('DapiServer', function () {
           await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
           const data1 = encodeData(105);
           const bidAmount = 10000;
+          const updateId = testUtils.generateRandomBytes32();
           const metadataHash = hre.ethers.utils.solidityKeccak256(
-            ['uint256', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256'],
+            ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
             [
               (await hre.ethers.provider.getNetwork()).chainId,
               dapiServer.address,
               oevProxy.address,
               roles.searcher.address,
               bidAmount,
-              3,
+              updateId,
               2,
+              3,
             ]
           );
           const signature1 = await airnodeWallet.signMessage(
@@ -4859,9 +4895,15 @@ describe('DapiServer', function () {
           await expect(
             dapiServer
               .connect(roles.searcher)
-              .updateOevProxyDataFeedWithSignedData(oevProxy.address, 2, [signedData0, signedData1, signedData2], {
-                value: bidAmount,
-              })
+              .updateOevProxyDataFeedWithSignedData(
+                oevProxy.address,
+                updateId,
+                2,
+                [signedData0, signedData1, signedData2],
+                {
+                  value: bidAmount,
+                }
+              )
           ).to.be.reverted;
         });
       });
@@ -4879,14 +4921,16 @@ describe('DapiServer', function () {
                       await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
                       const data = encodeData(100);
                       const bidAmount = 10000;
+                      const updateId = testUtils.generateRandomBytes32();
                       const metadataHash = hre.ethers.utils.solidityKeccak256(
-                        ['uint256', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256'],
+                        ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
                         [
                           (await hre.ethers.provider.getNetwork()).chainId,
                           dapiServer.address,
                           oevProxy.address,
                           roles.searcher.address,
                           bidAmount,
+                          updateId,
                           1,
                           1,
                         ]
@@ -4908,10 +4952,12 @@ describe('DapiServer', function () {
                       await expect(
                         dapiServer
                           .connect(roles.searcher)
-                          .updateOevProxyDataFeedWithSignedData(oevProxy.address, 1, [signedData], { value: bidAmount })
+                          .updateOevProxyDataFeedWithSignedData(oevProxy.address, updateId, 1, [signedData], {
+                            value: bidAmount,
+                          })
                       )
                         .to.emit(dapiServer, 'UpdatedOevProxyBeaconWithSignedData')
-                        .withArgs(beaconId, oevProxy.address, 100, nextTimestamp);
+                        .withArgs(beaconId, oevProxy.address, updateId, 100, nextTimestamp);
                       const oevProxyBeacon = await dapiServer.oevProxyToIdToDataFeed(oevProxy.address, beaconId);
                       expect(oevProxyBeacon.value).to.equal(100);
                       expect(oevProxyBeacon.timestamp).to.equal(nextTimestamp);
@@ -4923,14 +4969,16 @@ describe('DapiServer', function () {
                       await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
                       const data = encodeData(100);
                       const bidAmount = 10000;
+                      const updateId = testUtils.generateRandomBytes32();
                       const metadataHash = hre.ethers.utils.solidityKeccak256(
-                        ['uint256', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256'],
+                        ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
                         [
                           (await hre.ethers.provider.getNetwork()).chainId,
                           dapiServer.address,
                           oevProxy.address,
                           roles.searcher.address,
                           bidAmount,
+                          updateId,
                           1,
                           1,
                         ]
@@ -4951,11 +4999,15 @@ describe('DapiServer', function () {
                       );
                       await dapiServer
                         .connect(roles.searcher)
-                        .updateOevProxyDataFeedWithSignedData(oevProxy.address, 1, [signedData], { value: bidAmount });
+                        .updateOevProxyDataFeedWithSignedData(oevProxy.address, updateId, 1, [signedData], {
+                          value: bidAmount,
+                        });
                       await expect(
                         dapiServer
                           .connect(roles.searcher)
-                          .updateOevProxyDataFeedWithSignedData(oevProxy.address, 1, [signedData], { value: bidAmount })
+                          .updateOevProxyDataFeedWithSignedData(oevProxy.address, updateId, 1, [signedData], {
+                            value: bidAmount,
+                          })
                       ).to.be.revertedWith('Does not update timestamp');
                     });
                   });
@@ -4967,14 +5019,16 @@ describe('DapiServer', function () {
                     const timestampThatIsTooOld = nextTimestamp - 60 * 60;
                     const data = encodeData(100);
                     const bidAmount = 10000;
+                    const updateId = testUtils.generateRandomBytes32();
                     const metadataHash = hre.ethers.utils.solidityKeccak256(
-                      ['uint256', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256'],
+                      ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
                       [
                         (await hre.ethers.provider.getNetwork()).chainId,
                         dapiServer.address,
                         oevProxy.address,
                         roles.searcher.address,
                         bidAmount,
+                        updateId,
                         1,
                         1,
                       ]
@@ -4998,6 +5052,7 @@ describe('DapiServer', function () {
                         .connect(roles.searcher)
                         .updateOevProxyDataFeedWithSignedData(
                           oevProxy.address,
+                          updateId,
                           1,
                           [signedDataWithTimestampThatIsTooOld],
                           { value: bidAmount }
@@ -5023,6 +5078,7 @@ describe('DapiServer', function () {
                         .connect(roles.searcher)
                         .updateOevProxyDataFeedWithSignedData(
                           oevProxy.address,
+                          updateId,
                           1,
                           [signedDataWithTimestampThatIsTooNew],
                           { value: bidAmount }
@@ -5037,14 +5093,16 @@ describe('DapiServer', function () {
                   await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
                   const overflowingData = encodeData(hre.ethers.BigNumber.from(2).pow(223));
                   const bidAmount = 10000;
+                  const updateId = testUtils.generateRandomBytes32();
                   const metadataHash = hre.ethers.utils.solidityKeccak256(
-                    ['uint256', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256'],
+                    ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
                     [
                       (await hre.ethers.provider.getNetwork()).chainId,
                       dapiServer.address,
                       oevProxy.address,
                       roles.searcher.address,
                       bidAmount,
+                      updateId,
                       1,
                       1,
                     ]
@@ -5066,9 +5124,15 @@ describe('DapiServer', function () {
                   await expect(
                     dapiServer
                       .connect(roles.searcher)
-                      .updateOevProxyDataFeedWithSignedData(oevProxy.address, 1, [signedDataWithOverflowingData], {
-                        value: bidAmount,
-                      })
+                      .updateOevProxyDataFeedWithSignedData(
+                        oevProxy.address,
+                        updateId,
+                        1,
+                        [signedDataWithOverflowingData],
+                        {
+                          value: bidAmount,
+                        }
+                      )
                   ).to.be.revertedWith('Value typecasting error');
                   const underflowingData = encodeData(hre.ethers.BigNumber.from(-2).pow(223).sub(1));
                   const signatureOfUnderflowingData = await airnodeWallet.signMessage(
@@ -5088,9 +5152,15 @@ describe('DapiServer', function () {
                   await expect(
                     dapiServer
                       .connect(roles.searcher)
-                      .updateOevProxyDataFeedWithSignedData(oevProxy.address, 1, [signedDataWithUnderflowingData], {
-                        value: bidAmount,
-                      })
+                      .updateOevProxyDataFeedWithSignedData(
+                        oevProxy.address,
+                        updateId,
+                        1,
+                        [signedDataWithUnderflowingData],
+                        {
+                          value: bidAmount,
+                        }
+                      )
                   ).to.be.revertedWith('Value typecasting error');
                 });
               });
@@ -5101,14 +5171,16 @@ describe('DapiServer', function () {
                 await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
                 const dataWithWrongLength = hre.ethers.utils.defaultAbiCoder.encode(['int256', 'int256'], [100, 100]);
                 const bidAmount = 10000;
+                const updateId = testUtils.generateRandomBytes32();
                 const metadataHash = hre.ethers.utils.solidityKeccak256(
-                  ['uint256', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256'],
+                  ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
                   [
                     (await hre.ethers.provider.getNetwork()).chainId,
                     dapiServer.address,
                     oevProxy.address,
                     roles.searcher.address,
                     bidAmount,
+                    updateId,
                     1,
                     1,
                   ]
@@ -5130,9 +5202,15 @@ describe('DapiServer', function () {
                 await expect(
                   dapiServer
                     .connect(roles.searcher)
-                    .updateOevProxyDataFeedWithSignedData(oevProxy.address, 1, [signedDataWithDataWithWrongLength], {
-                      value: bidAmount,
-                    })
+                    .updateOevProxyDataFeedWithSignedData(
+                      oevProxy.address,
+                      updateId,
+                      1,
+                      [signedDataWithDataWithWrongLength],
+                      {
+                        value: bidAmount,
+                      }
+                    )
                 ).to.be.revertedWith('Data length not correct');
               });
             });
@@ -5143,14 +5221,16 @@ describe('DapiServer', function () {
               await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
               const data = encodeData(100);
               const bidAmount = 10000;
+              const updateId = testUtils.generateRandomBytes32();
               const metadataHash = hre.ethers.utils.solidityKeccak256(
-                ['uint256', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256'],
+                ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
                 [
                   (await hre.ethers.provider.getNetwork()).chainId,
                   dapiServer.address,
                   oevProxy.address,
                   roles.searcher.address,
                   bidAmount,
+                  updateId,
                   1,
                   1,
                 ]
@@ -5174,6 +5254,7 @@ describe('DapiServer', function () {
                   .connect(roles.searcher)
                   .updateOevProxyDataFeedWithSignedData(
                     oevProxy.address,
+                    updateId,
                     1,
                     [signedDataWithSignatureOfWrongMetadataHash],
                     {
@@ -5198,9 +5279,15 @@ describe('DapiServer', function () {
               await expect(
                 dapiServer
                   .connect(roles.searcher)
-                  .updateOevProxyDataFeedWithSignedData(oevProxy.address, 1, [signedDataWithWrongAirnodeAddress], {
-                    value: bidAmount,
-                  })
+                  .updateOevProxyDataFeedWithSignedData(
+                    oevProxy.address,
+                    updateId,
+                    1,
+                    [signedDataWithWrongAirnodeAddress],
+                    {
+                      value: bidAmount,
+                    }
+                  )
               ).to.be.revertedWith('Signature mismatch');
               const signedDataWithWrongTemplateId = hre.ethers.utils.defaultAbiCoder.encode(
                 ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
@@ -5209,9 +5296,15 @@ describe('DapiServer', function () {
               await expect(
                 dapiServer
                   .connect(roles.searcher)
-                  .updateOevProxyDataFeedWithSignedData(oevProxy.address, 1, [signedDataWithWrongTemplateId], {
-                    value: bidAmount,
-                  })
+                  .updateOevProxyDataFeedWithSignedData(
+                    oevProxy.address,
+                    updateId,
+                    1,
+                    [signedDataWithWrongTemplateId],
+                    {
+                      value: bidAmount,
+                    }
+                  )
               ).to.be.revertedWith('Signature mismatch');
               const signedDataWithWrongTimestamp = hre.ethers.utils.defaultAbiCoder.encode(
                 ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
@@ -5220,7 +5313,7 @@ describe('DapiServer', function () {
               await expect(
                 dapiServer
                   .connect(roles.searcher)
-                  .updateOevProxyDataFeedWithSignedData(oevProxy.address, 1, [signedDataWithWrongTimestamp], {
+                  .updateOevProxyDataFeedWithSignedData(oevProxy.address, updateId, 1, [signedDataWithWrongTimestamp], {
                     value: bidAmount,
                   })
               ).to.be.revertedWith('Signature mismatch');
@@ -5231,7 +5324,7 @@ describe('DapiServer', function () {
               await expect(
                 dapiServer
                   .connect(roles.searcher)
-                  .updateOevProxyDataFeedWithSignedData(oevProxy.address, 1, [signedDataWithWrongData], {
+                  .updateOevProxyDataFeedWithSignedData(oevProxy.address, updateId, 1, [signedDataWithWrongData], {
                     value: bidAmount,
                   })
               ).to.be.revertedWith('Signature mismatch');
@@ -5242,9 +5335,15 @@ describe('DapiServer', function () {
               await expect(
                 dapiServer
                   .connect(roles.searcher)
-                  .updateOevProxyDataFeedWithSignedData(oevProxy.address, 1, [signedDataWithInvalidSignature], {
-                    value: bidAmount,
-                  })
+                  .updateOevProxyDataFeedWithSignedData(
+                    oevProxy.address,
+                    updateId,
+                    1,
+                    [signedDataWithInvalidSignature],
+                    {
+                      value: bidAmount,
+                    }
+                  )
               ).to.be.revertedWith('ECDSA: invalid signature length');
             });
           });
@@ -5260,10 +5359,11 @@ describe('DapiServer', function () {
                 ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
                 [airnodeAddress, templateId, nextTimestamp, data, signature]
               );
+              const updateId = testUtils.generateRandomBytes32();
               await expect(
                 dapiServer
                   .connect(roles.randomPerson)
-                  .updateOevProxyDataFeedWithSignedData(oevProxy.address, 1, [signedData])
+                  .updateOevProxyDataFeedWithSignedData(oevProxy.address, updateId, 1, [signedData])
               ).to.be.revertedWith('Missing signature');
             });
           });
@@ -5277,10 +5377,11 @@ describe('DapiServer', function () {
                 ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
                 [airnodeAddress, templateId, nextTimestamp, data, signature]
               );
+              const updateId = testUtils.generateRandomBytes32();
               await expect(
                 dapiServer
                   .connect(roles.randomPerson)
-                  .updateOevProxyDataFeedWithSignedData(oevProxy.address, 1, [signedData])
+                  .updateOevProxyDataFeedWithSignedData(oevProxy.address, updateId, 1, [signedData])
               ).to.be.revertedWith('Missing data');
             });
           });
@@ -5289,18 +5390,20 @@ describe('DapiServer', function () {
       context('Signed data is not decodable', function () {
         it('reverts', async function () {
           const signedData = '0x123456';
+          const updateId = testUtils.generateRandomBytes32();
           await expect(
             dapiServer
               .connect(roles.randomPerson)
-              .updateOevProxyDataFeedWithSignedData(oevProxy.address, 1, [signedData])
+              .updateOevProxyDataFeedWithSignedData(oevProxy.address, updateId, 1, [signedData])
           ).to.be.reverted;
         });
       });
     });
     context('No Beacon is specified', function () {
       it('reverts', async function () {
+        const updateId = testUtils.generateRandomBytes32();
         await expect(
-          dapiServer.connect(roles.randomPerson).updateOevProxyDataFeedWithSignedData(oevProxy.address, 1, [])
+          dapiServer.connect(roles.randomPerson).updateOevProxyDataFeedWithSignedData(oevProxy.address, updateId, 1, [])
         ).to.be.revertedWith('Specified no Beacons');
       });
     });
@@ -5475,14 +5578,16 @@ describe('DapiServer', function () {
           const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
           const data = encodeData(123);
           const bidAmount = 10000;
+          const updateId = testUtils.generateRandomBytes32();
           const metadataHash = hre.ethers.utils.solidityKeccak256(
-            ['uint256', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256'],
+            ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
             [
               (await hre.ethers.provider.getNetwork()).chainId,
               dapiServer.address,
               roles.mockOevProxy.address,
               roles.searcher.address,
               bidAmount,
+              updateId,
               1,
               1,
             ]
@@ -5501,6 +5606,7 @@ describe('DapiServer', function () {
             .connect(roles.searcher)
             .updateOevProxyDataFeedWithSignedData(
               roles.mockOevProxy.address,
+              updateId,
               1,
               [
                 hre.ethers.utils.defaultAbiCoder.encode(
@@ -5545,14 +5651,16 @@ describe('DapiServer', function () {
             const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
             const data = encodeData(123);
             const bidAmount = 10000;
+            const updateId = testUtils.generateRandomBytes32();
             const metadataHash = hre.ethers.utils.solidityKeccak256(
-              ['uint256', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256'],
+              ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
               [
                 (await hre.ethers.provider.getNetwork()).chainId,
                 dapiServer.address,
                 roles.mockOevProxy.address,
                 roles.searcher.address,
                 bidAmount,
+                updateId,
                 1,
                 1,
               ]
@@ -5571,6 +5679,7 @@ describe('DapiServer', function () {
               .connect(roles.searcher)
               .updateOevProxyDataFeedWithSignedData(
                 roles.mockOevProxy.address,
+                updateId,
                 1,
                 [
                   hre.ethers.utils.defaultAbiCoder.encode(
@@ -5623,14 +5732,16 @@ describe('DapiServer', function () {
             const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
             const data0 = encodeData(123);
             const bidAmount = 10000;
+            const updateId = testUtils.generateRandomBytes32();
             const metadataHash = hre.ethers.utils.solidityKeccak256(
-              ['uint256', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256'],
+              ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
               [
                 (await hre.ethers.provider.getNetwork()).chainId,
                 dapiServer.address,
                 roles.mockOevProxy.address,
                 roles.searcher.address,
                 bidAmount,
+                updateId,
                 3,
                 3,
               ]
@@ -5671,6 +5782,7 @@ describe('DapiServer', function () {
               .connect(roles.searcher)
               .updateOevProxyDataFeedWithSignedData(
                 roles.mockOevProxy.address,
+                updateId,
                 3,
                 [
                   hre.ethers.utils.defaultAbiCoder.encode(

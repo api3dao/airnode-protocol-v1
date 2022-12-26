@@ -736,12 +736,14 @@ contract DapiServer is
     /// the fulfillment data and signature is omitted will be read from
     /// storage.
     /// @param oevProxy OEV proxy that reads the Beacon set
+    /// @param updateId Update ID
     /// @param signatureCount Number of signatures in `signedData`
     /// @param signedData Array of ABI-encoded Airnode address, template ID,
     /// timestamp, fulfillment data and bid metadata that is signed by the
     /// respective Airnode for the specific bid
     function updateOevProxyDataFeedWithSignedData(
         address oevProxy,
+        bytes32 updateId,
         uint256 signatureCount,
         bytes[] calldata signedData
     ) external payable override {
@@ -753,8 +755,9 @@ contract DapiServer is
                 address(oevProxy),
                 msg.sender,
                 msg.value,
-                beaconCount,
-                signatureCount
+                updateId,
+                signatureCount,
+                beaconCount
             )
         );
         if (beaconCount > 1) {
@@ -797,6 +800,7 @@ contract DapiServer is
             emit UpdatedOevProxyBeaconSetWithSignedData(
                 beaconSetId,
                 oevProxy,
+                updateId,
                 updatedValue,
                 updatedTimestamp
             );
@@ -820,6 +824,7 @@ contract DapiServer is
             emit UpdatedOevProxyBeaconWithSignedData(
                 beaconId,
                 oevProxy,
+                updateId,
                 beaconValue,
                 beaconTimestamp
             );
