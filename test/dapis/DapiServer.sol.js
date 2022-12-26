@@ -4199,76 +4199,213 @@ describe('DapiServer', function () {
               context('All decoded fulfillment data can be typecasted into int224', function () {
                 context('All timestamps are valid', function () {
                   context('Updates timestamp', function () {
-                    it('updates Beacon set with signed data', async function () {
-                      const timestamp0 = await updateBeacon(airnodeAddress, beaconSetTemplateIds[0], 100);
-                      const signedData0 = hre.ethers.utils.defaultAbiCoder.encode(
-                        ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                        [airnodeAddress, beaconSetTemplateIds[0], 0, '0x', '0x']
-                      );
-                      const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                      await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-                      const data1 = encodeData(105);
-                      const bidAmount = 10000;
-                      const updateId = testUtils.generateRandomBytes32();
-                      const metadataHash = hre.ethers.utils.solidityKeccak256(
-                        ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
-                        [
-                          (await hre.ethers.provider.getNetwork()).chainId,
-                          dapiServer.address,
-                          oevProxy.address,
-                          roles.searcher.address,
-                          bidAmount,
-                          updateId,
-                          2,
-                          3,
-                        ]
-                      );
-                      const signature1 = await airnodeWallet.signMessage(
-                        hre.ethers.utils.arrayify(
-                          hre.ethers.utils.keccak256(
-                            hre.ethers.utils.solidityPack(
-                              ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                              [metadataHash, beaconSetTemplateIds[1], nextTimestamp, data1]
-                            )
-                          )
-                        )
-                      );
-                      const signedData1 = hre.ethers.utils.defaultAbiCoder.encode(
-                        ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                        [airnodeAddress, beaconSetTemplateIds[1], nextTimestamp, data1, signature1]
-                      );
-                      const data2 = encodeData(110);
-                      const signature2 = await airnodeWallet.signMessage(
-                        hre.ethers.utils.arrayify(
-                          hre.ethers.utils.keccak256(
-                            hre.ethers.utils.solidityPack(
-                              ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                              [metadataHash, beaconSetTemplateIds[2], nextTimestamp, data2]
-                            )
-                          )
-                        )
-                      );
-                      const signedData2 = hre.ethers.utils.defaultAbiCoder.encode(
-                        ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                        [airnodeAddress, beaconSetTemplateIds[2], nextTimestamp, data2, signature2]
-                      );
-                      const expectedTimestamp = Math.floor((timestamp0 + nextTimestamp + nextTimestamp) / 3);
-                      await expect(
-                        dapiServer
-                          .connect(roles.searcher)
-                          .updateOevProxyDataFeedWithSignedData(
+                    context('Signed data includes correct number of signatures', function () {
+                      it('updates Beacon set with signed data', async function () {
+                        const timestamp0 = await updateBeacon(airnodeAddress, beaconSetTemplateIds[0], 100);
+                        const signedData0 = hre.ethers.utils.defaultAbiCoder.encode(
+                          ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
+                          [airnodeAddress, beaconSetTemplateIds[0], 0, '0x', '0x']
+                        );
+                        const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
+                        await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
+                        const data1 = encodeData(105);
+                        const bidAmount = 10000;
+                        const updateId = testUtils.generateRandomBytes32();
+                        const metadataHash = hre.ethers.utils.solidityKeccak256(
+                          ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
+                          [
+                            (await hre.ethers.provider.getNetwork()).chainId,
+                            dapiServer.address,
                             oevProxy.address,
+                            roles.searcher.address,
+                            bidAmount,
                             updateId,
                             2,
-                            [signedData0, signedData1, signedData2],
-                            { value: bidAmount }
+                            3,
+                          ]
+                        );
+                        const signature1 = await airnodeWallet.signMessage(
+                          hre.ethers.utils.arrayify(
+                            hre.ethers.utils.keccak256(
+                              hre.ethers.utils.solidityPack(
+                                ['bytes32', 'bytes32', 'uint256', 'bytes'],
+                                [metadataHash, beaconSetTemplateIds[1], nextTimestamp, data1]
+                              )
+                            )
                           )
-                      )
-                        .to.emit(dapiServer, 'UpdatedOevProxyBeaconSetWithSignedData')
-                        .withArgs(beaconSetId, oevProxy.address, updateId, 105, expectedTimestamp);
-                      const oevProxyBeaconSet = await dapiServer.oevProxyToIdToDataFeed(oevProxy.address, beaconSetId);
-                      expect(oevProxyBeaconSet.value).to.equal(105);
-                      expect(oevProxyBeaconSet.timestamp).to.equal(expectedTimestamp);
+                        );
+                        const signedData1 = hre.ethers.utils.defaultAbiCoder.encode(
+                          ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
+                          [airnodeAddress, beaconSetTemplateIds[1], nextTimestamp, data1, signature1]
+                        );
+                        const data2 = encodeData(110);
+                        const signature2 = await airnodeWallet.signMessage(
+                          hre.ethers.utils.arrayify(
+                            hre.ethers.utils.keccak256(
+                              hre.ethers.utils.solidityPack(
+                                ['bytes32', 'bytes32', 'uint256', 'bytes'],
+                                [metadataHash, beaconSetTemplateIds[2], nextTimestamp, data2]
+                              )
+                            )
+                          )
+                        );
+                        const signedData2 = hre.ethers.utils.defaultAbiCoder.encode(
+                          ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
+                          [airnodeAddress, beaconSetTemplateIds[2], nextTimestamp, data2, signature2]
+                        );
+                        const expectedTimestamp = Math.floor((timestamp0 + nextTimestamp + nextTimestamp) / 3);
+                        await expect(
+                          dapiServer
+                            .connect(roles.searcher)
+                            .updateOevProxyDataFeedWithSignedData(
+                              oevProxy.address,
+                              updateId,
+                              2,
+                              [signedData0, signedData1, signedData2],
+                              { value: bidAmount }
+                            )
+                        )
+                          .to.emit(dapiServer, 'UpdatedOevProxyBeaconSetWithSignedData')
+                          .withArgs(beaconSetId, oevProxy.address, updateId, 105, expectedTimestamp);
+                        const oevProxyBeaconSet = await dapiServer.oevProxyToIdToDataFeed(
+                          oevProxy.address,
+                          beaconSetId
+                        );
+                        expect(oevProxyBeaconSet.value).to.equal(105);
+                        expect(oevProxyBeaconSet.timestamp).to.equal(expectedTimestamp);
+                      });
+                    });
+                    context('Signed data includes more signatures than stated', function () {
+                      it('reverts', async function () {
+                        const signedData0 = hre.ethers.utils.defaultAbiCoder.encode(
+                          ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
+                          [airnodeAddress, beaconSetTemplateIds[0], 0, '0x', '0x']
+                        );
+                        const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
+                        await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
+                        const data1 = encodeData(105);
+                        const bidAmount = 10000;
+                        const updateId = testUtils.generateRandomBytes32();
+                        const metadataHash = hre.ethers.utils.solidityKeccak256(
+                          ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
+                          [
+                            (await hre.ethers.provider.getNetwork()).chainId,
+                            dapiServer.address,
+                            oevProxy.address,
+                            roles.searcher.address,
+                            bidAmount,
+                            updateId,
+                            1,
+                            3,
+                          ]
+                        );
+                        const signature1 = await airnodeWallet.signMessage(
+                          hre.ethers.utils.arrayify(
+                            hre.ethers.utils.keccak256(
+                              hre.ethers.utils.solidityPack(
+                                ['bytes32', 'bytes32', 'uint256', 'bytes'],
+                                [metadataHash, beaconSetTemplateIds[1], nextTimestamp, data1]
+                              )
+                            )
+                          )
+                        );
+                        const signedData1 = hre.ethers.utils.defaultAbiCoder.encode(
+                          ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
+                          [airnodeAddress, beaconSetTemplateIds[1], nextTimestamp, data1, signature1]
+                        );
+                        const data2 = encodeData(110);
+                        const signature2 = await airnodeWallet.signMessage(
+                          hre.ethers.utils.arrayify(
+                            hre.ethers.utils.keccak256(
+                              hre.ethers.utils.solidityPack(
+                                ['bytes32', 'bytes32', 'uint256', 'bytes'],
+                                [metadataHash, beaconSetTemplateIds[2], nextTimestamp, data2]
+                              )
+                            )
+                          )
+                        );
+                        const signedData2 = hre.ethers.utils.defaultAbiCoder.encode(
+                          ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
+                          [airnodeAddress, beaconSetTemplateIds[2], nextTimestamp, data2, signature2]
+                        );
+                        await expect(
+                          dapiServer
+                            .connect(roles.searcher)
+                            .updateOevProxyDataFeedWithSignedData(
+                              oevProxy.address,
+                              updateId,
+                              1,
+                              [signedData0, signedData1, signedData2],
+                              { value: bidAmount }
+                            )
+                        ).to.be.revertedWith('More signatures than stated');
+                      });
+                    });
+                    context('Signed data includes less signatures than stated', function () {
+                      it('reverts', async function () {
+                        const signedData0 = hre.ethers.utils.defaultAbiCoder.encode(
+                          ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
+                          [airnodeAddress, beaconSetTemplateIds[0], 0, '0x', '0x']
+                        );
+                        const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
+                        await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
+                        const data1 = encodeData(105);
+                        const bidAmount = 10000;
+                        const updateId = testUtils.generateRandomBytes32();
+                        const metadataHash = hre.ethers.utils.solidityKeccak256(
+                          ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
+                          [
+                            (await hre.ethers.provider.getNetwork()).chainId,
+                            dapiServer.address,
+                            oevProxy.address,
+                            roles.searcher.address,
+                            bidAmount,
+                            updateId,
+                            3,
+                            3,
+                          ]
+                        );
+                        const signature1 = await airnodeWallet.signMessage(
+                          hre.ethers.utils.arrayify(
+                            hre.ethers.utils.keccak256(
+                              hre.ethers.utils.solidityPack(
+                                ['bytes32', 'bytes32', 'uint256', 'bytes'],
+                                [metadataHash, beaconSetTemplateIds[1], nextTimestamp, data1]
+                              )
+                            )
+                          )
+                        );
+                        const signedData1 = hre.ethers.utils.defaultAbiCoder.encode(
+                          ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
+                          [airnodeAddress, beaconSetTemplateIds[1], nextTimestamp, data1, signature1]
+                        );
+                        const data2 = encodeData(110);
+                        const signature2 = await airnodeWallet.signMessage(
+                          hre.ethers.utils.arrayify(
+                            hre.ethers.utils.keccak256(
+                              hre.ethers.utils.solidityPack(
+                                ['bytes32', 'bytes32', 'uint256', 'bytes'],
+                                [metadataHash, beaconSetTemplateIds[2], nextTimestamp, data2]
+                              )
+                            )
+                          )
+                        );
+                        const signedData2 = hre.ethers.utils.defaultAbiCoder.encode(
+                          ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
+                          [airnodeAddress, beaconSetTemplateIds[2], nextTimestamp, data2, signature2]
+                        );
+                        await expect(
+                          dapiServer
+                            .connect(roles.searcher)
+                            .updateOevProxyDataFeedWithSignedData(
+                              oevProxy.address,
+                              updateId,
+                              3,
+                              [signedData0, signedData1, signedData2],
+                              { value: bidAmount }
+                            )
+                        ).to.be.revertedWith('Less signatures than stated');
+                      });
                     });
                   });
                   context('Does not update timestamp', function () {

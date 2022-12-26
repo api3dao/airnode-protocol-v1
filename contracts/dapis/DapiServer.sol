@@ -774,14 +774,17 @@ contract DapiServer is
                 if (beaconTimestamp != 0) {
                     values[ind] = beaconValue;
                     accumulatedTimestamp += beaconTimestamp;
-                    signatureCount--;
+                    require(signatureCount != 0, "More signatures than stated");
+                    unchecked {
+                        signatureCount--;
+                    }
                 } else {
                     DataFeed storage beacon = dataFeeds[beaconId];
                     values[ind] = beacon.value;
                     accumulatedTimestamp += beacon.timestamp;
                 }
             }
-            require(signatureCount == 0, "Signature count not met");
+            require(signatureCount == 0, "Less signatures than stated");
             bytes32 beaconSetId = deriveBeaconSetId(beaconIds);
             uint32 updatedTimestamp = uint32(
                 accumulatedTimestamp / beaconCount
