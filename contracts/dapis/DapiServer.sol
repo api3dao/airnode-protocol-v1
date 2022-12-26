@@ -841,9 +841,9 @@ contract DapiServer is
     /// @param oevProxy OEV proxy
     function withdraw(address oevProxy) external override {
         address oevBeneficiary = IOevProxy(oevProxy).oevBeneficiary();
-        require(oevBeneficiary != address(0), "Invalid OEV proxy");
+        require(oevBeneficiary != address(0), "Beneficiary address zero");
         uint256 balance = oevProxyToBalance[oevProxy];
-        require(balance != 0, "Balance zero");
+        require(balance != 0, "OEV proxy balance zero");
         oevProxyToBalance[oevProxy] = 0;
         emit Withdrew(oevProxy, balance);
         // solhint-disable-next-line avoid-low-level-calls

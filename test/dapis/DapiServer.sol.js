@@ -5546,6 +5546,162 @@ describe('DapiServer', function () {
     });
   });
 
+  describe('withdraw', function () {
+    context('OEV proxy announces a beneficiary address', function () {
+      context('OEV proxy announces a non-zero beneficiary address', function () {
+        context('OEV proxy balance is not zero', function () {
+          context('Beneficiary does not revert the transfer', function () {
+            it('withdraws the OEV proxy balance to the respective beneficiary', async function () {
+              const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
+              const data = encodeData(123);
+              const bidAmount = 10000;
+              const updateId = testUtils.generateRandomBytes32();
+              const metadataHash = hre.ethers.utils.solidityKeccak256(
+                ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
+                [
+                  (await hre.ethers.provider.getNetwork()).chainId,
+                  dapiServer.address,
+                  oevProxy.address,
+                  roles.searcher.address,
+                  bidAmount,
+                  updateId,
+                  1,
+                  1,
+                ]
+              );
+              const signature = await airnodeWallet.signMessage(
+                hre.ethers.utils.arrayify(
+                  hre.ethers.utils.keccak256(
+                    hre.ethers.utils.solidityPack(
+                      ['bytes32', 'bytes32', 'uint256', 'bytes'],
+                      [metadataHash, templateId, timestamp, data]
+                    )
+                  )
+                )
+              );
+              await dapiServer
+                .connect(roles.searcher)
+                .updateOevProxyDataFeedWithSignedData(
+                  oevProxy.address,
+                  updateId,
+                  1,
+                  [
+                    hre.ethers.utils.defaultAbiCoder.encode(
+                      ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
+                      [airnodeAddress, templateId, timestamp, data, signature]
+                    ),
+                  ],
+                  { value: bidAmount }
+                );
+              const oevBeneficiaryBalanceBeforeWithdrawal = await hre.ethers.provider.getBalance(
+                roles.oevBeneficiary.address
+              );
+              await expect(dapiServer.connect(roles.randomPerson).withdraw(oevProxy.address))
+                .to.emit(dapiServer, 'Withdrew')
+                .withArgs(oevProxy.address, bidAmount);
+              const oevBeneficiaryBalanceAfterWithdrawal = await hre.ethers.provider.getBalance(
+                roles.oevBeneficiary.address
+              );
+              expect(oevBeneficiaryBalanceAfterWithdrawal.sub(oevBeneficiaryBalanceBeforeWithdrawal)).to.equal(
+                bidAmount
+              );
+            });
+          });
+          context('Beneficiary reverts the transfer', function () {
+            it('reverts', async function () {
+              const dataFeedProxyWithOevFactory = await hre.ethers.getContractFactory(
+                'DataFeedProxyWithOev',
+                roles.deployer
+              );
+              const oevProxyWithRevertingBeneficiary = await dataFeedProxyWithOevFactory.deploy(
+                dapiServer.address,
+                testUtils.generateRandomBytes32(),
+                dapiServer.address
+              );
+              const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
+              const data = encodeData(123);
+              const bidAmount = 10000;
+              const updateId = testUtils.generateRandomBytes32();
+              const metadataHash = hre.ethers.utils.solidityKeccak256(
+                ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
+                [
+                  (await hre.ethers.provider.getNetwork()).chainId,
+                  dapiServer.address,
+                  oevProxyWithRevertingBeneficiary.address,
+                  roles.searcher.address,
+                  bidAmount,
+                  updateId,
+                  1,
+                  1,
+                ]
+              );
+              const signature = await airnodeWallet.signMessage(
+                hre.ethers.utils.arrayify(
+                  hre.ethers.utils.keccak256(
+                    hre.ethers.utils.solidityPack(
+                      ['bytes32', 'bytes32', 'uint256', 'bytes'],
+                      [metadataHash, templateId, timestamp, data]
+                    )
+                  )
+                )
+              );
+              await dapiServer
+                .connect(roles.searcher)
+                .updateOevProxyDataFeedWithSignedData(
+                  oevProxyWithRevertingBeneficiary.address,
+                  updateId,
+                  1,
+                  [
+                    hre.ethers.utils.defaultAbiCoder.encode(
+                      ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
+                      [airnodeAddress, templateId, timestamp, data, signature]
+                    ),
+                  ],
+                  { value: bidAmount }
+                );
+              await expect(
+                dapiServer.connect(roles.randomPerson).withdraw(oevProxyWithRevertingBeneficiary.address)
+              ).to.be.revertedWith('Withdrawal reverted');
+            });
+          });
+        });
+        context('OEV proxy balance is zero', function () {
+          it('reverts', async function () {
+            await expect(dapiServer.connect(roles.randomPerson).withdraw(oevProxy.address)).to.be.revertedWith(
+              'OEV proxy balance zero'
+            );
+          });
+        });
+      });
+      context('OEV proxy announces a zero beneficiary address', function () {
+        it('reverts', async function () {
+          const dataFeedProxyWithOevFactory = await hre.ethers.getContractFactory(
+            'DataFeedProxyWithOev',
+            roles.deployer
+          );
+          const oevProxyWithZeroBeneficiary = await dataFeedProxyWithOevFactory.deploy(
+            dapiServer.address,
+            testUtils.generateRandomBytes32(),
+            hre.ethers.constants.AddressZero
+          );
+          await expect(
+            dapiServer.connect(roles.randomPerson).withdraw(oevProxyWithZeroBeneficiary.address)
+          ).to.be.revertedWith('Beneficiary address zero');
+        });
+      });
+    });
+    context('OEV proxy does not announce a beneficiary address', function () {
+      it('reverts', async function () {
+        await expect(dapiServer.connect(roles.randomPerson).withdraw(roles.randomPerson.address)).to.be.revertedWith(
+          'Transaction reverted: function call to a non-contract account'
+        );
+        await expect(dapiServer.connect(roles.randomPerson).withdraw(dapiServer.address)).to.be.revertedWith(
+          "Transaction reverted: function selector was not recognized and there's no fallback function"
+        );
+      });
+    });
+  });
+
   describe('setDapiName', function () {
     context('dAPI name is not zero', function () {
       context('Data feed ID is not zero', function () {
