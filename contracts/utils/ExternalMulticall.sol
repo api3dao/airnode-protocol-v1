@@ -18,16 +18,16 @@ contract ExternalMulticall is IExternalMulticall {
         uint256 callCount = targets.length;
         require(callCount == data.length, "Parameter length mismatch");
         returndata = new bytes[](callCount);
-        for (uint256 i = 0; i < callCount; i++) {
+        for (uint256 ind = 0; ind < callCount; ind++) {
             require(
-                targets[i].code.length > 0,
+                targets[ind].code.length > 0,
                 "Multicall target not contract"
             );
             bool success;
             // solhint-disable-next-line avoid-low-level-calls
-            (success, returndata[i]) = targets[i].call(data[i]);
+            (success, returndata[ind]) = targets[ind].call(data[ind]);
             if (!success) {
-                bytes memory returndataWithRevertData = returndata[i];
+                bytes memory returndataWithRevertData = returndata[ind];
                 // Adapted from OpenZeppelin's Address.sol
                 if (returndataWithRevertData.length > 0) {
                     // solhint-disable-next-line no-inline-assembly
@@ -63,10 +63,12 @@ contract ExternalMulticall is IExternalMulticall {
         require(callCount == data.length, "Parameter length mismatch");
         successes = new bool[](callCount);
         returndata = new bytes[](callCount);
-        for (uint256 i = 0; i < callCount; i++) {
-            if (targets[i].code.length > 0) {
+        for (uint256 ind = 0; ind < callCount; ind++) {
+            if (targets[ind].code.length > 0) {
                 // solhint-disable-next-line avoid-low-level-calls
-                (successes[i], returndata[i]) = targets[i].call(data[i]);
+                (successes[ind], returndata[ind]) = targets[ind].call(
+                    data[ind]
+                );
             }
         }
     }
