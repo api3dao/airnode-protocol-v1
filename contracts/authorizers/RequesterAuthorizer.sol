@@ -158,7 +158,9 @@ abstract contract RequesterAuthorizer is ERC2771Context, IRequesterAuthorizer {
             serviceIdToUserToSetterToIndefiniteAuthorizationStatus[serviceId][
                 requester
             ][_msgSender()] = true;
-            indefiniteAuthorizationCount++;
+            unchecked {
+                indefiniteAuthorizationCount++;
+            }
             serviceIdToUserToAuthorizationStatus[serviceId][requester]
                 .indefiniteAuthorizationCount = indefiniteAuthorizationCount;
         } else if (
@@ -170,7 +172,9 @@ abstract contract RequesterAuthorizer is ERC2771Context, IRequesterAuthorizer {
             serviceIdToUserToSetterToIndefiniteAuthorizationStatus[serviceId][
                 requester
             ][_msgSender()] = false;
-            indefiniteAuthorizationCount--;
+            unchecked {
+                indefiniteAuthorizationCount--;
+            }
             serviceIdToUserToAuthorizationStatus[serviceId][requester]
                 .indefiniteAuthorizationCount = indefiniteAuthorizationCount;
         }
@@ -212,7 +216,9 @@ abstract contract RequesterAuthorizer is ERC2771Context, IRequesterAuthorizer {
             serviceIdToUserToSetterToIndefiniteAuthorizationStatus[serviceId][
                 requester
             ][setter] = false;
-            indefiniteAuthorizationCount--;
+            unchecked {
+                indefiniteAuthorizationCount--;
+            }
             serviceIdToUserToAuthorizationStatus[serviceId][requester]
                 .indefiniteAuthorizationCount = indefiniteAuthorizationCount;
             emit RevokedIndefiniteAuthorizationStatus(

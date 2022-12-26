@@ -112,7 +112,10 @@ contract IndefiniteAuthorizerWithErc20Deposit is
             endpointId
         );
         tokenDeposits.depositorToAmount[msg.sender] = tokenDepositAmount;
-        uint256 tokenDepositsCount = ++tokenDeposits.count;
+        uint256 tokenDepositsCount;
+        unchecked {
+            tokenDepositsCount = ++tokenDeposits.count;
+        }
         emit DepositedTokens(
             airnode,
             chainId,
@@ -169,7 +172,10 @@ contract IndefiniteAuthorizerWithErc20Deposit is
         tokenDeposits.depositorToEarliestWithdrawalTime[msg.sender] =
             block.timestamp +
             withdrawalLeadTime;
-        uint256 tokenDepositsCount = --tokenDeposits.count;
+        uint256 tokenDepositsCount;
+        unchecked {
+            tokenDepositsCount = --tokenDeposits.count;
+        }
         emit SignaledWithdrawalIntent(
             airnode,
             chainId,
@@ -234,7 +240,10 @@ contract IndefiniteAuthorizerWithErc20Deposit is
                 tokenWithdrawAmount
             );
         } else {
-            uint256 tokenDepositsCount = --tokenDeposits.count;
+            uint256 tokenDepositsCount;
+            unchecked {
+                tokenDepositsCount = --tokenDeposits.count;
+            }
             emit WithdrewTokens(
                 airnode,
                 chainId,
@@ -285,7 +294,10 @@ contract IndefiniteAuthorizerWithErc20Deposit is
         require(tokenWithdrawAmount != 0, "Depositor has not deposited");
         tokenDeposits.depositorToAmount[depositor] = 0;
         if (tokenDeposits.depositorToEarliestWithdrawalTime[depositor] == 0) {
-            uint256 tokenDepositsCount = --tokenDeposits.count;
+            uint256 tokenDepositsCount;
+            unchecked {
+                tokenDepositsCount = --tokenDeposits.count;
+            }
             emit WithdrewTokensDepositedForBlockedRequester(
                 airnode,
                 chainId,

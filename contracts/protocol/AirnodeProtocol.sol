@@ -60,7 +60,12 @@ contract AirnodeProtocol is
         );
         require(sponsor != address(0), "Sponsor address zero");
         require(fulfillFunctionId != bytes4(0), "Fulfill function ID zero");
-        uint256 requesterRequestCount = ++requesterToRequestCount[msg.sender];
+        uint256 requesterRequestCount;
+        // Will not overflow assuming a requester cannot make more than
+        // `type(uint256).max` requests in practice
+        unchecked {
+            requesterRequestCount = ++requesterToRequestCount[msg.sender];
+        }
         requestId = keccak256(
             abi.encodePacked(
                 block.chainid,
@@ -231,7 +236,10 @@ contract AirnodeProtocol is
         require(relayer != address(0), "Relayer address zero");
         require(sponsor != address(0), "Sponsor address zero");
         require(fulfillFunctionId != bytes4(0), "Fulfill function ID zero");
-        uint256 requesterRequestCount = ++requesterToRequestCount[msg.sender];
+        uint256 requesterRequestCount;
+        unchecked {
+            requesterRequestCount = ++requesterToRequestCount[msg.sender];
+        }
         requestId = keccak256(
             abi.encodePacked(
                 block.chainid,

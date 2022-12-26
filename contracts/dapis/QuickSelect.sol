@@ -14,7 +14,11 @@ contract Quickselect {
         int256[] memory array,
         uint256 k
     ) internal pure returns (uint256 indK) {
-        (indK, ) = quickselect(array, 0, array.length - 1, k, false);
+        uint256 arrayLength = array.length;
+        assert(arrayLength > 0);
+        unchecked {
+            (indK, ) = quickselect(array, 0, arrayLength - 1, k, false);
+        }
     }
 
     /// @notice Returns the index of the k-th and (k+1)-th largest elements in
@@ -29,8 +33,10 @@ contract Quickselect {
         uint256 k
     ) internal pure returns (uint256 indK, uint256 indKPlusOne) {
         uint256 arrayLength = array.length;
-        require(arrayLength > 1, "Array too short to select k+1");
-        return quickselect(array, 0, arrayLength - 1, k, true);
+        assert(arrayLength > 1);
+        unchecked {
+            return quickselect(array, 0, arrayLength - 1, k, true);
+        }
     }
 
     /// @notice Returns the index of the k-th largest element in the specified
@@ -58,9 +64,13 @@ contract Quickselect {
         }
         uint256 indPivot = partition(array, lo, hi);
         if (k < indPivot) {
-            (indK, ) = quickselect(array, lo, indPivot - 1, k, false);
+            unchecked {
+                (indK, ) = quickselect(array, lo, indPivot - 1, k, false);
+            }
         } else if (k > indPivot) {
-            (indK, ) = quickselect(array, indPivot + 1, hi, k, false);
+            unchecked {
+                (indK, ) = quickselect(array, indPivot + 1, hi, k, false);
+            }
         } else {
             indK = indPivot;
         }
@@ -69,10 +79,19 @@ contract Quickselect {
         // the (k+1)-th largest element, which is useful in calculating the
         // median of an array with even length
         if (selectKPlusOne) {
-            indKPlusOne = indK + 1;
-            for (uint256 i = indKPlusOne + 1; i < array.length; i++) {
+            unchecked {
+                indKPlusOne = indK + 1;
+            }
+            uint256 i;
+            unchecked {
+                i = indKPlusOne + 1;
+            }
+            for (; i < array.length; ) {
                 if (array[i] < array[indKPlusOne]) {
                     indKPlusOne = i;
+                }
+                unchecked {
+                    i++;
                 }
             }
         }
@@ -95,13 +114,19 @@ contract Quickselect {
         }
         int256 pivot = array[lo];
         uint256 i = lo;
-        pivotInd = hi + 1;
+        unchecked {
+            pivotInd = hi + 1;
+        }
         while (true) {
             do {
-                i++;
+                unchecked {
+                    i++;
+                }
             } while (i < array.length && array[i] < pivot);
             do {
-                pivotInd--;
+                unchecked {
+                    pivotInd--;
+                }
             } while (array[pivotInd] > pivot);
             if (i >= pivotInd) {
                 (array[lo], array[pivotInd]) = (array[pivotInd], array[lo]);

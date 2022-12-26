@@ -15,7 +15,7 @@ contract SelfMulticall is ISelfMulticall {
         bytes[] calldata data
     ) external override returns (bytes[] memory returndata) {
         returndata = new bytes[](data.length);
-        for (uint256 ind = 0; ind < data.length; ind++) {
+        for (uint256 ind = 0; ind < data.length; ) {
             bool success;
             // solhint-disable-next-line avoid-low-level-calls
             (success, returndata[ind]) = address(this).delegatecall(data[ind]);
@@ -35,6 +35,9 @@ contract SelfMulticall is ISelfMulticall {
                     revert("Multicall: No revert string");
                 }
             }
+            unchecked {
+                ind++;
+            }
         }
     }
 
@@ -52,11 +55,14 @@ contract SelfMulticall is ISelfMulticall {
     {
         successes = new bool[](data.length);
         returndata = new bytes[](data.length);
-        for (uint256 ind = 0; ind < data.length; ind++) {
+        for (uint256 ind = 0; ind < data.length; ) {
             // solhint-disable-next-line avoid-low-level-calls
             (successes[ind], returndata[ind]) = address(this).delegatecall(
                 data[ind]
             );
+            unchecked {
+                ind++;
+            }
         }
     }
 }

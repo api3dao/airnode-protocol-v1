@@ -18,7 +18,7 @@ contract ExternalMulticall is IExternalMulticall {
         uint256 callCount = targets.length;
         require(callCount == data.length, "Parameter length mismatch");
         returndata = new bytes[](callCount);
-        for (uint256 ind = 0; ind < callCount; ind++) {
+        for (uint256 ind = 0; ind < callCount; ) {
             require(
                 targets[ind].code.length > 0,
                 "Multicall target not contract"
@@ -42,6 +42,9 @@ contract ExternalMulticall is IExternalMulticall {
                     revert("Multicall: No revert string");
                 }
             }
+            unchecked {
+                ind++;
+            }
         }
     }
 
@@ -63,12 +66,15 @@ contract ExternalMulticall is IExternalMulticall {
         require(callCount == data.length, "Parameter length mismatch");
         successes = new bool[](callCount);
         returndata = new bytes[](callCount);
-        for (uint256 ind = 0; ind < callCount; ind++) {
+        for (uint256 ind = 0; ind < callCount; ) {
             if (targets[ind].code.length > 0) {
                 // solhint-disable-next-line avoid-low-level-calls
                 (successes[ind], returndata[ind]) = targets[ind].call(
                     data[ind]
                 );
+            }
+            unchecked {
+                ind++;
             }
         }
     }

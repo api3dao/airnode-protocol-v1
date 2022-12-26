@@ -21,18 +21,48 @@ contract Median is Sort, Quickselect {
             if (arrayLength % 2 == 1) {
                 return array[arrayLength / 2];
             } else {
-                return
-                    (array[arrayLength / 2 - 1] + array[arrayLength / 2]) / 2;
+                assert(arrayLength != 0);
+                unchecked {
+                    return
+                        average(
+                            array[arrayLength / 2 - 1],
+                            array[arrayLength / 2]
+                        );
+                }
             }
         } else {
             if (arrayLength % 2 == 1) {
                 return array[quickselectK(array, arrayLength / 2)];
             } else {
-                (uint256 mid1, uint256 mid2) = quickselectKPlusOne(
-                    array,
-                    arrayLength / 2 - 1
-                );
-                return (array[mid1] + array[mid2]) / 2;
+                uint256 mid1;
+                uint256 mid2;
+                unchecked {
+                    (mid1, mid2) = quickselectKPlusOne(
+                        array,
+                        arrayLength / 2 - 1
+                    );
+                }
+                return average(array[mid1], array[mid2]);
+            }
+        }
+    }
+
+    /// @notice Averages two signed integers without overflowing
+    /// @param x Integer x
+    /// @param y Integer y
+    /// @return Average of integers x and y
+    function average(int256 x, int256 y) private pure returns (int256) {
+        if (x > 0 != y > 0) {
+            // No risk of overflow if the signs are different, add them and
+            // divide by 2
+            unchecked {
+                return (x + y) / 2;
+            }
+        } else {
+            // There is risk of overflow if the signs are the same, divide by 2
+            // before adding and compensate for the gobbled bit
+            unchecked {
+                return x / 2 + y / 2 + ((x % 2) + (y % 2)) / 2;
             }
         }
     }
