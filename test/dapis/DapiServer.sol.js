@@ -4210,13 +4210,14 @@ describe('DapiServer', function () {
                       const data1 = encodeData(105);
                       const bidAmount = 10000;
                       const metadataHash = hre.ethers.utils.solidityKeccak256(
-                        ['uint256', 'address', 'address', 'address', 'uint256', 'uint256'],
+                        ['uint256', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256'],
                         [
                           (await hre.ethers.provider.getNetwork()).chainId,
                           dapiServer.address,
                           oevProxy.address,
                           roles.searcher.address,
                           bidAmount,
+                          3,
                           2,
                         ]
                       );
@@ -4279,13 +4280,14 @@ describe('DapiServer', function () {
                       const data1 = encodeData(105);
                       const bidAmount = 10000;
                       const metadataHash = hre.ethers.utils.solidityKeccak256(
-                        ['uint256', 'address', 'address', 'address', 'uint256', 'uint256'],
+                        ['uint256', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256'],
                         [
                           (await hre.ethers.provider.getNetwork()).chainId,
                           dapiServer.address,
                           oevProxy.address,
                           roles.searcher.address,
                           bidAmount,
+                          3,
                           2,
                         ]
                       );
@@ -4351,13 +4353,14 @@ describe('DapiServer', function () {
                     const data1 = encodeData(105);
                     const bidAmount = 10000;
                     const metadataHash = hre.ethers.utils.solidityKeccak256(
-                      ['uint256', 'address', 'address', 'address', 'uint256', 'uint256'],
+                      ['uint256', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256'],
                       [
                         (await hre.ethers.provider.getNetwork()).chainId,
                         dapiServer.address,
                         oevProxy.address,
                         roles.searcher.address,
                         bidAmount,
+                        3,
                         2,
                       ]
                     );
@@ -4453,13 +4456,14 @@ describe('DapiServer', function () {
                   const data1 = encodeData(105);
                   const bidAmount = 10000;
                   const metadataHash = hre.ethers.utils.solidityKeccak256(
-                    ['uint256', 'address', 'address', 'address', 'uint256', 'uint256'],
+                    ['uint256', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256'],
                     [
                       (await hre.ethers.provider.getNetwork()).chainId,
                       dapiServer.address,
                       oevProxy.address,
                       roles.searcher.address,
                       bidAmount,
+                      3,
                       2,
                     ]
                   );
@@ -4554,13 +4558,14 @@ describe('DapiServer', function () {
                 const data1 = encodeData(105);
                 const bidAmount = 10000;
                 const metadataHash = hre.ethers.utils.solidityKeccak256(
-                  ['uint256', 'address', 'address', 'address', 'uint256', 'uint256'],
+                  ['uint256', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256'],
                   [
                     (await hre.ethers.provider.getNetwork()).chainId,
                     dapiServer.address,
                     oevProxy.address,
                     roles.searcher.address,
                     bidAmount,
+                    3,
                     2,
                   ]
                 );
@@ -4618,13 +4623,14 @@ describe('DapiServer', function () {
               const data1 = encodeData(105);
               const bidAmount = 10000;
               const metadataHash = hre.ethers.utils.solidityKeccak256(
-                ['uint256', 'address', 'address', 'address', 'uint256', 'uint256'],
+                ['uint256', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256'],
                 [
                   (await hre.ethers.provider.getNetwork()).chainId,
                   dapiServer.address,
                   oevProxy.address,
                   roles.searcher.address,
                   bidAmount,
+                  3,
                   2,
                 ]
               );
@@ -4762,13 +4768,14 @@ describe('DapiServer', function () {
             const data1 = encodeData(105);
             const bidAmount = 10000;
             const metadataHash = hre.ethers.utils.solidityKeccak256(
-              ['uint256', 'address', 'address', 'address', 'uint256', 'uint256'],
+              ['uint256', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256'],
               [
                 (await hre.ethers.provider.getNetwork()).chainId,
                 dapiServer.address,
                 oevProxy.address,
                 roles.searcher.address,
                 bidAmount,
+                3,
                 2,
               ]
             );
@@ -4823,13 +4830,14 @@ describe('DapiServer', function () {
           const data1 = encodeData(105);
           const bidAmount = 10000;
           const metadataHash = hre.ethers.utils.solidityKeccak256(
-            ['uint256', 'address', 'address', 'address', 'uint256', 'uint256'],
+            ['uint256', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256'],
             [
               (await hre.ethers.provider.getNetwork()).chainId,
               dapiServer.address,
               oevProxy.address,
               roles.searcher.address,
               bidAmount,
+              3,
               2,
             ]
           );
@@ -4872,13 +4880,14 @@ describe('DapiServer', function () {
                       const data = encodeData(100);
                       const bidAmount = 10000;
                       const metadataHash = hre.ethers.utils.solidityKeccak256(
-                        ['uint256', 'address', 'address', 'address', 'uint256', 'uint256'],
+                        ['uint256', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256'],
                         [
                           (await hre.ethers.provider.getNetwork()).chainId,
                           dapiServer.address,
                           oevProxy.address,
                           roles.searcher.address,
                           bidAmount,
+                          1,
                           1,
                         ]
                       );
@@ -4915,13 +4924,14 @@ describe('DapiServer', function () {
                       const data = encodeData(100);
                       const bidAmount = 10000;
                       const metadataHash = hre.ethers.utils.solidityKeccak256(
-                        ['uint256', 'address', 'address', 'address', 'uint256', 'uint256'],
+                        ['uint256', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256'],
                         [
                           (await hre.ethers.provider.getNetwork()).chainId,
                           dapiServer.address,
                           oevProxy.address,
                           roles.searcher.address,
                           bidAmount,
+                          1,
                           1,
                         ]
                       );
@@ -4958,13 +4968,14 @@ describe('DapiServer', function () {
                     const data = encodeData(100);
                     const bidAmount = 10000;
                     const metadataHash = hre.ethers.utils.solidityKeccak256(
-                      ['uint256', 'address', 'address', 'address', 'uint256', 'uint256'],
+                      ['uint256', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256'],
                       [
                         (await hre.ethers.provider.getNetwork()).chainId,
                         dapiServer.address,
                         oevProxy.address,
                         roles.searcher.address,
                         bidAmount,
+                        1,
                         1,
                       ]
                     );
@@ -5027,13 +5038,14 @@ describe('DapiServer', function () {
                   const overflowingData = encodeData(hre.ethers.BigNumber.from(2).pow(223));
                   const bidAmount = 10000;
                   const metadataHash = hre.ethers.utils.solidityKeccak256(
-                    ['uint256', 'address', 'address', 'address', 'uint256', 'uint256'],
+                    ['uint256', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256'],
                     [
                       (await hre.ethers.provider.getNetwork()).chainId,
                       dapiServer.address,
                       oevProxy.address,
                       roles.searcher.address,
                       bidAmount,
+                      1,
                       1,
                     ]
                   );
@@ -5090,13 +5102,14 @@ describe('DapiServer', function () {
                 const dataWithWrongLength = hre.ethers.utils.defaultAbiCoder.encode(['int256', 'int256'], [100, 100]);
                 const bidAmount = 10000;
                 const metadataHash = hre.ethers.utils.solidityKeccak256(
-                  ['uint256', 'address', 'address', 'address', 'uint256', 'uint256'],
+                  ['uint256', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256'],
                   [
                     (await hre.ethers.provider.getNetwork()).chainId,
                     dapiServer.address,
                     oevProxy.address,
                     roles.searcher.address,
                     bidAmount,
+                    1,
                     1,
                   ]
                 );
@@ -5131,13 +5144,14 @@ describe('DapiServer', function () {
               const data = encodeData(100);
               const bidAmount = 10000;
               const metadataHash = hre.ethers.utils.solidityKeccak256(
-                ['uint256', 'address', 'address', 'address', 'uint256', 'uint256'],
+                ['uint256', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256'],
                 [
                   (await hre.ethers.provider.getNetwork()).chainId,
                   dapiServer.address,
                   oevProxy.address,
                   roles.searcher.address,
                   bidAmount,
+                  1,
                   1,
                 ]
               );
@@ -5462,13 +5476,14 @@ describe('DapiServer', function () {
           const data = encodeData(123);
           const bidAmount = 10000;
           const metadataHash = hre.ethers.utils.solidityKeccak256(
-            ['uint256', 'address', 'address', 'address', 'uint256', 'uint256'],
+            ['uint256', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256'],
             [
               (await hre.ethers.provider.getNetwork()).chainId,
               dapiServer.address,
               roles.mockOevProxy.address,
               roles.searcher.address,
               bidAmount,
+              1,
               1,
             ]
           );
@@ -5531,13 +5546,14 @@ describe('DapiServer', function () {
             const data = encodeData(123);
             const bidAmount = 10000;
             const metadataHash = hre.ethers.utils.solidityKeccak256(
-              ['uint256', 'address', 'address', 'address', 'uint256', 'uint256'],
+              ['uint256', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256'],
               [
                 (await hre.ethers.provider.getNetwork()).chainId,
                 dapiServer.address,
                 roles.mockOevProxy.address,
                 roles.searcher.address,
                 bidAmount,
+                1,
                 1,
               ]
             );
@@ -5608,13 +5624,14 @@ describe('DapiServer', function () {
             const data0 = encodeData(123);
             const bidAmount = 10000;
             const metadataHash = hre.ethers.utils.solidityKeccak256(
-              ['uint256', 'address', 'address', 'address', 'uint256', 'uint256'],
+              ['uint256', 'address', 'address', 'address', 'uint256', 'uint256', 'uint256'],
               [
                 (await hre.ethers.provider.getNetwork()).chainId,
                 dapiServer.address,
                 roles.mockOevProxy.address,
                 roles.searcher.address,
                 bidAmount,
+                3,
                 3,
               ]
             );

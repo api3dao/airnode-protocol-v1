@@ -745,6 +745,7 @@ contract DapiServer is
         uint256 signatureCount,
         bytes[] calldata signedData
     ) external payable override {
+        uint256 beaconCount = signedData.length;
         bytes32 metadataHash = keccak256(
             abi.encodePacked(
                 block.chainid,
@@ -752,10 +753,10 @@ contract DapiServer is
                 address(oevProxy),
                 msg.sender,
                 msg.value,
+                beaconCount,
                 signatureCount
             )
         );
-        uint256 beaconCount = signedData.length;
         if (beaconCount > 1) {
             bytes32[] memory beaconIds = new bytes32[](beaconCount);
             int256[] memory values = new int256[](beaconCount);
