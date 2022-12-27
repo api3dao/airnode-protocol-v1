@@ -59,7 +59,9 @@ contract Median is Sort, Quickselect {
             // If the average rounded down to negative infinity is negative
             // (i.e., its 256th sign bit is set), and one of (x, y) is even and
             // the other one is odd (i.e., the 1st bit of their xor is set),
-            // add 1 to round the average down to zero instead
+            // add 1 to round the average down to zero instead.
+            // We will typecast the signed integer to unsigned to logical-shift
+            // int256(uint256(signedInt)) >> 255 ~= signedInt >>> 255
             return
                 averageRoundedDownToNegativeInfinity +
                 (int256(
