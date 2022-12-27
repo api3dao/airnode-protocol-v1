@@ -52,18 +52,17 @@ contract Median is Sort, Quickselect {
     /// @param y Integer y
     /// @return Average of integers x and y
     function average(int256 x, int256 y) private pure returns (int256) {
-        if (x > 0 != y > 0) {
-            // No risk of overflow if the signs are different, add them and
-            // divide by 2
-            unchecked {
-                return (x + y) / 2;
-            }
-        } else {
-            // There is risk of overflow if the signs are the same, divide by 2
-            // before adding and compensate for the gobbled bit
-            unchecked {
-                return x / 2 + y / 2 + ((x % 2) + (y % 2)) / 2;
-            }
+        unchecked {
+            int256 averageRoundedDownToNegativeInfinity = (x >> 1) +
+                (y >> 1) +
+                (x & y & 1);
+            // If the average rounded down to negative infinity is negative
+            // (i.e., its 256th sign bit is set), and one of (x, y) is even and
+            // the other one is odd (i.e., the 1st bit of their xor is set),
+            // add 1 to round the average down to zero instead
+            return
+                averageRoundedDownToNegativeInfinity +
+                ((averageRoundedDownToNegativeInfinity >> 255) & ((x ^ y) & 1));
         }
     }
 }
