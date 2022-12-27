@@ -43,20 +43,14 @@ contract WithdrawalUtils is IWithdrawalUtils {
     ) external override {
         require(airnodeOrRelayer != address(0), "Airnode/relayer address zero");
         require(protocolId != 0, "Protocol ID zero");
-        bytes32 withdrawalRequestId;
-        // Will not overflow assuming a sponsor cannot make more than
-        // `type(uint256).max` withdrawal requests in practice
-        unchecked {
-            withdrawalRequestId = keccak256(
-                abi.encodePacked(
-                    block.chainid,
-                    address(this),
-                    msg.sender,
-                    ++sponsorToWithdrawalRequestCount[msg.sender]
-                )
-            );
-        }
-
+        bytes32 withdrawalRequestId = keccak256(
+            abi.encodePacked(
+                block.chainid,
+                address(this),
+                msg.sender,
+                ++sponsorToWithdrawalRequestCount[msg.sender]
+            )
+        );
         withdrawalRequestIdToParameters[withdrawalRequestId] = keccak256(
             abi.encodePacked(airnodeOrRelayer, protocolId, msg.sender)
         );
