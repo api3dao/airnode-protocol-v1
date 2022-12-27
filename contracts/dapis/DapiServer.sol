@@ -821,11 +821,7 @@ contract DapiServer is
                 value: updatedValue,
                 timestamp: updatedTimestamp
             });
-            // Will not overflow assuming an OEV proxy balance cannot
-            // exceed `type(uint256).max` in practice
-            unchecked {
-                oevProxyToBalance[oevProxy] += msg.value;
-            }
+            oevProxyToBalance[oevProxy] += msg.value;
             emit UpdatedOevProxyBeaconSetWithSignedData(
                 beaconSetId,
                 oevProxy,
@@ -849,9 +845,7 @@ contract DapiServer is
                 value: beaconValue,
                 timestamp: beaconTimestamp
             });
-            unchecked {
-                oevProxyToBalance[oevProxy] += msg.value;
-            }
+            oevProxyToBalance[oevProxy] += msg.value;
             emit UpdatedOevProxyBeaconWithSignedData(
                 beaconId,
                 oevProxy,
