@@ -11,15 +11,14 @@ contract MockMedian is Median {
     }
 
     function exposedAverage(int256 x, int256 y) external pure returns (int256) {
-        unchecked {
-            int256 averageRoundedDownToNegativeInfinity = (x >> 1) +
-                (y >> 1) +
-                (x & y & 1);
-            return
-                averageRoundedDownToNegativeInfinity +
-                (int256(
-                    (uint256(averageRoundedDownToNegativeInfinity) >> 255)
-                ) & (x ^ y));
+        int256[] memory array = new int256[](2);
+        if (x < y) {
+            array[0] = x;
+            array[1] = y;
+        } else {
+            array[0] = y;
+            array[1] = x;
         }
+        return median(array);
     }
 }
