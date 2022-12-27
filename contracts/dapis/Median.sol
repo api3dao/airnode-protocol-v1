@@ -62,7 +62,9 @@ contract Median is Sort, Quickselect {
             // add 1 to round the average down to zero instead
             return
                 averageRoundedDownToNegativeInfinity +
-                ((averageRoundedDownToNegativeInfinity >> 255) & ((x ^ y) & 1));
+                (int256(
+                    (uint256(averageRoundedDownToNegativeInfinity) >> 255)
+                ) & (x ^ y));
         }
     }
 }

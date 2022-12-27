@@ -17,7 +17,9 @@ contract MockMedian is Median {
                 (x & y & 1);
             return
                 averageRoundedDownToNegativeInfinity +
-                ((averageRoundedDownToNegativeInfinity >> 255) & ((x ^ y) & 1));
+                (int256(
+                    (uint256(averageRoundedDownToNegativeInfinity) >> 255)
+                ) & (x ^ y));
         }
     }
 }
