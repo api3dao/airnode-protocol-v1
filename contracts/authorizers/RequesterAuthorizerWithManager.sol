@@ -6,7 +6,7 @@ import "./RequesterAuthorizer.sol";
 import "./interfaces/IRequesterAuthorizerWithManager.sol";
 
 /// @title Authorizer contract that a manager can use to temporarily or
-/// indefinitely authorize requesters for Airnode–endpoint pairs or Airnodes
+/// indefinitely authorize requesters for Airnodes
 contract RequesterAuthorizerWithManager is
     AccessControlRegistryAdminnedWithManager,
     RequesterAuthorizer,
@@ -56,68 +56,50 @@ contract RequesterAuthorizerWithManager is
     }
 
     /// @notice Extends the expiration of the temporary authoriztion of
-    /// `requester` for `airnode`–`endpointId` pair if the sender is allowed
-    /// to extend authorization expiration
+    /// `requester` for `airnode` if the sender is allowed to extend
+    /// authorization expiration
     /// @param airnode Airnode address
-    /// @param endpointId Endpoint ID
     /// @param requester Requester address
     /// @param expirationTimestamp Timestamp at which the temporary
     /// authorization will expire
     function extendAuthorizerExpiration(
         address airnode,
-        bytes32 endpointId,
         address requester,
-        uint64 expirationTimestamp
+        uint32 expirationTimestamp
     ) external override {
         require(
             hasAuthorizationExpirationExtenderRoleOrIsManager(_msgSender()),
             "Cannot extend expiration"
         );
-        _extendAuthorizationExpiration(
-            airnode,
-            endpointId,
-            requester,
-            expirationTimestamp
-        );
+        _extendAuthorizationExpiration(airnode, requester, expirationTimestamp);
     }
 
     /// @notice Sets the expiration of the temporary authorization of
-    /// `requester` for `airnode`–`endpointId` pair if the sender is allowed to
-    /// set expiration
+    /// `requester` for `airnode` if the sender is allowed to set expiration
     /// @dev Unlike `extendAuthorizerExpiration()`, this can hasten expiration
     /// @param airnode Airnode address
-    /// @param endpointId Endpoint ID
     /// @param requester Requester address
     /// @param expirationTimestamp Timestamp at which the temporary
     /// authorization will expire
     function setAuthorizationExpiration(
         address airnode,
-        bytes32 endpointId,
         address requester,
-        uint64 expirationTimestamp
+        uint32 expirationTimestamp
     ) external override {
         require(
             hasAuthorizationExpirationSetterRoleOrIsManager(_msgSender()),
             "Cannot set expiration"
         );
-        _setAuthorizationExpiration(
-            airnode,
-            endpointId,
-            requester,
-            expirationTimestamp
-        );
+        _setAuthorizationExpiration(airnode, requester, expirationTimestamp);
     }
 
     /// @notice Sets the indefinite authorizer status of `requester` for
-    /// `airnode`–`endpointId` pair if the sender is allowed to authorize
-    /// indefinitely
+    /// `airnode` if the sender is allowed to authorize indefinitely
     /// @param airnode Airnode address
-    /// @param endpointId Endpoint ID
     /// @param requester Requester address
     /// @param status Indefinite authorizer status
     function setIndefiniteAuthorizationStatus(
         address airnode,
-        bytes32 endpointId,
         address requester,
         bool status
     ) external override {
@@ -125,23 +107,16 @@ contract RequesterAuthorizerWithManager is
             hasIndefiniteAuthorizerRoleOrIsManager(_msgSender()),
             "Cannot set indefinite status"
         );
-        _setIndefiniteAuthorizationStatus(
-            airnode,
-            endpointId,
-            requester,
-            status
-        );
+        _setIndefiniteAuthorizationStatus(airnode, requester, status);
     }
 
     /// @notice Revokes the indefinite authorization status granted by a
     /// specific account that no longer has the indefinite authorizer role
     /// @param airnode Airnode address
-    /// @param endpointId Endpoint ID
     /// @param requester Requester address
     /// @param setter Setter of the indefinite authorization status
     function revokeIndefiniteAuthorizationStatus(
         address airnode,
-        bytes32 endpointId,
         address requester,
         address setter
     ) external override {
@@ -149,12 +124,7 @@ contract RequesterAuthorizerWithManager is
             !hasIndefiniteAuthorizerRoleOrIsManager(setter),
             "setter can set indefinite status"
         );
-        _revokeIndefiniteAuthorizationStatus(
-            airnode,
-            endpointId,
-            requester,
-            setter
-        );
+        _revokeIndefiniteAuthorizationStatus(airnode, requester, setter);
     }
 
     /// @dev Returns if the account has the authorization expiration extender
