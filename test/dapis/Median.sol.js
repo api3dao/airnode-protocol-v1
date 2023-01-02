@@ -38,4 +38,36 @@ describe('Median', function () {
       });
     });
   });
+
+  describe('average', function () {
+    context('x and y are largest positive numbers', function () {
+      it('computes average without overflowing', async function () {
+        const x = hre.ethers.BigNumber.from(2).pow(255).sub(1);
+        const y = x;
+        const computedAverage = await median.exposedAverage(x, y);
+        const actualAverage = x;
+        expect(computedAverage).to.equal(actualAverage);
+      });
+    });
+    context('x and y are smallest negative numbers', function () {
+      it('computes average without undeflowing', async function () {
+        const x = hre.ethers.BigNumber.from(-2).pow(255);
+        const y = x;
+        const computedAverage = await median.exposedAverage(x, y);
+        const actualAverage = x;
+        expect(computedAverage).to.equal(actualAverage);
+      });
+    });
+    context('With various combinations of x and y', function () {
+      it('computes average', async function () {
+        for (let x = -2; x <= 2; x++) {
+          for (let y = -2; y <= 2; y++) {
+            const computedAverage = await median.exposedAverage(x, y);
+            const actualAverage = parseInt((x + y) / 2);
+            expect(computedAverage).to.equal(actualAverage);
+          }
+        }
+      });
+    });
+  });
 });

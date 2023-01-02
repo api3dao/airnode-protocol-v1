@@ -596,7 +596,7 @@ contract DapiServer is
             bytes32[] memory beaconIds = new bytes32[](beaconCount);
             int256[] memory values = new int256[](beaconCount);
             uint256 accumulatedTimestamp = 0;
-            for (uint256 ind = 0; ind < beaconCount; ind++) {
+            for (uint256 ind = 0; ind < beaconCount; ) {
                 (
                     bytes32 beaconId,
                     int224 beaconValue,
@@ -605,11 +605,19 @@ contract DapiServer is
                 beaconIds[ind] = beaconId;
                 if (beaconTimestamp != 0) {
                     values[ind] = beaconValue;
-                    accumulatedTimestamp += beaconTimestamp;
+                    // Will not overflow assuming less than 2^224 Beacons
+                    unchecked {
+                        accumulatedTimestamp += beaconTimestamp;
+                    }
                 } else {
                     DataFeed storage beacon = dataFeeds[beaconId];
                     values[ind] = beacon.value;
-                    accumulatedTimestamp += beacon.timestamp;
+                    unchecked {
+                        accumulatedTimestamp += beacon.timestamp;
+                    }
+                }
+                unchecked {
+                    ind++;
                 }
             }
             bytes32 beaconSetId = deriveBeaconSetId(beaconIds);
@@ -670,7 +678,7 @@ contract DapiServer is
             bytes32[] memory beaconIds = new bytes32[](beaconCount);
             int256[] memory values = new int256[](beaconCount);
             uint256 accumulatedTimestamp = 0;
-            for (uint256 ind = 0; ind < beaconCount; ind++) {
+            for (uint256 ind = 0; ind < beaconCount; ) {
                 (
                     bytes32 beaconId,
                     int224 beaconValue,
@@ -679,11 +687,18 @@ contract DapiServer is
                 beaconIds[ind] = beaconId;
                 if (beaconTimestamp != 0) {
                     values[ind] = beaconValue;
-                    accumulatedTimestamp += beaconTimestamp;
+                    unchecked {
+                        accumulatedTimestamp += beaconTimestamp;
+                    }
                 } else {
                     DataFeed storage beacon = dataFeeds[beaconId];
                     values[ind] = beacon.value;
-                    accumulatedTimestamp += beacon.timestamp;
+                    unchecked {
+                        accumulatedTimestamp += beacon.timestamp;
+                    }
+                }
+                unchecked {
+                    ind++;
                 }
             }
             bytes32 beaconSetId = deriveBeaconSetId(beaconIds);
@@ -764,7 +779,7 @@ contract DapiServer is
             bytes32[] memory beaconIds = new bytes32[](beaconCount);
             int256[] memory values = new int256[](beaconCount);
             uint256 accumulatedTimestamp = 0;
-            for (uint256 ind = 0; ind < beaconCount; ind++) {
+            for (uint256 ind = 0; ind < beaconCount; ) {
                 (
                     bytes32 beaconId,
                     int224 beaconValue,
@@ -773,7 +788,9 @@ contract DapiServer is
                 beaconIds[ind] = beaconId;
                 if (beaconTimestamp != 0) {
                     values[ind] = beaconValue;
-                    accumulatedTimestamp += beaconTimestamp;
+                    unchecked {
+                        accumulatedTimestamp += beaconTimestamp;
+                    }
                     require(signatureCount != 0, "More signatures than stated");
                     unchecked {
                         signatureCount--;
@@ -781,7 +798,12 @@ contract DapiServer is
                 } else {
                     DataFeed storage beacon = dataFeeds[beaconId];
                     values[ind] = beacon.value;
-                    accumulatedTimestamp += beacon.timestamp;
+                    unchecked {
+                        accumulatedTimestamp += beacon.timestamp;
+                    }
+                }
+                unchecked {
+                    ind++;
                 }
             }
             require(signatureCount == 0, "Less signatures than stated");
@@ -966,10 +988,13 @@ contract DapiServer is
         require(beaconCount > 1, "Specified less than two Beacons");
         int256[] memory values = new int256[](beaconCount);
         uint256 accumulatedTimestamp = 0;
-        for (uint256 ind = 0; ind < beaconCount; ind++) {
+        for (uint256 ind = 0; ind < beaconCount; ) {
             DataFeed storage dataFeed = dataFeeds[beaconIds[ind]];
             values[ind] = dataFeed.value;
-            accumulatedTimestamp += dataFeed.timestamp;
+            unchecked {
+                accumulatedTimestamp += dataFeed.timestamp;
+                ind++;
+            }
         }
         value = int224(median(values));
         timestamp = uint32(accumulatedTimestamp / beaconCount);
@@ -1054,17 +1079,19 @@ contract DapiServer is
             uint256 heartbeatInterval
         ) = abi.decode(conditionParameters, (uint256, int224, uint256));
         DataFeed storage dataFeed = dataFeeds[dataFeedId];
-        return
-            (dataFeed.timestamp == 0 && updatedTimestamp != 0) ||
-            (deviationThresholdInPercentage != 0 &&
-                calculateUpdateInPercentage(
-                    dataFeed.value,
-                    updatedValue,
-                    deviationReference
-                ) >=
-                deviationThresholdInPercentage) ||
-            (heartbeatInterval != 0 &&
-                dataFeed.timestamp + heartbeatInterval <= updatedTimestamp);
+        unchecked {
+            return
+                (dataFeed.timestamp == 0 && updatedTimestamp != 0) ||
+                (deviationThresholdInPercentage != 0 &&
+                    calculateUpdateInPercentage(
+                        dataFeed.value,
+                        updatedValue,
+                        deviationReference
+                    ) >=
+                    deviationThresholdInPercentage) ||
+                (heartbeatInterval != 0 &&
+                    dataFeed.timestamp + heartbeatInterval <= updatedTimestamp);
+        }
     }
 
     /// @notice Called privately to calculate the update magnitude in
@@ -1086,13 +1113,19 @@ contract DapiServer is
         int224 updatedValue,
         int224 deviationReference
     ) private pure returns (uint256 updateInPercentage) {
-        int256 delta = int256(updatedValue) - int256(initialValue);
+        int256 delta;
+        unchecked {
+            delta = int256(updatedValue) - int256(initialValue);
+        }
         if (delta == 0) {
             return 0;
         }
-        uint256 absoluteInitialValue = initialValue > deviationReference
-            ? uint256(int256(initialValue) - int256(deviationReference))
-            : uint256(int256(deviationReference) - int256(initialValue));
+        uint256 absoluteInitialValue;
+        unchecked {
+            absoluteInitialValue = initialValue > deviationReference
+                ? uint256(int256(initialValue) - int256(deviationReference))
+                : uint256(int256(deviationReference) - int256(initialValue));
+        }
         if (absoluteInitialValue == 0) {
             return type(uint256).max;
         }

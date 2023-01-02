@@ -15,12 +15,12 @@ contract SelfMulticall is ISelfMulticall {
         bytes[] calldata data
     ) external override returns (bytes[] memory returndata) {
         returndata = new bytes[](data.length);
-        for (uint256 i = 0; i < data.length; i++) {
+        for (uint256 ind = 0; ind < data.length; ) {
             bool success;
             // solhint-disable-next-line avoid-low-level-calls
-            (success, returndata[i]) = address(this).delegatecall(data[i]);
+            (success, returndata[ind]) = address(this).delegatecall(data[ind]);
             if (!success) {
-                bytes memory returndataWithRevertData = returndata[i];
+                bytes memory returndataWithRevertData = returndata[ind];
                 if (returndataWithRevertData.length > 0) {
                     // Adapted from OpenZeppelin's Address.sol
                     // solhint-disable-next-line no-inline-assembly
@@ -34,6 +34,9 @@ contract SelfMulticall is ISelfMulticall {
                 } else {
                     revert("Multicall: No revert string");
                 }
+            }
+            unchecked {
+                ind++;
             }
         }
     }
@@ -52,9 +55,14 @@ contract SelfMulticall is ISelfMulticall {
     {
         successes = new bool[](data.length);
         returndata = new bytes[](data.length);
-        for (uint256 i = 0; i < data.length; i++) {
+        for (uint256 ind = 0; ind < data.length; ) {
             // solhint-disable-next-line avoid-low-level-calls
-            (successes[i], returndata[i]) = address(this).delegatecall(data[i]);
+            (successes[ind], returndata[ind]) = address(this).delegatecall(
+                data[ind]
+            );
+            unchecked {
+                ind++;
+            }
         }
     }
 }

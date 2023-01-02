@@ -83,11 +83,13 @@ contract WithdrawalUtils is IWithdrawalUtils {
                 ),
             "Invalid withdrawal fulfillment"
         );
-        require(
-            timestamp + 1 hours > block.timestamp &&
-                timestamp < block.timestamp + 15 minutes,
-            "Timestamp not valid"
-        );
+        unchecked {
+            require(
+                timestamp + 1 hours > block.timestamp &&
+                    timestamp < block.timestamp + 15 minutes,
+                "Timestamp not valid"
+            );
+        }
         require(
             (
                 keccak256(

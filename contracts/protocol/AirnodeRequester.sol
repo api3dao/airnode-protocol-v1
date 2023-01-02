@@ -42,8 +42,10 @@ contract AirnodeRequester is IAirnodeRequester {
     /// of the implications.
     /// @param timestamp Timestamp used in the signature
     function timestampIsValid(uint256 timestamp) internal view returns (bool) {
-        return
-            timestamp + 1 hours > block.timestamp &&
-            timestamp < block.timestamp + 15 minutes;
+        unchecked {
+            return
+                timestamp + 1 hours > block.timestamp &&
+                timestamp < block.timestamp + 15 minutes;
+        }
     }
 }
