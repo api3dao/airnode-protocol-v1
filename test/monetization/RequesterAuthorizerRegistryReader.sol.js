@@ -12,8 +12,13 @@ describe('RequesterAuthorizerRegistryReader', function () {
       deployer: accounts[0],
       manager: accounts[1],
     };
+    const expiringMetaCallForwarderFactory = await hre.ethers.getContractFactory(
+      'ExpiringMetaCallForwarder',
+      roles.deployer
+    );
+    const expiringMetaCallForwarder = await expiringMetaCallForwarderFactory.deploy();
     const accessControlRegistryFactory = await hre.ethers.getContractFactory('AccessControlRegistry', roles.deployer);
-    accessControlRegistry = await accessControlRegistryFactory.deploy();
+    accessControlRegistry = await accessControlRegistryFactory.deploy(expiringMetaCallForwarder.address);
     const requesterAuthorizerRegistryFactory = await hre.ethers.getContractFactory(
       'RequesterAuthorizerRegistry',
       roles.deployer

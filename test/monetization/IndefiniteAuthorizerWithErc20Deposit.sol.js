@@ -38,7 +38,7 @@ describe('IndefiniteAuthorizerWithErc20Deposit', function () {
     );
     expiringMetaCallForwarder = await expiringMetaCallForwarderFactory.deploy();
     const accessControlRegistryFactory = await hre.ethers.getContractFactory('AccessControlRegistry', roles.deployer);
-    accessControlRegistry = await accessControlRegistryFactory.deploy();
+    accessControlRegistry = await accessControlRegistryFactory.deploy(expiringMetaCallForwarder.address);
     const airnodeEndpointPriceRegistryFactory = await hre.ethers.getContractFactory(
       'AirnodeEndpointPriceRegistry',
       roles.deployer

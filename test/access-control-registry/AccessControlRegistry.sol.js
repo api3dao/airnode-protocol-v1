@@ -4,7 +4,7 @@ const testUtils = require('../test-utils');
 
 describe('AccessControlRegistry', function () {
   let roles;
-  let accessControlRegistry;
+  let expiringMetaCallForwarder, accessControlRegistry;
   let managerRootRole, roleDescription;
 
   beforeEach(async () => {
@@ -15,10 +15,21 @@ describe('AccessControlRegistry', function () {
       account: accounts[2],
       randomPerson: accounts[9],
     };
+    const expiringMetaCallForwarderFactory = await hre.ethers.getContractFactory(
+      'ExpiringMetaCallForwarder',
+      roles.deployer
+    );
+    expiringMetaCallForwarder = await expiringMetaCallForwarderFactory.deploy();
     const accessControlRegistryFactory = await hre.ethers.getContractFactory('AccessControlRegistry', roles.deployer);
-    accessControlRegistry = await accessControlRegistryFactory.deploy();
+    accessControlRegistry = await accessControlRegistryFactory.deploy(expiringMetaCallForwarder.address);
     managerRootRole = hre.ethers.utils.keccak256(hre.ethers.utils.solidityPack(['address'], [roles.manager.address]));
     roleDescription = 'Role description unique to admin role';
+  });
+
+  describe('constructor', function () {
+    it('constructs', async function () {
+      expect(await accessControlRegistry.isTrustedForwarder(expiringMetaCallForwarder.address)).to.equal(true);
+    });
   });
 
   describe('initializeManager', function () {
