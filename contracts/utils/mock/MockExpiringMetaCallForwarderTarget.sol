@@ -7,9 +7,12 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract MockExpiringMetaCallForwarderTarget is ERC2771Context, Ownable {
     uint256 public counter = 0;
 
-    /// @param _trustedForwarder Trusted forwarder that verifies and executes
-    /// signed meta-calls
-    constructor(address _trustedForwarder) ERC2771Context(_trustedForwarder) {}
+    constructor(
+        address _trustedForwarder,
+        address _owner
+    ) ERC2771Context(_trustedForwarder) {
+        _transferOwnership(_owner);
+    }
 
     function incrementCounter() external onlyOwner {
         counter++;
