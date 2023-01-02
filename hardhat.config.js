@@ -1,8 +1,8 @@
-require('@nomiclabs/hardhat-waffle');
+require('@nomicfoundation/hardhat-toolbox');
 require('@nomiclabs/hardhat-etherscan');
 require('solidity-coverage');
-require('hardhat-gas-reporter');
 require('hardhat-deploy');
+require('hardhat-gas-reporter');
 
 const fs = require('fs');
 let credentials = require('./credentials.example.json');
