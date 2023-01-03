@@ -28,7 +28,7 @@ describe('AllocatorWithManager', function () {
     );
     expiringMetaCallForwarder = await expiringMetaCallForwarderFactory.deploy();
     const accessControlRegistryFactory = await hre.ethers.getContractFactory('AccessControlRegistry', roles.deployer);
-    accessControlRegistry = await accessControlRegistryFactory.deploy();
+    accessControlRegistry = await accessControlRegistryFactory.deploy(expiringMetaCallForwarder.address);
     const allocatorWithManagerFactory = await hre.ethers.getContractFactory('AllocatorWithManager', roles.deployer);
     allocatorWithManager = await allocatorWithManagerFactory.deploy(
       accessControlRegistry.address,

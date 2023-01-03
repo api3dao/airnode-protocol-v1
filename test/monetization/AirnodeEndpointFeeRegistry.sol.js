@@ -16,8 +16,13 @@ describe('AirnodeEndpointFeeRegistry', function () {
       airnode: accounts[3],
       randomPerson: accounts[9],
     };
+    const expiringMetaCallForwarderFactory = await hre.ethers.getContractFactory(
+      'ExpiringMetaCallForwarder',
+      roles.deployer
+    );
+    const expiringMetaCallForwarder = await expiringMetaCallForwarderFactory.deploy();
     const accessControlRegistryFactory = await hre.ethers.getContractFactory('AccessControlRegistry', roles.deployer);
-    accessControlRegistry = await accessControlRegistryFactory.deploy();
+    accessControlRegistry = await accessControlRegistryFactory.deploy(expiringMetaCallForwarder.address);
     const airnodeEndpointPriceRegistryFactory = await hre.ethers.getContractFactory(
       'AirnodeEndpointPriceRegistry',
       roles.deployer

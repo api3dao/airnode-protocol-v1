@@ -2,6 +2,7 @@
 pragma solidity 0.8.9;
 
 import "@openzeppelin/contracts/utils/Multicall.sol";
+import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "./RoleDeriver.sol";
 import "./interfaces/IAccessControlRegistry.sol";
@@ -17,10 +18,15 @@ import "./interfaces/IAccessControlRegistry.sol";
 /// adminned by the same role cannot have the same description.
 contract AccessControlRegistry is
     Multicall,
+    ERC2771Context,
     AccessControl,
     RoleDeriver,
     IAccessControlRegistry
 {
+    /// @param _trustedForwarder Trusted forwarder that verifies and executes
+    /// signed meta-calls
+    constructor(address _trustedForwarder) ERC2771Context(_trustedForwarder) {}
+
     /// @notice Initializes the manager by initializing its root role and
     /// granting it to them
     /// @dev Anyone can initialize a manager. An uninitialized manager
@@ -109,5 +115,27 @@ contract AccessControlRegistry is
         string calldata description
     ) public pure override returns (bytes32 role) {
         role = _deriveRole(adminRole, description);
+    }
+
+    /// @dev See Context.sol
+    function _msgSender()
+        internal
+        view
+        virtual
+        override(Context, ERC2771Context)
+        returns (address)
+    {
+        return ERC2771Context._msgSender();
+    }
+
+    /// @dev See Context.sol
+    function _msgData()
+        internal
+        view
+        virtual
+        override(Context, ERC2771Context)
+        returns (bytes calldata)
+    {
+        return ERC2771Context._msgData();
     }
 }

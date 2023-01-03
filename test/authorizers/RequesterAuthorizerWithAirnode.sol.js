@@ -27,7 +27,7 @@ describe('RequesterAuthorizerWithAirnode', function () {
     );
     expiringMetaCallForwarder = await expiringMetaCallForwarderFactory.deploy();
     const accessControlRegistryFactory = await hre.ethers.getContractFactory('AccessControlRegistry', roles.deployer);
-    accessControlRegistry = await accessControlRegistryFactory.deploy();
+    accessControlRegistry = await accessControlRegistryFactory.deploy(expiringMetaCallForwarder.address);
     const requesterAuthorizerWithAirnodeFactory = await hre.ethers.getContractFactory(
       'RequesterAuthorizerWithAirnode',
       roles.deployer
