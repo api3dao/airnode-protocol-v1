@@ -27,7 +27,7 @@ contract RequesterAuthorizerWithManager is
     /// @param _adminRoleDescription Admin role description
     /// @param _manager Manager address
     /// @param _trustedForwarder Trusted forwarder that verifies and executes
-    /// signed meta-calls
+    /// signed meta-txes
     constructor(
         address _accessControlRegistry,
         string memory _adminRoleDescription,

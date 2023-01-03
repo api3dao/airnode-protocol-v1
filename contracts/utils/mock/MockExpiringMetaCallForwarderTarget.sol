@@ -4,7 +4,7 @@ pragma solidity 0.8.9;
 import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract MockExpiringMetaCallForwarderTarget is ERC2771Context, Ownable {
+contract MockExpiringMetaTxForwarderTarget is ERC2771Context, Ownable {
     uint256 public counter = 0;
 
     constructor(

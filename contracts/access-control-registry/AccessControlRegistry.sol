@@ -24,7 +24,7 @@ contract AccessControlRegistry is
     IAccessControlRegistry
 {
     /// @param _trustedForwarder Trusted forwarder that verifies and executes
-    /// signed meta-calls
+    /// signed meta-txes
     constructor(address _trustedForwarder) ERC2771Context(_trustedForwarder) {}
 
     /// @notice Initializes the manager by initializing its root role and

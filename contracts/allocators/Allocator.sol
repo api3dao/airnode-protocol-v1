@@ -30,7 +30,7 @@ abstract contract Allocator is ERC2771Context, IAllocator {
         keccak256(abi.encodePacked(SLOT_SETTER_ROLE_DESCRIPTION));
 
     /// @param _trustedForwarder Trusted forwarder that verifies and executes
-    /// signed meta-calls
+    /// signed meta-txes
     constructor(address _trustedForwarder) ERC2771Context(_trustedForwarder) {}
 
     /// @notice Called internally to set the slot with the given parameters
