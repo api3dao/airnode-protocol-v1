@@ -1,93 +1,63 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./IAuthorizerV0.sol";
-
-interface IRequesterAuthorizer is IAuthorizerV0 {
+interface IRequesterAuthorizer {
     event ExtendedAuthorizationExpiration(
         address indexed airnode,
-        bytes32 endpointId,
         address indexed requester,
         address indexed sender,
-        uint256 expiration
+        uint32 expirationTimestamp
     );
 
     event SetAuthorizationExpiration(
         address indexed airnode,
-        bytes32 endpointId,
         address indexed requester,
         address indexed sender,
-        uint256 expiration
+        uint32 expirationTimestamp
     );
 
     event SetIndefiniteAuthorizationStatus(
         address indexed airnode,
-        bytes32 endpointId,
         address indexed requester,
         address indexed sender,
         bool status,
-        uint192 indefiniteAuthorizationCount
+        uint224 indefiniteAuthorizationCount
     );
 
     event RevokedIndefiniteAuthorizationStatus(
         address indexed airnode,
-        bytes32 endpointId,
         address indexed requester,
         address indexed setter,
         address sender,
-        uint192 indefiniteAuthorizationCount
+        uint224 indefiniteAuthorizationCount
     );
 
     function extendAuthorizerExpiration(
         address airnode,
-        bytes32 endpointId,
         address requester,
-        uint64 expirationTimestamp
+        uint32 expirationTimestamp
     ) external;
 
     function setAuthorizationExpiration(
         address airnode,
-        bytes32 endpointId,
         address requester,
-        uint64 expirationTimestamp
+        uint32 expirationTimestamp
     ) external;
 
     function setIndefiniteAuthorizationStatus(
         address airnode,
-        bytes32 endpointId,
         address requester,
         bool status
     ) external;
 
     function revokeIndefiniteAuthorizationStatus(
         address airnode,
-        bytes32 endpointId,
         address requester,
         address setter
     ) external;
 
-    function airnodeToEndpointIdToRequesterToAuthorizationStatus(
-        address airnode,
-        bytes32 endpointId,
-        address requester
-    )
-        external
-        view
-        returns (
-            uint64 expirationTimestamp,
-            uint192 indefiniteAuthorizationCount
-        );
-
-    function airnodeToEndpointIdToRequesterToSetterToIndefiniteAuthorizationStatus(
-        address airnode,
-        bytes32 endpointId,
-        address requester,
-        address setter
-    ) external view returns (bool indefiniteAuthorizationStatus);
-
     function isAuthorized(
         address airnode,
-        bytes32 endpointId,
         address requester
     ) external view returns (bool);
 
@@ -108,4 +78,21 @@ interface IRequesterAuthorizer is IAuthorizerV0 {
         external
         view
         returns (string memory);
+
+    function airnodeToRequesterToAuthorizationStatus(
+        address airnode,
+        address requester
+    )
+        external
+        view
+        returns (
+            uint32 expirationTimestamp,
+            uint224 indefiniteAuthorizationCount
+        );
+
+    function airnodeToRequesterToSetterToIndefiniteAuthorizationStatus(
+        address airnode,
+        address requester,
+        address setter
+    ) external view returns (bool indefiniteAuthorizationStatus);
 }
