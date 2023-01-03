@@ -14,13 +14,13 @@ describe('OwnableCallForwarder', function () {
       account: accounts[2],
       randomPerson: accounts[9],
     };
-    const expiringMetaCallForwarderFactory = await hre.ethers.getContractFactory(
-      'ExpiringMetaCallForwarder',
+    const expiringMetaTxForwarderFactory = await hre.ethers.getContractFactory(
+      'ExpiringMetaTxForwarder',
       roles.deployer
     );
-    const expiringMetaCallForwarder = await expiringMetaCallForwarderFactory.deploy();
+    const expiringMetaTxForwarder = await expiringMetaTxForwarderFactory.deploy();
     const accessControlRegistryFactory = await hre.ethers.getContractFactory('AccessControlRegistry', roles.deployer);
-    accessControlRegistry = await accessControlRegistryFactory.deploy(expiringMetaCallForwarder.address);
+    accessControlRegistry = await accessControlRegistryFactory.deploy(expiringMetaTxForwarder.address);
     const mockCallForwarderTargetFactory = await hre.ethers.getContractFactory(
       'MockCallForwarderTarget',
       roles.deployer

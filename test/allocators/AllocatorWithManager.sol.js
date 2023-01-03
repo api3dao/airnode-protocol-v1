@@ -4,7 +4,7 @@ const testUtils = require('../test-utils');
 
 describe('AllocatorWithManager', function () {
   let roles;
-  let expiringMetaCallForwarder, accessControlRegistry, allocatorWithManager;
+  let expiringMetaTxForwarder, accessControlRegistry, allocatorWithManager;
   let allocatorWithManagerAdminRoleDescription = 'AllocatorWithManager admin role';
   let slotSetterRoleDescription = 'Slot setter';
   let slotSetterRole;
@@ -22,19 +22,19 @@ describe('AllocatorWithManager', function () {
       anotherSlotSetter: accounts[4],
       randomPerson: accounts[9],
     };
-    const expiringMetaCallForwarderFactory = await hre.ethers.getContractFactory(
-      'ExpiringMetaCallForwarder',
+    const expiringMetaTxForwarderFactory = await hre.ethers.getContractFactory(
+      'ExpiringMetaTxForwarder',
       roles.deployer
     );
-    expiringMetaCallForwarder = await expiringMetaCallForwarderFactory.deploy();
+    expiringMetaTxForwarder = await expiringMetaTxForwarderFactory.deploy();
     const accessControlRegistryFactory = await hre.ethers.getContractFactory('AccessControlRegistry', roles.deployer);
-    accessControlRegistry = await accessControlRegistryFactory.deploy(expiringMetaCallForwarder.address);
+    accessControlRegistry = await accessControlRegistryFactory.deploy(expiringMetaTxForwarder.address);
     const allocatorWithManagerFactory = await hre.ethers.getContractFactory('AllocatorWithManager', roles.deployer);
     allocatorWithManager = await allocatorWithManagerFactory.deploy(
       accessControlRegistry.address,
       allocatorWithManagerAdminRoleDescription,
       roles.manager.address,
-      expiringMetaCallForwarder.address
+      expiringMetaTxForwarder.address
     );
     const managerRootRole = await accessControlRegistry.deriveRootRole(roles.manager.address);
     const managerAdminRole = await allocatorWithManager.adminRole();
@@ -69,7 +69,7 @@ describe('AllocatorWithManager', function () {
         hre.ethers.utils.solidityPack(['bytes32', 'bytes32'], [adminRole, slotSetterRoleDescriptionHash])
       );
       expect(await allocatorWithManager.slotSetterRole()).to.equal(derivedSlotSetterRole);
-      expect(await allocatorWithManager.isTrustedForwarder(expiringMetaCallForwarder.address)).to.equal(true);
+      expect(await allocatorWithManager.isTrustedForwarder(expiringMetaTxForwarder.address)).to.equal(true);
     });
   });
 
