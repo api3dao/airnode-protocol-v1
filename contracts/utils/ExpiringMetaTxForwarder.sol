@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "./SelfMulticall.sol";
+import "./interfaces/IExpiringMetaTxForwarder.sol";
 
 /// @notice Contract that forwards expiring meta-txes to ERC2771 contracts that
 /// trust it
@@ -18,19 +19,16 @@ import "./SelfMulticall.sol";
 /// owners of the accounts. This implementation allows the parties to not care
 /// about if and when the meta-txes are executed. The signer is responsible
 /// not issuing signatures that may cause undesired race conditions.
-contract ExpiringMetaTxForwarder is EIP712, SelfMulticall {
+contract ExpiringMetaTxForwarder is
+    EIP712,
+    SelfMulticall,
+    IExpiringMetaTxForwarder
+{
     using ECDSA for bytes32;
     using Address for address;
 
-    struct ExpiringMetaTx {
-        address from;
-        address to;
-        bytes data;
-        uint256 expirationTimestamp;
-    }
-
     /// @notice If the meta-tx with hash is already executed
-    mapping(bytes32 => bool) public metaTxWithHashIsExecuted;
+    mapping(bytes32 => bool) public override metaTxWithHashIsExecuted;
 
     bytes32 private constant _TYPEHASH =
         keccak256(
@@ -46,7 +44,7 @@ contract ExpiringMetaTxForwarder is EIP712, SelfMulticall {
     function execute(
         ExpiringMetaTx calldata metaTx,
         bytes calldata signature
-    ) external returns (bytes memory returndata) {
+    ) external override returns (bytes memory returndata) {
         bytes32 metaTxHash = _hashTypedDataV4(
             keccak256(
                 abi.encode(
