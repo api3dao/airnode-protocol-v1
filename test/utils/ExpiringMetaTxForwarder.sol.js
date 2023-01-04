@@ -105,6 +105,10 @@ describe('ExpiringMetaTxForwarder', function () {
             const counterInitial = await expiringMetaTxForwarderTarget.counter();
             const metaTxTypedDataHash = deriveTypedDataHashOfMetaTx(expiringMetaTxDomain, expiringMetaTxValue);
             expect(await expiringMetaTxForwarder.metaTxWithHashIsExecuted(metaTxTypedDataHash)).to.equal(false);
+            const returndata = await expiringMetaTxForwarder
+              .connect(roles.randomPerson)
+              .callStatic.execute(expiringMetaTxValue, signature);
+            expect(returndata).to.equal(counterInitial.add(1));
             await expect(
               expiringMetaTxForwarder.connect(roles.randomPerson).execute(expiringMetaTxValue, signature)
             ).to.not.be.reverted;

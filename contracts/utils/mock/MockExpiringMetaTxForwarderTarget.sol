@@ -14,8 +14,8 @@ contract MockExpiringMetaTxForwarderTarget is ERC2771Context, Ownable {
         _transferOwnership(_owner);
     }
 
-    function incrementCounter() external onlyOwner {
-        counter++;
+    function incrementCounter() external onlyOwner returns (uint256) {
+        return ++counter;
     }
 
     function _msgSender()
