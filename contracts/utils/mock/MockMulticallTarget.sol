@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.9;
 
-/// @dev The multicall target functions are pure for simplicity. This does not
-/// necessarily have to be the case in practice.
 contract MockMulticallTarget {
     error MyError(uint256 fieldAlways123, string fieldAlwaysFoo);
+
+    int256[] private _argumentHistory;
 
     function alwaysRevertsWithString(
         int256 argPositive,
         int256 argNegative
-    ) external {
+    ) external pure {
         require(argPositive > 0 && argNegative < 0, "Invalid argument");
         revert("Reverted with string");
     }
@@ -32,8 +32,19 @@ contract MockMulticallTarget {
 
     function convertsPositiveArgumentToNegative(
         int256 argPositive
-    ) external pure returns (int256) {
+    ) external returns (int256) {
         require(argPositive > 0, "Argument not positive");
+        _argumentHistory.push(argPositive);
         return -argPositive;
+    }
+
+    function argumentHistory() external view returns (int256[] memory) {
+        int256[] memory argumentHistoryInMemory = new int256[](
+            _argumentHistory.length
+        );
+        for (uint256 ind = 0; ind < _argumentHistory.length; ind++) {
+            argumentHistoryInMemory[ind] = _argumentHistory[ind];
+        }
+        return argumentHistoryInMemory;
     }
 }

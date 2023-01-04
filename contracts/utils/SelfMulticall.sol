@@ -3,8 +3,10 @@ pragma solidity ^0.8.0;
 
 import "./interfaces/ISelfMulticall.sol";
 
-/// @notice Contract that enables calls to the inheriting contract to be
+/// @title Contract that enables calls to the inheriting contract to be
 /// batched
+/// @notice Implements two ways of batching, one requires none of the calls to
+/// revert and the other one tolerates individual calls reverting
 /// @dev Refer to OpenZeppelin's Multicall.sol for a similar implementation
 contract SelfMulticall is ISelfMulticall {
     /// @notice Batches calls to the inheriting contract and reverts if at
@@ -14,8 +16,9 @@ contract SelfMulticall is ISelfMulticall {
     function multicall(
         bytes[] calldata data
     ) external override returns (bytes[] memory returndata) {
-        returndata = new bytes[](data.length);
-        for (uint256 ind = 0; ind < data.length; ) {
+        uint256 callCount = data.length;
+        returndata = new bytes[](callCount);
+        for (uint256 ind = 0; ind < callCount; ) {
             bool success;
             // solhint-disable-next-line avoid-low-level-calls
             (success, returndata[ind]) = address(this).delegatecall(data[ind]);
@@ -53,9 +56,10 @@ contract SelfMulticall is ISelfMulticall {
         override
         returns (bool[] memory successes, bytes[] memory returndata)
     {
-        successes = new bool[](data.length);
-        returndata = new bytes[](data.length);
-        for (uint256 ind = 0; ind < data.length; ) {
+        uint256 callCount = data.length;
+        successes = new bool[](callCount);
+        returndata = new bytes[](callCount);
+        for (uint256 ind = 0; ind < callCount; ) {
             // solhint-disable-next-line avoid-low-level-calls
             (successes[ind], returndata[ind]) = address(this).delegatecall(
                 data[ind]
