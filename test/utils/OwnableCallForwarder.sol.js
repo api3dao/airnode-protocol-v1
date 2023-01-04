@@ -39,14 +39,14 @@ describe('OwnableCallForwarder', function () {
                     input2,
                     value,
                   ]);
-                  const returnedData = await ownableCallForwarder
+                  const returndata = await ownableCallForwarder
                     .connect(roles.owner)
                     .callStatic.forwardCall(ownableCallForwarderTarget.address, calldata, { value: value });
-                  const expectedReturnedData = ethers.utils.defaultAbiCoder.encode(
+                  const expectedReturndata = ethers.utils.defaultAbiCoder.encode(
                     ['bytes', 'bool'],
                     ['0x12345678', true]
                   );
-                  expect(returnedData).to.equal(expectedReturnedData);
+                  expect(returndata).to.equal(expectedReturndata);
                   await ownableCallForwarder
                     .connect(roles.owner)
                     .forwardCall(ownableCallForwarderTarget.address, calldata, { value: value });
@@ -86,14 +86,14 @@ describe('OwnableCallForwarder', function () {
                     input2,
                     value,
                   ]);
-                  const returnedData = await ownableCallForwarder
+                  const returndata = await ownableCallForwarder
                     .connect(roles.owner)
                     .callStatic.forwardCall(ownableCallForwarderTarget.address, calldata, { value: value });
-                  const expectedReturnedData = ethers.utils.defaultAbiCoder.encode(
+                  const expectedReturndata = ethers.utils.defaultAbiCoder.encode(
                     ['bytes', 'bool'],
                     ['0x12345678', true]
                   );
-                  expect(returnedData).to.equal(expectedReturnedData);
+                  expect(returndata).to.equal(expectedReturndata);
                   await ownableCallForwarder
                     .connect(roles.owner)
                     .forwardCall(ownableCallForwarderTarget.address, calldata, { value: value });
@@ -133,14 +133,14 @@ describe('OwnableCallForwarder', function () {
                     input1,
                     input2,
                   ]);
-                  const returnedData = await ownableCallForwarder
+                  const returndata = await ownableCallForwarder
                     .connect(roles.owner)
                     .callStatic.forwardCall(ownableCallForwarderTarget.address, calldata);
-                  const expectedReturnedData = ethers.utils.defaultAbiCoder.encode(
+                  const expectedReturndata = ethers.utils.defaultAbiCoder.encode(
                     ['bytes', 'bool'],
                     ['0x12345678', true]
                   );
-                  expect(returnedData).to.equal(expectedReturnedData);
+                  expect(returndata).to.equal(expectedReturndata);
                   await ownableCallForwarder
                     .connect(roles.owner)
                     .forwardCall(ownableCallForwarderTarget.address, calldata);
