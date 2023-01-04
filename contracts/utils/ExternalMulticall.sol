@@ -4,8 +4,9 @@ pragma solidity ^0.8.0;
 import "./interfaces/IExternalMulticall.sol";
 
 /// @title Contract that enables calls to external contracts to be batched
-/// @notice Implements two ways of batching, one requires none of the calls to
-/// revert and the other one tolerates individual calls reverting
+/// @notice This contract can be used to batch static calls or to interact with
+/// trusted contracts. Implements two ways of batching, one requires none of
+/// the calls to revert and the other tolerates individual calls reverting.
 /// @dev Refer to MakerDAO's Multicall.sol for a similar implementation
 contract ExternalMulticall is IExternalMulticall {
     /// @notice Batches calls to external contracts and reverts if at

@@ -18,7 +18,7 @@ describe('SelfMulticall', function () {
 
   describe('multicall', function () {
     context('None of the calls reverts', function () {
-      it('does not revert', async function () {
+      it('multicall does not revert', async function () {
         const { selfMulticall } = await helpers.loadFixture(deploy);
         const data = [
           selfMulticall.interface.encodeFunctionData('convertsPositiveArgumentToNegative', [1]),
@@ -35,7 +35,7 @@ describe('SelfMulticall', function () {
     });
     context('One of the calls reverts', function () {
       context('Call reverts with string', function () {
-        it('reverts by bubbling up the revert string', async function () {
+        it('multicall reverts by bubbling up the revert string', async function () {
           const { selfMulticall } = await helpers.loadFixture(deploy);
           const data = [
             selfMulticall.interface.encodeFunctionData('convertsPositiveArgumentToNegative', [1]),
@@ -46,7 +46,7 @@ describe('SelfMulticall', function () {
         });
       });
       context('Call reverts with custom error', function () {
-        it('reverts by bubbling up the custom error', async function () {
+        it('multicall reverts by bubbling up the custom error', async function () {
           const { selfMulticall } = await helpers.loadFixture(deploy);
           const data = [
             selfMulticall.interface.encodeFunctionData('convertsPositiveArgumentToNegative', [1]),
@@ -57,7 +57,7 @@ describe('SelfMulticall', function () {
         });
       });
       context('Call reverts with no data', function () {
-        it('reverts with no data', async function () {
+        it('multicall reverts with no data', async function () {
           const { selfMulticall } = await helpers.loadFixture(deploy);
           const data = [
             selfMulticall.interface.encodeFunctionData('convertsPositiveArgumentToNegative', [1]),
@@ -72,7 +72,7 @@ describe('SelfMulticall', function () {
 
   describe('tryMulticall', function () {
     context('None of the calls reverts', function () {
-      it('does not revert', async function () {
+      it('multicall does not revert', async function () {
         const { selfMulticall } = await helpers.loadFixture(deploy);
         const data = [
           selfMulticall.interface.encodeFunctionData('convertsPositiveArgumentToNegative', [1]),
