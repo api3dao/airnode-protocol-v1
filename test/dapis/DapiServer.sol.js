@@ -5697,9 +5697,9 @@ describe('DapiServer', function () {
     });
     context('OEV proxy does not announce a beneficiary address', function () {
       it('reverts', async function () {
-        await expect(dapiServer.connect(roles.randomPerson).withdraw(roles.randomPerson.address)).to.be.revertedWith(
-          'Transaction reverted: function call to a non-contract account'
-        );
+        await expect(
+          dapiServer.connect(roles.randomPerson).withdraw(roles.randomPerson.address)
+        ).to.be.revertedWithoutReason;
         await expect(dapiServer.connect(roles.randomPerson).withdraw(dapiServer.address)).to.be.revertedWith(
           "Transaction reverted: function selector was not recognized and there's no fallback function"
         );
