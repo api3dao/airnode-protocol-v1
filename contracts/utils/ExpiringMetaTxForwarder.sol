@@ -7,18 +7,20 @@ import "@openzeppelin/contracts/utils/Address.sol";
 import "./SelfMulticall.sol";
 import "./interfaces/IExpiringMetaTxForwarder.sol";
 
-/// @notice Contract that forwards expiring meta-txes to ERC2771 contracts that
+/// @title Contract that forwards expiring meta-txes to ERC2771 contracts that
 /// trust it
-/// @dev `msg.value` is not supported. Target account must be a contract. This
-/// implementation is not intended to be used with relayer networks, it is
-/// suitable for use-cases where the senders benefit from executing meta-txes
-/// directly.
-/// This implementation does not use signer-specific nonces for meta-txes to be
-/// executable in an arbitrary order. For example, one can sign two meta-txes
-/// that will whitelist an account each and deliver these to the respective
-/// owners of the accounts. This implementation allows the parties to not care
-/// about if and when the meta-txes are executed. The signer is responsible
-/// not issuing signatures that may cause undesired race conditions.
+/// @notice `msg.value` is not supported. Target account must be a contract. This
+/// implementation is not intended to be used with general-purpose relayer
+/// networks. Instead, it is meant for use-cases where the relayer wants the
+/// signer to send a tx, so they request a meta-tx and execute it themselves to
+/// cover the gas cost.
+/// @dev This implementation does not use signer-specific nonces for meta-txes
+/// to be executable in an arbitrary order. For example, one can sign two
+/// meta-txes that will whitelist an account each and deliver these to the
+/// respective owners of the accounts. This implementation allows the account
+/// owners to not care about if and when the other meta-tx is executed. The
+/// signer is responsible not issuing signatures that may cause undesired race
+/// conditions.
 contract ExpiringMetaTxForwarder is
     EIP712,
     SelfMulticall,
