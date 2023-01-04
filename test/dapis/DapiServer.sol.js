@@ -5700,9 +5700,7 @@ describe('DapiServer', function () {
         await expect(
           dapiServer.connect(roles.randomPerson).withdraw(roles.randomPerson.address)
         ).to.be.revertedWithoutReason;
-        await expect(dapiServer.connect(roles.randomPerson).withdraw(dapiServer.address)).to.be.revertedWith(
-          "Transaction reverted: function selector was not recognized and there's no fallback function"
-        );
+        await expect(dapiServer.connect(roles.randomPerson).withdraw(dapiServer.address)).to.be.revertedWithoutReason;
       });
     });
   });
