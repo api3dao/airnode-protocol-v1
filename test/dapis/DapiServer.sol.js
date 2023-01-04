@@ -22,13 +22,13 @@ describe('DapiServer', function () {
     beaconSetUpdateSubscriptionConditionParameters;
 
   async function deployContracts() {
-    const expiringMetaCallForwarderFactory = await hre.ethers.getContractFactory(
-      'ExpiringMetaCallForwarder',
+    const expiringMetaTxForwarderFactory = await hre.ethers.getContractFactory(
+      'ExpiringMetaTxForwarder',
       roles.deployer
     );
-    const expiringMetaCallForwarder = await expiringMetaCallForwarderFactory.deploy();
+    const expiringMetaTxForwarder = await expiringMetaTxForwarderFactory.deploy();
     const accessControlRegistryFactory = await hre.ethers.getContractFactory('AccessControlRegistry', roles.deployer);
-    accessControlRegistry = await accessControlRegistryFactory.deploy(expiringMetaCallForwarder.address);
+    accessControlRegistry = await accessControlRegistryFactory.deploy(expiringMetaTxForwarder.address);
     const airnodeProtocolFactory = await hre.ethers.getContractFactory('AirnodeProtocol', roles.deployer);
     airnodeProtocol = await airnodeProtocolFactory.deploy();
     const dapiServerFactory = await hre.ethers.getContractFactory('DapiServer', roles.deployer);
@@ -5697,12 +5697,10 @@ describe('DapiServer', function () {
     });
     context('OEV proxy does not announce a beneficiary address', function () {
       it('reverts', async function () {
-        await expect(dapiServer.connect(roles.randomPerson).withdraw(roles.randomPerson.address)).to.be.revertedWith(
-          'Transaction reverted: function call to a non-contract account'
-        );
-        await expect(dapiServer.connect(roles.randomPerson).withdraw(dapiServer.address)).to.be.revertedWith(
-          "Transaction reverted: function selector was not recognized and there's no fallback function"
-        );
+        await expect(
+          dapiServer.connect(roles.randomPerson).withdraw(roles.randomPerson.address)
+        ).to.be.revertedWithoutReason;
+        await expect(dapiServer.connect(roles.randomPerson).withdraw(dapiServer.address)).to.be.revertedWithoutReason;
       });
     });
   });

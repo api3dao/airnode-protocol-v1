@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.9;
+pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/utils/Multicall.sol";
 import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
@@ -24,7 +24,7 @@ contract AccessControlRegistry is
     IAccessControlRegistry
 {
     /// @param _trustedForwarder Trusted forwarder that verifies and executes
-    /// signed meta-calls
+    /// signed meta-txes
     constructor(address _trustedForwarder) ERC2771Context(_trustedForwarder) {}
 
     /// @notice Initializes the manager by initializing its root role and

@@ -4,7 +4,7 @@ const testUtils = require('../test-utils');
 
 describe('RequesterAuthorizerWithAirnode', function () {
   let roles;
-  let expiringMetaCallForwarder, accessControlRegistry, requesterAuthorizerWithAirnode;
+  let expiringMetaTxForwarder, accessControlRegistry, requesterAuthorizerWithAirnode;
   let requesterAuthorizerWithAirnodeAdminRoleDescription = 'RequesterAuthorizerWithAirnode admin';
   let adminRole, authorizationExpirationExtenderRole, authorizationExpirationSetterRole, indefiniteAuthorizerRole;
   let airnodeAddress, airnodeMnemonic, airnodeWallet;
@@ -20,13 +20,13 @@ describe('RequesterAuthorizerWithAirnode', function () {
       requester: accounts[5],
       randomPerson: accounts[9],
     };
-    const expiringMetaCallForwarderFactory = await hre.ethers.getContractFactory(
-      'ExpiringMetaCallForwarder',
+    const expiringMetaTxForwarderFactory = await hre.ethers.getContractFactory(
+      'ExpiringMetaTxForwarder',
       roles.deployer
     );
-    expiringMetaCallForwarder = await expiringMetaCallForwarderFactory.deploy();
+    expiringMetaTxForwarder = await expiringMetaTxForwarderFactory.deploy();
     const accessControlRegistryFactory = await hre.ethers.getContractFactory('AccessControlRegistry', roles.deployer);
-    accessControlRegistry = await accessControlRegistryFactory.deploy(expiringMetaCallForwarder.address);
+    accessControlRegistry = await accessControlRegistryFactory.deploy(expiringMetaTxForwarder.address);
     const requesterAuthorizerWithAirnodeFactory = await hre.ethers.getContractFactory(
       'RequesterAuthorizerWithAirnode',
       roles.deployer
@@ -34,7 +34,7 @@ describe('RequesterAuthorizerWithAirnode', function () {
     requesterAuthorizerWithAirnode = await requesterAuthorizerWithAirnodeFactory.deploy(
       accessControlRegistry.address,
       requesterAuthorizerWithAirnodeAdminRoleDescription,
-      expiringMetaCallForwarder.address
+      expiringMetaTxForwarder.address
     );
     ({ airnodeAddress: airnodeAddress, airnodeMnemonic: airnodeMnemonic } = testUtils.generateRandomAirnodeWallet());
     await roles.deployer.sendTransaction({
@@ -155,13 +155,13 @@ describe('RequesterAuthorizerWithAirnode', function () {
           requesterAuthorizerWithAirnode = await requesterAuthorizerWithAirnodeFactory.deploy(
             accessControlRegistry.address,
             requesterAuthorizerWithAirnodeAdminRoleDescription,
-            expiringMetaCallForwarder.address
+            expiringMetaTxForwarder.address
           );
           expect(await requesterAuthorizerWithAirnode.accessControlRegistry()).to.equal(accessControlRegistry.address);
           expect(await requesterAuthorizerWithAirnode.adminRoleDescription()).to.equal(
             requesterAuthorizerWithAirnodeAdminRoleDescription
           );
-          expect(await requesterAuthorizerWithAirnode.isTrustedForwarder(expiringMetaCallForwarder.address)).to.equal(
+          expect(await requesterAuthorizerWithAirnode.isTrustedForwarder(expiringMetaTxForwarder.address)).to.equal(
             true
           );
         });
@@ -176,7 +176,7 @@ describe('RequesterAuthorizerWithAirnode', function () {
             requesterAuthorizerWithAirnodeFactory.deploy(
               accessControlRegistry.address,
               '',
-              expiringMetaCallForwarder.address
+              expiringMetaTxForwarder.address
             )
           ).to.be.revertedWith('Admin role description empty');
         });
@@ -192,7 +192,7 @@ describe('RequesterAuthorizerWithAirnode', function () {
           requesterAuthorizerWithAirnodeFactory.deploy(
             hre.ethers.constants.AddressZero,
             requesterAuthorizerWithAirnodeAdminRoleDescription,
-            expiringMetaCallForwarder.address
+            expiringMetaTxForwarder.address
           )
         ).to.be.revertedWith('ACR address zero');
       });
@@ -297,8 +297,8 @@ describe('RequesterAuthorizerWithAirnode', function () {
         });
       });
     });
-    // Let us demonstrate meta-calls as a proof of concept
-    context('Sender using a meta-call signed by the Airnode address', function () {
+    // Let us demonstrate meta-txes as a proof of concept
+    context('Sender using a meta-tx signed by the Airnode address', function () {
       context('Timestamp extends authorization expiration', function () {
         it('extends authorization expiration', async function () {
           await accessControlRegistry
@@ -320,12 +320,12 @@ describe('RequesterAuthorizerWithAirnode', function () {
             roles.requester.address,
             expirationTimestamp,
           ]);
-          const metaCallExpirationTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 3600;
+          const metaTxExpirationTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 3600;
 
-          const domainName = 'ExpiringMetaCallForwarder';
+          const domainName = 'ExpiringMetaTxForwarder';
           const domainVersion = '1.0.0';
           const domainChainId = (await hre.ethers.provider.getNetwork()).chainId;
-          const domainAddress = expiringMetaCallForwarder.address;
+          const domainAddress = expiringMetaTxForwarder.address;
 
           const domain = {
             name: domainName,
@@ -334,7 +334,7 @@ describe('RequesterAuthorizerWithAirnode', function () {
             verifyingContract: domainAddress,
           };
           const types = {
-            ExpiringMetaCall: [
+            ExpiringMetaTx: [
               { name: 'from', type: 'address' },
               { name: 'to', type: 'address' },
               { name: 'data', type: 'bytes' },
@@ -345,11 +345,11 @@ describe('RequesterAuthorizerWithAirnode', function () {
             from,
             to,
             data,
-            expirationTimestamp: metaCallExpirationTimestamp,
+            expirationTimestamp: metaTxExpirationTimestamp,
           };
           const signature = await airnodeWallet._signTypedData(domain, types, value);
 
-          await expect(expiringMetaCallForwarder.connect(roles.randomPerson).execute(value, signature))
+          await expect(expiringMetaTxForwarder.connect(roles.randomPerson).execute(value, signature))
             .to.emit(requesterAuthorizerWithAirnode, 'ExtendedAuthorizationExpiration')
             .withArgs(airnodeAddress, roles.requester.address, airnodeAddress, expirationTimestamp);
 
@@ -374,12 +374,12 @@ describe('RequesterAuthorizerWithAirnode', function () {
             roles.requester.address,
             0,
           ]);
-          const metaCallExpirationTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 3600;
+          const metaTxExpirationTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 3600;
 
-          const domainName = 'ExpiringMetaCallForwarder';
+          const domainName = 'ExpiringMetaTxForwarder';
           const domainVersion = '1.0.0';
           const domainChainId = (await hre.ethers.provider.getNetwork()).chainId;
-          const domainAddress = expiringMetaCallForwarder.address;
+          const domainAddress = expiringMetaTxForwarder.address;
 
           const domain = {
             name: domainName,
@@ -388,7 +388,7 @@ describe('RequesterAuthorizerWithAirnode', function () {
             verifyingContract: domainAddress,
           };
           const types = {
-            ExpiringMetaCall: [
+            ExpiringMetaTx: [
               { name: 'from', type: 'address' },
               { name: 'to', type: 'address' },
               { name: 'data', type: 'bytes' },
@@ -399,12 +399,12 @@ describe('RequesterAuthorizerWithAirnode', function () {
             from,
             to,
             data,
-            expirationTimestamp: metaCallExpirationTimestamp,
+            expirationTimestamp: metaTxExpirationTimestamp,
           };
           const signature = await airnodeWallet._signTypedData(domain, types, value);
 
           await expect(
-            expiringMetaCallForwarder.connect(roles.randomPerson).execute(value, signature)
+            expiringMetaTxForwarder.connect(roles.randomPerson).execute(value, signature)
           ).to.be.revertedWith('Does not extend expiration');
         });
       });

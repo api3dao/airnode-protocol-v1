@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.7;
 
 import "./SelfMulticall.sol";
 import "./interfaces/IExtendedSelfMulticall.sol";
 
-/// @notice Contract that extends SelfMulticall to fetch some of the global
+/// @title Contract that extends SelfMulticall to fetch some of the global
 /// variables
-/// @dev Global variables are limited to the ones that Airnode tends to need
+/// @notice Available global variables are limited to the ones that Airnode
+/// tends to need
 contract ExtendedSelfMulticall is SelfMulticall, IExtendedSelfMulticall {
     /// @notice Returns the chain ID
     /// @return Chain ID

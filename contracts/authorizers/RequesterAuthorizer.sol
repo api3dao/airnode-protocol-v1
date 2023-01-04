@@ -65,7 +65,7 @@ abstract contract RequesterAuthorizer is ERC2771Context, IRequesterAuthorizer {
         override airnodeToRequesterToSetterToIndefiniteAuthorizationStatus;
 
     /// @param _trustedForwarder Trusted forwarder that verifies and executes
-    /// signed meta-calls
+    /// signed meta-txes
     constructor(address _trustedForwarder) ERC2771Context(_trustedForwarder) {}
 
     /// @notice Extends the expiration of the temporary authorization of

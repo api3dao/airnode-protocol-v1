@@ -4,7 +4,7 @@ const testUtils = require('../test-utils');
 
 describe('AllocatorWithAirnode', function () {
   let roles;
-  let expiringMetaCallForwarder, accessControlRegistry, allocatorWithAirnode;
+  let expiringMetaTxForwarder, accessControlRegistry, allocatorWithAirnode;
   let allocatorWithAirnodeAdminRoleDescription = 'AllocatorWithAirnode admin role';
   let slotSetterRoleDescription = 'Slot setter';
   let airnodeSlotSetterRole;
@@ -21,18 +21,18 @@ describe('AllocatorWithAirnode', function () {
       anotherSlotSetter: accounts[3],
       randomPerson: accounts[9],
     };
-    const expiringMetaCallForwarderFactory = await hre.ethers.getContractFactory(
-      'ExpiringMetaCallForwarder',
+    const expiringMetaTxForwarderFactory = await hre.ethers.getContractFactory(
+      'ExpiringMetaTxForwarder',
       roles.deployer
     );
-    expiringMetaCallForwarder = await expiringMetaCallForwarderFactory.deploy();
+    expiringMetaTxForwarder = await expiringMetaTxForwarderFactory.deploy();
     const accessControlRegistryFactory = await hre.ethers.getContractFactory('AccessControlRegistry', roles.deployer);
-    accessControlRegistry = await accessControlRegistryFactory.deploy(expiringMetaCallForwarder.address);
+    accessControlRegistry = await accessControlRegistryFactory.deploy(expiringMetaTxForwarder.address);
     const allocatorWithAirnodeFactory = await hre.ethers.getContractFactory('AllocatorWithAirnode', roles.deployer);
     allocatorWithAirnode = await allocatorWithAirnodeFactory.deploy(
       accessControlRegistry.address,
       allocatorWithAirnodeAdminRoleDescription,
-      expiringMetaCallForwarder.address
+      expiringMetaTxForwarder.address
     );
     const airnodeRootRole = await accessControlRegistry.deriveRootRole(roles.airnode.address);
     const airnodeAdminRole = await allocatorWithAirnode.deriveAdminRole(roles.airnode.address);
@@ -55,7 +55,7 @@ describe('AllocatorWithAirnode', function () {
   describe('constructor', function () {
     it('constructs', async function () {
       expect(await allocatorWithAirnode.SLOT_SETTER_ROLE_DESCRIPTION()).to.equal(slotSetterRoleDescription);
-      expect(await allocatorWithAirnode.isTrustedForwarder(expiringMetaCallForwarder.address)).to.equal(true);
+      expect(await allocatorWithAirnode.isTrustedForwarder(expiringMetaTxForwarder.address)).to.equal(true);
     });
   });
 

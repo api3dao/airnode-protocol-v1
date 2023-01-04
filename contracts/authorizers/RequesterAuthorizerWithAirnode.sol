@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.9;
+pragma solidity 0.8.17;
 
 import "../access-control-registry/AccessControlRegistryAdminned.sol";
 import "./RequesterAuthorizer.sol";
@@ -15,7 +15,7 @@ contract RequesterAuthorizerWithAirnode is
     /// @param _accessControlRegistry AccessControlRegistry contract address
     /// @param _adminRoleDescription Admin role description
     /// @param _trustedForwarder Trusted forwarder that verifies and executes
-    /// signed meta-calls
+    /// signed meta-txes
     constructor(
         address _accessControlRegistry,
         string memory _adminRoleDescription,
