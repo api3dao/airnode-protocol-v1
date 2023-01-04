@@ -9,7 +9,9 @@ import "./interfaces/IExpiringMetaTxForwarder.sol";
 
 /// @title Contract that forwards expiring meta-txes to ERC2771 contracts that
 /// trust it
-/// @notice `msg.value` is not supported. Target account must be a contract. This
+/// @notice `msg.value` is not supported. Identical meta-txes are not supported
+/// (i.e., for a meta-tx to be executed, it must not be identical to a
+/// previously executed meta-tx.) Target account must be a contract. This
 /// implementation is not intended to be used with general-purpose relayer
 /// networks. Instead, it is meant for use-cases where the relayer wants the
 /// signer to send a tx, so they request a meta-tx and execute it themselves to
@@ -19,8 +21,8 @@ import "./interfaces/IExpiringMetaTxForwarder.sol";
 /// meta-txes that will whitelist an account each and deliver these to the
 /// respective owners of the accounts. This implementation allows the account
 /// owners to not care about if and when the other meta-tx is executed. The
-/// signer is responsible not issuing signatures that may cause undesired race
-/// conditions.
+/// signer is responsible for not issuing signatures that may cause undesired
+/// race conditions.
 contract ExpiringMetaTxForwarder is
     EIP712,
     SelfMulticall,
@@ -30,6 +32,13 @@ contract ExpiringMetaTxForwarder is
     using Address for address;
 
     /// @notice If the meta-tx with hash is already executed
+    /// @dev This mapping is used to prevent identical meta-txes from being
+    /// executed. There are two issues with this: (1) The signer may actually
+    /// want to issue identical meta-txes (2) Setting a flag in the storage per
+    /// meta-tx is costly. Identical meta-tx validity can be disambiguated by
+    /// using a nonce that is specific to the signer–relayer pair, yet this is
+    /// decided against in favor of the simple UX that not having any kind of a
+    /// nonce provides.
     mapping(bytes32 => bool) public override metaTxWithHashIsExecuted;
 
     bytes32 private constant _TYPEHASH =
