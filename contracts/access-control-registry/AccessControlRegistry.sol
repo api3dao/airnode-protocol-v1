@@ -44,7 +44,7 @@ contract AccessControlRegistry is
     }
 
     /// @notice Called by the account to renounce the role
-    /// @dev Overriden to disallow managers to renounce their root roles.
+    /// @dev Overriden to disallow managers from renouncing their root roles.
     /// `role` and `account` are not validated because
     /// `AccessControl.renounceRole` will revert if either of them is zero.
     /// @param role Role to be renounced
