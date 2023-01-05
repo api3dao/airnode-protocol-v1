@@ -72,7 +72,7 @@ describe('AccessControlRegistry', function () {
       context('Sender is account', function () {
         context('account has role', function () {
           it('renounces role', async function () {
-            const role = await accessControlRegistry.deriveRole(managerRootRole, roleDescription);
+            const role = testUtils.deriveRole(managerRootRole, roleDescription);
             await accessControlRegistry
               .connect(roles.manager)
               .initializeRoleAndGrantToSender(managerRootRole, roleDescription);
@@ -86,7 +86,7 @@ describe('AccessControlRegistry', function () {
         });
         context('account does not have role', function () {
           it('does nothing', async function () {
-            const role = await accessControlRegistry.deriveRole(managerRootRole, roleDescription);
+            const role = testUtils.deriveRole(managerRootRole, roleDescription);
             await expect(
               accessControlRegistry.connect(roles.randomPerson).renounceRole(role, roles.randomPerson.address)
             ).to.not.emit(accessControlRegistry, 'RoleRevoked');
@@ -95,7 +95,7 @@ describe('AccessControlRegistry', function () {
       });
       context('Sender is not account', function () {
         it('reverts', async function () {
-          const role = await accessControlRegistry.deriveRole(managerRootRole, roleDescription);
+          const role = testUtils.deriveRole(managerRootRole, roleDescription);
           await expect(
             accessControlRegistry.connect(roles.randomPerson).renounceRole(role, roles.manager.address)
           ).to.be.revertedWith('AccessControl: can only renounce roles for self');
@@ -119,7 +119,7 @@ describe('AccessControlRegistry', function () {
             it('initializes role and grants it to the sender', async function () {
               const manager = roles.manager.address;
               await accessControlRegistry.connect(roles.randomPerson).initializeManager(manager);
-              const role = await accessControlRegistry.deriveRole(managerRootRole, roleDescription);
+              const role = testUtils.deriveRole(managerRootRole, roleDescription);
               expect(await accessControlRegistry.getRoleAdmin(role)).to.equal(hre.ethers.constants.HashZero);
               expect(await accessControlRegistry.hasRole(role, manager)).to.equal(false);
               await expect(
@@ -136,7 +136,7 @@ describe('AccessControlRegistry', function () {
           context('Sender manager is not initialized', function () {
             it('initializes sender manager, role and grants it to the sender', async function () {
               const manager = roles.manager.address;
-              const role = await accessControlRegistry.deriveRole(managerRootRole, roleDescription);
+              const role = testUtils.deriveRole(managerRootRole, roleDescription);
               expect(await accessControlRegistry.hasRole(managerRootRole, manager)).to.equal(false);
               expect(await accessControlRegistry.getRoleAdmin(role)).to.equal(hre.ethers.constants.HashZero);
               expect(await accessControlRegistry.hasRole(role, manager)).to.equal(false);
@@ -158,8 +158,8 @@ describe('AccessControlRegistry', function () {
             it('initializes role', async function () {
               const manager = roles.manager.address;
               const account = roles.account.address;
-              const role1 = await accessControlRegistry.deriveRole(managerRootRole, roleDescription);
-              const role2 = await accessControlRegistry.deriveRole(role1, roleDescription);
+              const role1 = testUtils.deriveRole(managerRootRole, roleDescription);
+              const role2 = testUtils.deriveRole(role1, roleDescription);
               await accessControlRegistry
                 .connect(roles.manager)
                 .initializeRoleAndGrantToSender(managerRootRole, roleDescription);
@@ -195,7 +195,7 @@ describe('AccessControlRegistry', function () {
         context('Sender has adminRole', function () {
           it('grants role to sender', async function () {
             const manager = roles.manager.address;
-            const role = await accessControlRegistry.deriveRole(managerRootRole, roleDescription);
+            const role = testUtils.deriveRole(managerRootRole, roleDescription);
             await accessControlRegistry
               .connect(roles.manager)
               .initializeRoleAndGrantToSender(managerRootRole, roleDescription);
@@ -240,25 +240,6 @@ describe('AccessControlRegistry', function () {
     });
   });
 
-  describe('deriveRootRole', function () {
-    it('derives root role by hashing the manager address', async function () {
-      expect(await accessControlRegistry.deriveRootRole(roles.manager.address)).to.equal(managerRootRole);
-    });
-  });
-
-  describe('deriveRole', function () {
-    it('derives role by hashing the admin role and the description hash', async function () {
-      expect(await accessControlRegistry.deriveRole(managerRootRole, roleDescription)).to.equal(
-        hre.ethers.utils.keccak256(
-          hre.ethers.utils.solidityPack(
-            ['bytes32', 'bytes32'],
-            [managerRootRole, hre.ethers.utils.keccak256(hre.ethers.utils.solidityPack(['string'], [roleDescription]))]
-          )
-        )
-      );
-    });
-  });
-
   describe('Initialize complex access control tables through Multicall', function () {
     context('Sender is authorized', function () {
       context('Calls are ordered correctly', function () {
@@ -273,7 +254,7 @@ describe('AccessControlRegistry', function () {
               .map(() => testUtils.generateRandomAddress());
             const calldatas = [];
             for (let ind = 0; ind < descriptions.length; ind++) {
-              const role = await accessControlRegistry.deriveRole(managerRootRole, descriptions[ind]);
+              const role = testUtils.deriveRole(managerRootRole, descriptions[ind]);
               calldatas.push(
                 accessControlRegistry.interface.encodeFunctionData('initializeRoleAndGrantToSender', [
                   managerRootRole,
@@ -284,7 +265,7 @@ describe('AccessControlRegistry', function () {
             }
             await accessControlRegistry.connect(roles.manager).multicall(calldatas);
             for (let ind = 0; ind < descriptions.length; ind++) {
-              const role = await accessControlRegistry.deriveRole(managerRootRole, descriptions[ind]);
+              const role = testUtils.deriveRole(managerRootRole, descriptions[ind]);
               expect(await accessControlRegistry.getRoleAdmin(role)).to.equal(managerRootRole);
               expect(await accessControlRegistry.hasRole(role, manager)).to.equal(true);
               expect(await accessControlRegistry.hasRole(role, accounts[ind])).to.equal(true);
@@ -295,13 +276,13 @@ describe('AccessControlRegistry', function () {
           it('initializes and grants roles', async function () {
             const manager = roles.manager.address;
             const description1 = Math.random().toString();
-            const role1 = await accessControlRegistry.deriveRole(managerRootRole, description1);
+            const role1 = testUtils.deriveRole(managerRootRole, description1);
             const account1 = testUtils.generateRandomAddress();
             const description11 = Math.random().toString();
-            const role11 = await accessControlRegistry.deriveRole(role1, description11);
+            const role11 = testUtils.deriveRole(role1, description11);
             const account11 = testUtils.generateRandomAddress();
             const description12 = Math.random().toString();
-            const role12 = await accessControlRegistry.deriveRole(role1, description12);
+            const role12 = testUtils.deriveRole(role1, description12);
             const account12 = testUtils.generateRandomAddress();
             expect(await accessControlRegistry.getRoleAdmin(role1)).to.equal(hre.ethers.constants.HashZero);
             expect(await accessControlRegistry.hasRole(role1, manager)).to.equal(false);
@@ -352,7 +333,7 @@ describe('AccessControlRegistry', function () {
             .map(() => testUtils.generateRandomAddress());
           const calldatas = [];
           for (let ind = 0; ind < descriptions.length; ind++) {
-            const role = await accessControlRegistry.deriveRole(managerRootRole, descriptions[ind]);
+            const role = testUtils.deriveRole(managerRootRole, descriptions[ind]);
             // Attempt to grant roles before initializing them
             calldatas.push(accessControlRegistry.interface.encodeFunctionData('grantRole', [role, accounts[ind]]));
             calldatas.push(
@@ -380,13 +361,13 @@ describe('AccessControlRegistry', function () {
   describe('Make multiple static calls through Multicall', function () {
     it('returns the results of static calls', async function () {
       const description1 = Math.random().toString();
-      const role1 = await accessControlRegistry.deriveRole(managerRootRole, description1);
+      const role1 = testUtils.deriveRole(managerRootRole, description1);
       const account1 = testUtils.generateRandomAddress();
       const description11 = Math.random().toString();
-      const role11 = await accessControlRegistry.deriveRole(role1, description11);
+      const role11 = testUtils.deriveRole(role1, description11);
       const account11 = testUtils.generateRandomAddress();
       const description12 = Math.random().toString();
-      const role12 = await accessControlRegistry.deriveRole(role1, description12);
+      const role12 = testUtils.deriveRole(role1, description12);
       const account12 = testUtils.generateRandomAddress();
       const calldatas = [
         accessControlRegistry.interface.encodeFunctionData('initializeRoleAndGrantToSender', [

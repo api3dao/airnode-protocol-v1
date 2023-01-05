@@ -36,7 +36,7 @@ describe('AllocatorWithManager', function () {
       roles.manager.address,
       expiringMetaTxForwarder.address
     );
-    const managerRootRole = await accessControlRegistry.deriveRootRole(roles.manager.address);
+    const managerRootRole = testUtils.deriveRootRole(roles.manager.address);
     const managerAdminRole = await allocatorWithManager.adminRole();
     slotSetterRole = await allocatorWithManager.slotSetterRole();
     await accessControlRegistry
@@ -55,7 +55,7 @@ describe('AllocatorWithManager', function () {
   describe('constructor', function () {
     it('constructs', async function () {
       expect(await allocatorWithManager.SLOT_SETTER_ROLE_DESCRIPTION()).to.equal(slotSetterRoleDescription);
-      const managerRootRole = await accessControlRegistry.deriveRootRole(roles.manager.address);
+      const managerRootRole = testUtils.deriveRootRole(roles.manager.address);
       const adminRoleDescriptionHash = hre.ethers.utils.keccak256(
         hre.ethers.utils.solidityPack(['string'], [allocatorWithManagerAdminRoleDescription])
       );

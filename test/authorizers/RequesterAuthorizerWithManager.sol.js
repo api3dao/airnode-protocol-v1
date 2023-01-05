@@ -38,7 +38,7 @@ describe('RequesterAuthorizerWithManager', function () {
       roles.manager.address,
       expiringMetaTxForwarder.address
     );
-    const managerRootRole = await accessControlRegistry.deriveRootRole(roles.manager.address);
+    const managerRootRole = testUtils.deriveRootRole(roles.manager.address);
     // Initialize the roles and grant them to respective accounts
     adminRole = await requesterAuthorizerWithManager.adminRole();
     await accessControlRegistry
@@ -79,12 +79,12 @@ describe('RequesterAuthorizerWithManager', function () {
       .grantRole(indefiniteAuthorizerRole, roles.anotherIndefiniteAuthorizer.address);
     // Grant `roles.randomPerson` some invalid roles
     const randomRoleDescription = Math.random().toString();
-    const randomRole = await accessControlRegistry.deriveRole(managerRootRole, randomRoleDescription);
+    const randomRole = testUtils.deriveRole(managerRootRole, randomRoleDescription);
     await accessControlRegistry
       .connect(roles.manager)
       .initializeRoleAndGrantToSender(managerRootRole, randomRoleDescription);
     await accessControlRegistry.connect(roles.manager).grantRole(randomRole, roles.randomPerson.address);
-    const invalidAuthorizationExpirationExtenderRole = await accessControlRegistry.deriveRole(
+    const invalidAuthorizationExpirationExtenderRole = testUtils.deriveRole(
       managerRootRole,
       await requesterAuthorizerWithManager.AUTHORIZATION_EXPIRATION_EXTENDER_ROLE_DESCRIPTION()
     );
@@ -97,7 +97,7 @@ describe('RequesterAuthorizerWithManager', function () {
     await accessControlRegistry
       .connect(roles.manager)
       .grantRole(invalidAuthorizationExpirationExtenderRole, roles.randomPerson.address);
-    const invalidAuthorizationExpirationSetterRole = await accessControlRegistry.deriveRole(
+    const invalidAuthorizationExpirationSetterRole = testUtils.deriveRole(
       managerRootRole,
       await requesterAuthorizerWithManager.AUTHORIZATION_EXPIRATION_SETTER_ROLE_DESCRIPTION()
     );
@@ -110,7 +110,7 @@ describe('RequesterAuthorizerWithManager', function () {
     await accessControlRegistry
       .connect(roles.manager)
       .grantRole(invalidAuthorizationExpirationSetterRole, roles.randomPerson.address);
-    const invalidIndefiniteAuthorizerRole = await accessControlRegistry.deriveRole(
+    const invalidIndefiniteAuthorizerRole = testUtils.deriveRole(
       managerRootRole,
       await requesterAuthorizerWithManager.INDEFINITE_AUTHORIZER_ROLE_DESCRIPTION()
     );
