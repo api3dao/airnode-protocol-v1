@@ -33,8 +33,7 @@ describe('AllocatorWithManager', function () {
     allocatorWithManager = await allocatorWithManagerFactory.deploy(
       accessControlRegistry.address,
       allocatorWithManagerAdminRoleDescription,
-      roles.manager.address,
-      expiringMetaTxForwarder.address
+      roles.manager.address
     );
     const managerRootRole = testUtils.deriveRootRole(roles.manager.address);
     const managerAdminRole = await allocatorWithManager.adminRole();

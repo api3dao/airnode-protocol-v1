@@ -26,20 +26,16 @@ contract RequesterAuthorizerWithManager is
     /// @param _accessControlRegistry AccessControlRegistry contract address
     /// @param _adminRoleDescription Admin role description
     /// @param _manager Manager address
-    /// @param _trustedForwarder Trusted forwarder that verifies and executes
-    /// signed meta-txes
     constructor(
         address _accessControlRegistry,
         string memory _adminRoleDescription,
-        address _manager,
-        address _trustedForwarder
+        address _manager
     )
         AccessControlRegistryAdminnedWithManager(
             _accessControlRegistry,
             _adminRoleDescription,
             _manager
         )
-        RequesterAuthorizer(_trustedForwarder)
     {
         authorizationExpirationExtenderRole = _deriveRole(
             adminRole,
@@ -173,5 +169,16 @@ contract RequesterAuthorizerWithManager is
                 indefiniteAuthorizerRole,
                 account
             );
+    }
+
+    /// @dev See Context.sol
+    function _msgSender()
+        internal
+        view
+        virtual
+        override(RequesterAuthorizer, ERC2771Context)
+        returns (address)
+    {
+        return ERC2771Context._msgSender();
     }
 }

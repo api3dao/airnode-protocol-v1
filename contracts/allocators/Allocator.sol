@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 import "./interfaces/IAllocator.sol";
 
 /// @title Abstract contract to be inherited by Allocator contracts that
@@ -10,7 +9,7 @@ import "./interfaces/IAllocator.sol";
 /// of slots to serve the respective subscriptions. What these Allocators and
 /// slot numbers are expected to be communicated off-chain. The Airnode/relayer
 /// should not process expired slots or subscriptions with invalid IDs.
-abstract contract Allocator is ERC2771Context, IAllocator {
+abstract contract Allocator is IAllocator {
     struct Slot {
         bytes32 subscriptionId;
         address setter;
@@ -28,10 +27,6 @@ abstract contract Allocator is ERC2771Context, IAllocator {
 
     bytes32 internal constant SLOT_SETTER_ROLE_DESCRIPTION_HASH =
         keccak256(abi.encodePacked(SLOT_SETTER_ROLE_DESCRIPTION));
-
-    /// @param _trustedForwarder Trusted forwarder that verifies and executes
-    /// signed meta-txes
-    constructor(address _trustedForwarder) ERC2771Context(_trustedForwarder) {}
 
     /// @notice Called internally to set the slot with the given parameters
     /// @dev The set slot can be reset by its setter, or when it has expired,
@@ -99,4 +94,6 @@ abstract contract Allocator is ERC2771Context, IAllocator {
         );
         delete airnodeToSlotIndexToSlot[airnode][slotIndex];
     }
+
+    function _msgSender() internal view virtual returns (address sender);
 }

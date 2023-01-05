@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 import "../utils/SelfMulticall.sol";
 import "./RoleDeriver.sol";
 import "./interfaces/IAccessControlRegistryAdminned.sol";
@@ -9,6 +10,7 @@ import "./interfaces/IAccessControlRegistry.sol";
 /// @title Contract to be inherited by contracts whose adminship functionality
 /// will be implemented using AccessControlRegistry
 contract AccessControlRegistryAdminned is
+    ERC2771Context,
     SelfMulticall,
     RoleDeriver,
     IAccessControlRegistryAdminned
@@ -31,8 +33,13 @@ contract AccessControlRegistryAdminned is
     constructor(
         address _accessControlRegistry,
         string memory _adminRoleDescription
-    ) {
-        require(_accessControlRegistry != address(0), "ACR address zero");
+    )
+        ERC2771Context(
+            IAccessControlRegistry(_accessControlRegistry).trustedForwarder()
+        )
+    {
+        // ERC2771Context constructor will revert if _accessControlRegistry is
+        // zero so will not validate that
         require(
             bytes(_adminRoleDescription).length > 0,
             "Admin role description empty"

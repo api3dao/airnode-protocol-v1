@@ -23,9 +23,15 @@ contract AccessControlRegistry is
     RoleDeriver,
     IAccessControlRegistry
 {
+    /// @notice Trusted forwarder
+    /// @dev Can be zero address, meaning that meta-tx forwarding is not enabled
+    address public immutable override trustedForwarder;
+
     /// @param _trustedForwarder Trusted forwarder that verifies and executes
     /// signed meta-txes
-    constructor(address _trustedForwarder) ERC2771Context(_trustedForwarder) {}
+    constructor(address _trustedForwarder) ERC2771Context(_trustedForwarder) {
+        trustedForwarder = _trustedForwarder;
+    }
 
     /// @notice Initializes the manager by initializing its root role and
     /// granting it to them

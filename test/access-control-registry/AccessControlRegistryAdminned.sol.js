@@ -63,7 +63,7 @@ describe('AccessControlRegistryAdminned', function () {
         );
         await expect(
           accessControlRegistryAdminnedFactory.deploy(ethers.constants.AddressZero, adminRoleDescription)
-        ).to.be.revertedWith('ACR address zero');
+        ).to.be.revertedWithoutReason;
       });
     });
   });

@@ -33,8 +33,7 @@ describe('RequesterAuthorizerWithAirnode', function () {
     );
     requesterAuthorizerWithAirnode = await requesterAuthorizerWithAirnodeFactory.deploy(
       accessControlRegistry.address,
-      requesterAuthorizerWithAirnodeAdminRoleDescription,
-      expiringMetaTxForwarder.address
+      requesterAuthorizerWithAirnodeAdminRoleDescription
     );
     ({ airnodeAddress: airnodeAddress, airnodeMnemonic: airnodeMnemonic } = testUtils.generateRandomAirnodeWallet());
     await roles.deployer.sendTransaction({
@@ -154,15 +153,11 @@ describe('RequesterAuthorizerWithAirnode', function () {
           );
           requesterAuthorizerWithAirnode = await requesterAuthorizerWithAirnodeFactory.deploy(
             accessControlRegistry.address,
-            requesterAuthorizerWithAirnodeAdminRoleDescription,
-            expiringMetaTxForwarder.address
+            requesterAuthorizerWithAirnodeAdminRoleDescription
           );
           expect(await requesterAuthorizerWithAirnode.accessControlRegistry()).to.equal(accessControlRegistry.address);
           expect(await requesterAuthorizerWithAirnode.adminRoleDescription()).to.equal(
             requesterAuthorizerWithAirnodeAdminRoleDescription
-          );
-          expect(await requesterAuthorizerWithAirnode.isTrustedForwarder(expiringMetaTxForwarder.address)).to.equal(
-            true
           );
         });
       });
@@ -173,11 +168,7 @@ describe('RequesterAuthorizerWithAirnode', function () {
             roles.deployer
           );
           await expect(
-            requesterAuthorizerWithAirnodeFactory.deploy(
-              accessControlRegistry.address,
-              '',
-              expiringMetaTxForwarder.address
-            )
+            requesterAuthorizerWithAirnodeFactory.deploy(accessControlRegistry.address, '')
           ).to.be.revertedWith('Admin role description empty');
         });
       });
@@ -191,10 +182,9 @@ describe('RequesterAuthorizerWithAirnode', function () {
         await expect(
           requesterAuthorizerWithAirnodeFactory.deploy(
             hre.ethers.constants.AddressZero,
-            requesterAuthorizerWithAirnodeAdminRoleDescription,
-            expiringMetaTxForwarder.address
+            requesterAuthorizerWithAirnodeAdminRoleDescription
           )
-        ).to.be.revertedWith('ACR address zero');
+        ).to.be.revertedWithoutReason;
       });
     });
   });

@@ -20,4 +20,6 @@ interface IAccessControlRegistry is IAccessControl, ISelfMulticall {
         bytes32 adminRole,
         string calldata description
     ) external returns (bytes32 role);
+
+    function trustedForwarder() external returns (address);
 }

@@ -31,8 +31,7 @@ describe('AllocatorWithAirnode', function () {
     const allocatorWithAirnodeFactory = await hre.ethers.getContractFactory('AllocatorWithAirnode', roles.deployer);
     allocatorWithAirnode = await allocatorWithAirnodeFactory.deploy(
       accessControlRegistry.address,
-      allocatorWithAirnodeAdminRoleDescription,
-      expiringMetaTxForwarder.address
+      allocatorWithAirnodeAdminRoleDescription
     );
     const airnodeRootRole = testUtils.deriveRootRole(roles.airnode.address);
     const airnodeAdminRole = await allocatorWithAirnode.deriveAdminRole(roles.airnode.address);
