@@ -42,7 +42,7 @@ describe('RequesterAuthorizerWithAirnode', function () {
       value: hre.ethers.utils.parseEther('1'),
     });
     airnodeWallet = hre.ethers.Wallet.fromMnemonic(airnodeMnemonic).connect(hre.ethers.provider);
-    const airnodeRootRole = await accessControlRegistry.deriveRootRole(airnodeAddress);
+    const airnodeRootRole = testUtils.deriveRootRole(airnodeAddress);
     // Initialize the roles and grant them to respective accounts
     adminRole = await requesterAuthorizerWithAirnode.deriveAdminRole(airnodeAddress);
     await accessControlRegistry
@@ -93,14 +93,14 @@ describe('RequesterAuthorizerWithAirnode', function () {
       .grantRole(indefiniteAuthorizerRole, roles.anotherIndefiniteAuthorizer.address, { gasLimit: 1000000 });
     // Grant `roles.randomPerson` some invalid roles
     const randomRoleDescription = Math.random().toString();
-    const randomRole = await accessControlRegistry.deriveRole(airnodeRootRole, randomRoleDescription);
+    const randomRole = testUtils.deriveRole(airnodeRootRole, randomRoleDescription);
     await accessControlRegistry
       .connect(airnodeWallet)
       .initializeRoleAndGrantToSender(airnodeRootRole, randomRoleDescription, { gasLimit: 1000000 });
     await accessControlRegistry
       .connect(airnodeWallet)
       .grantRole(randomRole, roles.randomPerson.address, { gasLimit: 1000000 });
-    const invalidAuthorizationExpirationExtenderRole = await accessControlRegistry.deriveRole(
+    const invalidAuthorizationExpirationExtenderRole = testUtils.deriveRole(
       airnodeRootRole,
       await requesterAuthorizerWithAirnode.AUTHORIZATION_EXPIRATION_EXTENDER_ROLE_DESCRIPTION()
     );
@@ -114,7 +114,7 @@ describe('RequesterAuthorizerWithAirnode', function () {
     await accessControlRegistry
       .connect(airnodeWallet)
       .grantRole(invalidAuthorizationExpirationExtenderRole, roles.randomPerson.address, { gasLimit: 1000000 });
-    const invalidAuthorizationExpirationSetterRole = await accessControlRegistry.deriveRole(
+    const invalidAuthorizationExpirationSetterRole = testUtils.deriveRole(
       airnodeRootRole,
       await requesterAuthorizerWithAirnode.AUTHORIZATION_EXPIRATION_SETTER_ROLE_DESCRIPTION()
     );
@@ -128,7 +128,7 @@ describe('RequesterAuthorizerWithAirnode', function () {
     await accessControlRegistry
       .connect(airnodeWallet)
       .grantRole(invalidAuthorizationExpirationSetterRole, roles.randomPerson.address, { gasLimit: 1000000 });
-    const invalidIndefiniteAuthorizerRole = await accessControlRegistry.deriveRole(
+    const invalidIndefiniteAuthorizerRole = testUtils.deriveRole(
       airnodeRootRole,
       await requesterAuthorizerWithAirnode.INDEFINITE_AUTHORIZER_ROLE_DESCRIPTION()
     );

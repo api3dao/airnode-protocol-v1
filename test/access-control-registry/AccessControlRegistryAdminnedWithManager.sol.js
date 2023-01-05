@@ -1,56 +1,65 @@
-const hre = require('hardhat');
+const { ethers } = require('hardhat');
+const helpers = require('@nomicfoundation/hardhat-network-helpers');
 const { expect } = require('chai');
 
 describe('AccessControlRegistryAdminnedWithManager', function () {
-  let roles;
-
-  beforeEach(async () => {
-    const accounts = await hre.ethers.getSigners();
-    roles = {
+  async function deploy() {
+    const accounts = await ethers.getSigners();
+    const roles = {
       deployer: accounts[0],
-      accessControlRegistry: accounts[1],
-      manager: accounts[2],
+      manager: accounts[1],
     };
-  });
+    const expiringMetaTxForwarderFactory = await ethers.getContractFactory('ExpiringMetaTxForwarder', roles.deployer);
+    const expiringMetaTxForwarder = await expiringMetaTxForwarderFactory.deploy();
+    const accessControlRegistryFactory = await ethers.getContractFactory('AccessControlRegistry', roles.deployer);
+    const accessControlRegistry = await accessControlRegistryFactory.deploy(expiringMetaTxForwarder.address);
+    const adminRoleDescription = 'Admin role description';
+    const accessControlRegistryAdminnedWithManagerFactory = await ethers.getContractFactory(
+      'AccessControlRegistryAdminnedWithManager',
+      roles.deployer
+    );
+    const accessControlRegistryAdminnedWithManager = await accessControlRegistryAdminnedWithManagerFactory.deploy(
+      accessControlRegistry.address,
+      adminRoleDescription,
+      roles.manager.address
+    );
+    return {
+      roles,
+      accessControlRegistry,
+      adminRoleDescription,
+      accessControlRegistryAdminnedWithManager,
+    };
+  }
 
   describe('constructor', function () {
-    context('Admin role description is not empty', function () {
+    context('Manager address is not zero', function () {
       it('constructs', async function () {
-        const adminRoleDescription = 'Admin role description';
-        const accessControlRegistryAdminnedWithManagerFactory = await hre.ethers.getContractFactory(
-          'AccessControlRegistryAdminnedWithManager',
-          roles.deployer
-        );
-        const accessControlRegistryAdminnedWithManager = await accessControlRegistryAdminnedWithManagerFactory.deploy(
-          roles.accessControlRegistry.address,
-          adminRoleDescription,
-          roles.manager.address
+        const { roles, adminRoleDescription, accessControlRegistryAdminnedWithManager } = await helpers.loadFixture(
+          deploy
         );
         expect(await accessControlRegistryAdminnedWithManager.manager()).to.be.equal(roles.manager.address);
-        const managerRootRole = hre.ethers.utils.keccak256(
-          hre.ethers.utils.solidityPack(['address'], [roles.manager.address])
+        const managerRootRole = ethers.utils.keccak256(ethers.utils.solidityPack(['address'], [roles.manager.address]));
+        const adminRoleDescriptionHash = ethers.utils.keccak256(
+          ethers.utils.solidityPack(['string'], [adminRoleDescription])
         );
-        const adminRoleDescriptionHash = hre.ethers.utils.keccak256(
-          hre.ethers.utils.solidityPack(['string'], [adminRoleDescription])
-        );
-        const adminRole = hre.ethers.utils.keccak256(
-          hre.ethers.utils.solidityPack(['bytes32', 'bytes32'], [managerRootRole, adminRoleDescriptionHash])
+        const adminRole = ethers.utils.keccak256(
+          ethers.utils.solidityPack(['bytes32', 'bytes32'], [managerRootRole, adminRoleDescriptionHash])
         );
         expect(await accessControlRegistryAdminnedWithManager.adminRole()).to.equal(adminRole);
       });
     });
-    context('Admin role description is not empty', function () {
+    context('Manager address is zero', function () {
       it('reverts', async function () {
-        const adminRoleDescription = 'Admin role description';
-        const accessControlRegistryAdminnedWithManagerFactory = await hre.ethers.getContractFactory(
+        const { roles, adminRoleDescription, accessControlRegistry } = await helpers.loadFixture(deploy);
+        const accessControlRegistryAdminnedWithManagerFactory = await ethers.getContractFactory(
           'AccessControlRegistryAdminnedWithManager',
           roles.deployer
         );
         await expect(
           accessControlRegistryAdminnedWithManagerFactory.deploy(
-            roles.accessControlRegistry.address,
+            accessControlRegistry.address,
             adminRoleDescription,
-            hre.ethers.constants.AddressZero
+            ethers.constants.AddressZero
           )
         ).to.be.revertedWith('Manager address zero');
       });

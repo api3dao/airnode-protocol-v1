@@ -3,6 +3,10 @@ const { expect } = require('chai');
 const testUtils = require('../test-utils');
 
 describe('DapiServer', function () {
+  function deriveRootRole(managerAddress) {
+    return hre.ethers.utils.solidityKeccak256(['address'], [managerAddress]);
+  }
+
   let roles;
   let accessControlRegistry, airnodeProtocol, dapiServer, oevProxy;
   let dapiServerAdminRoleDescription = 'DapiServer admin';
@@ -47,7 +51,7 @@ describe('DapiServer', function () {
   }
 
   async function setUpRoles() {
-    const managerRootRole = await accessControlRegistry.deriveRootRole(roles.manager.address);
+    const managerRootRole = deriveRootRole(roles.manager.address);
     // Initialize the roles and grant them to respective accounts
     const adminRole = await dapiServer.adminRole();
     await accessControlRegistry

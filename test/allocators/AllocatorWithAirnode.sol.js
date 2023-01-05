@@ -34,7 +34,7 @@ describe('AllocatorWithAirnode', function () {
       allocatorWithAirnodeAdminRoleDescription,
       expiringMetaTxForwarder.address
     );
-    const airnodeRootRole = await accessControlRegistry.deriveRootRole(roles.airnode.address);
+    const airnodeRootRole = testUtils.deriveRootRole(roles.airnode.address);
     const airnodeAdminRole = await allocatorWithAirnode.deriveAdminRole(roles.airnode.address);
     airnodeSlotSetterRole = await allocatorWithAirnode.deriveSlotSetterRole(roles.airnode.address);
     await accessControlRegistry
@@ -418,7 +418,7 @@ describe('AllocatorWithAirnode', function () {
 
   describe('deriveAdminRole', function () {
     it('derives admin role', async function () {
-      const airnodeRootRole = await accessControlRegistry.deriveRootRole(roles.airnode.address);
+      const airnodeRootRole = testUtils.deriveRootRole(roles.airnode.address);
       const adminRoleDescriptionHash = hre.ethers.utils.keccak256(
         hre.ethers.utils.solidityPack(['string'], [allocatorWithAirnodeAdminRoleDescription])
       );
@@ -431,7 +431,7 @@ describe('AllocatorWithAirnode', function () {
 
   describe('deriveSlotSetterRole', function () {
     it('derives slot setter role', async function () {
-      const airnodeRootRole = await accessControlRegistry.deriveRootRole(roles.airnode.address);
+      const airnodeRootRole = testUtils.deriveRootRole(roles.airnode.address);
       const adminRoleDescriptionHash = hre.ethers.utils.keccak256(
         hre.ethers.utils.solidityPack(['string'], [allocatorWithAirnodeAdminRoleDescription])
       );

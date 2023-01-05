@@ -59,4 +59,31 @@ module.exports = {
       return 'No revert string';
     }
   },
+  deriveRootRole: (managerAddress) => {
+    return ethers.utils.solidityKeccak256(['address'], [managerAddress]);
+  },
+  deriveRole: (adminRole, roleDescription) => {
+    return ethers.utils.solidityKeccak256(
+      ['bytes32', 'bytes32'],
+      [adminRole, ethers.utils.solidityKeccak256(['string'], [roleDescription])]
+    );
+  },
+  expiringMetaTxDomain: async (expiringMetaTxForwarder) => {
+    return {
+      name: 'ExpiringMetaTxForwarder',
+      version: '1.0.0',
+      chainId: (await expiringMetaTxForwarder.provider.getNetwork()).chainId,
+      verifyingContract: expiringMetaTxForwarder.address,
+    };
+  },
+  expiringMetaTxTypes: () => {
+    return {
+      ExpiringMetaTx: [
+        { name: 'from', type: 'address' },
+        { name: 'to', type: 'address' },
+        { name: 'data', type: 'bytes' },
+        { name: 'expirationTimestamp', type: 'uint256' },
+      ],
+    };
+  },
 };
