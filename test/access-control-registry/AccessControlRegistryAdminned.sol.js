@@ -13,29 +13,46 @@ describe('AccessControlRegistryAdminned', function () {
   });
 
   describe('constructor', function () {
-    context('Admin role description is not empty', function () {
-      it('constructs', async function () {
+    context('AccessControlRegistry address is not zero', function () {
+      context('Admin role description is not empty', function () {
+        it('constructs', async function () {
+          const adminRoleDescription = 'Admin role description';
+          const accessControlRegistryAdminnedFactory = await hre.ethers.getContractFactory(
+            'AccessControlRegistryAdminned',
+            roles.deployer
+          );
+          const accessControlRegistryAdminned = await accessControlRegistryAdminnedFactory.deploy(
+            roles.accessControlRegistry.address,
+            adminRoleDescription
+          );
+          expect(await accessControlRegistryAdminned.accessControlRegistry()).to.be.equal(
+            roles.accessControlRegistry.address
+          );
+          expect(await accessControlRegistryAdminned.adminRoleDescription()).to.be.equal(adminRoleDescription);
+        });
+      });
+      context('Admin role description is not empty', function () {
+        it('reverts', async function () {
+          const accessControlRegistryAdminnedFactory = await hre.ethers.getContractFactory(
+            'AccessControlRegistryAdminned',
+            roles.deployer
+          );
+          await expect(
+            accessControlRegistryAdminnedFactory.deploy(roles.accessControlRegistry.address, '')
+          ).to.be.revertedWith('Admin role description empty');
+        });
+      });
+    });
+    context('AccessControlRegistry address is zero', function () {
+      it('reverts', async function () {
         const adminRoleDescription = 'Admin role description';
         const accessControlRegistryAdminnedFactory = await hre.ethers.getContractFactory(
           'AccessControlRegistryAdminned',
           roles.deployer
         );
-        const accessControlRegistryAdminned = await accessControlRegistryAdminnedFactory.deploy(
-          roles.accessControlRegistry.address,
-          adminRoleDescription
-        );
-        expect(await accessControlRegistryAdminned.adminRoleDescription()).to.be.equal(adminRoleDescription);
-      });
-    });
-    context('Admin role description is not empty', function () {
-      it('reverts', async function () {
-        const accessControlRegistryAdminnedFactory = await hre.ethers.getContractFactory(
-          'AccessControlRegistryAdminned',
-          roles.deployer
-        );
         await expect(
-          accessControlRegistryAdminnedFactory.deploy(roles.accessControlRegistry.address, '')
-        ).to.be.revertedWith('Admin role description empty');
+          accessControlRegistryAdminnedFactory.deploy(hre.ethers.constants.AddressZero, adminRoleDescription)
+        ).to.be.revertedWith('ACR address zero');
       });
     });
   });
