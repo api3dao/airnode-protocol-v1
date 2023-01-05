@@ -256,128 +256,11 @@ describe('AccessControlRegistry', function () {
     });
   });
 
-  describe('Initialize complex access control tables through SelfMulticall', function () {
-    context('Sender is authorized', function () {
-      context('Calls are ordered correctly', function () {
-        context('Roles to be initialized are on the same level', function () {
-          it('initializes and grants roles', async function () {
-            const { roles, accessControlRegistry, managerRootRole } = await helpers.loadFixture(deploy);
-            const descriptions = Array(32)
-              .fill()
-              .map(() => Math.random().toString());
-            const accounts = Array(32)
-              .fill()
-              .map(() => testUtils.generateRandomAddress());
-            const calldatas = [];
-            for (let ind = 0; ind < descriptions.length; ind++) {
-              const role = testUtils.deriveRole(managerRootRole, descriptions[ind]);
-              calldatas.push(
-                accessControlRegistry.interface.encodeFunctionData('initializeRoleAndGrantToSender', [
-                  managerRootRole,
-                  descriptions[ind],
-                ])
-              );
-              calldatas.push(accessControlRegistry.interface.encodeFunctionData('grantRole', [role, accounts[ind]]));
-            }
-            await accessControlRegistry.connect(roles.manager).multicall(calldatas);
-            for (let ind = 0; ind < descriptions.length; ind++) {
-              const role = testUtils.deriveRole(managerRootRole, descriptions[ind]);
-              expect(await accessControlRegistry.getRoleAdmin(role)).to.equal(managerRootRole);
-              expect(await accessControlRegistry.hasRole(role, roles.manager.address)).to.equal(true);
-              expect(await accessControlRegistry.hasRole(role, accounts[ind])).to.equal(true);
-            }
-          });
-        });
-        context('Roles to be initialized form a tree', function () {
-          it('initializes and grants roles', async function () {
-            const { roles, accessControlRegistry, managerRootRole } = await helpers.loadFixture(deploy);
-            const description1 = Math.random().toString();
-            const role1 = testUtils.deriveRole(managerRootRole, description1);
-            const account1 = testUtils.generateRandomAddress();
-            const description11 = Math.random().toString();
-            const role11 = testUtils.deriveRole(role1, description11);
-            const account11 = testUtils.generateRandomAddress();
-            const description12 = Math.random().toString();
-            const role12 = testUtils.deriveRole(role1, description12);
-            const account12 = testUtils.generateRandomAddress();
-            expect(await accessControlRegistry.getRoleAdmin(role1)).to.equal(ethers.constants.HashZero);
-            expect(await accessControlRegistry.hasRole(role1, roles.manager.address)).to.equal(false);
-            expect(await accessControlRegistry.hasRole(role1, account1)).to.equal(false);
-            expect(await accessControlRegistry.getRoleAdmin(role11)).to.equal(ethers.constants.HashZero);
-            expect(await accessControlRegistry.hasRole(role11, roles.manager.address)).to.equal(false);
-            expect(await accessControlRegistry.hasRole(role11, account11)).to.equal(false);
-            expect(await accessControlRegistry.getRoleAdmin(role12)).to.equal(ethers.constants.HashZero);
-            expect(await accessControlRegistry.hasRole(role12, roles.manager.address)).to.equal(false);
-            expect(await accessControlRegistry.hasRole(role12, account12)).to.equal(false);
-            const calldatas = [
-              accessControlRegistry.interface.encodeFunctionData('initializeRoleAndGrantToSender', [
-                managerRootRole,
-                description1,
-              ]),
-              accessControlRegistry.interface.encodeFunctionData('grantRole', [role1, account1]),
-              accessControlRegistry.interface.encodeFunctionData('initializeRoleAndGrantToSender', [
-                role1,
-                description11,
-              ]),
-              accessControlRegistry.interface.encodeFunctionData('grantRole', [role11, account11]),
-              accessControlRegistry.interface.encodeFunctionData('initializeRoleAndGrantToSender', [
-                role1,
-                description12,
-              ]),
-              accessControlRegistry.interface.encodeFunctionData('grantRole', [role12, account12]),
-            ];
-            await accessControlRegistry.connect(roles.manager).multicall(calldatas);
-            expect(await accessControlRegistry.getRoleAdmin(role1)).to.equal(managerRootRole);
-            expect(await accessControlRegistry.hasRole(role1, roles.manager.address)).to.equal(true);
-            expect(await accessControlRegistry.hasRole(role1, account1)).to.equal(true);
-            expect(await accessControlRegistry.getRoleAdmin(role11)).to.equal(role1);
-            expect(await accessControlRegistry.hasRole(role11, roles.manager.address)).to.equal(true);
-            expect(await accessControlRegistry.hasRole(role11, account11)).to.equal(true);
-            expect(await accessControlRegistry.getRoleAdmin(role12)).to.equal(role1);
-            expect(await accessControlRegistry.hasRole(role12, roles.manager.address)).to.equal(true);
-            expect(await accessControlRegistry.hasRole(role12, account12)).to.equal(true);
-          });
-        });
-      });
-      context('Calls are not ordered correctly', function () {
-        it('reverts', async function () {
-          const { roles, accessControlRegistry, managerRootRole } = await helpers.loadFixture(deploy);
-          const descriptions = Array(32)
-            .fill()
-            .map(() => Math.random().toString());
-          const accounts = Array(32)
-            .fill()
-            .map(() => testUtils.generateRandomAddress());
-          const calldatas = [];
-          for (let ind = 0; ind < descriptions.length; ind++) {
-            const role = testUtils.deriveRole(managerRootRole, descriptions[ind]);
-            // Attempt to grant roles before initializing them
-            calldatas.push(accessControlRegistry.interface.encodeFunctionData('grantRole', [role, accounts[ind]]));
-            calldatas.push(
-              accessControlRegistry.interface.encodeFunctionData('initializeRoleAndGrantToSender', [
-                managerRootRole,
-                descriptions[ind],
-              ])
-            );
-          }
-          await expect(accessControlRegistry.connect(roles.manager).multicall(calldatas)).to.be.reverted;
-        });
-      });
-    });
-    context('Sender is not authorized', function () {
-      it('reverts', async function () {
-        const { roles, accessControlRegistry, managerRootRole } = await helpers.loadFixture(deploy);
-        const calldata = accessControlRegistry.interface.encodeFunctionData('initializeRoleAndGrantToSender', [
-          managerRootRole,
-          Math.random().toString(),
-        ]);
-        await expect(accessControlRegistry.connect(roles.randomPerson).multicall([calldata])).to.be.reverted;
-      });
-    });
-  });
-
-  describe('Make multiple static calls through Multicall', function () {
-    it('returns the results of static calls', async function () {
+  describe('multicall', function () {
+    it('multicalls', async function () {
+      // Root role ---> role1 ---> role11
+      //                       \
+      //                        -> role12
       const { roles, accessControlRegistry, managerRootRole } = await helpers.loadFixture(deploy);
       const description1 = Math.random().toString();
       const role1 = testUtils.deriveRole(managerRootRole, description1);
@@ -388,6 +271,15 @@ describe('AccessControlRegistry', function () {
       const description12 = Math.random().toString();
       const role12 = testUtils.deriveRole(role1, description12);
       const account12 = testUtils.generateRandomAddress();
+      expect(await accessControlRegistry.getRoleAdmin(role1)).to.equal(ethers.constants.HashZero);
+      expect(await accessControlRegistry.hasRole(role1, roles.manager.address)).to.equal(false);
+      expect(await accessControlRegistry.hasRole(role1, account1)).to.equal(false);
+      expect(await accessControlRegistry.getRoleAdmin(role11)).to.equal(ethers.constants.HashZero);
+      expect(await accessControlRegistry.hasRole(role11, roles.manager.address)).to.equal(false);
+      expect(await accessControlRegistry.hasRole(role11, account11)).to.equal(false);
+      expect(await accessControlRegistry.getRoleAdmin(role12)).to.equal(ethers.constants.HashZero);
+      expect(await accessControlRegistry.hasRole(role12, roles.manager.address)).to.equal(false);
+      expect(await accessControlRegistry.hasRole(role12, account12)).to.equal(false);
       const calldatas = [
         accessControlRegistry.interface.encodeFunctionData('initializeRoleAndGrantToSender', [
           managerRootRole,
@@ -400,16 +292,88 @@ describe('AccessControlRegistry', function () {
         accessControlRegistry.interface.encodeFunctionData('grantRole', [role12, account12]),
       ];
       await accessControlRegistry.connect(roles.manager).multicall(calldatas);
-      const staticCalldatas = [
-        accessControlRegistry.interface.encodeFunctionData('getRoleAdmin', [role1]),
-        accessControlRegistry.interface.encodeFunctionData('getRoleAdmin', [role11]),
-        accessControlRegistry.interface.encodeFunctionData('getRoleAdmin', [role12]),
+      expect(await accessControlRegistry.getRoleAdmin(role1)).to.equal(managerRootRole);
+      expect(await accessControlRegistry.hasRole(role1, roles.manager.address)).to.equal(true);
+      expect(await accessControlRegistry.hasRole(role1, account1)).to.equal(true);
+      expect(await accessControlRegistry.getRoleAdmin(role11)).to.equal(role1);
+      expect(await accessControlRegistry.hasRole(role11, roles.manager.address)).to.equal(true);
+      expect(await accessControlRegistry.hasRole(role11, account11)).to.equal(true);
+      expect(await accessControlRegistry.getRoleAdmin(role12)).to.equal(role1);
+      expect(await accessControlRegistry.hasRole(role12, roles.manager.address)).to.equal(true);
+      expect(await accessControlRegistry.hasRole(role12, account12)).to.equal(true);
+    });
+  });
+
+  describe('tryMulticall', function () {
+    it('tries to multicall', async function () {
+      // Root role ---> role1 ---> role11
+      //                       \
+      //                        -> role12
+      const { roles, accessControlRegistry, managerRootRole } = await helpers.loadFixture(deploy);
+      const description1 = Math.random().toString();
+      const role1 = testUtils.deriveRole(managerRootRole, description1);
+      const account1 = testUtils.generateRandomAddress();
+      const description11 = Math.random().toString();
+      const role11 = testUtils.deriveRole(role1, description11);
+      const account11 = testUtils.generateRandomAddress();
+      const description12 = Math.random().toString();
+      const role12 = testUtils.deriveRole(role1, description12);
+      const account12 = testUtils.generateRandomAddress();
+      expect(await accessControlRegistry.getRoleAdmin(role1)).to.equal(ethers.constants.HashZero);
+      expect(await accessControlRegistry.hasRole(role1, roles.manager.address)).to.equal(false);
+      expect(await accessControlRegistry.hasRole(role1, account1)).to.equal(false);
+      expect(await accessControlRegistry.getRoleAdmin(role11)).to.equal(ethers.constants.HashZero);
+      expect(await accessControlRegistry.hasRole(role11, roles.manager.address)).to.equal(false);
+      expect(await accessControlRegistry.hasRole(role11, account11)).to.equal(false);
+      expect(await accessControlRegistry.getRoleAdmin(role12)).to.equal(ethers.constants.HashZero);
+      expect(await accessControlRegistry.hasRole(role12, roles.manager.address)).to.equal(false);
+      expect(await accessControlRegistry.hasRole(role12, account12)).to.equal(false);
+      const calldatas = [
+        accessControlRegistry.interface.encodeFunctionData('initializeRoleAndGrantToSender', [
+          managerRootRole,
+          description1,
+        ]),
+        accessControlRegistry.interface.encodeFunctionData('grantRole', [role1, account1]),
+        accessControlRegistry.interface.encodeFunctionData('initializeRoleAndGrantToSender', [role1, description11]),
+        '0x', // This one will fail
+        accessControlRegistry.interface.encodeFunctionData('grantRole', [role11, account11]),
+        accessControlRegistry.interface.encodeFunctionData('initializeRoleAndGrantToSender', [role1, description12]),
+        accessControlRegistry.interface.encodeFunctionData('grantRole', [role12, account12]),
       ];
-      expect(await accessControlRegistry.callStatic.multicall(staticCalldatas)).to.deep.equal([
-        managerRootRole,
-        role1,
-        role1,
-      ]);
+      const { successes, returndata } = await accessControlRegistry
+        .connect(roles.manager)
+        .callStatic.tryMulticall(calldatas);
+      expect(successes).to.deep.equal([true, true, true, false, true, true, true]);
+      expect(returndata).to.deep.equal([role1, '0x', role11, '0x', '0x', role12, '0x']);
+      await accessControlRegistry.connect(roles.manager).tryMulticall(calldatas);
+      expect(await accessControlRegistry.getRoleAdmin(role1)).to.equal(managerRootRole);
+      expect(await accessControlRegistry.hasRole(role1, roles.manager.address)).to.equal(true);
+      expect(await accessControlRegistry.hasRole(role1, account1)).to.equal(true);
+      expect(await accessControlRegistry.getRoleAdmin(role11)).to.equal(role1);
+      expect(await accessControlRegistry.hasRole(role11, roles.manager.address)).to.equal(true);
+      expect(await accessControlRegistry.hasRole(role11, account11)).to.equal(true);
+      expect(await accessControlRegistry.getRoleAdmin(role12)).to.equal(role1);
+      expect(await accessControlRegistry.hasRole(role12, roles.manager.address)).to.equal(true);
+      expect(await accessControlRegistry.hasRole(role12, account12)).to.equal(true);
+    });
+  });
+
+  describe('Meta-tx', function () {
+    it('executes', async function () {
+      const { roles, accessControlRegistry, managerRootRole, roleDescription, role } = await helpers.loadFixture(
+        deploy
+      );
+      expect(await accessControlRegistry.hasRole(managerRootRole, roles.manager.address)).to.equal(false);
+      expect(await accessControlRegistry.getRoleAdmin(role)).to.equal(ethers.constants.HashZero);
+      expect(await accessControlRegistry.hasRole(role, roles.manager.address)).to.equal(false);
+      await expect(
+        accessControlRegistry.connect(roles.manager).initializeRoleAndGrantToSender(managerRootRole, roleDescription)
+      )
+        .to.emit(accessControlRegistry, 'InitializedRole')
+        .withArgs(role, managerRootRole, roleDescription, roles.manager.address);
+      expect(await accessControlRegistry.hasRole(managerRootRole, roles.manager.address)).to.equal(true);
+      expect(await accessControlRegistry.getRoleAdmin(role)).to.equal(managerRootRole);
+      expect(await accessControlRegistry.hasRole(role, roles.manager.address)).to.equal(true);
     });
   });
 });

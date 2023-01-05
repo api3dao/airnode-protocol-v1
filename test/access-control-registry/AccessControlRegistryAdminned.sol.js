@@ -67,4 +67,41 @@ describe('AccessControlRegistryAdminned', function () {
       });
     });
   });
+
+  describe('multicall', function () {
+    it('multicalls', async function () {
+      const { accessControlRegistry, adminRoleDescription, accessControlRegistryAdminned } = await helpers.loadFixture(
+        deploy
+      );
+      const data = [
+        accessControlRegistryAdminned.interface.encodeFunctionData('accessControlRegistry', []),
+        accessControlRegistryAdminned.interface.encodeFunctionData('adminRoleDescription', []),
+      ];
+      const returndata = await accessControlRegistryAdminned.callStatic.multicall(data);
+      expect(returndata).to.deep.equal([
+        ethers.utils.defaultAbiCoder.encode(['address'], [accessControlRegistry.address]),
+        ethers.utils.defaultAbiCoder.encode(['string'], [adminRoleDescription]),
+      ]);
+    });
+  });
+
+  describe('tryMulticall', function () {
+    it('tries to multicall', async function () {
+      const { accessControlRegistry, adminRoleDescription, accessControlRegistryAdminned } = await helpers.loadFixture(
+        deploy
+      );
+      const data = [
+        accessControlRegistryAdminned.interface.encodeFunctionData('accessControlRegistry', []),
+        '0x',
+        accessControlRegistryAdminned.interface.encodeFunctionData('adminRoleDescription', []),
+      ];
+      const { successes, returndata } = await accessControlRegistryAdminned.callStatic.tryMulticall(data);
+      expect(successes).to.deep.equal([true, false, true]);
+      expect(returndata).to.deep.equal([
+        ethers.utils.defaultAbiCoder.encode(['address'], [accessControlRegistry.address]),
+        '0x',
+        ethers.utils.defaultAbiCoder.encode(['string'], [adminRoleDescription]),
+      ]);
+    });
+  });
 });
