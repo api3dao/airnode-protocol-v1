@@ -4,7 +4,7 @@ const testUtils = require('../test-utils');
 
 describe('AllocatorWithAirnode', function () {
   let roles;
-  let expiringMetaTxForwarder, accessControlRegistry, allocatorWithAirnode;
+  let accessControlRegistry, allocatorWithAirnode;
   let allocatorWithAirnodeAdminRoleDescription = 'AllocatorWithAirnode admin role';
   let slotSetterRoleDescription = 'Slot setter';
   let airnodeSlotSetterRole;
@@ -21,13 +21,8 @@ describe('AllocatorWithAirnode', function () {
       anotherSlotSetter: accounts[3],
       randomPerson: accounts[9],
     };
-    const expiringMetaTxForwarderFactory = await hre.ethers.getContractFactory(
-      'ExpiringMetaTxForwarder',
-      roles.deployer
-    );
-    expiringMetaTxForwarder = await expiringMetaTxForwarderFactory.deploy();
     const accessControlRegistryFactory = await hre.ethers.getContractFactory('AccessControlRegistry', roles.deployer);
-    accessControlRegistry = await accessControlRegistryFactory.deploy(expiringMetaTxForwarder.address);
+    accessControlRegistry = await accessControlRegistryFactory.deploy();
     const allocatorWithAirnodeFactory = await hre.ethers.getContractFactory('AllocatorWithAirnode', roles.deployer);
     allocatorWithAirnode = await allocatorWithAirnodeFactory.deploy(
       accessControlRegistry.address,
@@ -54,7 +49,7 @@ describe('AllocatorWithAirnode', function () {
   describe('constructor', function () {
     it('constructs', async function () {
       expect(await allocatorWithAirnode.SLOT_SETTER_ROLE_DESCRIPTION()).to.equal(slotSetterRoleDescription);
-      expect(await allocatorWithAirnode.isTrustedForwarder(expiringMetaTxForwarder.address)).to.equal(true);
+      expect(await allocatorWithAirnode.isTrustedForwarder(accessControlRegistry.address)).to.equal(true);
     });
   });
 

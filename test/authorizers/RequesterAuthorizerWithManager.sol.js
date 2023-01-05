@@ -4,7 +4,7 @@ const testUtils = require('../test-utils');
 
 describe('RequesterAuthorizerWithManager', function () {
   let roles;
-  let expiringMetaTxForwarder, accessControlRegistry, requesterAuthorizerWithManager;
+  let accessControlRegistry, requesterAuthorizerWithManager;
   let requesterAuthorizerWithManagerAdminRoleDescription = 'RequesterAuthorizerWithManager admin';
   let adminRole, authorizationExpirationExtenderRole, authorizationExpirationSetterRole, indefiniteAuthorizerRole;
   let airnodeAddress = testUtils.generateRandomAddress();
@@ -21,13 +21,8 @@ describe('RequesterAuthorizerWithManager', function () {
       requester: accounts[5],
       randomPerson: accounts[9],
     };
-    const expiringMetaTxForwarderFactory = await hre.ethers.getContractFactory(
-      'ExpiringMetaTxForwarder',
-      roles.deployer
-    );
-    expiringMetaTxForwarder = await expiringMetaTxForwarderFactory.deploy();
     const accessControlRegistryFactory = await hre.ethers.getContractFactory('AccessControlRegistry', roles.deployer);
-    accessControlRegistry = await accessControlRegistryFactory.deploy(expiringMetaTxForwarder.address);
+    accessControlRegistry = await accessControlRegistryFactory.deploy();
     const requesterAuthorizerWithManagerFactory = await hre.ethers.getContractFactory(
       'RequesterAuthorizerWithManager',
       roles.deployer

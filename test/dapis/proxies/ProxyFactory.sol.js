@@ -18,13 +18,8 @@ describe('ProxyFactory', function () {
       oevBeneficiary: accounts[2],
       randomPerson: accounts[9],
     };
-    const expiringMetaTxForwarderFactory = await hre.ethers.getContractFactory(
-      'ExpiringMetaTxForwarder',
-      roles.deployer
-    );
-    const expiringMetaTxForwarder = await expiringMetaTxForwarderFactory.deploy();
     const accessControlRegistryFactory = await hre.ethers.getContractFactory('AccessControlRegistry', roles.deployer);
-    const accessControlRegistry = await accessControlRegistryFactory.deploy(expiringMetaTxForwarder.address);
+    const accessControlRegistry = await accessControlRegistryFactory.deploy();
     const airnodeProtocolFactory = await hre.ethers.getContractFactory('AirnodeProtocol', roles.deployer);
     const airnodeProtocol = await airnodeProtocolFactory.deploy();
     const dapiServerFactory = await hre.ethers.getContractFactory('DapiServer', roles.deployer);

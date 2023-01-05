@@ -33,11 +33,7 @@ contract AccessControlRegistryAdminned is
     constructor(
         address _accessControlRegistry,
         string memory _adminRoleDescription
-    )
-        ERC2771Context(
-            IAccessControlRegistry(_accessControlRegistry).trustedForwarder()
-        )
-    {
+    ) ERC2771Context(_accessControlRegistry) {
         // ERC2771Context constructor will revert if _accessControlRegistry is
         // zero so will not validate that
         require(

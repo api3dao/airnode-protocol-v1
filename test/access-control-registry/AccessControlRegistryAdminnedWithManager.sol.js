@@ -9,10 +9,8 @@ describe('AccessControlRegistryAdminnedWithManager', function () {
       deployer: accounts[0],
       manager: accounts[1],
     };
-    const expiringMetaTxForwarderFactory = await ethers.getContractFactory('ExpiringMetaTxForwarder', roles.deployer);
-    const expiringMetaTxForwarder = await expiringMetaTxForwarderFactory.deploy();
     const accessControlRegistryFactory = await ethers.getContractFactory('AccessControlRegistry', roles.deployer);
-    const accessControlRegistry = await accessControlRegistryFactory.deploy(expiringMetaTxForwarder.address);
+    const accessControlRegistry = await accessControlRegistryFactory.deploy();
     const adminRoleDescription = 'Admin role description';
     const accessControlRegistryAdminnedWithManagerFactory = await ethers.getContractFactory(
       'AccessControlRegistryAdminnedWithManager',

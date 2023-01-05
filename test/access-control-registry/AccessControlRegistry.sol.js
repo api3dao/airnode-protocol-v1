@@ -12,16 +12,13 @@ describe('AccessControlRegistry', function () {
       account: accounts[2],
       randomPerson: accounts[9],
     };
-    const expiringMetaTxForwarderFactory = await ethers.getContractFactory('ExpiringMetaTxForwarder', roles.deployer);
-    const expiringMetaTxForwarder = await expiringMetaTxForwarderFactory.deploy();
     const accessControlRegistryFactory = await ethers.getContractFactory('AccessControlRegistry', roles.deployer);
-    const accessControlRegistry = await accessControlRegistryFactory.deploy(expiringMetaTxForwarder.address);
+    const accessControlRegistry = await accessControlRegistryFactory.deploy();
     const managerRootRole = ethers.utils.keccak256(ethers.utils.solidityPack(['address'], [roles.manager.address]));
     const roleDescription = 'Role description unique to admin role';
     const role = testUtils.deriveRole(managerRootRole, roleDescription);
     return {
       roles,
-      expiringMetaTxForwarder,
       accessControlRegistry,
       managerRootRole,
       roleDescription,
@@ -31,8 +28,8 @@ describe('AccessControlRegistry', function () {
 
   describe('constructor', function () {
     it('constructs', async function () {
-      const { expiringMetaTxForwarder, accessControlRegistry } = await helpers.loadFixture(deploy);
-      expect(await accessControlRegistry.isTrustedForwarder(expiringMetaTxForwarder.address)).to.equal(true);
+      const { accessControlRegistry } = await helpers.loadFixture(deploy);
+      expect(await accessControlRegistry.isTrustedForwarder(accessControlRegistry.address)).to.equal(true);
     });
   });
 
@@ -360,9 +357,10 @@ describe('AccessControlRegistry', function () {
 
   describe('Meta-tx', function () {
     it('executes', async function () {
-      const { roles, expiringMetaTxForwarder, accessControlRegistry, managerRootRole, roleDescription, role } =
-        await helpers.loadFixture(deploy);
-      const expiringMetaTxDomain = await testUtils.expiringMetaTxDomain(expiringMetaTxForwarder);
+      const { roles, accessControlRegistry, managerRootRole, roleDescription, role } = await helpers.loadFixture(
+        deploy
+      );
+      const expiringMetaTxDomain = await testUtils.expiringMetaTxDomain(accessControlRegistry);
       const expiringMetaTxTypes = testUtils.expiringMetaTxTypes();
       const latestTimestamp = await helpers.time.latest();
       const nextTimestamp = latestTimestamp + 1;
@@ -384,7 +382,7 @@ describe('AccessControlRegistry', function () {
       expect(await accessControlRegistry.hasRole(managerRootRole, roles.manager.address)).to.equal(false);
       expect(await accessControlRegistry.getRoleAdmin(role)).to.equal(ethers.constants.HashZero);
       expect(await accessControlRegistry.hasRole(role, roles.manager.address)).to.equal(false);
-      await expect(expiringMetaTxForwarder.connect(roles.randomPerson).execute(expiringMetaTxValue, signature))
+      await expect(accessControlRegistry.connect(roles.randomPerson).execute(expiringMetaTxValue, signature))
         .to.emit(accessControlRegistry, 'InitializedRole')
         .withArgs(role, managerRootRole, roleDescription, roles.manager.address);
       expect(await accessControlRegistry.hasRole(managerRootRole, roles.manager.address)).to.equal(true);

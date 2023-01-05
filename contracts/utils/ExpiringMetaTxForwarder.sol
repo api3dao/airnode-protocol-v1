@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
-import "./SelfMulticall.sol";
 import "./interfaces/IExpiringMetaTxForwarder.sol";
 
 /// @title Contract that forwards expiring meta-txes to ERC2771 contracts that
@@ -23,11 +22,7 @@ import "./interfaces/IExpiringMetaTxForwarder.sol";
 /// owners to not care about if and when the other meta-tx is executed. The
 /// signer is responsible for not issuing signatures that may cause undesired
 /// race conditions.
-contract ExpiringMetaTxForwarder is
-    EIP712,
-    SelfMulticall,
-    IExpiringMetaTxForwarder
-{
+contract ExpiringMetaTxForwarder is EIP712, IExpiringMetaTxForwarder {
     using ECDSA for bytes32;
     using Address for address;
 

@@ -3,6 +3,7 @@ pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
+import "../utils/ExpiringMetaTxForwarder.sol";
 import "../utils/SelfMulticall.sol";
 import "./RoleDeriver.sol";
 import "./interfaces/IAccessControlRegistry.sol";
@@ -19,19 +20,13 @@ import "./interfaces/IAccessControlRegistry.sol";
 contract AccessControlRegistry is
     ERC2771Context,
     AccessControl,
+    ExpiringMetaTxForwarder,
     SelfMulticall,
     RoleDeriver,
     IAccessControlRegistry
 {
-    /// @notice Trusted forwarder
-    /// @dev Can be zero address, meaning that meta-tx forwarding is not enabled
-    address public immutable override trustedForwarder;
-
-    /// @param _trustedForwarder Trusted forwarder that verifies and executes
-    /// signed meta-txes
-    constructor(address _trustedForwarder) ERC2771Context(_trustedForwarder) {
-        trustedForwarder = _trustedForwarder;
-    }
+    /// @dev AccessControlRegistry is its own trusted meta-tx forwarder
+    constructor() ERC2771Context(address(this)) {}
 
     /// @notice Initializes the manager by initializing its root role and
     /// granting it to them

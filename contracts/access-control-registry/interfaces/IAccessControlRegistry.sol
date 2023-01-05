@@ -2,9 +2,14 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/IAccessControl.sol";
+import "../../utils/interfaces/IExpiringMetaTxForwarder.sol";
 import "../../utils/interfaces/ISelfMulticall.sol";
 
-interface IAccessControlRegistry is IAccessControl, ISelfMulticall {
+interface IAccessControlRegistry is
+    IAccessControl,
+    IExpiringMetaTxForwarder,
+    ISelfMulticall
+{
     event InitializedManager(bytes32 indexed rootRole, address indexed manager);
 
     event InitializedRole(
@@ -20,6 +25,4 @@ interface IAccessControlRegistry is IAccessControl, ISelfMulticall {
         bytes32 adminRole,
         string calldata description
     ) external returns (bytes32 role);
-
-    function trustedForwarder() external returns (address);
 }
