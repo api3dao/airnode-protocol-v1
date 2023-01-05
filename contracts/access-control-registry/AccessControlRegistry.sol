@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import "@openzeppelin/contracts/utils/Multicall.sol";
 import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
+import "../utils/SelfMulticall.sol";
 import "./RoleDeriver.sol";
 import "./interfaces/IAccessControlRegistry.sol";
 
@@ -17,9 +17,9 @@ import "./interfaces/IAccessControlRegistry.sol";
 /// roles and grant these to accounts. Each role has a description, and roles
 /// adminned by the same role cannot have the same description.
 contract AccessControlRegistry is
-    Multicall,
     ERC2771Context,
     AccessControl,
+    SelfMulticall,
     RoleDeriver,
     IAccessControlRegistry
 {
