@@ -1,6 +1,7 @@
 const { ethers } = require('hardhat');
 const helpers = require('@nomicfoundation/hardhat-network-helpers');
 const { expect } = require('chai');
+const testUtils = require('../test-utils');
 
 describe('ExpiringMetaTxForwarder', function () {
   function deriveTypedDataHashOfMetaTx(domain, value) {
@@ -54,20 +55,6 @@ describe('ExpiringMetaTxForwarder', function () {
     const latestTimestamp = await helpers.time.latest();
     const nextTimestamp = latestTimestamp + 1;
     await helpers.time.setNextBlockTimestamp(nextTimestamp);
-    const expiringMetaTxDomain = {
-      name: 'ExpiringMetaTxForwarder',
-      version: '1.0.0',
-      chainId: (await ethers.provider.getNetwork()).chainId,
-      verifyingContract: expiringMetaTxForwarder.address,
-    };
-    const expiringMetaTxTypes = {
-      ExpiringMetaTx: [
-        { name: 'from', type: 'address' },
-        { name: 'to', type: 'address' },
-        { name: 'data', type: 'bytes' },
-        { name: 'expirationTimestamp', type: 'uint256' },
-      ],
-    };
     const expiringMetaTxValue = {
       from: roles.owner.address,
       to: expiringMetaTxForwarderTarget.address,
@@ -78,8 +65,8 @@ describe('ExpiringMetaTxForwarder', function () {
       roles,
       expiringMetaTxForwarder,
       expiringMetaTxForwarderTarget,
-      expiringMetaTxDomain,
-      expiringMetaTxTypes,
+      expiringMetaTxDomain: await testUtils.expiringMetaTxDomain(expiringMetaTxForwarder),
+      expiringMetaTxTypes: testUtils.expiringMetaTxTypes(),
       expiringMetaTxValue,
     };
   }
