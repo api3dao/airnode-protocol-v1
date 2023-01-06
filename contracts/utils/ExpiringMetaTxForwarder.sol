@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
@@ -8,10 +9,11 @@ import "./interfaces/IExpiringMetaTxForwarder.sol";
 
 /// @title Contract that forwards expiring meta-txes to ERC2771 contracts that
 /// trust it
-/// @notice `msg.value` is not supported. Identical meta-txes are not supported
-/// (i.e., for a meta-tx to be executed, it must not be identical to a
-/// previously executed meta-tx.) Target account must be a contract. This
-/// implementation is not intended to be used with general-purpose relayer
+/// @notice `msg.value` is not supported. Identical meta-txes are not
+/// supported. Target account must be a contract. Signer of the meta-tx is
+/// allowed to nullify it before execution, effectively rendering the signature
+/// useless.
+/// This implementation is not intended to be used with general-purpose relayer
 /// networks. Instead, it is meant for use-cases where the relayer wants the
 /// signer to send a tx, so they request a meta-tx and execute it themselves to
 /// cover the gas cost.
@@ -22,19 +24,16 @@ import "./interfaces/IExpiringMetaTxForwarder.sol";
 /// owners to not care about if and when the other meta-tx is executed. The
 /// signer is responsible for not issuing signatures that may cause undesired
 /// race conditions.
-contract ExpiringMetaTxForwarder is EIP712, IExpiringMetaTxForwarder {
+contract ExpiringMetaTxForwarder is Context, EIP712, IExpiringMetaTxForwarder {
     using ECDSA for bytes32;
     using Address for address;
 
-    /// @notice If the meta-tx with hash is already executed
-    /// @dev This mapping is used to prevent identical meta-txes from being
-    /// executed. There are two issues with this: (1) The signer may actually
-    /// want to issue identical meta-txes (2) Setting a flag in the storage per
-    /// meta-tx is costly. Identical meta-tx validity can be disambiguated by
-    /// using a nonce that is specific to the signer–relayer pair, yet this is
-    /// decided against in favor of the simple UX that not having any kind of a
-    /// nonce provides.
-    mapping(bytes32 => bool) public override metaTxWithHashIsExecuted;
+    /// @notice If the meta-tx with hash is executed or nullified
+    /// @dev We track this on a meta-tx basis and not by using nonces to avoid
+    /// requiring users keep track of nonces
+    mapping(bytes32 => bool)
+        public
+        override metaTxWithHashIsExecutedOrNullified;
 
     bytes32 private constant _TYPEHASH =
         keccak256(
@@ -51,7 +50,35 @@ contract ExpiringMetaTxForwarder is EIP712, IExpiringMetaTxForwarder {
         ExpiringMetaTx calldata metaTx,
         bytes calldata signature
     ) external override returns (bytes memory returndata) {
-        bytes32 metaTxHash = _hashTypedDataV4(
+        bytes32 metaTxHash = processMetaTx(metaTx);
+        require(
+            metaTxHash.recover(signature) == metaTx.from,
+            "Invalid signature"
+        );
+        emit ExecutedMetaTx(metaTxHash);
+        returndata = metaTx.to.functionCall(
+            abi.encodePacked(metaTx.data, metaTx.from)
+        );
+    }
+
+    /// @notice Called by a meta-tx source to prevent it from being executed
+    /// @dev This can be used to nullify meta-txes that were issued
+    /// accidentally, e.g., with an unreasonably large expiration timestamp,
+    /// which may create a dangling liability
+    /// @param metaTx Meta-tx
+    function nullify(ExpiringMetaTx calldata metaTx) external override {
+        require(_msgSender() == metaTx.from, "Sender not meta-tx source");
+        emit NullifiedMetaTx(processMetaTx(metaTx));
+    }
+
+    /// @notice Checks if the meta-tx is valid, invalidates it for future
+    /// execution or nullification, and returns the meta-tx hash
+    /// @param metaTx Meta-tx
+    /// @return metaTxHash Meta-tx hash
+    function processMetaTx(
+        ExpiringMetaTx calldata metaTx
+    ) private returns (bytes32 metaTxHash) {
+        metaTxHash = _hashTypedDataV4(
             keccak256(
                 abi.encode(
                     _TYPEHASH,
@@ -63,20 +90,13 @@ contract ExpiringMetaTxForwarder is EIP712, IExpiringMetaTxForwarder {
             )
         );
         require(
-            !metaTxWithHashIsExecuted[metaTxHash],
-            "Meta-tx already executed"
+            !metaTxWithHashIsExecutedOrNullified[metaTxHash],
+            "Meta-tx executed or nullified"
         );
         require(
             metaTx.expirationTimestamp > block.timestamp,
             "Meta-tx expired"
         );
-        require(
-            metaTxHash.recover(signature) == metaTx.from,
-            "Invalid signature"
-        );
-        metaTxWithHashIsExecuted[metaTxHash] = true;
-        returndata = metaTx.to.functionCall(
-            abi.encodePacked(metaTx.data, metaTx.from)
-        );
+        metaTxWithHashIsExecutedOrNullified[metaTxHash] = true;
     }
 }
