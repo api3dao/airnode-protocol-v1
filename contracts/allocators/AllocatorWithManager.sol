@@ -2,8 +2,6 @@
 pragma solidity 0.8.17;
 
 import "../access-control-registry/AccessControlRegistryAdminnedWithManager.sol";
-import "../access-control-registry/RoleDeriver.sol";
-import "../access-control-registry/interfaces/IAccessControlRegistry.sol";
 import "./Allocator.sol";
 import "./interfaces/IAllocatorWithManager.sol";
 
