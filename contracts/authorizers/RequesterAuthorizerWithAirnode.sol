@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
+import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 import "../access-control-registry/AccessControlRegistryAdminned.sol";
 import "./RequesterAuthorizer.sol";
 import "./interfaces/IRequesterAuthorizerWithAirnode.sol";
@@ -8,24 +9,22 @@ import "./interfaces/IRequesterAuthorizerWithAirnode.sol";
 /// @title Authorizer contract that Airnode operators can use to temporarily or
 /// indefinitely authorize requesters for Airnodes
 contract RequesterAuthorizerWithAirnode is
+    ERC2771Context,
     AccessControlRegistryAdminned,
     RequesterAuthorizer,
     IRequesterAuthorizerWithAirnode
 {
     /// @param _accessControlRegistry AccessControlRegistry contract address
     /// @param _adminRoleDescription Admin role description
-    /// @param _trustedForwarder Trusted forwarder that verifies and executes
-    /// signed meta-txes
     constructor(
         address _accessControlRegistry,
-        string memory _adminRoleDescription,
-        address _trustedForwarder
+        string memory _adminRoleDescription
     )
+        ERC2771Context(_accessControlRegistry)
         AccessControlRegistryAdminned(
             _accessControlRegistry,
             _adminRoleDescription
         )
-        RequesterAuthorizer(_trustedForwarder)
     {}
 
     /// @notice Extends the expiration of the temporary authorization of
@@ -212,5 +211,16 @@ contract RequesterAuthorizerWithAirnode is
                 deriveIndefiniteAuthorizerRole(airnode),
                 account
             );
+    }
+
+    /// @dev See Context.sol
+    function _msgSender()
+        internal
+        view
+        virtual
+        override(RequesterAuthorizer, ERC2771Context)
+        returns (address)
+    {
+        return ERC2771Context._msgSender();
     }
 }

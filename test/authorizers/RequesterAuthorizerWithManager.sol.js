@@ -4,7 +4,7 @@ const testUtils = require('../test-utils');
 
 describe('RequesterAuthorizerWithManager', function () {
   let roles;
-  let expiringMetaTxForwarder, accessControlRegistry, requesterAuthorizerWithManager;
+  let accessControlRegistry, requesterAuthorizerWithManager;
   let requesterAuthorizerWithManagerAdminRoleDescription = 'RequesterAuthorizerWithManager admin';
   let adminRole, authorizationExpirationExtenderRole, authorizationExpirationSetterRole, indefiniteAuthorizerRole;
   let airnodeAddress = testUtils.generateRandomAddress();
@@ -21,13 +21,8 @@ describe('RequesterAuthorizerWithManager', function () {
       requester: accounts[5],
       randomPerson: accounts[9],
     };
-    const expiringMetaTxForwarderFactory = await hre.ethers.getContractFactory(
-      'ExpiringMetaTxForwarder',
-      roles.deployer
-    );
-    expiringMetaTxForwarder = await expiringMetaTxForwarderFactory.deploy();
     const accessControlRegistryFactory = await hre.ethers.getContractFactory('AccessControlRegistry', roles.deployer);
-    accessControlRegistry = await accessControlRegistryFactory.deploy(expiringMetaTxForwarder.address);
+    accessControlRegistry = await accessControlRegistryFactory.deploy();
     const requesterAuthorizerWithManagerFactory = await hre.ethers.getContractFactory(
       'RequesterAuthorizerWithManager',
       roles.deployer
@@ -35,8 +30,7 @@ describe('RequesterAuthorizerWithManager', function () {
     requesterAuthorizerWithManager = await requesterAuthorizerWithManagerFactory.deploy(
       accessControlRegistry.address,
       requesterAuthorizerWithManagerAdminRoleDescription,
-      roles.manager.address,
-      expiringMetaTxForwarder.address
+      roles.manager.address
     );
     const managerRootRole = testUtils.deriveRootRole(roles.manager.address);
     // Initialize the roles and grant them to respective accounts
@@ -137,8 +131,7 @@ describe('RequesterAuthorizerWithManager', function () {
             requesterAuthorizerWithManager = await requesterAuthorizerWithManagerFactory.deploy(
               accessControlRegistry.address,
               requesterAuthorizerWithManagerAdminRoleDescription,
-              roles.manager.address,
-              expiringMetaTxForwarder.address
+              roles.manager.address
             );
             expect(await requesterAuthorizerWithManager.accessControlRegistry()).to.equal(
               accessControlRegistry.address
@@ -147,9 +140,6 @@ describe('RequesterAuthorizerWithManager', function () {
               requesterAuthorizerWithManagerAdminRoleDescription
             );
             expect(await requesterAuthorizerWithManager.manager()).to.equal(roles.manager.address);
-            expect(await requesterAuthorizerWithManager.isTrustedForwarder(expiringMetaTxForwarder.address)).to.equal(
-              true
-            );
           });
         });
         context('Manager address is zero', function () {
@@ -162,8 +152,7 @@ describe('RequesterAuthorizerWithManager', function () {
               requesterAuthorizerWithManagerFactory.deploy(
                 accessControlRegistry.address,
                 requesterAuthorizerWithManagerAdminRoleDescription,
-                hre.ethers.constants.AddressZero,
-                expiringMetaTxForwarder.address
+                hre.ethers.constants.AddressZero
               )
             ).to.be.revertedWith('Manager address zero');
           });
@@ -176,12 +165,7 @@ describe('RequesterAuthorizerWithManager', function () {
             roles.deployer
           );
           await expect(
-            requesterAuthorizerWithManagerFactory.deploy(
-              accessControlRegistry.address,
-              '',
-              roles.manager.address,
-              expiringMetaTxForwarder.address
-            )
+            requesterAuthorizerWithManagerFactory.deploy(accessControlRegistry.address, '', roles.manager.address)
           ).to.be.revertedWith('Admin role description empty');
         });
       });
@@ -196,10 +180,9 @@ describe('RequesterAuthorizerWithManager', function () {
           requesterAuthorizerWithManagerFactory.deploy(
             hre.ethers.constants.AddressZero,
             requesterAuthorizerWithManagerAdminRoleDescription,
-            roles.manager.address,
-            expiringMetaTxForwarder.address
+            roles.manager.address
           )
-        ).to.be.revertedWith('ACR address zero');
+        ).to.be.revertedWithoutReason;
       });
     });
   });

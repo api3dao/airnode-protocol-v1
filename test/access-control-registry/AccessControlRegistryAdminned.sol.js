@@ -1,17 +1,17 @@
 const { ethers } = require('hardhat');
 const helpers = require('@nomicfoundation/hardhat-network-helpers');
 const { expect } = require('chai');
+const testUtils = require('../test-utils');
 
 describe('AccessControlRegistryAdminned', function () {
   async function deploy() {
     const accounts = await ethers.getSigners();
     const roles = {
       deployer: accounts[0],
+      randomPerson: accounts[9],
     };
-    const expiringMetaTxForwarderFactory = await ethers.getContractFactory('ExpiringMetaTxForwarder', roles.deployer);
-    const expiringMetaTxForwarder = await expiringMetaTxForwarderFactory.deploy();
     const accessControlRegistryFactory = await ethers.getContractFactory('AccessControlRegistry', roles.deployer);
-    const accessControlRegistry = await accessControlRegistryFactory.deploy(expiringMetaTxForwarder.address);
+    const accessControlRegistry = await accessControlRegistryFactory.deploy();
     const adminRoleDescription = 'Admin role description';
     const accessControlRegistryAdminnedFactory = await ethers.getContractFactory(
       'AccessControlRegistryAdminned',
@@ -63,7 +63,7 @@ describe('AccessControlRegistryAdminned', function () {
         );
         await expect(
           accessControlRegistryAdminnedFactory.deploy(ethers.constants.AddressZero, adminRoleDescription)
-        ).to.be.revertedWith('ACR address zero');
+        ).to.be.revertedWithoutReason;
       });
     });
   });
@@ -102,6 +102,32 @@ describe('AccessControlRegistryAdminned', function () {
         '0x',
         ethers.utils.defaultAbiCoder.encode(['string'], [adminRoleDescription]),
       ]);
+    });
+  });
+
+  describe('Meta-tx', function () {
+    it('executes', async function () {
+      const { roles, accessControlRegistry, accessControlRegistryAdminned } = await helpers.loadFixture(deploy);
+      const expiringMetaTxDomain = await testUtils.expiringMetaTxDomain(accessControlRegistry);
+      const expiringMetaTxTypes = testUtils.expiringMetaTxTypes();
+      const latestTimestamp = await helpers.time.latest();
+      const nextTimestamp = latestTimestamp + 1;
+      await helpers.time.setNextBlockTimestamp(nextTimestamp);
+      const expiringMetaTxValue = {
+        from: roles.randomPerson.address,
+        to: accessControlRegistryAdminned.address,
+        data: accessControlRegistryAdminned.interface.encodeFunctionData('accessControlRegistry', []),
+        expirationTimestamp: nextTimestamp + 60 * 60,
+      };
+      const signature = await roles.randomPerson._signTypedData(
+        expiringMetaTxDomain,
+        expiringMetaTxTypes,
+        expiringMetaTxValue
+      );
+      const returndata = await accessControlRegistry
+        .connect(roles.randomPerson)
+        .callStatic.execute(expiringMetaTxValue, signature);
+      expect(returndata).to.equal(ethers.utils.defaultAbiCoder.encode(['address'], [accessControlRegistry.address]));
     });
   });
 });

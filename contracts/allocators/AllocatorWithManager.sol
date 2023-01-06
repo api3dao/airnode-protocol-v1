@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
+import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 import "../access-control-registry/AccessControlRegistryAdminnedWithManager.sol";
-import "../access-control-registry/RoleDeriver.sol";
-import "../access-control-registry/interfaces/IAccessControlRegistry.sol";
 import "./Allocator.sol";
 import "./interfaces/IAllocatorWithManager.sol";
 
 /// @title Contract that the manager can use to temporarily allocate
 /// subscription slots for Airnodes
 contract AllocatorWithManager is
-    RoleDeriver,
+    ERC2771Context,
     AccessControlRegistryAdminnedWithManager,
     Allocator,
     IAllocatorWithManager
@@ -21,20 +20,17 @@ contract AllocatorWithManager is
     /// @param _accessControlRegistry AccessControlRegistry contract address
     /// @param _adminRoleDescription Admin role description
     /// @param _manager Manager address
-    /// @param _trustedForwarder Trusted forwarder that verifies and executes
-    /// signed meta-txes
     constructor(
         address _accessControlRegistry,
         string memory _adminRoleDescription,
-        address _manager,
-        address _trustedForwarder
+        address _manager
     )
+        ERC2771Context(_accessControlRegistry)
         AccessControlRegistryAdminnedWithManager(
             _accessControlRegistry,
             _adminRoleDescription,
             _manager
         )
-        Allocator(_trustedForwarder)
     {
         slotSetterRole = _deriveRole(
             adminRole,
@@ -87,5 +83,16 @@ contract AllocatorWithManager is
                 slotSetterRole,
                 account
             );
+    }
+
+    /// @dev See Context.sol
+    function _msgSender()
+        internal
+        view
+        virtual
+        override(Allocator, ERC2771Context)
+        returns (address)
+    {
+        return ERC2771Context._msgSender();
     }
 }

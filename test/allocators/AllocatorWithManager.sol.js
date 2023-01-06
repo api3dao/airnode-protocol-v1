@@ -4,7 +4,7 @@ const testUtils = require('../test-utils');
 
 describe('AllocatorWithManager', function () {
   let roles;
-  let expiringMetaTxForwarder, accessControlRegistry, allocatorWithManager;
+  let accessControlRegistry, allocatorWithManager;
   let allocatorWithManagerAdminRoleDescription = 'AllocatorWithManager admin role';
   let slotSetterRoleDescription = 'Slot setter';
   let slotSetterRole;
@@ -22,19 +22,13 @@ describe('AllocatorWithManager', function () {
       anotherSlotSetter: accounts[4],
       randomPerson: accounts[9],
     };
-    const expiringMetaTxForwarderFactory = await hre.ethers.getContractFactory(
-      'ExpiringMetaTxForwarder',
-      roles.deployer
-    );
-    expiringMetaTxForwarder = await expiringMetaTxForwarderFactory.deploy();
     const accessControlRegistryFactory = await hre.ethers.getContractFactory('AccessControlRegistry', roles.deployer);
-    accessControlRegistry = await accessControlRegistryFactory.deploy(expiringMetaTxForwarder.address);
+    accessControlRegistry = await accessControlRegistryFactory.deploy();
     const allocatorWithManagerFactory = await hre.ethers.getContractFactory('AllocatorWithManager', roles.deployer);
     allocatorWithManager = await allocatorWithManagerFactory.deploy(
       accessControlRegistry.address,
       allocatorWithManagerAdminRoleDescription,
-      roles.manager.address,
-      expiringMetaTxForwarder.address
+      roles.manager.address
     );
     const managerRootRole = testUtils.deriveRootRole(roles.manager.address);
     const managerAdminRole = await allocatorWithManager.adminRole();
@@ -69,7 +63,7 @@ describe('AllocatorWithManager', function () {
         hre.ethers.utils.solidityPack(['bytes32', 'bytes32'], [adminRole, slotSetterRoleDescriptionHash])
       );
       expect(await allocatorWithManager.slotSetterRole()).to.equal(derivedSlotSetterRole);
-      expect(await allocatorWithManager.isTrustedForwarder(expiringMetaTxForwarder.address)).to.equal(true);
+      expect(await allocatorWithManager.isTrustedForwarder(accessControlRegistry.address)).to.equal(true);
     });
   });
 

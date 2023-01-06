@@ -32,7 +32,8 @@ contract AccessControlRegistryAdminned is
         address _accessControlRegistry,
         string memory _adminRoleDescription
     ) {
-        require(_accessControlRegistry != address(0), "ACR address zero");
+        // ERC2771Context constructor will revert if _accessControlRegistry is
+        // zero so will not validate that
         require(
             bytes(_adminRoleDescription).length > 0,
             "Admin role description empty"

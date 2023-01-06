@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 import "./interfaces/IRequesterAuthorizer.sol";
 
 /// @title Abstract contract to be inherited by Authorizer contracts that
 /// temporarily or permanently authorizes requesters for Airnodes
-abstract contract RequesterAuthorizer is ERC2771Context, IRequesterAuthorizer {
+abstract contract RequesterAuthorizer is IRequesterAuthorizer {
     struct AuthorizationStatus {
         uint32 expirationTimestamp;
         uint224 indefiniteAuthorizationCount;
@@ -63,10 +62,6 @@ abstract contract RequesterAuthorizer is ERC2771Context, IRequesterAuthorizer {
     mapping(address => mapping(address => mapping(address => bool)))
         public
         override airnodeToRequesterToSetterToIndefiniteAuthorizationStatus;
-
-    /// @param _trustedForwarder Trusted forwarder that verifies and executes
-    /// signed meta-txes
-    constructor(address _trustedForwarder) ERC2771Context(_trustedForwarder) {}
 
     /// @notice Extends the expiration of the temporary authorization of
     /// `requester` for `airnode`
@@ -231,4 +226,7 @@ abstract contract RequesterAuthorizer is ERC2771Context, IRequesterAuthorizer {
             authorizationStatus.indefiniteAuthorizationCount > 0 ||
             authorizationStatus.expirationTimestamp > block.timestamp;
     }
+
+    /// @dev See Context.sol
+    function _msgSender() internal view virtual returns (address sender);
 }
