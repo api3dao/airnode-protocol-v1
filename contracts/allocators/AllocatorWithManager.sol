@@ -10,7 +10,6 @@ import "./interfaces/IAllocatorWithManager.sol";
 /// @title Contract that the manager can use to temporarily allocate
 /// subscription slots for Airnodes
 contract AllocatorWithManager is
-    RoleDeriver,
     AccessControlRegistryAdminnedWithManager,
     Allocator,
     IAllocatorWithManager

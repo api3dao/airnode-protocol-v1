@@ -8,7 +8,6 @@ import "./interfaces/IAllocatorWithAirnode.sol";
 /// @title Contract that Airnode operators can use to temporarily allocate
 /// subscription slots for Airnodes
 contract AllocatorWithAirnode is
-    RoleDeriver,
     AccessControlRegistryAdminned,
     Allocator,
     IAllocatorWithAirnode
