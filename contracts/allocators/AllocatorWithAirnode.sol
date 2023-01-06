@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
+import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 import "../access-control-registry/AccessControlRegistryAdminned.sol";
 import "./Allocator.sol";
 import "./interfaces/IAllocatorWithAirnode.sol";
@@ -8,6 +9,7 @@ import "./interfaces/IAllocatorWithAirnode.sol";
 /// @title Contract that Airnode operators can use to temporarily allocate
 /// subscription slots for Airnodes
 contract AllocatorWithAirnode is
+    ERC2771Context,
     AccessControlRegistryAdminned,
     Allocator,
     IAllocatorWithAirnode
@@ -18,6 +20,7 @@ contract AllocatorWithAirnode is
         address _accessControlRegistry,
         string memory _adminRoleDescription
     )
+        ERC2771Context(_accessControlRegistry)
         AccessControlRegistryAdminned(
             _accessControlRegistry,
             _adminRoleDescription

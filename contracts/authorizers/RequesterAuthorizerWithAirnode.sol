@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
+import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 import "../access-control-registry/AccessControlRegistryAdminned.sol";
 import "./RequesterAuthorizer.sol";
 import "./interfaces/IRequesterAuthorizerWithAirnode.sol";
@@ -8,6 +9,7 @@ import "./interfaces/IRequesterAuthorizerWithAirnode.sol";
 /// @title Authorizer contract that Airnode operators can use to temporarily or
 /// indefinitely authorize requesters for Airnodes
 contract RequesterAuthorizerWithAirnode is
+    ERC2771Context,
     AccessControlRegistryAdminned,
     RequesterAuthorizer,
     IRequesterAuthorizerWithAirnode
@@ -18,6 +20,7 @@ contract RequesterAuthorizerWithAirnode is
         address _accessControlRegistry,
         string memory _adminRoleDescription
     )
+        ERC2771Context(_accessControlRegistry)
         AccessControlRegistryAdminned(
             _accessControlRegistry,
             _adminRoleDescription
