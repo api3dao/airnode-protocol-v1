@@ -4,11 +4,14 @@ pragma solidity ^0.8.0;
 import "./interfaces/IAllocator.sol";
 
 /// @title Abstract contract to be inherited by Allocator contracts that
-/// temporarily allocate subscription slots for Airnodes/relayers
-/// @dev An Airnode/relayer calls a number of Allocators to retrieve a number
-/// of slots to serve the respective subscriptions. What these Allocators and
-/// slot numbers are expected to be communicated off-chain. The Airnode/relayer
-/// should not process expired slots or subscriptions with invalid IDs.
+/// temporarily allocate subscription slots for Airnodes
+/// @notice Airnode operators need to opt in to using each Allocator by
+/// configuring their Airnode to do so
+/// @dev Airnodes that support PSP can be configured to periodically call
+/// multiple Allocators to fetch information about multiple slots from each.
+/// The Airnode must not serve expired slots or subscriptions with invalid IDs.
+/// The Airnode operator is expected to communicate required information with
+/// the users through off-chain channels.
 abstract contract Allocator is IAllocator {
     struct Slot {
         bytes32 subscriptionId;
@@ -83,7 +86,7 @@ abstract contract Allocator is IAllocator {
 
     /// @notice Called privately to reset a slot
     /// @param airnode Airnode address
-    /// @param slotIndex Index of the subscription slot to be set
+    /// @param slotIndex Index of the subscription slot to be reset
     function _resetSlot(address airnode, uint256 slotIndex) private {
         Slot storage slot = airnodeToSlotIndexToSlot[airnode][slotIndex];
         require(
@@ -95,5 +98,6 @@ abstract contract Allocator is IAllocator {
         delete airnodeToSlotIndexToSlot[airnode][slotIndex];
     }
 
+    /// @dev See Context.sol
     function _msgSender() internal view virtual returns (address sender);
 }

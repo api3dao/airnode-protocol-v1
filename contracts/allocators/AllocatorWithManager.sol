@@ -6,8 +6,8 @@ import "../access-control-registry/AccessControlRegistryAdminnedWithManager.sol"
 import "./Allocator.sol";
 import "./interfaces/IAllocatorWithManager.sol";
 
-/// @title Contract that the manager can use to temporarily allocate
-/// subscription slots for Airnodes
+/// @title Contract that Airnode operators can use to temporarily
+/// allocate subscription slots for Airnodes
 contract AllocatorWithManager is
     ERC2771Context,
     AccessControlRegistryAdminnedWithManager,
