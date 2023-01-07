@@ -50,7 +50,7 @@ contract AllocatorWithAirnode is
     /// @param airnode Airnode address
     /// @param slotIndex Index of the subscription slot that was set
     /// @return If the setter of the slot can still set slots
-    function setterOfSlotIsCanStillSet(
+    function setterOfSlotCanStillSet(
         address airnode,
         uint256 slotIndex
     ) public view override(Allocator, IAllocator) returns (bool) {

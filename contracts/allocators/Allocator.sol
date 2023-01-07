@@ -79,7 +79,7 @@ abstract contract Allocator is IAllocator {
     /// @param airnode Airnode address
     /// @param slotIndex Index of the subscription slot that was set
     /// @return If the setter of the slot can still set slots
-    function setterOfSlotIsCanStillSet(
+    function setterOfSlotCanStillSet(
         address airnode,
         uint256 slotIndex
     ) public view virtual override returns (bool);
@@ -92,7 +92,7 @@ abstract contract Allocator is IAllocator {
         require(
             slot.setter == _msgSender() ||
                 slot.expirationTimestamp < block.timestamp ||
-                !setterOfSlotIsCanStillSet(airnode, slotIndex),
+                !setterOfSlotCanStillSet(airnode, slotIndex),
             "Cannot reset slot"
         );
         delete airnodeToSlotIndexToSlot[airnode][slotIndex];
