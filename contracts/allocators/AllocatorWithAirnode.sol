@@ -37,7 +37,7 @@ contract AllocatorWithAirnode is
         address airnode,
         uint256 slotIndex,
         bytes32 subscriptionId,
-        uint64 expirationTimestamp
+        uint32 expirationTimestamp
     ) external override {
         require(
             hasSlotSetterRoleOrIsAirnode(airnode, _msgSender()),

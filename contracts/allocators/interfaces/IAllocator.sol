@@ -6,7 +6,7 @@ interface IAllocator {
         address indexed airnode,
         uint256 slotIndex,
         bytes32 subscriptionId,
-        uint64 expirationTimestamp
+        uint32 expirationTimestamp
     );
 
     event ResetSlot(address indexed airnode, uint256 slotIndex);
@@ -15,7 +15,7 @@ interface IAllocator {
         address airnode,
         uint256 slotIndex,
         bytes32 subscriptionId,
-        uint64 expirationTimestamp
+        uint32 expirationTimestamp
     ) external;
 
     function resetSlot(address airnode, uint256 slotIndex) external;
@@ -40,6 +40,6 @@ interface IAllocator {
         returns (
             bytes32 subscriptionId,
             address setter,
-            uint64 expirationTimestamp
+            uint32 expirationTimestamp
         );
 }

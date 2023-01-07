@@ -16,7 +16,7 @@ abstract contract Allocator is IAllocator {
     struct Slot {
         bytes32 subscriptionId;
         address setter;
-        uint64 expirationTimestamp;
+        uint32 expirationTimestamp;
     }
 
     /// @notice Slot setter role description
@@ -43,7 +43,7 @@ abstract contract Allocator is IAllocator {
         address airnode,
         uint256 slotIndex,
         bytes32 subscriptionId,
-        uint64 expirationTimestamp
+        uint32 expirationTimestamp
     ) internal {
         require(
             expirationTimestamp >= block.timestamp,
