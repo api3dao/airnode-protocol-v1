@@ -31,6 +31,29 @@ abstract contract Allocator is IAllocator {
     bytes32 internal constant SLOT_SETTER_ROLE_DESCRIPTION_HASH =
         keccak256(abi.encodePacked(SLOT_SETTER_ROLE_DESCRIPTION));
 
+    /// @notice Resets the slot
+    /// @dev This will revert if the slot has been set before, and the sender
+    /// is not the setter of the slot, and the slot has not expired and the
+    /// setter of the slot is still authorized to set slots.
+    /// The sender does not have to be authorized to set slots to use this.
+    /// @param airnode Airnode address
+    /// @param slotIndex Index of the subscription slot to be set
+    function resetSlot(address airnode, uint256 slotIndex) external override {
+        if (
+            airnodeToSlotIndexToSlot[airnode][slotIndex].subscriptionId !=
+            bytes32(0)
+        ) {
+            _resetSlot(airnode, slotIndex);
+            emit ResetSlot(airnode, slotIndex);
+        }
+    }
+
+    function slotCanBeResetByAccount(
+        address airnode,
+        uint256 slotIndex,
+        address account
+    ) public view virtual override returns (bool);
+
     /// @notice Called internally to set the slot with the given parameters
     /// @dev The set slot can be reset by its setter, or when it has expired,
     /// or when its setter is no longer authorized to set slots
@@ -58,23 +81,6 @@ abstract contract Allocator is IAllocator {
         emit SetSlot(airnode, slotIndex, subscriptionId, expirationTimestamp);
     }
 
-    /// @notice Resets the slot
-    /// @dev This will revert if the slot has been set before, and the sender
-    /// is not the setter of the slot, and the slot has not expired and the
-    /// setter of the slot is still authorized to set slots.
-    /// The sender does not have to be authorized to set slots to use this.
-    /// @param airnode Airnode address
-    /// @param slotIndex Index of the subscription slot to be set
-    function resetSlot(address airnode, uint256 slotIndex) external override {
-        if (
-            airnodeToSlotIndexToSlot[airnode][slotIndex].subscriptionId !=
-            bytes32(0)
-        ) {
-            _resetSlot(airnode, slotIndex);
-            emit ResetSlot(airnode, slotIndex);
-        }
-    }
-
     /// @notice Called privately to reset a slot
     /// @param airnode Airnode address
     /// @param slotIndex Index of the subscription slot to be reset
@@ -85,12 +91,6 @@ abstract contract Allocator is IAllocator {
         );
         delete airnodeToSlotIndexToSlot[airnode][slotIndex];
     }
-
-    function slotCanBeResetByAccount(
-        address airnode,
-        uint256 slotIndex,
-        address account
-    ) public view virtual override returns (bool);
 
     /// @dev See Context.sol
     function _msgSender() internal view virtual returns (address sender);
