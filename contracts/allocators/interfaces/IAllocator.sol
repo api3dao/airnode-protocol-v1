@@ -20,9 +20,10 @@ interface IAllocator {
 
     function resetSlot(address airnode, uint256 slotIndex) external;
 
-    function setterOfSlotCanStillSet(
+    function slotCanBeResetByAccount(
         address airnode,
-        uint256 slotIndex
+        uint256 slotIndex,
+        address account
     ) external view returns (bool);
 
     // solhint-disable-next-line func-name-mixedcase

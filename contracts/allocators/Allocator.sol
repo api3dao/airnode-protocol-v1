@@ -75,28 +75,22 @@ abstract contract Allocator is IAllocator {
         }
     }
 
-    /// @notice Returns if the setter of the slot can still set slots
-    /// @param airnode Airnode address
-    /// @param slotIndex Index of the subscription slot that was set
-    /// @return If the setter of the slot can still set slots
-    function setterOfSlotCanStillSet(
-        address airnode,
-        uint256 slotIndex
-    ) public view virtual override returns (bool);
-
     /// @notice Called privately to reset a slot
     /// @param airnode Airnode address
     /// @param slotIndex Index of the subscription slot to be reset
     function _resetSlot(address airnode, uint256 slotIndex) private {
-        Slot storage slot = airnodeToSlotIndexToSlot[airnode][slotIndex];
         require(
-            slot.setter == _msgSender() ||
-                slot.expirationTimestamp < block.timestamp ||
-                !setterOfSlotCanStillSet(airnode, slotIndex),
+            slotCanBeResetByAccount(airnode, slotIndex, _msgSender()),
             "Cannot reset slot"
         );
         delete airnodeToSlotIndexToSlot[airnode][slotIndex];
     }
+
+    function slotCanBeResetByAccount(
+        address airnode,
+        uint256 slotIndex,
+        address account
+    ) public view virtual override returns (bool);
 
     /// @dev See Context.sol
     function _msgSender() internal view virtual returns (address sender);

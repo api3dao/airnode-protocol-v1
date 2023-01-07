@@ -358,30 +358,80 @@ describe('AllocatorWithAirnode', function () {
     });
   });
 
-  describe('setterOfSlotCanStillSet', function () {
-    context('Setter of slot is still a slot setter', function () {
+  describe('slotCanBeResetByAccount', function () {
+    context('Slot is set by the account', function () {
       it('returns true', async function () {
         await allocatorWithAirnode
           .connect(roles.slotSetter)
           .setSlot(roles.airnode.address, slotIndex, subscriptionId, expirationTimestamp);
-        expect(await allocatorWithAirnode.setterOfSlotCanStillSet(roles.airnode.address, slotIndex)).to.equal(true);
+        expect(
+          await allocatorWithAirnode.slotCanBeResetByAccount(roles.airnode.address, slotIndex, roles.slotSetter.address)
+        ).to.equal(true);
       });
     });
-    context('Setter of slot is the Airnode address', function () {
-      it('returns true', async function () {
-        await allocatorWithAirnode
-          .connect(roles.airnode)
-          .setSlot(roles.airnode.address, slotIndex, subscriptionId, expirationTimestamp);
-        expect(await allocatorWithAirnode.setterOfSlotCanStillSet(roles.airnode.address, slotIndex)).to.equal(true);
+    context('Slot is not set by the account', function () {
+      context('Slot has not expired', function () {
+        context('Setter of the slot is the Airnode address', function () {
+          it('returns false', async function () {
+            await allocatorWithAirnode
+              .connect(roles.airnode)
+              .setSlot(roles.airnode.address, slotIndex, subscriptionId, expirationTimestamp);
+            expect(
+              await allocatorWithAirnode.slotCanBeResetByAccount(
+                roles.airnode.address,
+                slotIndex,
+                roles.randomPerson.address
+              )
+            ).to.equal(false);
+          });
+        });
+        context('Setter of the slot is still a slot setter', function () {
+          it('returns false', async function () {
+            await allocatorWithAirnode
+              .connect(roles.slotSetter)
+              .setSlot(roles.airnode.address, slotIndex, subscriptionId, expirationTimestamp);
+            expect(
+              await allocatorWithAirnode.slotCanBeResetByAccount(
+                roles.airnode.address,
+                slotIndex,
+                roles.randomPerson.address
+              )
+            ).to.equal(false);
+          });
+        });
+        context('Setter of the slot is no longer a slot setter', function () {
+          it('returns true', async function () {
+            await allocatorWithAirnode
+              .connect(roles.slotSetter)
+              .setSlot(roles.airnode.address, slotIndex, subscriptionId, expirationTimestamp);
+            await accessControlRegistry
+              .connect(roles.airnode)
+              .revokeRole(airnodeSlotSetterRole, roles.slotSetter.address);
+            expect(
+              await allocatorWithAirnode.slotCanBeResetByAccount(
+                roles.airnode.address,
+                slotIndex,
+                roles.randomPerson.address
+              )
+            ).to.equal(true);
+          });
+        });
       });
-    });
-    context('Setter of slot is no longer authorized', function () {
-      it('returns false', async function () {
-        await allocatorWithAirnode
-          .connect(roles.slotSetter)
-          .setSlot(roles.airnode.address, slotIndex, subscriptionId, expirationTimestamp);
-        await accessControlRegistry.connect(roles.airnode).revokeRole(airnodeSlotSetterRole, roles.slotSetter.address);
-        expect(await allocatorWithAirnode.setterOfSlotCanStillSet(roles.airnode.address, slotIndex)).to.equal(false);
+      context('Slot has expired', function () {
+        it('returns true', async function () {
+          await allocatorWithAirnode
+            .connect(roles.slotSetter)
+            .setSlot(roles.airnode.address, slotIndex, subscriptionId, expirationTimestamp);
+          await hre.ethers.provider.send('evm_setNextBlockTimestamp', [expirationTimestamp]);
+          await hre.ethers.provider.send('evm_mine', []);
+          expect(
+            await allocatorWithAirnode.slotCanBeResetByAccount(
+              roles.airnode.address,
+              slotIndex,
+              roles.randomPerson.address
+            )
+          ).to.equal(true);
+        });
       });
     });
   });

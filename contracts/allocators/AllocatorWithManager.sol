@@ -57,20 +57,6 @@ contract AllocatorWithManager is
         _setSlot(airnode, slotIndex, subscriptionId, expirationTimestamp);
     }
 
-    /// @notice Returns if the setter of the slot can still set slots
-    /// @param airnode Airnode address
-    /// @param slotIndex Index of the subscription slot that was set
-    /// @return If the setter of the slot can still set slots
-    function setterOfSlotCanStillSet(
-        address airnode,
-        uint256 slotIndex
-    ) public view override(Allocator, IAllocator) returns (bool) {
-        return
-            hasSlotSetterRoleOrIsManager(
-                airnodeToSlotIndexToSlot[airnode][slotIndex].setter
-            );
-    }
-
     /// @notice Returns if the account has the slot setter role or is the
     /// manager
     /// @param account Account address
@@ -82,6 +68,20 @@ contract AllocatorWithManager is
             IAccessControlRegistry(accessControlRegistry).hasRole(
                 slotSetterRole,
                 account
+            );
+    }
+
+    function slotCanBeResetByAccount(
+        address airnode,
+        uint256 slotIndex,
+        address account
+    ) public view override(IAllocator, Allocator) returns (bool) {
+        Slot storage slot = airnodeToSlotIndexToSlot[airnode][slotIndex];
+        return
+            slot.setter == account ||
+            slot.expirationTimestamp <= block.timestamp ||
+            !hasSlotSetterRoleOrIsManager(
+                airnodeToSlotIndexToSlot[airnode][slotIndex].setter
             );
     }
 
