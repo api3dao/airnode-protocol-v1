@@ -69,8 +69,8 @@ abstract contract Allocator is IAllocator {
         uint32 expirationTimestamp
     ) internal {
         require(
-            expirationTimestamp >= block.timestamp,
-            "Expiration is in past"
+            expirationTimestamp > block.timestamp,
+            "Expiration not in future"
         );
         _resetSlot(airnode, slotIndex);
         airnodeToSlotIndexToSlot[airnode][slotIndex] = Slot({
