@@ -35,11 +35,15 @@ contract AirnodeRequester is IAirnodeRequester {
     }
 
     /// @notice Returns if the timestamp used in the signature is valid
-    /// @dev Returns `false` if the timestamp is not at most 1 hour old to
-    /// prevent replays. Returns `false` if the timestamp is not from the past,
-    /// with some leeway to accomodate for some benign time drift. These values
-    /// are appropriate in most cases, but you can adjust them if you are aware
-    /// of the implications.
+    /// @dev If and how the timestamp should be validated depends on the nature
+    /// of the request. If the request is "return me the price of this asset at
+    /// this specific time in history", it can be assumed that the response
+    /// will not go out of date. If the request is "return me the price of this
+    /// asset now", the requester would rather not consider a response that is
+    /// not immediate. Since users commonly make the latter type of requests,
+    /// we provide an example timestamp validation function. Feel free to use a
+    /// different condition or even omit it if you are aware of the
+    /// implications.
     /// @param timestamp Timestamp used in the signature
     function timestampIsValid(uint256 timestamp) internal view returns (bool) {
         unchecked {

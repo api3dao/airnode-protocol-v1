@@ -28,8 +28,6 @@ contract WithdrawalUtils is IWithdrawalUtils {
     mapping(address => uint256) public override sponsorToBalance;
 
     /// @notice Number of withdrawal requests the sponsor made
-    /// @dev This can be used to calculate the ID of the next withdrawal
-    /// request the sponsor will make
     mapping(address => uint256) public override sponsorToWithdrawalRequestCount;
 
     mapping(bytes32 => bytes32) private withdrawalRequestIdToParameters;
@@ -119,7 +117,8 @@ contract WithdrawalUtils is IWithdrawalUtils {
         require(sponsorBalance != 0, "Sender balance zero");
         sponsorToBalance[msg.sender] = 0;
         emit ClaimedBalance(msg.sender, sponsorBalance);
-        (bool success, ) = msg.sender.call{value: sponsorBalance}(""); // solhint-disable-line avoid-low-level-calls
+        // solhint-disable-next-line avoid-low-level-calls
+        (bool success, ) = msg.sender.call{value: sponsorBalance}("");
         require(success, "Transfer failed");
     }
 

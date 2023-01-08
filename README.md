@@ -44,3 +44,10 @@ yarn test:gas
 
     /// @notice Airnode operators need to opt in to using each Allocator by
     /// configuring their Airnode to do so
+
+
+    /// In all contracts, we use the "set" verb to refer to setting a value
+    /// without considering its previous value, and emitting an event whether
+    /// a state change has occurred or not.
+
+    TODO: Move the protocol descriptions from the contracts to the README

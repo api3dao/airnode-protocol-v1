@@ -4,7 +4,7 @@ pragma solidity 0.8.17;
 import "./interfaces/IStorageUtils.sol";
 
 /// @title Contract that can be used to announce template and subscription
-/// details through events and store them on-chain
+/// details through events and/or store them on-chain
 /// @notice The Airnode protocol does not depend on the template or
 /// subscription details being announced or stored on-chain. Airnode can be
 /// informed about these in other ways, e.g., the details are hardcoded in the

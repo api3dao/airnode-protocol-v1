@@ -29,10 +29,7 @@ contract SponsorshipUtils is ISponsorshipUtils {
 
     /// @notice Called by the sponsor to set the sponsorship status of an RRP
     /// requester
-    /// @dev This applies for both regular and relayed RRP requests.
-    /// In all contracts, we use the "set" verb to refer to setting a value
-    /// without considering its previous value, and emitting an event whether
-    /// a state change has occurred or not.
+    /// @dev This applies to both regular and relayed RRP requests
     /// @param requester RRP requester address
     /// @param status Sponsorship status
     function setRrpSponsorshipStatus(
