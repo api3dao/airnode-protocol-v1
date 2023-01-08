@@ -6,7 +6,7 @@ import "../access-control-registry/AccessControlRegistryAdminnedWithManager.sol"
 import "./RequesterAuthorizer.sol";
 import "./interfaces/IRequesterAuthorizerWithManager.sol";
 
-/// @title Authorizer contract that a manager can use to temporarily or
+/// @title Authorizer contract that the manager can use to temporarily or
 /// indefinitely authorize requesters for Airnodes
 contract RequesterAuthorizerWithManager is
     ERC2771Context,
@@ -14,8 +14,6 @@ contract RequesterAuthorizerWithManager is
     RequesterAuthorizer,
     IRequesterAuthorizerWithManager
 {
-    // Since there will be a single manager, we can derive the roles beforehand
-
     /// @notice Authorization expiration extender role
     bytes32 public immutable override authorizationExpirationExtenderRole;
 
@@ -54,8 +52,8 @@ contract RequesterAuthorizerWithManager is
         );
     }
 
-    /// @notice Extends the expiration of the temporary authoriztion of
-    /// `requester` for `airnode` if the sender is allowed to extend
+    /// @notice Extends the expiration of the temporary authoriztion of the
+    /// requester for  the Airnode if the sender is allowed to extend
     /// authorization expiration
     /// @param airnode Airnode address
     /// @param requester Requester address
@@ -73,8 +71,8 @@ contract RequesterAuthorizerWithManager is
         _extendAuthorizationExpiration(airnode, requester, expirationTimestamp);
     }
 
-    /// @notice Sets the expiration of the temporary authorization of
-    /// `requester` for `airnode` if the sender is allowed to set expiration
+    /// @notice Sets the expiration of the temporary authorization of the
+    /// requester for the Airnode if the sender is allowed to set expiration
     /// @dev Unlike `extendAuthorizerExpiration()`, this can hasten expiration
     /// @param airnode Airnode address
     /// @param requester Requester address
@@ -92,8 +90,8 @@ contract RequesterAuthorizerWithManager is
         _setAuthorizationExpiration(airnode, requester, expirationTimestamp);
     }
 
-    /// @notice Sets the indefinite authorizer status of `requester` for
-    /// `airnode` if the sender is allowed to authorize indefinitely
+    /// @notice Sets the indefinite authorizer status of the requester for the
+    /// Airnode if the sender is allowed to authorize indefinitely
     /// @param airnode Airnode address
     /// @param requester Requester address
     /// @param status Indefinite authorizer status

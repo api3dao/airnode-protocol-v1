@@ -3,14 +3,12 @@ pragma solidity ^0.8.0;
 
 import "./interfaces/IAllocator.sol";
 
-/// @title Abstract contract to be inherited by Allocator contracts that
-/// temporarily allocate subscription slots for Airnodes
-/// @notice Airnode operators need to opt in to using each Allocator by
-/// configuring their Airnode to do so
+/// @title Abstract contract that temporarily allocates subscription slots for
+/// Airnodes
 /// @dev Airnodes that support PSP can be configured to periodically call
 /// multiple Allocators to fetch information about multiple slots from each.
 /// The Airnode must not serve expired slots or subscriptions with invalid IDs.
-/// The Airnode operator is expected to communicate required information with
+/// The Airnode operator is expected to communicate the required information to
 /// the users through off-chain channels.
 abstract contract Allocator is IAllocator {
     struct Slot {

@@ -3,26 +3,17 @@ pragma solidity ^0.8.0;
 
 import "./interfaces/IRequesterAuthorizer.sol";
 
-/// @title Abstract contract to be inherited by Authorizer contracts that
-/// temporarily or permanently authorizes requesters for Airnodes
+/// @title Abstract contract that temporarily or indefinitely authorizes
+/// requesters for Airnodes
+/// @dev Airnodes can be configured to use multiple Authorizers, and one of
+/// them returning `true` means the request should be responded to. The Airnode
+/// operator is expected to communicate the required information to the users
+/// through off-chain channels.
 abstract contract RequesterAuthorizer is IRequesterAuthorizer {
     struct AuthorizationStatus {
         uint32 expirationTimestamp;
         uint224 indefiniteAuthorizationCount;
     }
-
-    // There are four roles implemented in this contract:
-    // Root
-    // └── (1) Admin (can grant and revoke the roles below)
-    //     ├── (2) Authorization expiration extender
-    //     ├── (3) Authorization expiration setter
-    //     └── (4) Indefinite authorizer
-    // Their IDs are derived from the descriptions below. Refer to
-    // AccessControlRegistry for more information.
-    // To clarify, the root role of the manager is the admin of (1), while (1)
-    // is the admin of (2), (3) and (4). So (1) is more of a "contract admin",
-    // while the `adminRole` used in AccessControl and AccessControlRegistry
-    // refers to a more general adminship relationship between roles.
 
     /// @notice Authorization expiration extender role description
     string
@@ -64,7 +55,7 @@ abstract contract RequesterAuthorizer is IRequesterAuthorizer {
         override airnodeToRequesterToSetterToIndefiniteAuthorizationStatus;
 
     /// @notice Extends the expiration of the temporary authorization of
-    /// `requester` for `airnode`
+    /// the requester` for the Airnode
     /// @param airnode Airnode address
     /// @param requester Requester address
     /// @param expirationTimestamp Timestamp at which the temporary
@@ -93,7 +84,7 @@ abstract contract RequesterAuthorizer is IRequesterAuthorizer {
     }
 
     /// @notice Sets the expiration of the temporary authorization of
-    /// `requester` for `airnode`
+    /// the requester for  the Airnode
     /// @dev Unlike `_extendAuthorizerExpiration()`, this can hasten expiration
     /// @param airnode Airnode address
     /// @param requester Requester address
@@ -116,9 +107,9 @@ abstract contract RequesterAuthorizer is IRequesterAuthorizer {
         );
     }
 
-    /// @notice Sets the indefinite authorization status of `requester` for
-    /// `airnode`
-    /// @dev Emits the event even if it does not change the state.
+    /// @notice Sets the indefinite authorization status of the requester for
+    /// the Airnode
+    /// @dev Emits the event even if it does not change the state
     /// @param airnode Airnode address
     /// @param requester Requester address
     /// @param status Indefinite authorization status
@@ -170,8 +161,8 @@ abstract contract RequesterAuthorizer is IRequesterAuthorizer {
         );
     }
 
-    /// @notice Revokes the indefinite authorization status granted to
-    /// `requester` for `airnode` by a specific account
+    /// @notice Revokes the indefinite authorization status granted to the
+    /// requester for the Airnode by a specific account
     /// @dev Only emits the event if it changes the state
     /// @param airnode Airnode address
     /// @param requester Requester address
@@ -210,7 +201,8 @@ abstract contract RequesterAuthorizer is IRequesterAuthorizer {
         }
     }
 
-    /// @notice Verifies the authorization status of a request
+    /// @notice Verifies the authorization status of the requester for the
+    /// Airnode
     /// @param airnode Airnode address
     /// @param requester Requester address
     /// @return Authorization status of the request
