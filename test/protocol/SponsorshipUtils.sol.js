@@ -1,27 +1,36 @@
-const hre = require('hardhat');
+const { ethers } = require('hardhat');
+const helpers = require('@nomicfoundation/hardhat-network-helpers');
 const { expect } = require('chai');
 const testUtils = require('../test-utils');
 
 describe('SponsorshipUtils', function () {
-  let roles;
-  let airnodeProtocol, airnodeRequester;
-
-  beforeEach(async () => {
-    const accounts = await hre.ethers.getSigners();
-    roles = {
+  async function deploy() {
+    const accounts = await ethers.getSigners();
+    const roles = {
       deployer: accounts[0],
       sponsor: accounts[1],
       randomPerson: accounts[9],
     };
-    const airnodeProtocolFactory = await hre.ethers.getContractFactory('AirnodeProtocol', roles.deployer);
-    airnodeProtocol = await airnodeProtocolFactory.deploy();
-    const airnodeRequesterFactory = await hre.ethers.getContractFactory('MockAirnodeRequester', roles.deployer);
-    airnodeRequester = await airnodeRequesterFactory.deploy(airnodeProtocol.address);
-  });
+
+    const airnodeProtocolFactory = await ethers.getContractFactory('AirnodeProtocol', roles.deployer);
+    const airnodeProtocol = await airnodeProtocolFactory.deploy();
+    const airnodeRequesterFactory = await ethers.getContractFactory('MockAirnodeRequester', roles.deployer);
+    const airnodeRequester = await airnodeRequesterFactory.deploy(airnodeProtocol.address);
+
+    const subscriptionId = testUtils.generateRandomBytes32();
+
+    return {
+      roles,
+      airnodeProtocol,
+      airnodeRequester,
+      subscriptionId,
+    };
+  }
 
   describe('setRrpSponsorshipStatus', function () {
     context('Requester address not zero', function () {
       it('sets RRP sponsorship status', async function () {
+        const { roles, airnodeProtocol, airnodeRequester } = await helpers.loadFixture(deploy);
         expect(
           await airnodeProtocol.sponsorToRequesterToRrpSponsorshipStatus(
             roles.sponsor.address,
@@ -50,8 +59,9 @@ describe('SponsorshipUtils', function () {
     });
     context('Requester address zero', function () {
       it('reverts', async function () {
+        const { roles, airnodeProtocol } = await helpers.loadFixture(deploy);
         await expect(
-          airnodeProtocol.connect(roles.sponsor).setRrpSponsorshipStatus(hre.ethers.constants.AddressZero, true)
+          airnodeProtocol.connect(roles.sponsor).setRrpSponsorshipStatus(ethers.constants.AddressZero, true)
         ).to.be.revertedWith('Requester address zero');
       });
     });
@@ -60,7 +70,7 @@ describe('SponsorshipUtils', function () {
   describe('setPspSponsorshipStatus', function () {
     context('Subscription ID is not zero', function () {
       it('sets PSP sponsorship status', async function () {
-        const subscriptionId = testUtils.generateRandomBytes32();
+        const { roles, airnodeProtocol, subscriptionId } = await helpers.loadFixture(deploy);
         expect(
           await airnodeProtocol.sponsorToSubscriptionIdToPspSponsorshipStatus(roles.sponsor.address, subscriptionId)
         ).to.equal(false);
@@ -80,8 +90,9 @@ describe('SponsorshipUtils', function () {
     });
     context('Subscription ID is zero', function () {
       it('reverts', async function () {
+        const { roles, airnodeProtocol } = await helpers.loadFixture(deploy);
         await expect(
-          airnodeProtocol.connect(roles.sponsor).setPspSponsorshipStatus(hre.ethers.constants.HashZero, true)
+          airnodeProtocol.connect(roles.sponsor).setPspSponsorshipStatus(ethers.constants.HashZero, true)
         ).to.be.revertedWith('Subscription ID zero');
       });
     });

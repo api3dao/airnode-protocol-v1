@@ -14,7 +14,7 @@ describe('AirnodeProtocol', function () {
     fulfillFunctionId,
     airnodeSponsorWalletAddress
   ) {
-    const requestId = await deriveExpectedRequestId(
+    const requestId = await deriveRequestId(
       airnodeProtocol,
       airnodeRequester.address,
       airnode.address,
@@ -47,7 +47,7 @@ describe('AirnodeProtocol', function () {
     relayerSponsorWalletAddress,
     fulfillData
   ) {
-    const requestId = await deriveExpectedRelayedRequestId(
+    const requestId = await deriveRelayedRequestId(
       airnodeProtocol,
       airnodeRequester.address,
       airnode.address,
@@ -77,7 +77,7 @@ describe('AirnodeProtocol', function () {
     return { requestId, timestamp, signature, failSignature };
   }
 
-  async function deriveExpectedRequestId(
+  async function deriveRequestId(
     airnodeProtocol,
     airnodeRequesterAddress,
     airnodeAddress,
@@ -102,7 +102,7 @@ describe('AirnodeProtocol', function () {
     );
   }
 
-  async function deriveExpectedRelayedRequestId(
+  async function deriveRelayedRequestId(
     airnodeProtocol,
     airnodeRequesterAddress,
     airnodeAddress,
@@ -172,20 +172,32 @@ describe('AirnodeProtocol', function () {
 
     const { airnodeMnemonic, airnodeXpub } = testUtils.generateRandomAirnodeWallet();
     roles.airnode = ethers.Wallet.fromMnemonic(airnodeMnemonic);
-    roles.airnodeSponsorWallet = testUtils.deriveSponsorWallet(airnodeMnemonic, roles.sponsor.address, 'RRP');
+    roles.airnodeSponsorWallet = testUtils.deriveSponsorWallet(
+      airnodeMnemonic,
+      roles.sponsor.address,
+      testUtils.PROTOCOL_IDS.RRP
+    );
     // Demonstrating how xpub can be used to derive the sponsor wallet address that needs to be funded
-    const airnodeSponsorWalletAddress = testUtils.deriveSponsorWalletAddress(airnodeXpub, roles.sponsor.address, 'RRP');
+    const airnodeSponsorWalletAddress = testUtils.deriveSponsorWalletAddress(
+      airnodeXpub,
+      roles.sponsor.address,
+      testUtils.PROTOCOL_IDS.RRP
+    );
     await roles.deployer.sendTransaction({
       to: airnodeSponsorWalletAddress,
       value: ethers.utils.parseEther('1'),
     });
     const { airnodeMnemonic: relayerMnemonic, airnodeXpub: relayerXpub } = testUtils.generateRandomAirnodeWallet();
     roles.relayer = ethers.Wallet.fromMnemonic(relayerMnemonic);
-    roles.relayerSponsorWallet = testUtils.deriveSponsorWallet(relayerMnemonic, roles.sponsor.address, 'RELAYED_RRP');
+    roles.relayerSponsorWallet = testUtils.deriveSponsorWallet(
+      relayerMnemonic,
+      roles.sponsor.address,
+      testUtils.PROTOCOL_IDS.RELAYED_RRP
+    );
     const relayerSponsorWalletAddress = testUtils.deriveSponsorWalletAddress(
       relayerXpub,
       roles.sponsor.address,
-      'RELAYED_RRP'
+      testUtils.PROTOCOL_IDS.RELAYED_RRP
     );
     await roles.deployer.sendTransaction({
       to: relayerSponsorWalletAddress,
@@ -207,6 +219,7 @@ describe('AirnodeProtocol', function () {
     const fulfillFunctionId = airnodeRequester.interface.getSighash('fulfillRequest');
     const fulfillData = ethers.utils.defaultAbiCoder.encode(['uint256', 'string'], ['123456', 'hello']);
     const errorMessage = 'Thing went wrong';
+
     const request = await makeRequestAndPrepareFulfillment(
       airnodeProtocol,
       airnodeRequester,
@@ -229,6 +242,7 @@ describe('AirnodeProtocol', function () {
       roles.relayerSponsorWallet.address,
       fulfillData
     );
+
     return {
       roles,
       airnodeProtocol,
@@ -252,7 +266,7 @@ describe('AirnodeProtocol', function () {
               it('makes request', async function () {
                 const { roles, airnodeProtocol, airnodeRequester, templateId, requestParameters, fulfillFunctionId } =
                   await helpers.loadFixture(deploy);
-                const requestId = await deriveExpectedRequestId(
+                const requestId = await deriveRequestId(
                   airnodeProtocol,
                   airnodeRequester.address,
                   roles.airnode.address,
@@ -909,7 +923,7 @@ describe('AirnodeProtocol', function () {
                 it('makes relayed request', async function () {
                   const { roles, airnodeProtocol, airnodeRequester, templateId, requestParameters, fulfillFunctionId } =
                     await helpers.loadFixture(deploy);
-                  const requestId = await deriveExpectedRelayedRequestId(
+                  const requestId = await deriveRelayedRequestId(
                     airnodeProtocol,
                     airnodeRequester.address,
                     roles.airnode.address,
