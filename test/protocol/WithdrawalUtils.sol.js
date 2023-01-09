@@ -21,7 +21,7 @@ describe('WithdrawalUtils', function () {
     airnodeAddress = airnodeData.airnodeAddress;
     const airnodeMnemonic = airnodeData.airnodeMnemonic;
     airnodeWallet = hre.ethers.Wallet.fromMnemonic(airnodeMnemonic, "m/44'/60'/0'/0/0");
-    airnodeSponsorWallet = testUtils.deriveSponsorWallet(airnodeMnemonic, roles.sponsor.address, 1);
+    airnodeSponsorWallet = testUtils.deriveSponsorWallet(airnodeMnemonic, roles.sponsor.address, 'RRP');
     await roles.deployer.sendTransaction({
       to: airnodeSponsorWallet.address,
       value: hre.ethers.utils.parseEther('1'),

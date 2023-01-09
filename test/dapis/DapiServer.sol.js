@@ -68,16 +68,16 @@ describe('DapiServer', function () {
     relayerAddress = relayerData.airnodeAddress;
     const relayerMnemonic = relayerData.airnodeMnemonic;
     airnodeRrpSponsorWallet = testUtils
-      .deriveSponsorWallet(airnodeMnemonic, roles.sponsor.address, 1)
-      .connect(hre.ethers.provider);
-    relayerRrpSponsorWallet = testUtils
-      .deriveSponsorWallet(relayerMnemonic, roles.sponsor.address, 2)
+      .deriveSponsorWallet(airnodeMnemonic, roles.sponsor.address, 'RRP')
       .connect(hre.ethers.provider);
     airnodePspSponsorWallet = testUtils
-      .deriveSponsorWallet(airnodeMnemonic, roles.sponsor.address, 3)
+      .deriveSponsorWallet(airnodeMnemonic, roles.sponsor.address, 'PSP')
+      .connect(hre.ethers.provider);
+    relayerRrpSponsorWallet = testUtils
+      .deriveSponsorWallet(relayerMnemonic, roles.sponsor.address, 'RELAYED_RRP')
       .connect(hre.ethers.provider);
     relayerPspSponsorWallet = testUtils
-      .deriveSponsorWallet(relayerMnemonic, roles.sponsor.address, 4)
+      .deriveSponsorWallet(relayerMnemonic, roles.sponsor.address, 'RELAYED_PSP')
       .connect(hre.ethers.provider);
     await roles.deployer.sendTransaction({
       to: airnodeRrpSponsorWallet.address,

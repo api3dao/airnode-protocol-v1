@@ -1,21 +1,30 @@
 const { ethers } = require('hardhat');
 
-function deriveWalletPathFromSponsorAddress(sponsorAddress, protocolId) {
+const PROTOCOL_IDS = {
+  RRP: '1',
+  PSP: '2',
+  RELAYED_RRP: '3',
+  RELAYED_PSP: '4',
+  AIRSEEKER: '5',
+  AIRKEEPER: '12345',
+};
+
+function deriveWalletPathFromSponsorAddress(sponsorAddress, protocol) {
   const sponsorAddressBN = ethers.BigNumber.from(sponsorAddress);
   const paths = [];
   for (let i = 0; i < 6; i++) {
     const shiftedSponsorAddressBN = sponsorAddressBN.shr(31 * i);
     paths.push(shiftedSponsorAddressBN.mask(31).toString());
   }
-  return `${protocolId}/${paths.join('/')}`;
+  return `${PROTOCOL_IDS[protocol]}/${paths.join('/')}`;
 }
 
 module.exports = {
   generateRandomAirnodeWallet: () => {
     const airnodeWallet = ethers.Wallet.createRandom();
     const airnodeMnemonic = airnodeWallet.mnemonic.phrase;
-    const airnodeHdNode = ethers.utils.HDNode.fromMnemonic(airnodeMnemonic).derivePath("m/44'/60'/0'");
-    const airnodeXpub = airnodeHdNode.neuter().extendedKey;
+    const hdNode = ethers.utils.HDNode.fromMnemonic(airnodeMnemonic).derivePath("m/44'/60'/0'");
+    const airnodeXpub = hdNode.neuter().extendedKey;
     return { airnodeAddress: airnodeWallet.address, airnodeMnemonic, airnodeXpub };
   },
   generateRandomAddress: () => {
@@ -27,17 +36,15 @@ module.exports = {
   generateRandomBytes: () => {
     return ethers.utils.hexlify(ethers.utils.randomBytes(256));
   },
-  deriveSponsorWalletAddress: (airnodeXpub, sponsorAddress, protocolId) => {
+  deriveSponsorWalletAddress: (airnodeXpub, sponsorAddress, protocol) => {
     const hdNodeFromXpub = ethers.utils.HDNode.fromExtendedKey(airnodeXpub);
-    const sponsorWalletHdNode = hdNodeFromXpub.derivePath(
-      deriveWalletPathFromSponsorAddress(sponsorAddress, protocolId)
-    );
+    const sponsorWalletHdNode = hdNodeFromXpub.derivePath(deriveWalletPathFromSponsorAddress(sponsorAddress, protocol));
     return sponsorWalletHdNode.address;
   },
-  deriveSponsorWallet: (airnodeMnemonic, sponsorAddress, protocolId) => {
+  deriveSponsorWallet: (airnodeMnemonic, sponsorAddress, protocol) => {
     return ethers.Wallet.fromMnemonic(
       airnodeMnemonic,
-      `m/44'/60'/0'/${deriveWalletPathFromSponsorAddress(sponsorAddress, protocolId)}`
+      `m/44'/60'/0'/${deriveWalletPathFromSponsorAddress(sponsorAddress, protocol)}`
     ).connect(ethers.provider);
   },
   deriveSponsorshipId: (scheme, parameters) => {
