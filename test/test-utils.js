@@ -1,5 +1,14 @@
 const { ethers } = require('hardhat');
 
+const PROTOCOL_IDS = {
+  RRP: '1',
+  PSP: '2',
+  RELAYED_RRP: '3',
+  RELAYED_PSP: '4',
+  AIRSEEKER: '5',
+  AIRKEEPER: '12345',
+};
+
 function deriveWalletPathFromSponsorAddress(sponsorAddress, protocolId) {
   const sponsorAddressBN = ethers.BigNumber.from(sponsorAddress);
   const paths = [];
@@ -14,8 +23,8 @@ module.exports = {
   generateRandomAirnodeWallet: () => {
     const airnodeWallet = ethers.Wallet.createRandom();
     const airnodeMnemonic = airnodeWallet.mnemonic.phrase;
-    const airnodeHdNode = ethers.utils.HDNode.fromMnemonic(airnodeMnemonic).derivePath("m/44'/60'/0'");
-    const airnodeXpub = airnodeHdNode.neuter().extendedKey;
+    const hdNode = ethers.utils.HDNode.fromMnemonic(airnodeMnemonic).derivePath("m/44'/60'/0'");
+    const airnodeXpub = hdNode.neuter().extendedKey;
     return { airnodeAddress: airnodeWallet.address, airnodeMnemonic, airnodeXpub };
   },
   generateRandomAddress: () => {
@@ -86,4 +95,5 @@ module.exports = {
       ],
     };
   },
+  PROTOCOL_IDS,
 };

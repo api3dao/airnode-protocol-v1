@@ -14,11 +14,8 @@ import "./interfaces/IAirnodeProtocol.sol";
 /// The relayed version allows the requester to specify an Airnode that will
 /// sign the fulfillment data and a relayer that will report the signed
 /// fulfillment.
-/// @dev This contract inherits Multicall for Airnodes to be able to make batch
-/// static calls to read sponsorship states, and template and subscription
-/// details.
-/// StorageUtils, SponsorshipUtils and WithdrawalUtils also implement some
-/// auxiliary functionality for PSP.
+/// @dev StorageUtils, SponsorshipUtils and WithdrawalUtils also implement some
+/// auxiliary functionality for PSP
 contract AirnodeProtocol is
     ExtendedSelfMulticall,
     StorageUtils,
@@ -28,14 +25,14 @@ contract AirnodeProtocol is
 {
     using ECDSA for bytes32;
 
-    /// @notice Number of requests the requester made
-    /// @dev This can be used to calculate the ID of the next request that the
-    /// requester will make
+    /// @notice Number of requests the requester has made
     mapping(address => uint256) public override requesterToRequestCount;
 
     mapping(bytes32 => bytes32) private requestIdToFulfillmentParameters;
 
     /// @notice Called by the requester to make a request
+    /// @dev It is the responsibility of the respective Airnode to resolve if
+    /// `endpointOrTemplateId` is an endpoint ID or a template ID
     /// @param endpointOrTemplateId Endpoint or template ID
     /// @param parameters Parameters
     /// @param sponsor Sponsor address
@@ -102,8 +99,6 @@ contract AirnodeProtocol is
     /// there is no contract deployed at `fulfillAddress`.
     /// If `callSuccess` is `false`, `callData` can be decoded to retrieve the
     /// revert string.
-    /// This function emits its event after an untrusted low-level call,
-    /// meaning that the log indices of these events may be off.
     /// @param requestId Request ID
     /// @param airnode Airnode address
     /// @param requester Requester address
@@ -139,7 +134,8 @@ contract AirnodeProtocol is
             "Signature mismatch"
         );
         delete requestIdToFulfillmentParameters[requestId];
-        (callSuccess, callData) = requester.call( // solhint-disable-line avoid-low-level-calls
+        // solhint-disable-next-line avoid-low-level-calls
+        (callSuccess, callData) = requester.call(
             abi.encodeWithSelector(
                 fulfillFunctionId,
                 requestId,
@@ -164,7 +160,7 @@ contract AirnodeProtocol is
     /// cannot be fulfilled
     /// @dev The Airnode should fall back to this if a request cannot be
     /// fulfilled because of an error, including the static call to `fulfill()`
-    /// returning `false` for `callSuccess`.
+    /// returning `false` for `callSuccess`
     /// @param requestId Request ID
     /// @param airnode Airnode address
     /// @param requester Requester address
@@ -202,8 +198,8 @@ contract AirnodeProtocol is
 
     /// @notice Called by the requester to make a request to be fulfilled by a
     /// relayer
-    /// @dev The relayer address indexed in the relayed protocol logs because
-    /// it will be the relayer that will be listening to these logs
+    /// @dev The relayer address is indexed in the relayed protocol logs
+    /// because it will be the relayer that will be listening to these logs
     /// @param endpointOrTemplateId Endpoint or template ID
     /// @param parameters Parameters
     /// @param relayer Relayer address
@@ -305,7 +301,8 @@ contract AirnodeProtocol is
             "Signature mismatch"
         );
         delete requestIdToFulfillmentParameters[requestId];
-        (callSuccess, callData) = requester.call( // solhint-disable-line avoid-low-level-calls
+        // solhint-disable-next-line avoid-low-level-calls
+        (callSuccess, callData) = requester.call(
             abi.encodeWithSelector(
                 fulfillFunctionId,
                 requestId,
@@ -335,7 +332,7 @@ contract AirnodeProtocol is
 
     /// @notice Called by the relayer using the sponsor wallet if the request
     /// cannot be fulfilled
-    /// @dev Since failure may also include problems at the Airnode end (such
+    /// @dev Since failure may also include problems at the Airnode-end (such
     /// as it being unavailable), we are content with a signature from the
     /// relayer to validate failures. This is acceptable because explicit
     /// failures are mainly for easy debugging of issues, and the requester
