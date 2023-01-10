@@ -11,7 +11,7 @@ import "./interfaces/IExpiringMetaTxForwarder.sol";
 /// trust it
 /// @notice `msg.value` is not supported. Identical meta-txes are not
 /// supported. Target account must be a contract. Signer of the meta-tx is
-/// allowed to nullify it before execution, effectively rendering the signature
+/// allowed to cancel it before execution, effectively rendering the signature
 /// useless.
 /// This implementation is not intended to be used with general-purpose relayer
 /// networks. Instead, it is meant for use-cases where the relayer wants the
@@ -28,12 +28,10 @@ contract ExpiringMetaTxForwarder is Context, EIP712, IExpiringMetaTxForwarder {
     using ECDSA for bytes32;
     using Address for address;
 
-    /// @notice If the meta-tx with hash is executed or nullified
+    /// @notice If the meta-tx with hash is executed or canceled
     /// @dev We track this on a meta-tx basis and not by using nonces to avoid
     /// requiring users keep track of nonces
-    mapping(bytes32 => bool)
-        public
-        override metaTxWithHashIsExecutedOrNullified;
+    mapping(bytes32 => bool) public override metaTxWithHashIsExecutedOrCanceled;
 
     bytes32 private constant _TYPEHASH =
         keccak256(
@@ -62,13 +60,13 @@ contract ExpiringMetaTxForwarder is Context, EIP712, IExpiringMetaTxForwarder {
     }
 
     /// @notice Called by a meta-tx source to prevent it from being executed
-    /// @dev This can be used to nullify meta-txes that were issued
+    /// @dev This can be used to cancel meta-txes that were issued
     /// accidentally, e.g., with an unreasonably large expiration timestamp,
     /// which may create a dangling liability
     /// @param metaTx Meta-tx
-    function nullify(ExpiringMetaTx calldata metaTx) external override {
+    function cancel(ExpiringMetaTx calldata metaTx) external override {
         require(_msgSender() == metaTx.from, "Sender not meta-tx source");
-        emit NullifiedMetaTx(processMetaTx(metaTx));
+        emit CanceledMetaTx(processMetaTx(metaTx));
     }
 
     /// @notice Checks if the meta-tx is valid, invalidates it for future
@@ -90,13 +88,13 @@ contract ExpiringMetaTxForwarder is Context, EIP712, IExpiringMetaTxForwarder {
             )
         );
         require(
-            !metaTxWithHashIsExecutedOrNullified[metaTxHash],
-            "Meta-tx executed or nullified"
+            !metaTxWithHashIsExecutedOrCanceled[metaTxHash],
+            "Meta-tx executed or canceled"
         );
         require(
             metaTx.expirationTimestamp > block.timestamp,
             "Meta-tx expired"
         );
-        metaTxWithHashIsExecutedOrNullified[metaTxHash] = true;
+        metaTxWithHashIsExecutedOrCanceled[metaTxHash] = true;
     }
 }

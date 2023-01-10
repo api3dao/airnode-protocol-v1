@@ -73,7 +73,7 @@ describe('ExpiringMetaTxForwarder', function () {
 
   describe('execute', function () {
     context('Meta-tx with hash is not executed', function () {
-      context('Meta-tx with hash is not nullified', function () {
+      context('Meta-tx with hash is not canceled', function () {
         context('Meta-tx has not expired', function () {
           context('Signature is valid', function () {
             it('executes', async function () {
@@ -92,7 +92,7 @@ describe('ExpiringMetaTxForwarder', function () {
               );
               const counterInitial = await expiringMetaTxForwarderTarget.counter();
               const metaTxTypedDataHash = deriveTypedDataHashOfMetaTx(expiringMetaTxDomain, expiringMetaTxValue);
-              expect(await expiringMetaTxForwarder.metaTxWithHashIsExecutedOrNullified(metaTxTypedDataHash)).to.equal(
+              expect(await expiringMetaTxForwarder.metaTxWithHashIsExecutedOrCanceled(metaTxTypedDataHash)).to.equal(
                 false
               );
               const returndata = await expiringMetaTxForwarder
@@ -103,7 +103,7 @@ describe('ExpiringMetaTxForwarder', function () {
                 .to.emit(expiringMetaTxForwarder, 'ExecutedMetaTx')
                 .withArgs(metaTxTypedDataHash);
               expect(await expiringMetaTxForwarderTarget.counter()).to.be.equal(counterInitial.add(1));
-              expect(await expiringMetaTxForwarder.metaTxWithHashIsExecutedOrNullified(metaTxTypedDataHash)).to.equal(
+              expect(await expiringMetaTxForwarder.metaTxWithHashIsExecutedOrCanceled(metaTxTypedDataHash)).to.equal(
                 true
               );
             });
@@ -139,7 +139,7 @@ describe('ExpiringMetaTxForwarder', function () {
           });
         });
       });
-      context('Meta-tx with hash is nullified', function () {
+      context('Meta-tx with hash is canceled', function () {
         it('reverts', async function () {
           const { roles, expiringMetaTxForwarder, expiringMetaTxDomain, expiringMetaTxTypes, expiringMetaTxValue } =
             await helpers.loadFixture(deploy);
@@ -148,10 +148,10 @@ describe('ExpiringMetaTxForwarder', function () {
             expiringMetaTxTypes,
             expiringMetaTxValue
           );
-          await expiringMetaTxForwarder.connect(roles.owner).nullify(expiringMetaTxValue);
+          await expiringMetaTxForwarder.connect(roles.owner).cancel(expiringMetaTxValue);
           await expect(
             expiringMetaTxForwarder.connect(roles.randomPerson).execute(expiringMetaTxValue, signature)
-          ).to.be.revertedWith('Meta-tx executed or nullified');
+          ).to.be.revertedWith('Meta-tx executed or canceled');
         });
       });
     });
@@ -167,15 +167,15 @@ describe('ExpiringMetaTxForwarder', function () {
         await expiringMetaTxForwarder.connect(roles.randomPerson).execute(expiringMetaTxValue, signature);
         await expect(
           expiringMetaTxForwarder.connect(roles.randomPerson).execute(expiringMetaTxValue, signature)
-        ).to.be.revertedWith('Meta-tx executed or nullified');
+        ).to.be.revertedWith('Meta-tx executed or canceled');
       });
     });
   });
 
-  describe('nullify', function () {
+  describe('cancel', function () {
     context('Sender is meta-tx source', function () {
       context('Meta-tx with hash is not executed yet', function () {
-        context('Meta-tx with hash is not nullified yet', function () {
+        context('Meta-tx with hash is not canceled yet', function () {
           context('Meta-tx has not expired', function () {
             it('nullifies', async function () {
               const {
@@ -187,14 +187,14 @@ describe('ExpiringMetaTxForwarder', function () {
               } = await helpers.loadFixture(deploy);
               const counterInitial = await expiringMetaTxForwarderTarget.counter();
               const metaTxTypedDataHash = deriveTypedDataHashOfMetaTx(expiringMetaTxDomain, expiringMetaTxValue);
-              expect(await expiringMetaTxForwarder.metaTxWithHashIsExecutedOrNullified(metaTxTypedDataHash)).to.equal(
+              expect(await expiringMetaTxForwarder.metaTxWithHashIsExecutedOrCanceled(metaTxTypedDataHash)).to.equal(
                 false
               );
-              await expect(expiringMetaTxForwarder.connect(roles.owner).nullify(expiringMetaTxValue))
-                .to.emit(expiringMetaTxForwarder, 'NullifiedMetaTx')
+              await expect(expiringMetaTxForwarder.connect(roles.owner).cancel(expiringMetaTxValue))
+                .to.emit(expiringMetaTxForwarder, 'CanceledMetaTx')
                 .withArgs(metaTxTypedDataHash);
               expect(await expiringMetaTxForwarderTarget.counter()).to.be.equal(counterInitial);
-              expect(await expiringMetaTxForwarder.metaTxWithHashIsExecutedOrNullified(metaTxTypedDataHash)).to.equal(
+              expect(await expiringMetaTxForwarder.metaTxWithHashIsExecutedOrCanceled(metaTxTypedDataHash)).to.equal(
                 true
               );
             });
@@ -203,18 +203,18 @@ describe('ExpiringMetaTxForwarder', function () {
             it('reverts', async function () {
               const { roles, expiringMetaTxForwarder, expiringMetaTxValue } = await helpers.loadFixture(deploy);
               await helpers.time.setNextBlockTimestamp(expiringMetaTxValue.expirationTimestamp);
-              await expect(
-                expiringMetaTxForwarder.connect(roles.owner).nullify(expiringMetaTxValue)
-              ).to.be.revertedWith('Meta-tx expired');
+              await expect(expiringMetaTxForwarder.connect(roles.owner).cancel(expiringMetaTxValue)).to.be.revertedWith(
+                'Meta-tx expired'
+              );
             });
           });
         });
-        context('Meta-tx with hash is already nullified', function () {
+        context('Meta-tx with hash is already canceled', function () {
           it('reverts', async function () {
             const { roles, expiringMetaTxForwarder, expiringMetaTxValue } = await helpers.loadFixture(deploy);
-            await expiringMetaTxForwarder.connect(roles.owner).nullify(expiringMetaTxValue);
-            await expect(expiringMetaTxForwarder.connect(roles.owner).nullify(expiringMetaTxValue)).to.be.revertedWith(
-              'Meta-tx executed or nullified'
+            await expiringMetaTxForwarder.connect(roles.owner).cancel(expiringMetaTxValue);
+            await expect(expiringMetaTxForwarder.connect(roles.owner).cancel(expiringMetaTxValue)).to.be.revertedWith(
+              'Meta-tx executed or canceled'
             );
           });
         });
@@ -229,8 +229,8 @@ describe('ExpiringMetaTxForwarder', function () {
             expiringMetaTxValue
           );
           await expiringMetaTxForwarder.connect(roles.randomPerson).execute(expiringMetaTxValue, signature);
-          await expect(expiringMetaTxForwarder.connect(roles.owner).nullify(expiringMetaTxValue)).to.be.revertedWith(
-            'Meta-tx executed or nullified'
+          await expect(expiringMetaTxForwarder.connect(roles.owner).cancel(expiringMetaTxValue)).to.be.revertedWith(
+            'Meta-tx executed or canceled'
           );
         });
       });
@@ -239,7 +239,7 @@ describe('ExpiringMetaTxForwarder', function () {
       it('reverts', async function () {
         const { roles, expiringMetaTxForwarder, expiringMetaTxValue } = await helpers.loadFixture(deploy);
         await expect(
-          expiringMetaTxForwarder.connect(roles.randomPerson).nullify(expiringMetaTxValue)
+          expiringMetaTxForwarder.connect(roles.randomPerson).cancel(expiringMetaTxValue)
         ).to.be.revertedWith('Sender not meta-tx source');
       });
     });
