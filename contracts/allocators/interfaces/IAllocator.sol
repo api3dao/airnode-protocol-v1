@@ -6,7 +6,7 @@ interface IAllocator {
         address indexed airnode,
         uint256 slotIndex,
         bytes32 subscriptionId,
-        uint64 expirationTimestamp
+        uint32 expirationTimestamp
     );
 
     event ResetSlot(address indexed airnode, uint256 slotIndex);
@@ -15,14 +15,15 @@ interface IAllocator {
         address airnode,
         uint256 slotIndex,
         bytes32 subscriptionId,
-        uint64 expirationTimestamp
+        uint32 expirationTimestamp
     ) external;
 
     function resetSlot(address airnode, uint256 slotIndex) external;
 
-    function setterOfSlotIsCanStillSet(
+    function slotCanBeResetByAccount(
         address airnode,
-        uint256 slotIndex
+        uint256 slotIndex,
+        address account
     ) external view returns (bool);
 
     // solhint-disable-next-line func-name-mixedcase
@@ -40,6 +41,6 @@ interface IAllocator {
         returns (
             bytes32 subscriptionId,
             address setter,
-            uint64 expirationTimestamp
+            uint32 expirationTimestamp
         );
 }

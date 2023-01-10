@@ -26,3 +26,21 @@ yarn test:coverage
 # Outputs to `.gas_report`
 yarn test:gas
 ```
+
+# Temporary
+
+    // There are four roles implemented in this contract:
+    // Root
+    // └── (1) Admin (can grant and revoke the roles below)
+    //     ├── (2) Authorization expiration extender
+    //     ├── (3) Authorization expiration setter
+    //     └── (4) Indefinite authorizer
+    // Their IDs are derived from the descriptions below. Refer to
+    // AccessControlRegistry for more information.
+    // To clarify, the root role of the manager is the admin of (1), while (1)
+    // is the admin of (2), (3) and (4). So (1) is more of a "contract admin",
+    // while the `adminRole` used in AccessControl and AccessControlRegistry
+    // refers to a more general adminship relationship between roles.
+
+    /// @notice Airnode operators need to opt in to using each Allocator by
+    /// configuring their Airnode to do so

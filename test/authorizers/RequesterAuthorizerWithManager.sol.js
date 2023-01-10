@@ -1,158 +1,116 @@
-const hre = require('hardhat');
+const { ethers } = require('hardhat');
+const helpers = require('@nomicfoundation/hardhat-network-helpers');
 const { expect } = require('chai');
 const testUtils = require('../test-utils');
 
 describe('RequesterAuthorizerWithManager', function () {
-  let roles;
-  let accessControlRegistry, requesterAuthorizerWithManager;
-  let requesterAuthorizerWithManagerAdminRoleDescription = 'RequesterAuthorizerWithManager admin';
-  let adminRole, authorizationExpirationExtenderRole, authorizationExpirationSetterRole, indefiniteAuthorizerRole;
-  let airnodeAddress = testUtils.generateRandomAddress();
-
-  beforeEach(async () => {
-    const accounts = await hre.ethers.getSigners();
-    roles = {
+  async function deploy() {
+    const accounts = await ethers.getSigners();
+    const roles = {
       deployer: accounts[0],
       manager: accounts[1],
       authorizationExpirationExtender: accounts[2],
       authorizationExpirationSetter: accounts[3],
       indefiniteAuthorizer: accounts[4],
       anotherIndefiniteAuthorizer: accounts[5],
-      requester: accounts[5],
+      airnode: accounts[6],
+      requester: accounts[7],
       randomPerson: accounts[9],
     };
-    const accessControlRegistryFactory = await hre.ethers.getContractFactory('AccessControlRegistry', roles.deployer);
-    accessControlRegistry = await accessControlRegistryFactory.deploy();
-    const requesterAuthorizerWithManagerFactory = await hre.ethers.getContractFactory(
+    const adminRoleDescription = 'RequesterAuthorizerWithManager admin';
+    const authorizationExpirationExtenderRoleDescription = 'Authorization expiration extender';
+    const authorizationExpirationSetterRoleDescription = 'Authorization expiration setter';
+    const indefiniteAuthorizerRoleDescription = 'Indefinite authorizer';
+    const accessControlRegistryFactory = await ethers.getContractFactory('AccessControlRegistry', roles.deployer);
+    const accessControlRegistry = await accessControlRegistryFactory.deploy();
+    const requesterAuthorizerWithManagerFactory = await ethers.getContractFactory(
       'RequesterAuthorizerWithManager',
       roles.deployer
     );
-    requesterAuthorizerWithManager = await requesterAuthorizerWithManagerFactory.deploy(
+    const requesterAuthorizerWithManager = await requesterAuthorizerWithManagerFactory.deploy(
       accessControlRegistry.address,
-      requesterAuthorizerWithManagerAdminRoleDescription,
+      adminRoleDescription,
       roles.manager.address
     );
-    const managerRootRole = testUtils.deriveRootRole(roles.manager.address);
-    // Initialize the roles and grant them to respective accounts
-    adminRole = await requesterAuthorizerWithManager.adminRole();
+    const rootRole = testUtils.deriveRootRole(roles.manager.address);
+    const adminRole = testUtils.deriveRole(rootRole, adminRoleDescription);
+    const authorizationExpirationExtenderRole = testUtils.deriveRole(
+      adminRole,
+      authorizationExpirationExtenderRoleDescription
+    );
+    const authorizationExpirationSetterRole = testUtils.deriveRole(
+      adminRole,
+      authorizationExpirationSetterRoleDescription
+    );
+    const indefiniteAuthorizerRole = testUtils.deriveRole(adminRole, indefiniteAuthorizerRoleDescription);
+    await accessControlRegistry.connect(roles.manager).initializeRoleAndGrantToSender(rootRole, adminRoleDescription);
     await accessControlRegistry
       .connect(roles.manager)
-      .initializeRoleAndGrantToSender(managerRootRole, requesterAuthorizerWithManagerAdminRoleDescription);
-    authorizationExpirationExtenderRole = await requesterAuthorizerWithManager.authorizationExpirationExtenderRole();
+      .initializeRoleAndGrantToSender(adminRole, authorizationExpirationExtenderRoleDescription);
     await accessControlRegistry
       .connect(roles.manager)
-      .initializeRoleAndGrantToSender(
-        adminRole,
-        await requesterAuthorizerWithManager.AUTHORIZATION_EXPIRATION_EXTENDER_ROLE_DESCRIPTION()
-      );
+      .initializeRoleAndGrantToSender(adminRole, authorizationExpirationSetterRoleDescription);
+    await accessControlRegistry
+      .connect(roles.manager)
+      .initializeRoleAndGrantToSender(adminRole, indefiniteAuthorizerRoleDescription);
     await accessControlRegistry
       .connect(roles.manager)
       .grantRole(authorizationExpirationExtenderRole, roles.authorizationExpirationExtender.address);
-    authorizationExpirationSetterRole = await requesterAuthorizerWithManager.authorizationExpirationSetterRole();
-    await accessControlRegistry
-      .connect(roles.manager)
-      .initializeRoleAndGrantToSender(
-        adminRole,
-        await requesterAuthorizerWithManager.AUTHORIZATION_EXPIRATION_SETTER_ROLE_DESCRIPTION()
-      );
     await accessControlRegistry
       .connect(roles.manager)
       .grantRole(authorizationExpirationSetterRole, roles.authorizationExpirationSetter.address);
-    indefiniteAuthorizerRole = await requesterAuthorizerWithManager.indefiniteAuthorizerRole();
-    await accessControlRegistry
-      .connect(roles.manager)
-      .initializeRoleAndGrantToSender(
-        adminRole,
-        await requesterAuthorizerWithManager.INDEFINITE_AUTHORIZER_ROLE_DESCRIPTION()
-      );
     await accessControlRegistry
       .connect(roles.manager)
       .grantRole(indefiniteAuthorizerRole, roles.indefiniteAuthorizer.address);
     await accessControlRegistry
       .connect(roles.manager)
       .grantRole(indefiniteAuthorizerRole, roles.anotherIndefiniteAuthorizer.address);
-    // Grant `roles.randomPerson` some invalid roles
-    const randomRoleDescription = Math.random().toString();
-    const randomRole = testUtils.deriveRole(managerRootRole, randomRoleDescription);
+    await accessControlRegistry.connect(roles.manager).renounceRole(adminRole, roles.manager.address);
     await accessControlRegistry
       .connect(roles.manager)
-      .initializeRoleAndGrantToSender(managerRootRole, randomRoleDescription);
-    await accessControlRegistry.connect(roles.manager).grantRole(randomRole, roles.randomPerson.address);
-    const invalidAuthorizationExpirationExtenderRole = testUtils.deriveRole(
-      managerRootRole,
-      await requesterAuthorizerWithManager.AUTHORIZATION_EXPIRATION_EXTENDER_ROLE_DESCRIPTION()
-    );
+      .renounceRole(authorizationExpirationExtenderRole, roles.manager.address);
     await accessControlRegistry
       .connect(roles.manager)
-      .initializeRoleAndGrantToSender(
-        managerRootRole,
-        await requesterAuthorizerWithManager.AUTHORIZATION_EXPIRATION_EXTENDER_ROLE_DESCRIPTION()
-      );
-    await accessControlRegistry
-      .connect(roles.manager)
-      .grantRole(invalidAuthorizationExpirationExtenderRole, roles.randomPerson.address);
-    const invalidAuthorizationExpirationSetterRole = testUtils.deriveRole(
-      managerRootRole,
-      await requesterAuthorizerWithManager.AUTHORIZATION_EXPIRATION_SETTER_ROLE_DESCRIPTION()
-    );
-    await accessControlRegistry
-      .connect(roles.manager)
-      .initializeRoleAndGrantToSender(
-        managerRootRole,
-        await requesterAuthorizerWithManager.AUTHORIZATION_EXPIRATION_SETTER_ROLE_DESCRIPTION()
-      );
-    await accessControlRegistry
-      .connect(roles.manager)
-      .grantRole(invalidAuthorizationExpirationSetterRole, roles.randomPerson.address);
-    const invalidIndefiniteAuthorizerRole = testUtils.deriveRole(
-      managerRootRole,
-      await requesterAuthorizerWithManager.INDEFINITE_AUTHORIZER_ROLE_DESCRIPTION()
-    );
-    await accessControlRegistry
-      .connect(roles.manager)
-      .initializeRoleAndGrantToSender(
-        managerRootRole,
-        await requesterAuthorizerWithManager.INDEFINITE_AUTHORIZER_ROLE_DESCRIPTION()
-      );
-    await accessControlRegistry
-      .connect(roles.manager)
-      .grantRole(invalidIndefiniteAuthorizerRole, roles.randomPerson.address);
-  });
+      .renounceRole(authorizationExpirationSetterRole, roles.manager.address);
+    await accessControlRegistry.connect(roles.manager).renounceRole(indefiniteAuthorizerRole, roles.manager.address);
+    return {
+      roles,
+      accessControlRegistry,
+      requesterAuthorizerWithManager,
+      adminRoleDescription,
+      adminRole,
+      authorizationExpirationExtenderRole,
+      authorizationExpirationSetterRole,
+      indefiniteAuthorizerRole,
+    };
+  }
 
   describe('constructor', function () {
     context('AccessControlRegistry address is not zero', function () {
       context('Admin role description string is not empty', function () {
         context('Manager address is not zero', function () {
           it('constructs', async function () {
-            const requesterAuthorizerWithManagerFactory = await hre.ethers.getContractFactory(
-              'RequesterAuthorizerWithManager',
-              roles.deployer
-            );
-            requesterAuthorizerWithManager = await requesterAuthorizerWithManagerFactory.deploy(
-              accessControlRegistry.address,
-              requesterAuthorizerWithManagerAdminRoleDescription,
-              roles.manager.address
-            );
+            const { roles, accessControlRegistry, requesterAuthorizerWithManager, adminRoleDescription } =
+              await helpers.loadFixture(deploy);
             expect(await requesterAuthorizerWithManager.accessControlRegistry()).to.equal(
               accessControlRegistry.address
             );
-            expect(await requesterAuthorizerWithManager.adminRoleDescription()).to.equal(
-              requesterAuthorizerWithManagerAdminRoleDescription
-            );
+            expect(await requesterAuthorizerWithManager.adminRoleDescription()).to.equal(adminRoleDescription);
             expect(await requesterAuthorizerWithManager.manager()).to.equal(roles.manager.address);
           });
         });
         context('Manager address is zero', function () {
           it('reverts', async function () {
-            const requesterAuthorizerWithManagerFactory = await hre.ethers.getContractFactory(
+            const { roles, accessControlRegistry, adminRoleDescription } = await helpers.loadFixture(deploy);
+            const requesterAuthorizerWithManagerFactory = await ethers.getContractFactory(
               'RequesterAuthorizerWithManager',
               roles.deployer
             );
             await expect(
               requesterAuthorizerWithManagerFactory.deploy(
                 accessControlRegistry.address,
-                requesterAuthorizerWithManagerAdminRoleDescription,
-                hre.ethers.constants.AddressZero
+                adminRoleDescription,
+                ethers.constants.AddressZero
               )
             ).to.be.revertedWith('Manager address zero');
           });
@@ -160,7 +118,8 @@ describe('RequesterAuthorizerWithManager', function () {
       });
       context('Admin role description string is empty', function () {
         it('reverts', async function () {
-          const requesterAuthorizerWithManagerFactory = await hre.ethers.getContractFactory(
+          const { roles, accessControlRegistry } = await helpers.loadFixture(deploy);
+          const requesterAuthorizerWithManagerFactory = await ethers.getContractFactory(
             'RequesterAuthorizerWithManager',
             roles.deployer
           );
@@ -172,14 +131,15 @@ describe('RequesterAuthorizerWithManager', function () {
     });
     context('AccessControlRegistry address is zero', function () {
       it('reverts', async function () {
-        const requesterAuthorizerWithManagerFactory = await hre.ethers.getContractFactory(
+        const { roles, adminRoleDescription } = await helpers.loadFixture(deploy);
+        const requesterAuthorizerWithManagerFactory = await ethers.getContractFactory(
           'RequesterAuthorizerWithManager',
           roles.deployer
         );
         await expect(
           requesterAuthorizerWithManagerFactory.deploy(
-            hre.ethers.constants.AddressZero,
-            requesterAuthorizerWithManagerAdminRoleDescription,
+            ethers.constants.AddressZero,
+            adminRoleDescription,
             roles.manager.address
           )
         ).to.be.revertedWithoutReason;
@@ -189,450 +149,482 @@ describe('RequesterAuthorizerWithManager', function () {
 
   describe('extendAuthorizerExpiration', function () {
     context('Sender has authorization expiration extender role', function () {
-      context('Airnode address not zero', function () {
-        context('Requester address not zero', function () {
-          context('Timestamp extends authorization expiration', function () {
-            it('extends authorization expiration', async function () {
-              let authorizationStatus;
-              authorizationStatus = await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
-                airnodeAddress,
+      context('Requester address is not zero', function () {
+        context('Timestamp extends authorization expiration', function () {
+          it('extends authorization expiration', async function () {
+            const { roles, requesterAuthorizerWithManager } = await helpers.loadFixture(deploy);
+            const authorizationStatusBefore =
+              await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
+                roles.airnode.address,
                 roles.requester.address
               );
-              expect(authorizationStatus.expirationTimestamp).to.equal(0);
-              expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(0);
-              const expirationTimestamp = 1000;
-              await expect(
-                requesterAuthorizerWithManager
-                  .connect(roles.authorizationExpirationExtender)
-                  .extendAuthorizerExpiration(airnodeAddress, roles.requester.address, expirationTimestamp)
-              )
-                .to.emit(requesterAuthorizerWithManager, 'ExtendedAuthorizationExpiration')
-                .withArgs(
-                  airnodeAddress,
-                  roles.requester.address,
-                  roles.authorizationExpirationExtender.address,
-                  expirationTimestamp
-                );
-              authorizationStatus = await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
-                airnodeAddress,
-
-                roles.requester.address
-              );
-              expect(authorizationStatus.expirationTimestamp).to.equal(1000);
-              expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(0);
-            });
-          });
-          context('Timestamp does not extend authorization expiration', function () {
-            it('reverts', async function () {
-              await expect(
-                requesterAuthorizerWithManager
-                  .connect(roles.authorizationExpirationExtender)
-                  .extendAuthorizerExpiration(airnodeAddress, roles.requester.address, 0)
-              ).to.be.revertedWith('Does not extend expiration');
-            });
-          });
-        });
-        context('Requester address zero', function () {
-          it('reverts', async function () {
+            expect(authorizationStatusBefore.expirationTimestamp).to.equal(0);
+            expect(authorizationStatusBefore.indefiniteAuthorizationCount).to.equal(0);
             const expirationTimestamp = 1000;
             await expect(
-              requesterAuthorizerWithManager.connect(roles.authorizationExpirationExtender).extendAuthorizerExpiration(
-                airnodeAddress,
-
-                hre.ethers.constants.AddressZero,
+              requesterAuthorizerWithManager
+                .connect(roles.authorizationExpirationExtender)
+                .extendAuthorizerExpiration(roles.airnode.address, roles.requester.address, expirationTimestamp)
+            )
+              .to.emit(requesterAuthorizerWithManager, 'ExtendedAuthorizationExpiration')
+              .withArgs(
+                roles.airnode.address,
+                roles.requester.address,
+                roles.authorizationExpirationExtender.address,
                 expirationTimestamp
-              )
-            ).to.be.revertedWith('Requester address zero');
+              );
+            const authorizationStatusAfter =
+              await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
+                roles.airnode.address,
+                roles.requester.address
+              );
+            expect(authorizationStatusAfter.expirationTimestamp).to.equal(1000);
+            expect(authorizationStatusAfter.indefiniteAuthorizationCount).to.equal(0);
+          });
+        });
+        context('Timestamp does not extend authorization expiration', function () {
+          it('reverts', async function () {
+            const { roles, requesterAuthorizerWithManager } = await helpers.loadFixture(deploy);
+            await expect(
+              requesterAuthorizerWithManager
+                .connect(roles.authorizationExpirationExtender)
+                .extendAuthorizerExpiration(roles.airnode.address, roles.requester.address, 0)
+            ).to.be.revertedWith('Does not extend expiration');
           });
         });
       });
-      context('Airnode address zero', function () {
+      context('Requester address is zero', function () {
         it('reverts', async function () {
+          const { roles, requesterAuthorizerWithManager } = await helpers.loadFixture(deploy);
           const expirationTimestamp = 1000;
           await expect(
-            requesterAuthorizerWithManager.connect(roles.authorizationExpirationExtender).extendAuthorizerExpiration(
-              hre.ethers.constants.AddressZero,
-
-              roles.requester.address,
-              expirationTimestamp
-            )
-          ).to.be.revertedWith('Airnode address zero');
+            requesterAuthorizerWithManager
+              .connect(roles.authorizationExpirationExtender)
+              .extendAuthorizerExpiration(roles.airnode.address, ethers.constants.AddressZero, expirationTimestamp)
+          ).to.be.revertedWith('Requester address zero');
         });
       });
     });
-    context('Sender is the manager address', function () {
+    context('Sender is the manager', function () {
       context('Timestamp extends authorization expiration', function () {
         it('extends authorization expiration', async function () {
-          await accessControlRegistry
-            .connect(roles.manager)
-            .renounceRole(authorizationExpirationExtenderRole, roles.manager.address);
-          let authorizationStatus;
-          authorizationStatus = await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
-            airnodeAddress,
-
-            roles.requester.address
-          );
-          expect(authorizationStatus.expirationTimestamp).to.equal(0);
-          expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(0);
+          const { roles, requesterAuthorizerWithManager } = await helpers.loadFixture(deploy);
+          const authorizationStatusBefore =
+            await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
+              roles.airnode.address,
+              roles.requester.address
+            );
+          expect(authorizationStatusBefore.expirationTimestamp).to.equal(0);
+          expect(authorizationStatusBefore.indefiniteAuthorizationCount).to.equal(0);
           const expirationTimestamp = 1000;
           await expect(
             requesterAuthorizerWithManager
               .connect(roles.manager)
-              .extendAuthorizerExpiration(airnodeAddress, roles.requester.address, expirationTimestamp)
+              .extendAuthorizerExpiration(roles.airnode.address, roles.requester.address, expirationTimestamp, {
+                gasLimit: 1000000,
+              })
           )
             .to.emit(requesterAuthorizerWithManager, 'ExtendedAuthorizationExpiration')
-            .withArgs(airnodeAddress, roles.requester.address, roles.manager.address, expirationTimestamp);
-          authorizationStatus = await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
-            airnodeAddress,
-
+            .withArgs(roles.airnode.address, roles.requester.address, roles.manager.address, expirationTimestamp);
+          const authorizationStatusAfter = await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
+            roles.airnode.address,
             roles.requester.address
           );
-          expect(authorizationStatus.expirationTimestamp).to.equal(1000);
-          expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(0);
+          expect(authorizationStatusAfter.expirationTimestamp).to.equal(1000);
+          expect(authorizationStatusAfter.indefiniteAuthorizationCount).to.equal(0);
         });
       });
       context('Timestamp does not extend authorization expiration', function () {
         it('reverts', async function () {
-          await accessControlRegistry
-            .connect(roles.manager)
-            .renounceRole(authorizationExpirationExtenderRole, roles.manager.address);
+          const { roles, requesterAuthorizerWithManager } = await helpers.loadFixture(deploy);
           await expect(
             requesterAuthorizerWithManager
               .connect(roles.manager)
-              .extendAuthorizerExpiration(airnodeAddress, roles.requester.address, 0)
+              .extendAuthorizerExpiration(roles.airnode.address, roles.requester.address, 0, { gasLimit: 1000000 })
           ).to.be.revertedWith('Does not extend expiration');
         });
       });
     });
-    context(
-      'Sender does not have the authorization expiration extender role and is not the manager address',
-      function () {
-        it('reverts', async function () {
-          await expect(
-            requesterAuthorizerWithManager
-              .connect(roles.authorizationExpirationSetter)
-              .extendAuthorizerExpiration(airnodeAddress, roles.requester.address, 1000)
-          ).to.be.revertedWith('Cannot extend expiration');
-          await expect(
-            requesterAuthorizerWithManager
-              .connect(roles.indefiniteAuthorizer)
-              .extendAuthorizerExpiration(airnodeAddress, roles.requester.address, 1000)
-          ).to.be.revertedWith('Cannot extend expiration');
-          await expect(
-            requesterAuthorizerWithManager
-              .connect(roles.randomPerson)
-              .extendAuthorizerExpiration(airnodeAddress, roles.requester.address, 1000)
-          ).to.be.revertedWith('Cannot extend expiration');
+    // Let us demonstrate meta-txes as a proof of concept
+    context('Sender using a meta-tx signed by the manager', function () {
+      context('Timestamp extends authorization expiration', function () {
+        it('extends authorization expiration', async function () {
+          const { roles, accessControlRegistry, requesterAuthorizerWithManager } = await helpers.loadFixture(deploy);
+          const authorizationStatusBefore =
+            await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
+              roles.airnode.address,
+              roles.requester.address
+            );
+          expect(authorizationStatusBefore.expirationTimestamp).to.equal(0);
+          expect(authorizationStatusBefore.indefiniteAuthorizationCount).to.equal(0);
+          const expirationTimestamp = 1000;
+
+          const from = roles.manager.address;
+          const to = requesterAuthorizerWithManager.address;
+          const data = requesterAuthorizerWithManager.interface.encodeFunctionData('extendAuthorizerExpiration', [
+            roles.airnode.address,
+            roles.requester.address,
+            expirationTimestamp,
+          ]);
+          const metaTxExpirationTimestamp = (await testUtils.getCurrentTimestamp(ethers.provider)) + 3600;
+
+          const domainName = 'ExpiringMetaTxForwarder';
+          const domainVersion = '1.0.0';
+          const domainChainId = (await ethers.provider.getNetwork()).chainId;
+          const domainAddress = accessControlRegistry.address;
+
+          const domain = {
+            name: domainName,
+            version: domainVersion,
+            chainId: domainChainId,
+            verifyingContract: domainAddress,
+          };
+          const types = {
+            ExpiringMetaTx: [
+              { name: 'from', type: 'address' },
+              { name: 'to', type: 'address' },
+              { name: 'data', type: 'bytes' },
+              { name: 'expirationTimestamp', type: 'uint256' },
+            ],
+          };
+          const value = {
+            from,
+            to,
+            data,
+            expirationTimestamp: metaTxExpirationTimestamp,
+          };
+          const signature = await roles.manager._signTypedData(domain, types, value);
+
+          await expect(accessControlRegistry.connect(roles.randomPerson).execute(value, signature))
+            .to.emit(requesterAuthorizerWithManager, 'ExtendedAuthorizationExpiration')
+            .withArgs(roles.airnode.address, roles.requester.address, roles.manager.address, expirationTimestamp);
+
+          const authorizationStatusAfter = await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
+            roles.airnode.address,
+            roles.requester.address
+          );
+          expect(authorizationStatusAfter.expirationTimestamp).to.equal(1000);
+          expect(authorizationStatusAfter.indefiniteAuthorizationCount).to.equal(0);
         });
-      }
-    );
+      });
+      context('Timestamp does not extend authorization expiration', function () {
+        it('reverts', async function () {
+          const { roles, accessControlRegistry, requesterAuthorizerWithManager } = await helpers.loadFixture(deploy);
+
+          const from = roles.manager.address;
+          const to = requesterAuthorizerWithManager.address;
+          const data = requesterAuthorizerWithManager.interface.encodeFunctionData('extendAuthorizerExpiration', [
+            roles.airnode.address,
+            roles.requester.address,
+            0,
+          ]);
+          const metaTxExpirationTimestamp = (await testUtils.getCurrentTimestamp(ethers.provider)) + 3600;
+
+          const domainName = 'ExpiringMetaTxForwarder';
+          const domainVersion = '1.0.0';
+          const domainChainId = (await ethers.provider.getNetwork()).chainId;
+          const domainAddress = accessControlRegistry.address;
+
+          const domain = {
+            name: domainName,
+            version: domainVersion,
+            chainId: domainChainId,
+            verifyingContract: domainAddress,
+          };
+          const types = {
+            ExpiringMetaTx: [
+              { name: 'from', type: 'address' },
+              { name: 'to', type: 'address' },
+              { name: 'data', type: 'bytes' },
+              { name: 'expirationTimestamp', type: 'uint256' },
+            ],
+          };
+          const value = {
+            from,
+            to,
+            data,
+            expirationTimestamp: metaTxExpirationTimestamp,
+          };
+          const signature = await roles.manager._signTypedData(domain, types, value);
+
+          await expect(accessControlRegistry.connect(roles.randomPerson).execute(value, signature)).to.be.revertedWith(
+            'Does not extend expiration'
+          );
+        });
+      });
+    });
+    context('Sender does not have the authorization expiration extender role and is not the manager', function () {
+      it('reverts', async function () {
+        const { roles, requesterAuthorizerWithManager } = await helpers.loadFixture(deploy);
+
+        await expect(
+          requesterAuthorizerWithManager
+            .connect(roles.authorizationExpirationSetter)
+            .extendAuthorizerExpiration(roles.airnode.address, roles.requester.address, 1000)
+        ).to.be.revertedWith('Cannot extend expiration');
+        await expect(
+          requesterAuthorizerWithManager
+            .connect(roles.indefiniteAuthorizer)
+            .extendAuthorizerExpiration(roles.airnode.address, roles.requester.address, 1000)
+        ).to.be.revertedWith('Cannot extend expiration');
+        await expect(
+          requesterAuthorizerWithManager
+            .connect(roles.randomPerson)
+            .extendAuthorizerExpiration(roles.airnode.address, roles.requester.address, 1000)
+        ).to.be.revertedWith('Cannot extend expiration');
+      });
+    });
   });
 
   describe('setAuthorizationExpiration', function () {
     context('Sender has authorization expiration setter role', function () {
-      context('Airnode address not zero', function () {
-        context('Requester address not zero', function () {
-          it('sets authorization expiration', async function () {
-            let authorizationStatus;
-            const expirationTimestamp = 1000;
-            await expect(
-              requesterAuthorizerWithManager
-                .connect(roles.authorizationExpirationSetter)
-                .setAuthorizationExpiration(airnodeAddress, roles.requester.address, expirationTimestamp)
-            )
-              .to.emit(requesterAuthorizerWithManager, 'SetAuthorizationExpiration')
-              .withArgs(
-                airnodeAddress,
-
-                roles.requester.address,
-                roles.authorizationExpirationSetter.address,
-                expirationTimestamp
-              );
-            authorizationStatus = await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
-              airnodeAddress,
-
-              roles.requester.address
-            );
-            expect(authorizationStatus.expirationTimestamp).to.equal(expirationTimestamp);
-            expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(0);
-            await expect(
-              requesterAuthorizerWithManager
-                .connect(roles.authorizationExpirationSetter)
-                .setAuthorizationExpiration(airnodeAddress, roles.requester.address, 0)
-            )
-              .to.emit(requesterAuthorizerWithManager, 'SetAuthorizationExpiration')
-              .withArgs(
-                airnodeAddress,
-
-                roles.requester.address,
-                roles.authorizationExpirationSetter.address,
-                0
-              );
-            authorizationStatus = await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
-              airnodeAddress,
-
-              roles.requester.address
-            );
-            expect(authorizationStatus.expirationTimestamp).to.equal(0);
-            expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(0);
-          });
-        });
-        context('Requester address zero', function () {
-          it('reverts', async function () {
-            await expect(
-              requesterAuthorizerWithManager
-                .connect(roles.authorizationExpirationSetter)
-                .setAuthorizationExpiration(airnodeAddress, hre.ethers.constants.AddressZero, 0)
-            ).to.be.revertedWith('Requester address zero');
-          });
-        });
-      });
-      context('Airnode address zero', function () {
-        it('reverts', async function () {
+      context('Requester address is not zero', function () {
+        it('sets authorization expiration', async function () {
+          const { roles, requesterAuthorizerWithManager } = await helpers.loadFixture(deploy);
+          const expirationTimestamp = 1000;
           await expect(
             requesterAuthorizerWithManager
               .connect(roles.authorizationExpirationSetter)
-              .setAuthorizationExpiration(hre.ethers.constants.AddressZero, roles.requester.address, 0)
-          ).to.be.revertedWith('Airnode address zero');
+              .setAuthorizationExpiration(roles.airnode.address, roles.requester.address, expirationTimestamp)
+          )
+            .to.emit(requesterAuthorizerWithManager, 'SetAuthorizationExpiration')
+            .withArgs(
+              roles.airnode.address,
+              roles.requester.address,
+              roles.authorizationExpirationSetter.address,
+              expirationTimestamp
+            );
+          const authorizationStatusBefore =
+            await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
+              roles.airnode.address,
+              roles.requester.address
+            );
+          expect(authorizationStatusBefore.expirationTimestamp).to.equal(expirationTimestamp);
+          expect(authorizationStatusBefore.indefiniteAuthorizationCount).to.equal(0);
+          await expect(
+            requesterAuthorizerWithManager
+              .connect(roles.authorizationExpirationSetter)
+              .setAuthorizationExpiration(roles.airnode.address, roles.requester.address, 0)
+          )
+            .to.emit(requesterAuthorizerWithManager, 'SetAuthorizationExpiration')
+            .withArgs(roles.airnode.address, roles.requester.address, roles.authorizationExpirationSetter.address, 0);
+          const authorizationStatusAfter = await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
+            roles.airnode.address,
+            roles.requester.address
+          );
+          expect(authorizationStatusAfter.expirationTimestamp).to.equal(0);
+          expect(authorizationStatusAfter.indefiniteAuthorizationCount).to.equal(0);
+        });
+      });
+      context('Requester address is zero', function () {
+        it('reverts', async function () {
+          const { roles, requesterAuthorizerWithManager } = await helpers.loadFixture(deploy);
+          await expect(
+            requesterAuthorizerWithManager
+              .connect(roles.authorizationExpirationSetter)
+              .setAuthorizationExpiration(roles.airnode.address, ethers.constants.AddressZero, 0)
+          ).to.be.revertedWith('Requester address zero');
         });
       });
     });
-    context('Sender is tha manager address', function () {
+    context('Sender is the manager', function () {
       it('sets authorization expiration', async function () {
-        await accessControlRegistry
-          .connect(roles.manager)
-          .renounceRole(authorizationExpirationSetterRole, roles.manager.address);
-        let authorizationStatus;
+        const { roles, requesterAuthorizerWithManager } = await helpers.loadFixture(deploy);
         const expirationTimestamp = 1000;
         await expect(
           requesterAuthorizerWithManager
             .connect(roles.manager)
-            .setAuthorizationExpiration(airnodeAddress, roles.requester.address, expirationTimestamp)
+            .setAuthorizationExpiration(roles.airnode.address, roles.requester.address, expirationTimestamp, {
+              gasLimit: 1000000,
+            })
         )
           .to.emit(requesterAuthorizerWithManager, 'SetAuthorizationExpiration')
-          .withArgs(airnodeAddress, roles.requester.address, roles.manager.address, expirationTimestamp);
-        authorizationStatus = await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
-          airnodeAddress,
-
+          .withArgs(roles.airnode.address, roles.requester.address, roles.manager.address, expirationTimestamp);
+        const authorizationStatusBefore = await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
+          roles.airnode.address,
           roles.requester.address
         );
-        expect(authorizationStatus.expirationTimestamp).to.equal(expirationTimestamp);
-        expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(0);
+        expect(authorizationStatusBefore.expirationTimestamp).to.equal(expirationTimestamp);
+        expect(authorizationStatusBefore.indefiniteAuthorizationCount).to.equal(0);
         await expect(
           requesterAuthorizerWithManager
             .connect(roles.manager)
-            .setAuthorizationExpiration(airnodeAddress, roles.requester.address, 0)
+            .setAuthorizationExpiration(roles.airnode.address, roles.requester.address, 0, { gasLimit: 1000000 })
         )
           .to.emit(requesterAuthorizerWithManager, 'SetAuthorizationExpiration')
-          .withArgs(airnodeAddress, roles.requester.address, roles.manager.address, 0);
-        authorizationStatus = await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
-          airnodeAddress,
-
+          .withArgs(roles.airnode.address, roles.requester.address, roles.manager.address, 0);
+        const authorizationStatusAfter = await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
+          roles.airnode.address,
           roles.requester.address
         );
-        expect(authorizationStatus.expirationTimestamp).to.equal(0);
-        expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(0);
+        expect(authorizationStatusAfter.expirationTimestamp).to.equal(0);
+        expect(authorizationStatusAfter.indefiniteAuthorizationCount).to.equal(0);
       });
     });
-    context(
-      'Sender does not have the authorization expiration setter role and is not the manager address',
-      function () {
-        it('reverts', async function () {
-          await expect(
-            requesterAuthorizerWithManager
-              .connect(roles.authorizationExpirationExtender)
-              .setAuthorizationExpiration(airnodeAddress, roles.requester.address, 0)
-          ).to.be.revertedWith('Cannot set expiration');
-          await expect(
-            requesterAuthorizerWithManager
-              .connect(roles.indefiniteAuthorizer)
-              .setAuthorizationExpiration(airnodeAddress, roles.requester.address, 0)
-          ).to.be.revertedWith('Cannot set expiration');
-          await expect(
-            requesterAuthorizerWithManager
-              .connect(roles.randomPerson)
-              .setAuthorizationExpiration(airnodeAddress, roles.requester.address, 0)
-          ).to.be.revertedWith('Cannot set expiration');
-        });
-      }
-    );
+    context('Sender does not have the authorization expiration setter role and is not the manager', function () {
+      it('reverts', async function () {
+        const { roles, requesterAuthorizerWithManager } = await helpers.loadFixture(deploy);
+        await expect(
+          requesterAuthorizerWithManager
+            .connect(roles.authorizationExpirationExtender)
+            .setAuthorizationExpiration(roles.airnode.address, roles.requester.address, 0)
+        ).to.be.revertedWith('Cannot set expiration');
+        await expect(
+          requesterAuthorizerWithManager
+            .connect(roles.indefiniteAuthorizer)
+            .setAuthorizationExpiration(roles.airnode.address, roles.requester.address, 0)
+        ).to.be.revertedWith('Cannot set expiration');
+        await expect(
+          requesterAuthorizerWithManager
+            .connect(roles.randomPerson)
+            .setAuthorizationExpiration(roles.airnode.address, roles.requester.address, 0)
+        ).to.be.revertedWith('Cannot set expiration');
+      });
+    });
   });
 
   describe('setIndefiniteAuthorizationStatus', function () {
     context('Sender has indefinite authorizer role', function () {
-      context('Airnode address not zero', function () {
-        context('Requester address not zero', function () {
-          it('sets indefinite authorization status', async function () {
-            let authorizationStatus;
-            // Authorize indefinitely
-            await expect(
-              requesterAuthorizerWithManager
-                .connect(roles.indefiniteAuthorizer)
-                .setIndefiniteAuthorizationStatus(airnodeAddress, roles.requester.address, true)
-            )
-              .to.emit(requesterAuthorizerWithManager, 'SetIndefiniteAuthorizationStatus')
-              .withArgs(
-                airnodeAddress,
-
-                roles.requester.address,
-                roles.indefiniteAuthorizer.address,
-                true,
-                1
-              );
-            authorizationStatus = await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
-              airnodeAddress,
-
+      context('Requester address is not zero', function () {
+        it('sets indefinite authorization status', async function () {
+          const { roles, requesterAuthorizerWithManager } = await helpers.loadFixture(deploy);
+          const authorizationStatusBefore =
+            await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
+              roles.airnode.address,
               roles.requester.address
             );
-            expect(authorizationStatus.expirationTimestamp).to.equal(0);
-            expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(1);
-            expect(
-              await requesterAuthorizerWithManager.airnodeToRequesterToSetterToIndefiniteAuthorizationStatus(
-                airnodeAddress,
-                roles.requester.address,
-                roles.indefiniteAuthorizer.address
-              )
-            ).to.equal(true);
-            // Authorizing indefinitely again should have no effect
-            await expect(
-              requesterAuthorizerWithManager
-                .connect(roles.indefiniteAuthorizer)
-                .setIndefiniteAuthorizationStatus(airnodeAddress, roles.requester.address, true)
-            )
-              .to.emit(requesterAuthorizerWithManager, 'SetIndefiniteAuthorizationStatus')
-              .withArgs(
-                airnodeAddress,
-
-                roles.requester.address,
-                roles.indefiniteAuthorizer.address,
-                true,
-                1
-              );
-            authorizationStatus = await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
-              airnodeAddress,
-
+          expect(authorizationStatusBefore.expirationTimestamp).to.equal(0);
+          expect(authorizationStatusBefore.indefiniteAuthorizationCount).to.equal(0);
+          // Authorize indefinitely
+          await expect(
+            requesterAuthorizerWithManager
+              .connect(roles.indefiniteAuthorizer)
+              .setIndefiniteAuthorizationStatus(roles.airnode.address, roles.requester.address, true)
+          )
+            .to.emit(requesterAuthorizerWithManager, 'SetIndefiniteAuthorizationStatus')
+            .withArgs(roles.airnode.address, roles.requester.address, roles.indefiniteAuthorizer.address, true, 1);
+          const authorizationStatusAfterStep1 =
+            await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
+              roles.airnode.address,
               roles.requester.address
             );
-            expect(authorizationStatus.expirationTimestamp).to.equal(0);
-            expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(1);
-            expect(
-              await requesterAuthorizerWithManager.airnodeToRequesterToSetterToIndefiniteAuthorizationStatus(
-                airnodeAddress,
-
-                roles.requester.address,
-                roles.indefiniteAuthorizer.address
-              )
-            ).to.equal(true);
-            // Revoke indefinite authorization
-            await expect(
-              requesterAuthorizerWithManager
-                .connect(roles.indefiniteAuthorizer)
-                .setIndefiniteAuthorizationStatus(airnodeAddress, roles.requester.address, false)
+          expect(authorizationStatusAfterStep1.expirationTimestamp).to.equal(0);
+          expect(authorizationStatusAfterStep1.indefiniteAuthorizationCount).to.equal(1);
+          expect(
+            await requesterAuthorizerWithManager.airnodeToRequesterToSetterToIndefiniteAuthorizationStatus(
+              roles.airnode.address,
+              roles.requester.address,
+              roles.indefiniteAuthorizer.address
             )
-              .to.emit(requesterAuthorizerWithManager, 'SetIndefiniteAuthorizationStatus')
-              .withArgs(
-                airnodeAddress,
-
-                roles.requester.address,
-                roles.indefiniteAuthorizer.address,
-                false,
-                0
-              );
-            authorizationStatus = await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
-              airnodeAddress,
-
+          ).to.equal(true);
+          // Authorizing indefinitely again should have no effect
+          await expect(
+            requesterAuthorizerWithManager
+              .connect(roles.indefiniteAuthorizer)
+              .setIndefiniteAuthorizationStatus(roles.airnode.address, roles.requester.address, true)
+          )
+            .to.emit(requesterAuthorizerWithManager, 'SetIndefiniteAuthorizationStatus')
+            .withArgs(roles.airnode.address, roles.requester.address, roles.indefiniteAuthorizer.address, true, 1);
+          const authorizationStatusAfterStep2 =
+            await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
+              roles.airnode.address,
               roles.requester.address
             );
-            expect(authorizationStatus.expirationTimestamp).to.equal(0);
-            expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(0);
-            expect(
-              await requesterAuthorizerWithManager.airnodeToRequesterToSetterToIndefiniteAuthorizationStatus(
-                airnodeAddress,
-
-                roles.requester.address,
-                roles.indefiniteAuthorizer.address
-              )
-            ).to.equal(false);
-            // Revoking indefinite authorization again should have no effect
-            await expect(
-              requesterAuthorizerWithManager
-                .connect(roles.indefiniteAuthorizer)
-                .setIndefiniteAuthorizationStatus(airnodeAddress, roles.requester.address, false)
+          expect(authorizationStatusAfterStep2.expirationTimestamp).to.equal(0);
+          expect(authorizationStatusAfterStep2.indefiniteAuthorizationCount).to.equal(1);
+          expect(
+            await requesterAuthorizerWithManager.airnodeToRequesterToSetterToIndefiniteAuthorizationStatus(
+              roles.airnode.address,
+              roles.requester.address,
+              roles.indefiniteAuthorizer.address
             )
-              .to.emit(requesterAuthorizerWithManager, 'SetIndefiniteAuthorizationStatus')
-              .withArgs(
-                airnodeAddress,
-
-                roles.requester.address,
-                roles.indefiniteAuthorizer.address,
-                false,
-                0
-              );
-            authorizationStatus = await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
-              airnodeAddress,
-
+          ).to.equal(true);
+          // Revoke indefinite authorization
+          await expect(
+            requesterAuthorizerWithManager
+              .connect(roles.indefiniteAuthorizer)
+              .setIndefiniteAuthorizationStatus(roles.airnode.address, roles.requester.address, false)
+          )
+            .to.emit(requesterAuthorizerWithManager, 'SetIndefiniteAuthorizationStatus')
+            .withArgs(roles.airnode.address, roles.requester.address, roles.indefiniteAuthorizer.address, false, 0);
+          const authorizationStatusAfterStep3 =
+            await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
+              roles.airnode.address,
               roles.requester.address
             );
-            expect(authorizationStatus.expirationTimestamp).to.equal(0);
-            expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(0);
-            expect(
-              await requesterAuthorizerWithManager.airnodeToRequesterToSetterToIndefiniteAuthorizationStatus(
-                airnodeAddress,
-
-                roles.requester.address,
-                roles.indefiniteAuthorizer.address
-              )
-            ).to.equal(false);
-          });
-        });
-        context('Requester address zero', function () {
-          it('reverts', async function () {
-            await expect(
-              requesterAuthorizerWithManager
-                .connect(roles.indefiniteAuthorizer)
-                .setIndefiniteAuthorizationStatus(airnodeAddress, hre.ethers.constants.AddressZero, true)
-            ).to.be.revertedWith('Requester address zero');
-          });
+          expect(authorizationStatusAfterStep3.expirationTimestamp).to.equal(0);
+          expect(authorizationStatusAfterStep3.indefiniteAuthorizationCount).to.equal(0);
+          expect(
+            await requesterAuthorizerWithManager.airnodeToRequesterToSetterToIndefiniteAuthorizationStatus(
+              roles.airnode.address,
+              roles.requester.address,
+              roles.indefiniteAuthorizer.address
+            )
+          ).to.equal(false);
+          // Revoking indefinite authorization again should have no effect
+          await expect(
+            requesterAuthorizerWithManager
+              .connect(roles.indefiniteAuthorizer)
+              .setIndefiniteAuthorizationStatus(roles.airnode.address, roles.requester.address, false)
+          )
+            .to.emit(requesterAuthorizerWithManager, 'SetIndefiniteAuthorizationStatus')
+            .withArgs(roles.airnode.address, roles.requester.address, roles.indefiniteAuthorizer.address, false, 0);
+          const authorizationStatusAfterStep4 =
+            await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
+              roles.airnode.address,
+              roles.requester.address
+            );
+          expect(authorizationStatusAfterStep4.expirationTimestamp).to.equal(0);
+          expect(authorizationStatusAfterStep4.indefiniteAuthorizationCount).to.equal(0);
+          expect(
+            await requesterAuthorizerWithManager.airnodeToRequesterToSetterToIndefiniteAuthorizationStatus(
+              roles.airnode.address,
+              roles.requester.address,
+              roles.indefiniteAuthorizer.address
+            )
+          ).to.equal(false);
         });
       });
-      context('Airnode address zero', function () {
+      context('Requester address is zero', function () {
         it('reverts', async function () {
+          const { roles, requesterAuthorizerWithManager } = await helpers.loadFixture(deploy);
           await expect(
-            requesterAuthorizerWithManager.connect(roles.indefiniteAuthorizer).setIndefiniteAuthorizationStatus(
-              hre.ethers.constants.AddressZero,
-
-              roles.requester.address,
-              true
-            )
-          ).to.be.revertedWith('Airnode address zero');
+            requesterAuthorizerWithManager
+              .connect(roles.indefiniteAuthorizer)
+              .setIndefiniteAuthorizationStatus(roles.airnode.address, ethers.constants.AddressZero, true)
+          ).to.be.revertedWith('Requester address zero');
         });
       });
     });
-    context('Sender is the manager address', function () {
+    context('Sender is the manager', function () {
       it('sets indefinite authorization status', async function () {
-        await accessControlRegistry
-          .connect(roles.manager)
-          .renounceRole(indefiniteAuthorizerRole, roles.manager.address);
-        let authorizationStatus;
+        const { roles, requesterAuthorizerWithManager } = await helpers.loadFixture(deploy);
+        const authorizationStatusBefore = await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
+          roles.airnode.address,
+          roles.requester.address
+        );
+        expect(authorizationStatusBefore.expirationTimestamp).to.equal(0);
+        expect(authorizationStatusBefore.indefiniteAuthorizationCount).to.equal(0);
         // Authorize indefinitely
         await expect(
           requesterAuthorizerWithManager
             .connect(roles.manager)
-            .setIndefiniteAuthorizationStatus(airnodeAddress, roles.requester.address, true)
+            .setIndefiniteAuthorizationStatus(roles.airnode.address, roles.requester.address, true, {
+              gasLimit: 1000000,
+            })
         )
           .to.emit(requesterAuthorizerWithManager, 'SetIndefiniteAuthorizationStatus')
-          .withArgs(airnodeAddress, roles.requester.address, roles.manager.address, true, 1);
-        authorizationStatus = await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
-          airnodeAddress,
-
-          roles.requester.address
-        );
-        expect(authorizationStatus.expirationTimestamp).to.equal(0);
-        expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(1);
+          .withArgs(roles.airnode.address, roles.requester.address, roles.manager.address, true, 1);
+        const authorizationStatusAfterStep1 =
+          await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
+            roles.airnode.address,
+            roles.requester.address
+          );
+        expect(authorizationStatusAfterStep1.expirationTimestamp).to.equal(0);
+        expect(authorizationStatusAfterStep1.indefiniteAuthorizationCount).to.equal(1);
         expect(
           await requesterAuthorizerWithManager.airnodeToRequesterToSetterToIndefiniteAuthorizationStatus(
-            airnodeAddress,
-
+            roles.airnode.address,
             roles.requester.address,
             roles.manager.address
           )
@@ -641,21 +633,22 @@ describe('RequesterAuthorizerWithManager', function () {
         await expect(
           requesterAuthorizerWithManager
             .connect(roles.manager)
-            .setIndefiniteAuthorizationStatus(airnodeAddress, roles.requester.address, true)
+            .setIndefiniteAuthorizationStatus(roles.airnode.address, roles.requester.address, true, {
+              gasLimit: 1000000,
+            })
         )
           .to.emit(requesterAuthorizerWithManager, 'SetIndefiniteAuthorizationStatus')
-          .withArgs(airnodeAddress, roles.requester.address, roles.manager.address, true, 1);
-        authorizationStatus = await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
-          airnodeAddress,
-
-          roles.requester.address
-        );
-        expect(authorizationStatus.expirationTimestamp).to.equal(0);
-        expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(1);
+          .withArgs(roles.airnode.address, roles.requester.address, roles.manager.address, true, 1);
+        const authorizationStatusAfterStep2 =
+          await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
+            roles.airnode.address,
+            roles.requester.address
+          );
+        expect(authorizationStatusAfterStep2.expirationTimestamp).to.equal(0);
+        expect(authorizationStatusAfterStep2.indefiniteAuthorizationCount).to.equal(1);
         expect(
           await requesterAuthorizerWithManager.airnodeToRequesterToSetterToIndefiniteAuthorizationStatus(
-            airnodeAddress,
-
+            roles.airnode.address,
             roles.requester.address,
             roles.manager.address
           )
@@ -664,21 +657,22 @@ describe('RequesterAuthorizerWithManager', function () {
         await expect(
           requesterAuthorizerWithManager
             .connect(roles.manager)
-            .setIndefiniteAuthorizationStatus(airnodeAddress, roles.requester.address, false)
+            .setIndefiniteAuthorizationStatus(roles.airnode.address, roles.requester.address, false, {
+              gasLimit: 1000000,
+            })
         )
           .to.emit(requesterAuthorizerWithManager, 'SetIndefiniteAuthorizationStatus')
-          .withArgs(airnodeAddress, roles.requester.address, roles.manager.address, false, 0);
-        authorizationStatus = await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
-          airnodeAddress,
-
-          roles.requester.address
-        );
-        expect(authorizationStatus.expirationTimestamp).to.equal(0);
-        expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(0);
+          .withArgs(roles.airnode.address, roles.requester.address, roles.manager.address, false, 0);
+        const authorizationStatusAfterStep3 =
+          await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
+            roles.airnode.address,
+            roles.requester.address
+          );
+        expect(authorizationStatusAfterStep3.expirationTimestamp).to.equal(0);
+        expect(authorizationStatusAfterStep3.indefiniteAuthorizationCount).to.equal(0);
         expect(
           await requesterAuthorizerWithManager.airnodeToRequesterToSetterToIndefiniteAuthorizationStatus(
-            airnodeAddress,
-
+            roles.airnode.address,
             roles.requester.address,
             roles.manager.address
           )
@@ -687,43 +681,45 @@ describe('RequesterAuthorizerWithManager', function () {
         await expect(
           requesterAuthorizerWithManager
             .connect(roles.manager)
-            .setIndefiniteAuthorizationStatus(airnodeAddress, roles.requester.address, false)
+            .setIndefiniteAuthorizationStatus(roles.airnode.address, roles.requester.address, false, {
+              gasLimit: 1000000,
+            })
         )
           .to.emit(requesterAuthorizerWithManager, 'SetIndefiniteAuthorizationStatus')
-          .withArgs(airnodeAddress, roles.requester.address, roles.manager.address, false, 0);
-        authorizationStatus = await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
-          airnodeAddress,
-
-          roles.requester.address
-        );
-        expect(authorizationStatus.expirationTimestamp).to.equal(0);
-        expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(0);
+          .withArgs(roles.airnode.address, roles.requester.address, roles.manager.address, false, 0);
+        const authorizationStatusAfterStep4 =
+          await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
+            roles.airnode.address,
+            roles.requester.address
+          );
+        expect(authorizationStatusAfterStep4.expirationTimestamp).to.equal(0);
+        expect(authorizationStatusAfterStep4.indefiniteAuthorizationCount).to.equal(0);
         expect(
           await requesterAuthorizerWithManager.airnodeToRequesterToSetterToIndefiniteAuthorizationStatus(
-            airnodeAddress,
-
+            roles.airnode.address,
             roles.requester.address,
             roles.manager.address
           )
         ).to.equal(false);
       });
     });
-    context('Sender does not have the indefinite authorizer role and is not the manager address', function () {
+    context('Sender does not have the indefinite authorizer role and is not the manager', function () {
       it('reverts', async function () {
+        const { roles, requesterAuthorizerWithManager } = await helpers.loadFixture(deploy);
         await expect(
           requesterAuthorizerWithManager
             .connect(roles.authorizationExpirationExtender)
-            .setIndefiniteAuthorizationStatus(airnodeAddress, roles.requester.address, true)
+            .setIndefiniteAuthorizationStatus(roles.airnode.address, roles.requester.address, true)
         ).to.be.revertedWith('Cannot set indefinite status');
         await expect(
           requesterAuthorizerWithManager
             .connect(roles.authorizationExpirationSetter)
-            .setIndefiniteAuthorizationStatus(airnodeAddress, roles.requester.address, true)
+            .setIndefiniteAuthorizationStatus(roles.airnode.address, roles.requester.address, true)
         ).to.be.revertedWith('Cannot set indefinite status');
         await expect(
           requesterAuthorizerWithManager
             .connect(roles.randomPerson)
-            .setIndefiniteAuthorizationStatus(airnodeAddress, roles.requester.address, true)
+            .setIndefiniteAuthorizationStatus(roles.airnode.address, roles.requester.address, true)
         ).to.be.revertedWith('Cannot set indefinite status');
       });
     });
@@ -731,32 +727,40 @@ describe('RequesterAuthorizerWithManager', function () {
 
   describe('revokeIndefiniteAuthorizationStatus', function () {
     context('setter does not have the indefinite authorizer role', function () {
-      context('setter is not the manager address', function () {
-        context('Airnode address not zero', function () {
-          context('Requester address not zero', function () {
-            context('Setter address not zero', function () {
+      context('setter is not the manager', function () {
+        context('Airnode address is not zero', function () {
+          context('Requester address is not zero', function () {
+            context('Setter address is not zero', function () {
               it('revokes indefinite authorization status', async function () {
+                const {
+                  roles,
+                  accessControlRegistry,
+                  requesterAuthorizerWithManager,
+                  adminRole,
+                  indefiniteAuthorizerRole,
+                } = await helpers.loadFixture(deploy);
                 // Grant indefinite authorization status
                 await requesterAuthorizerWithManager
                   .connect(roles.indefiniteAuthorizer)
-                  .setIndefiniteAuthorizationStatus(airnodeAddress, roles.requester.address, true);
+                  .setIndefiniteAuthorizationStatus(roles.airnode.address, roles.requester.address, true);
                 // Revoke the indefinite authorizer role
+                await accessControlRegistry.connect(roles.manager).grantRole(adminRole, roles.manager.address);
                 await accessControlRegistry
                   .connect(roles.manager)
-                  .revokeRole(indefiniteAuthorizerRole, roles.indefiniteAuthorizer.address);
+                  .revokeRole(indefiniteAuthorizerRole, roles.indefiniteAuthorizer.address, { gasLimit: 1000000 });
                 // Revoke the indefinite authorization status
                 await expect(
-                  requesterAuthorizerWithManager.connect(roles.randomPerson).revokeIndefiniteAuthorizationStatus(
-                    airnodeAddress,
-
-                    roles.requester.address,
-                    roles.indefiniteAuthorizer.address
-                  )
+                  requesterAuthorizerWithManager
+                    .connect(roles.randomPerson)
+                    .revokeIndefiniteAuthorizationStatus(
+                      roles.airnode.address,
+                      roles.requester.address,
+                      roles.indefiniteAuthorizer.address
+                    )
                 )
                   .to.emit(requesterAuthorizerWithManager, 'RevokedIndefiniteAuthorizationStatus')
                   .withArgs(
-                    airnodeAddress,
-
+                    roles.airnode.address,
                     roles.requester.address,
                     roles.indefiniteAuthorizer.address,
                     roles.randomPerson.address,
@@ -764,87 +768,94 @@ describe('RequesterAuthorizerWithManager', function () {
                   );
                 const authorizationStatus =
                   await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
-                    airnodeAddress,
-
+                    roles.airnode.address,
                     roles.requester.address
                   );
                 expect(authorizationStatus.expirationTimestamp).to.equal(0);
                 expect(authorizationStatus.indefiniteAuthorizationCount).to.equal(0);
                 // Revoking twice should not emit an event
                 await expect(
-                  requesterAuthorizerWithManager.connect(roles.randomPerson).revokeIndefiniteAuthorizationStatus(
-                    airnodeAddress,
-
-                    roles.requester.address,
-                    roles.indefiniteAuthorizer.address
-                  )
+                  requesterAuthorizerWithManager
+                    .connect(roles.randomPerson)
+                    .revokeIndefiniteAuthorizationStatus(
+                      roles.airnode.address,
+                      roles.requester.address,
+                      roles.indefiniteAuthorizer.address
+                    )
                 ).to.not.emit(requesterAuthorizerWithManager, 'RevokedIndefiniteAuthorizationStatus');
               });
             });
-            context('Setter address zero', function () {
+            context('Setter address is zero', function () {
               it('reverts', async function () {
+                const { roles, requesterAuthorizerWithManager } = await helpers.loadFixture(deploy);
                 await expect(
-                  requesterAuthorizerWithManager.connect(roles.randomPerson).revokeIndefiniteAuthorizationStatus(
-                    airnodeAddress,
-
-                    roles.requester.address,
-                    hre.ethers.constants.AddressZero
-                  )
+                  requesterAuthorizerWithManager
+                    .connect(roles.randomPerson)
+                    .revokeIndefiniteAuthorizationStatus(
+                      roles.airnode.address,
+                      roles.requester.address,
+                      ethers.constants.AddressZero
+                    )
                 ).to.be.revertedWith('Setter address zero');
               });
             });
           });
-          context('Requester address zero', function () {
+          context('Requester address is zero', function () {
             it('reverts', async function () {
+              const { roles, requesterAuthorizerWithManager } = await helpers.loadFixture(deploy);
               await expect(
-                requesterAuthorizerWithManager.connect(roles.randomPerson).revokeIndefiniteAuthorizationStatus(
-                  airnodeAddress,
-
-                  hre.ethers.constants.AddressZero,
-                  roles.randomPerson.address
-                )
+                requesterAuthorizerWithManager
+                  .connect(roles.randomPerson)
+                  .revokeIndefiniteAuthorizationStatus(
+                    roles.airnode.address,
+                    ethers.constants.AddressZero,
+                    roles.randomPerson.address
+                  )
               ).to.be.revertedWith('Requester address zero');
             });
           });
         });
-        context('Airnode address zero', function () {
+        context('Airnode address is zero', function () {
           it('reverts', async function () {
+            const { roles, requesterAuthorizerWithManager } = await helpers.loadFixture(deploy);
             await expect(
-              requesterAuthorizerWithManager.connect(roles.randomPerson).revokeIndefiniteAuthorizationStatus(
-                hre.ethers.constants.AddressZero,
-
-                roles.requester.address,
-                roles.randomPerson.address
-              )
+              requesterAuthorizerWithManager
+                .connect(roles.randomPerson)
+                .revokeIndefiniteAuthorizationStatus(
+                  ethers.constants.AddressZero,
+                  roles.requester.address,
+                  roles.randomPerson.address
+                )
             ).to.be.revertedWith('Airnode address zero');
           });
         });
       });
-      context('setter is the manager address', function () {
+      context('setter is the manager', function () {
         it('reverts', async function () {
-          await accessControlRegistry
-            .connect(roles.manager)
-            .renounceRole(indefiniteAuthorizerRole, roles.manager.address);
+          const { roles, requesterAuthorizerWithManager } = await helpers.loadFixture(deploy);
           await expect(
-            requesterAuthorizerWithManager.connect(roles.randomPerson).revokeIndefiniteAuthorizationStatus(
-              airnodeAddress,
-
-              roles.requester.address,
-              roles.manager.address
-            )
+            requesterAuthorizerWithManager
+              .connect(roles.randomPerson)
+              .revokeIndefiniteAuthorizationStatus(
+                roles.airnode.address,
+                roles.requester.address,
+                roles.manager.address
+              )
           ).to.be.revertedWith('setter can set indefinite status');
         });
       });
     });
     context('setter has the indefinite authorizer role', function () {
       it('reverts', async function () {
+        const { roles, requesterAuthorizerWithManager } = await helpers.loadFixture(deploy);
         await expect(
-          requesterAuthorizerWithManager.connect(roles.randomPerson).revokeIndefiniteAuthorizationStatus(
-            airnodeAddress,
-
-            roles.requester.address,
-            roles.indefiniteAuthorizer.address
-          )
+          requesterAuthorizerWithManager
+            .connect(roles.randomPerson)
+            .revokeIndefiniteAuthorizationStatus(
+              roles.airnode.address,
+              roles.requester.address,
+              roles.indefiniteAuthorizer.address
+            )
         ).to.be.revertedWith('setter can set indefinite status');
       });
     });
@@ -854,44 +865,48 @@ describe('RequesterAuthorizerWithManager', function () {
     context('Requester is authorized indefinitely', function () {
       context('Requester is authorized temporarily', function () {
         it('returns true', async function () {
+          const { roles, requesterAuthorizerWithManager } = await helpers.loadFixture(deploy);
           await requesterAuthorizerWithManager
             .connect(roles.indefiniteAuthorizer)
-            .setIndefiniteAuthorizationStatus(airnodeAddress, roles.requester.address, true);
+            .setIndefiniteAuthorizationStatus(roles.airnode.address, roles.requester.address, true);
           await requesterAuthorizerWithManager
             .connect(roles.authorizationExpirationSetter)
-            .setAuthorizationExpiration(airnodeAddress, roles.requester.address, 2000000000);
-          expect(await requesterAuthorizerWithManager.isAuthorized(airnodeAddress, roles.requester.address)).to.equal(
-            true
-          );
+            .setAuthorizationExpiration(roles.airnode.address, roles.requester.address, 2000000000);
+          expect(
+            await requesterAuthorizerWithManager.isAuthorized(roles.airnode.address, roles.requester.address)
+          ).to.equal(true);
         });
       });
       context('Requester is not authorized temporarily', function () {
         it('returns true', async function () {
+          const { roles, requesterAuthorizerWithManager } = await helpers.loadFixture(deploy);
           await requesterAuthorizerWithManager
             .connect(roles.indefiniteAuthorizer)
-            .setIndefiniteAuthorizationStatus(airnodeAddress, roles.requester.address, true);
-          expect(await requesterAuthorizerWithManager.isAuthorized(airnodeAddress, roles.requester.address)).to.equal(
-            true
-          );
+            .setIndefiniteAuthorizationStatus(roles.airnode.address, roles.requester.address, true);
+          expect(
+            await requesterAuthorizerWithManager.isAuthorized(roles.airnode.address, roles.requester.address)
+          ).to.equal(true);
         });
       });
     });
     context('Requester is not authorized indefinitely', function () {
       context('Requester is authorized temporarily', function () {
         it('returns true', async function () {
+          const { roles, requesterAuthorizerWithManager } = await helpers.loadFixture(deploy);
           await requesterAuthorizerWithManager
             .connect(roles.authorizationExpirationSetter)
-            .setAuthorizationExpiration(airnodeAddress, roles.requester.address, 2000000000);
-          expect(await requesterAuthorizerWithManager.isAuthorized(airnodeAddress, roles.requester.address)).to.equal(
-            true
-          );
+            .setAuthorizationExpiration(roles.airnode.address, roles.requester.address, 2000000000);
+          expect(
+            await requesterAuthorizerWithManager.isAuthorized(roles.airnode.address, roles.requester.address)
+          ).to.equal(true);
         });
       });
       context('Requester is not authorized temporarily', function () {
         it('returns false', async function () {
-          expect(await requesterAuthorizerWithManager.isAuthorized(airnodeAddress, roles.requester.address)).to.equal(
-            false
-          );
+          const { roles, requesterAuthorizerWithManager } = await helpers.loadFixture(deploy);
+          expect(
+            await requesterAuthorizerWithManager.isAuthorized(roles.airnode.address, roles.requester.address)
+          ).to.equal(false);
         });
       });
     });

@@ -6,8 +6,8 @@ import "../access-control-registry/AccessControlRegistryAdminned.sol";
 import "./Allocator.sol";
 import "./interfaces/IAllocatorWithAirnode.sol";
 
-/// @title Contract that Airnode operators can use to temporarily allocate
-/// subscription slots for Airnodes
+/// @title Contract that Airnode operators can use to temporarily
+/// allocate subscription slots for the respective Airnodes
 contract AllocatorWithAirnode is
     ERC2771Context,
     AccessControlRegistryAdminned,
@@ -37,28 +37,13 @@ contract AllocatorWithAirnode is
         address airnode,
         uint256 slotIndex,
         bytes32 subscriptionId,
-        uint64 expirationTimestamp
+        uint32 expirationTimestamp
     ) external override {
         require(
             hasSlotSetterRoleOrIsAirnode(airnode, _msgSender()),
             "Sender cannot set slot"
         );
         _setSlot(airnode, slotIndex, subscriptionId, expirationTimestamp);
-    }
-
-    /// @notice Returns if the setter of the slot can still set slots
-    /// @param airnode Airnode address
-    /// @param slotIndex Index of the subscription slot that was set
-    /// @return If the setter of the slot can still set slots
-    function setterOfSlotIsCanStillSet(
-        address airnode,
-        uint256 slotIndex
-    ) public view override(Allocator, IAllocator) returns (bool) {
-        return
-            hasSlotSetterRoleOrIsAirnode(
-                airnode,
-                airnodeToSlotIndexToSlot[airnode][slotIndex].setter
-            );
     }
 
     /// @notice Returns if the account has the slot setter role or has the
@@ -99,6 +84,21 @@ contract AllocatorWithAirnode is
             deriveAdminRole(airnode),
             SLOT_SETTER_ROLE_DESCRIPTION_HASH
         );
+    }
+
+    function slotCanBeResetByAccount(
+        address airnode,
+        uint256 slotIndex,
+        address account
+    ) public view override(IAllocator, Allocator) returns (bool) {
+        Slot storage slot = airnodeToSlotIndexToSlot[airnode][slotIndex];
+        return
+            slot.setter == account ||
+            slot.expirationTimestamp <= block.timestamp ||
+            !hasSlotSetterRoleOrIsAirnode(
+                airnode,
+                airnodeToSlotIndexToSlot[airnode][slotIndex].setter
+            );
     }
 
     /// @dev See Context.sol

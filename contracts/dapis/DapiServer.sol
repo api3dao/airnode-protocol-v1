@@ -32,8 +32,8 @@ import "./proxies/interfaces/IOevProxy.sol";
 /// checked because this is a purely keeper job that does not require off-chain
 /// data. Similar to Beacon updates, any Beacon set update is welcome.
 contract DapiServer is
-    ExtendedSelfMulticall,
     AccessControlRegistryAdminnedWithManager,
+    ExtendedSelfMulticall,
     AirnodeRequester,
     Median,
     IDapiServer

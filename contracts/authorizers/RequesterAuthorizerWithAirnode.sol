@@ -7,7 +7,7 @@ import "./RequesterAuthorizer.sol";
 import "./interfaces/IRequesterAuthorizerWithAirnode.sol";
 
 /// @title Authorizer contract that Airnode operators can use to temporarily or
-/// indefinitely authorize requesters for Airnodes
+/// indefinitely authorize requesters for the respective Airnodes
 contract RequesterAuthorizerWithAirnode is
     ERC2771Context,
     AccessControlRegistryAdminned,
