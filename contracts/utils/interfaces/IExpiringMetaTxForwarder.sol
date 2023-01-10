@@ -2,6 +2,10 @@
 pragma solidity ^0.8.0;
 
 interface IExpiringMetaTxForwarder {
+    event ExecutedMetaTx(bytes32 indexed metaTxHash);
+
+    event CanceledMetaTx(bytes32 indexed metaTxHash);
+
     struct ExpiringMetaTx {
         address from;
         address to;
@@ -14,7 +18,9 @@ interface IExpiringMetaTxForwarder {
         bytes calldata signature
     ) external returns (bytes memory returndata);
 
-    function metaTxWithHashIsExecuted(
+    function cancel(ExpiringMetaTx calldata metaTx) external;
+
+    function metaTxWithHashIsExecutedOrCanceled(
         bytes32 metaTxHash
     ) external returns (bool);
 }
