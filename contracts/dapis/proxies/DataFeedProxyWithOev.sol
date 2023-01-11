@@ -5,8 +5,8 @@ import "./DataFeedProxy.sol";
 import "./interfaces/IOevProxy.sol";
 
 /// @title An immutable proxy contract that is used to read a specific data
-/// feed (Beacon or Beacon set) of a specific DapiServer contract, execute OEV
-/// updates and let the beneficiary withdraw the accumulated proceeds
+/// feed (Beacon or Beacon set) of a specific DapiServer contract and inform
+/// DapiServer about the beneficiary of the respective OEV proceeds
 /// @dev See DapiProxy.sol for comments about usage
 contract DataFeedProxyWithOev is DataFeedProxy, IOevProxy {
     /// @notice OEV beneficiary address

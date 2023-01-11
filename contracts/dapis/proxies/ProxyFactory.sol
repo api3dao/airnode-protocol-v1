@@ -11,7 +11,7 @@ import "./interfaces/IProxyFactory.sol";
 /// data feeds (Beacons or Beacon sets) or dAPIs, along with optional OEV
 /// support
 /// @dev The proxies are deployed normally and not cloned to minimize the gas
-/// cost overhead while using them to read data feed values.
+/// cost overhead while using them to read data feed values
 contract ProxyFactory is IProxyFactory {
     /// @notice DapiServer address
     address public immutable override dapiServer;
@@ -25,6 +25,7 @@ contract ProxyFactory is IProxyFactory {
     /// @notice Deterministically deploys a data feed proxy
     /// @param dataFeedId Data feed ID
     /// @param metadata Metadata associated with the proxy
+    /// @return proxyAddress Proxy address
     function deployDataFeedProxy(
         bytes32 dataFeedId,
         bytes calldata metadata
@@ -39,6 +40,7 @@ contract ProxyFactory is IProxyFactory {
     /// @notice Deterministically deploys a dAPI proxy
     /// @param dapiName dAPI name
     /// @param metadata Metadata associated with the proxy
+    /// @return proxyAddress Proxy address
     function deployDapiProxy(
         bytes32 dapiName,
         bytes calldata metadata
@@ -57,6 +59,7 @@ contract ProxyFactory is IProxyFactory {
     /// @param dataFeedId Data feed ID
     /// @param oevBeneficiary OEV beneficiary
     /// @param metadata Metadata associated with the proxy
+    /// @return proxyAddress Proxy address
     function deployDataFeedProxyWithOev(
         bytes32 dataFeedId,
         address oevBeneficiary,
@@ -83,6 +86,7 @@ contract ProxyFactory is IProxyFactory {
     /// @param dapiName dAPI name
     /// @param oevBeneficiary OEV beneficiary
     /// @param metadata Metadata associated with the proxy
+    /// @return proxyAddress Proxy address
     function deployDapiProxyWithOev(
         bytes32 dapiName,
         address oevBeneficiary,
