@@ -594,7 +594,7 @@ contract DapiServer is
         );
     }
 
-    ///                     ~~~Signed data Beacon set updates~~~
+    ///                     ~~~Signed data feed updates~~~
 
     /// @notice Updates a data feed using data signed by the respective
     /// Airnodes without requiring a request or subscription. The Beacons for
