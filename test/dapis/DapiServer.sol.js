@@ -1,434 +1,331 @@
-const hre = require('hardhat');
+const { ethers } = require('hardhat');
+const helpers = require('@nomicfoundation/hardhat-network-helpers');
 const { expect } = require('chai');
 const testUtils = require('../test-utils');
 
 describe('DapiServer', function () {
-  function deriveRootRole(managerAddress) {
-    return hre.ethers.utils.solidityKeccak256(['address'], [managerAddress]);
+  const HUNDRED_PERCENT = 1e8;
+
+  function encodeData(decodedData) {
+    return ethers.utils.defaultAbiCoder.encode(['int256'], [decodedData]);
   }
 
-  let roles;
-  let accessControlRegistry, airnodeProtocol, dapiServer, oevProxy;
-  let dapiServerAdminRoleDescription = 'DapiServer admin';
-  let dapiNameSetterRole;
-  let airnodeAddress, airnodeWallet, relayerAddress;
-  let airnodeRrpSponsorWallet, airnodePspSponsorWallet, relayerRrpSponsorWallet, relayerPspSponsorWallet;
-  let endpointId, parameters, templateId, beaconSetTemplateIds;
-  let beaconId;
-  let beaconUpdateSubscriptionId,
-    beaconUpdateSubscriptionRelayedId,
-    beaconUpdateSubscriptionConditionParameters,
-    beaconUpdateSubscriptionConditions;
-  let beaconSetBeaconIds = [],
-    beaconSetId;
-  let beaconSetUpdateSubscriptionId,
-    beaconSetUpdateSubscriptionRelayedId,
-    beaconSetUpdateSubscriptionConditionParameters;
+  function encodeSignedData(airnodeAddress, templateId, timestamp, data, signature) {
+    return ethers.utils.defaultAbiCoder.encode(
+      ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
+      [airnodeAddress, templateId, timestamp, data, signature]
+    );
+  }
 
-  async function deployContracts() {
-    const accessControlRegistryFactory = await hre.ethers.getContractFactory('AccessControlRegistry', roles.deployer);
-    accessControlRegistry = await accessControlRegistryFactory.deploy();
-    const airnodeProtocolFactory = await hre.ethers.getContractFactory('AirnodeProtocol', roles.deployer);
-    airnodeProtocol = await airnodeProtocolFactory.deploy();
-    const dapiServerFactory = await hre.ethers.getContractFactory('DapiServer', roles.deployer);
-    dapiServer = await dapiServerFactory.deploy(
+  async function updateBeacon(roles, dapiServer, beacon, decodedData, timestamp) {
+    if (!timestamp) {
+      timestamp = await helpers.time.latest();
+    }
+    const data = encodeData(decodedData);
+    const signature = await testUtils.signData(beacon.airnode.wallet, beacon.templateId, timestamp, data);
+    await dapiServer
+      .connect(roles.randomPerson)
+      .updateDataFeedWithSignedData([
+        encodeSignedData(beacon.airnode.wallet.address, beacon.templateId, timestamp, data, signature),
+      ]);
+    return timestamp;
+  }
+
+  async function updateBeaconSet(roles, dapiServer, beacons, decodedData, timestamp) {
+    if (!timestamp) {
+      timestamp = await helpers.time.latest();
+    }
+    const data = encodeData(decodedData);
+    const signatures = await Promise.all(
+      beacons.map(async (beacon) => {
+        return testUtils.signData(beacon.airnode.wallet, beacon.templateId, timestamp, data);
+      })
+    );
+    const signedData = signatures.map((signature, index) => {
+      const beacon = beacons[index];
+      return encodeSignedData(beacon.airnode.wallet.address, beacon.templateId, timestamp, data, signature);
+    });
+    await dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData(signedData);
+  }
+
+  function encodeUpdateSubscriptionConditionParameters(
+    deviationThresholdInPercentage,
+    deviationReference,
+    heartbeatInterval
+  ) {
+    return ethers.utils.defaultAbiCoder.encode(
+      ['uint256', 'int224', 'uint256'],
+      [deviationThresholdInPercentage, deviationReference, heartbeatInterval]
+    );
+  }
+
+  async function encodeUpdateSubscriptionConditions(
+    dapiServer,
+    conditionFunctionId,
+    updateSubscriptionConditionParameters
+  ) {
+    // Using Airnode ABI
+    return ethers.utils.defaultAbiCoder.encode(
+      ['bytes32', 'bytes32', 'uint256', 'bytes32', 'address', 'bytes32', 'bytes32', 'bytes32', 'bytes'],
+      [
+        ethers.utils.formatBytes32String('1uabB'),
+        ethers.utils.formatBytes32String('_conditionChainId'),
+        (await dapiServer.provider.getNetwork()).chainId,
+        ethers.utils.formatBytes32String('_conditionAddress'),
+        dapiServer.address,
+        ethers.utils.formatBytes32String('_conditionFunctionId'),
+        ethers.utils.defaultAbiCoder.encode(['bytes4'], [conditionFunctionId]),
+        ethers.utils.formatBytes32String('_conditionParameters'),
+        updateSubscriptionConditionParameters,
+      ]
+    );
+  }
+
+  async function deriveUpdateSubscriptionId(
+    dapiServer,
+    airnodeAddress,
+    templateId,
+    updateSubscriptionConditions,
+    relayerAddress,
+    sponsorAddress,
+    fulfillFunctionId,
+    parameters
+  ) {
+    if (!parameters) {
+      parameters = '0x';
+    }
+    return ethers.utils.keccak256(
+      ethers.utils.defaultAbiCoder.encode(
+        ['uint256', 'address', 'bytes32', 'bytes', 'bytes', 'address', 'address', 'address', 'bytes4'],
+        [
+          (await dapiServer.provider.getNetwork()).chainId,
+          airnodeAddress,
+          templateId,
+          parameters,
+          updateSubscriptionConditions,
+          relayerAddress,
+          sponsorAddress,
+          dapiServer.address,
+          fulfillFunctionId,
+        ]
+      )
+    );
+  }
+
+  function median(array) {
+    if (array.length === 0) {
+      throw new Error('Attempted to calculate median of empty array');
+    }
+    array.sort((a, b) => {
+      return a - b;
+    });
+    if (array.length % 2 == 1) {
+      return array[Math.floor(array.length / 2)];
+    } else {
+      // We want negatives to round down to zero
+      return parseInt((array[array.length / 2 - 1] + array[array.length / 2]) / 2);
+    }
+  }
+
+  async function deploy() {
+    const accounts = await ethers.getSigners();
+    const roles = {
+      deployer: accounts[0],
+      manager: accounts[1],
+      dapiNameSetter: accounts[2],
+      sponsor: accounts[3],
+      updateRequester: accounts[4],
+      searcher: accounts[5],
+      oevBeneficiary: accounts[6],
+      mockOevProxy: accounts[7],
+      randomPerson: accounts[9],
+    };
+
+    const dapiServerAdminRoleDescription = 'DapiServer admin';
+    const dapiNameSetterRoleDescription = 'dAPI name setter';
+    const accessControlRegistryFactory = await ethers.getContractFactory('AccessControlRegistry', roles.deployer);
+    const accessControlRegistry = await accessControlRegistryFactory.deploy();
+    const airnodeProtocolFactory = await ethers.getContractFactory('AirnodeProtocol', roles.deployer);
+    const airnodeProtocol = await airnodeProtocolFactory.deploy();
+    const dapiServerFactory = await ethers.getContractFactory('DapiServer', roles.deployer);
+    const dapiServer = await dapiServerFactory.deploy(
       accessControlRegistry.address,
       dapiServerAdminRoleDescription,
       roles.manager.address,
       airnodeProtocol.address
     );
-    const dataFeedProxyWithOevFactory = await hre.ethers.getContractFactory('DataFeedProxyWithOev', roles.deployer);
-    oevProxy = await dataFeedProxyWithOevFactory.deploy(
-      dapiServer.address,
-      testUtils.generateRandomBytes32(),
-      roles.oevBeneficiary.address
-    );
-  }
 
-  async function setUpRoles() {
-    const managerRootRole = deriveRootRole(roles.manager.address);
-    // Initialize the roles and grant them to respective accounts
-    const adminRole = await dapiServer.adminRole();
+    const managerRootRole = testUtils.deriveRootRole(roles.manager.address);
+    const adminRole = testUtils.deriveRole(managerRootRole, dapiServerAdminRoleDescription);
+    const dapiNameSetterRole = testUtils.deriveRole(adminRole, dapiNameSetterRoleDescription);
     await accessControlRegistry
       .connect(roles.manager)
       .initializeRoleAndGrantToSender(managerRootRole, dapiServerAdminRoleDescription);
-    dapiNameSetterRole = await dapiServer.dapiNameSetterRole();
     await accessControlRegistry
       .connect(roles.manager)
-      .initializeRoleAndGrantToSender(adminRole, await dapiServer.DAPI_NAME_SETTER_ROLE_DESCRIPTION());
+      .initializeRoleAndGrantToSender(adminRole, dapiNameSetterRoleDescription);
     await accessControlRegistry.connect(roles.manager).grantRole(dapiNameSetterRole, roles.dapiNameSetter.address);
+    await accessControlRegistry.connect(roles.manager).renounceRole(dapiNameSetterRole, roles.manager.address);
+    await accessControlRegistry.connect(roles.manager).renounceRole(adminRole, roles.manager.address);
+
     await dapiServer.connect(roles.sponsor).setRrpBeaconUpdatePermissionStatus(roles.updateRequester.address, true);
-  }
 
-  async function setUpSponsorWallets() {
-    let airnodeMnemonic;
-    ({ airnodeAddress, airnodeMnemonic } = testUtils.generateRandomAirnodeWallet());
-    airnodeWallet = hre.ethers.Wallet.fromMnemonic(airnodeMnemonic, "m/44'/60'/0'/0/0");
-    const relayerData = testUtils.generateRandomAirnodeWallet();
-    relayerAddress = relayerData.airnodeAddress;
-    const relayerMnemonic = relayerData.airnodeMnemonic;
-    airnodeRrpSponsorWallet = testUtils
-      .deriveSponsorWallet(airnodeMnemonic, roles.sponsor.address, testUtils.PROTOCOL_IDS.RRP)
-      .connect(hre.ethers.provider);
-    airnodePspSponsorWallet = testUtils
-      .deriveSponsorWallet(airnodeMnemonic, roles.sponsor.address, testUtils.PROTOCOL_IDS.PSP)
-      .connect(hre.ethers.provider);
-    relayerRrpSponsorWallet = testUtils
-      .deriveSponsorWallet(relayerMnemonic, roles.sponsor.address, testUtils.PROTOCOL_IDS.RELAYED_RRP)
-      .connect(hre.ethers.provider);
-    relayerPspSponsorWallet = testUtils
-      .deriveSponsorWallet(relayerMnemonic, roles.sponsor.address, testUtils.PROTOCOL_IDS.RELAYED_PSP)
-      .connect(hre.ethers.provider);
-    await roles.deployer.sendTransaction({
-      to: airnodeRrpSponsorWallet.address,
-      value: hre.ethers.utils.parseEther('1'),
-    });
-    await roles.deployer.sendTransaction({
-      to: relayerRrpSponsorWallet.address,
-      value: hre.ethers.utils.parseEther('1'),
-    });
-    await roles.deployer.sendTransaction({
-      to: airnodePspSponsorWallet.address,
-      value: hre.ethers.utils.parseEther('1'),
-    });
-    await roles.deployer.sendTransaction({
-      to: relayerPspSponsorWallet.address,
-      value: hre.ethers.utils.parseEther('1'),
-    });
-  }
-
-  async function setUpTemplate() {
-    endpointId = testUtils.generateRandomBytes32();
-    parameters = testUtils.generateRandomBytes();
-    templateId = hre.ethers.utils.solidityKeccak256(['bytes32', 'bytes'], [endpointId, parameters]);
-    beaconSetTemplateIds = [
-      testUtils.generateRandomBytes32(),
-      testUtils.generateRandomBytes32(),
-      testUtils.generateRandomBytes32(),
-    ];
-  }
-
-  async function setUpBeacon() {
-    beaconId = hre.ethers.utils.keccak256(
-      hre.ethers.utils.solidityPack(['address', 'bytes32'], [airnodeAddress, templateId])
-    );
-    // Deviation threshold is 10% and heartbeat interval is 1 day
-    beaconUpdateSubscriptionConditionParameters = hre.ethers.utils.defaultAbiCoder.encode(
-      ['uint256', 'int224', 'uint256'],
-      [(await dapiServer.HUNDRED_PERCENT()).div(10), 0, 24 * 60 * 60]
-    );
-    // Create Beacon update conditions using Airnode ABI
-    beaconUpdateSubscriptionConditions = hre.ethers.utils.defaultAbiCoder.encode(
-      ['bytes32', 'bytes32', 'uint256', 'bytes32', 'address', 'bytes32', 'bytes32', 'bytes32', 'bytes'],
-      [
-        hre.ethers.utils.formatBytes32String('1uabB'),
-        hre.ethers.utils.formatBytes32String('_conditionChainId'),
-        (await hre.ethers.provider.getNetwork()).chainId,
-        hre.ethers.utils.formatBytes32String('_conditionAddress'),
-        dapiServer.address,
-        hre.ethers.utils.formatBytes32String('_conditionFunctionId'),
-        hre.ethers.utils.defaultAbiCoder.encode(
-          ['bytes4'],
-          [dapiServer.interface.getSighash('conditionPspBeaconUpdate')]
+    // Specify Beacons
+    const beacons = [];
+    for (let i = 0; i < 3; i++) {
+      // Each Beacon is associated to one Airnode
+      const { airnodeMnemonic } = testUtils.generateRandomAirnodeWallet();
+      // Using the same sponsor for brevity
+      const airnode = {
+        wallet: ethers.Wallet.fromMnemonic(airnodeMnemonic),
+        rrpSponsorWallet: testUtils.deriveSponsorWallet(
+          airnodeMnemonic,
+          roles.sponsor.address,
+          testUtils.PROTOCOL_IDS.RRP
         ),
-        hre.ethers.utils.formatBytes32String('_conditionParameters'),
+        pspSponsorWallet: testUtils.deriveSponsorWallet(
+          airnodeMnemonic,
+          roles.sponsor.address,
+          testUtils.PROTOCOL_IDS.PSP
+        ),
+      };
+      // Each Beacon is associated to one relayer
+      const { airnodeMnemonic: relayerMnemonic } = testUtils.generateRandomAirnodeWallet();
+      const relayer = {
+        wallet: ethers.Wallet.fromMnemonic(relayerMnemonic),
+        rrpRelayedSponsorWallet: testUtils.deriveSponsorWallet(
+          relayerMnemonic,
+          roles.sponsor.address,
+          testUtils.PROTOCOL_IDS.RELAYED_RRP
+        ),
+        pspRelayedSponsorWallet: testUtils.deriveSponsorWallet(
+          relayerMnemonic,
+          roles.sponsor.address,
+          testUtils.PROTOCOL_IDS.RELAYED_PSP
+        ),
+      };
+      // Fund the sponsor wallets
+      await roles.deployer.sendTransaction({
+        to: airnode.rrpSponsorWallet.address,
+        value: ethers.utils.parseEther('1'),
+      });
+      await roles.deployer.sendTransaction({
+        to: airnode.pspSponsorWallet.address,
+        value: ethers.utils.parseEther('1'),
+      });
+      await roles.deployer.sendTransaction({
+        to: relayer.rrpRelayedSponsorWallet.address,
+        value: ethers.utils.parseEther('1'),
+      });
+      await roles.deployer.sendTransaction({
+        to: relayer.pspRelayedSponsorWallet.address,
+        value: ethers.utils.parseEther('1'),
+      });
+      // Each Beacon has unique parameters
+      const endpointId = testUtils.generateRandomBytes32();
+      const templateParameters = testUtils.generateRandomBytes();
+      const templateId = ethers.utils.solidityKeccak256(['bytes32', 'bytes'], [endpointId, templateParameters]);
+      const requestParameters = testUtils.generateRandomBytes();
+      const beaconId = ethers.utils.keccak256(
+        ethers.utils.solidityPack(['address', 'bytes32'], [airnode.wallet.address, templateId])
+      );
+      const beaconUpdateSubscriptionConditionParameters = encodeUpdateSubscriptionConditionParameters(
+        HUNDRED_PERCENT / 10,
+        -100,
+        24 * 60 * 60
+      );
+      const beaconUpdateSubscriptionConditions = await encodeUpdateSubscriptionConditions(
+        dapiServer,
+        dapiServer.interface.getSighash('conditionPspBeaconUpdate'),
+        beaconUpdateSubscriptionConditionParameters
+      );
+      const beaconUpdateSubscriptionId = await deriveUpdateSubscriptionId(
+        dapiServer,
+        airnode.wallet.address,
+        templateId,
+        beaconUpdateSubscriptionConditions,
+        airnode.wallet.address,
+        roles.sponsor.address,
+        dapiServer.interface.getSighash('fulfillPspBeaconUpdate')
+      );
+      beacons.push({
+        airnode,
+        relayer,
+        endpointId,
+        templateParameters,
+        templateId,
+        requestParameters,
+        beaconId,
         beaconUpdateSubscriptionConditionParameters,
-      ]
-    );
-    // Register the Beacon update subscription
-    beaconUpdateSubscriptionId = hre.ethers.utils.keccak256(
-      hre.ethers.utils.defaultAbiCoder.encode(
-        ['uint256', 'address', 'bytes32', 'bytes', 'bytes', 'address', 'address', 'address', 'bytes4'],
-        [
-          (await hre.ethers.provider.getNetwork()).chainId,
-          airnodeAddress,
-          templateId,
-          '0x',
-          beaconUpdateSubscriptionConditions,
-          airnodeAddress,
-          roles.sponsor.address,
-          dapiServer.address,
-          dapiServer.interface.getSighash('fulfillPspBeaconUpdate'),
-        ]
-      )
-    );
-    await dapiServer
-      .connect(roles.randomPerson)
-      .registerBeaconUpdateSubscription(
-        airnodeAddress,
-        templateId,
         beaconUpdateSubscriptionConditions,
-        airnodeAddress,
-        roles.sponsor.address
-      );
-    // Register the relayed Beacon update subscription
-    beaconUpdateSubscriptionRelayedId = hre.ethers.utils.keccak256(
-      hre.ethers.utils.defaultAbiCoder.encode(
-        ['uint256', 'address', 'bytes32', 'bytes', 'bytes', 'address', 'address', 'address', 'bytes4'],
-        [
-          (await hre.ethers.provider.getNetwork()).chainId,
-          airnodeAddress,
-          templateId,
-          '0x',
-          beaconUpdateSubscriptionConditions,
-          relayerAddress,
-          roles.sponsor.address,
-          dapiServer.address,
-          dapiServer.interface.getSighash('fulfillPspBeaconUpdate'),
-        ]
-      )
-    );
-    await dapiServer
-      .connect(roles.randomPerson)
-      .registerBeaconUpdateSubscription(
-        airnodeAddress,
-        templateId,
-        beaconUpdateSubscriptionConditions,
-        relayerAddress,
-        roles.sponsor.address
-      );
-  }
-
-  async function setUpBeaconSet() {
-    for (let ind = 0; ind < 3; ind++) {
-      const beaconSetBeaconId = hre.ethers.utils.keccak256(
-        hre.ethers.utils.solidityPack(['address', 'bytes32'], [airnodeAddress, beaconSetTemplateIds[ind]])
-      );
-      beaconSetBeaconIds[ind] = beaconSetBeaconId;
+        beaconUpdateSubscriptionId,
+      });
     }
-    beaconSetId = hre.ethers.utils.keccak256(
-      hre.ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSetBeaconIds])
+    const beaconIds = beacons.map((beacon) => {
+      return beacon.beaconId;
+    });
+    const beaconSetId = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconIds]));
+    const beaconSetUpdateSubscriptionConditionParameters = encodeUpdateSubscriptionConditionParameters(
+      HUNDRED_PERCENT / 20,
+      -100,
+      2 * 24 * 60 * 60
     );
-    // Deviation threshold is 5% and heartbeat interval is 2 days
-    beaconSetUpdateSubscriptionConditionParameters = hre.ethers.utils.defaultAbiCoder.encode(
-      ['uint256', 'int224', 'uint256'],
-      [(await dapiServer.HUNDRED_PERCENT()).div(20), 0, 2 * 24 * 60 * 60]
+    const beaconSetUpdateSubscriptionConditions = await encodeUpdateSubscriptionConditions(
+      dapiServer,
+      dapiServer.interface.getSighash('conditionPspBeaconSetUpdate'),
+      beaconSetUpdateSubscriptionConditionParameters
     );
-    // Create Beacon set update conditions using Airnode ABI
-    const beaconSetUpdateSubscriptionConditions = hre.ethers.utils.defaultAbiCoder.encode(
-      ['bytes32', 'bytes32', 'uint256', 'bytes32', 'address', 'bytes32', 'bytes32', 'bytes32', 'bytes'],
-      [
-        hre.ethers.utils.formatBytes32String('1uabB'),
-        hre.ethers.utils.formatBytes32String('_conditionChainId'),
-        (await hre.ethers.provider.getNetwork()).chainId,
-        hre.ethers.utils.formatBytes32String('_conditionAddress'),
-        dapiServer.address,
-        hre.ethers.utils.formatBytes32String('_conditionFunctionId'),
-        hre.ethers.utils.defaultAbiCoder.encode(
-          ['bytes4'],
-          [dapiServer.interface.getSighash('conditionPspBeaconSetUpdate')]
-        ),
-        hre.ethers.utils.formatBytes32String('_conditionParameters'),
-        beaconSetUpdateSubscriptionConditionParameters,
-      ]
+    const beaconSetUpdateSubscriptionId = await deriveUpdateSubscriptionId(
+      dapiServer,
+      beacons[0].airnode.wallet.address,
+      ethers.constants.HashZero,
+      beaconSetUpdateSubscriptionConditions,
+      beacons[0].airnode.wallet.address,
+      roles.sponsor.address,
+      dapiServer.interface.getSighash('fulfillPspBeaconSetUpdate'),
+      ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconIds])
     );
-    // Create the Beacon set update template
-    const beaconSetUpdateTemplateId = hre.ethers.utils.keccak256(
-      hre.ethers.utils.solidityPack(['bytes32', 'bytes'], [hre.ethers.constants.HashZero, '0x'])
-    );
-    // Calculate the Beacon set update subscription ID
-    const beaconSetUpdateParameters = hre.ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSetBeaconIds]);
-    beaconSetUpdateSubscriptionId = hre.ethers.utils.keccak256(
-      hre.ethers.utils.defaultAbiCoder.encode(
-        ['uint256', 'address', 'bytes32', 'bytes', 'bytes', 'address', 'address', 'address', 'bytes4'],
-        [
-          (await hre.ethers.provider.getNetwork()).chainId,
-          airnodeAddress,
-          beaconSetUpdateTemplateId,
-          beaconSetUpdateParameters,
-          beaconSetUpdateSubscriptionConditions,
-          airnodeAddress,
-          roles.sponsor.address,
-          dapiServer.address,
-          dapiServer.interface.getSighash('fulfillPspBeaconSetUpdate'),
-        ]
-      )
-    );
-    beaconSetUpdateSubscriptionRelayedId = hre.ethers.utils.keccak256(
-      hre.ethers.utils.defaultAbiCoder.encode(
-        ['uint256', 'address', 'bytes32', 'bytes', 'bytes', 'address', 'address', 'address', 'bytes4'],
-        [
-          (await hre.ethers.provider.getNetwork()).chainId,
-          airnodeAddress,
-          beaconSetUpdateTemplateId,
-          beaconSetUpdateParameters,
-          beaconSetUpdateSubscriptionConditionParameters,
-          relayerAddress,
-          roles.sponsor.address,
-          dapiServer.address,
-          dapiServer.interface.getSighash('fulfillPspBeaconSetUpdate'),
-        ]
-      )
-    );
-  }
-
-  function encodeData(decodedData) {
-    return hre.ethers.utils.defaultAbiCoder.encode(['int256'], [decodedData]);
-  }
-
-  async function encodeAndSignFulfillment(decodedData, requestOrSubscriptionId, timestamp, sponsorWalletAddress) {
-    const signature = await airnodeWallet.signMessage(
-      hre.ethers.utils.arrayify(
-        hre.ethers.utils.keccak256(
-          hre.ethers.utils.solidityPack(
-            ['bytes32', 'uint256', 'address'],
-            [requestOrSubscriptionId, timestamp, sponsorWalletAddress]
-          )
-        )
-      )
-    );
-    return [encodeData(decodedData), signature];
-  }
-
-  async function encodeAndSignFulfillmentRelayed(
-    decodedData,
-    requestOrSubscriptionId,
-    timestamp,
-    sponsorWalletAddress
-  ) {
-    const data = encodeData(decodedData);
-    const signature = await airnodeWallet.signMessage(
-      hre.ethers.utils.arrayify(
-        hre.ethers.utils.keccak256(
-          hre.ethers.utils.solidityPack(
-            ['bytes32', 'uint256', 'address', 'bytes'],
-            [requestOrSubscriptionId, timestamp, sponsorWalletAddress, data]
-          )
-        )
-      )
-    );
-    return [data, signature];
-  }
-
-  async function encodeAndSignData(decodedData, requestHash, timestamp) {
-    const data = encodeData(decodedData);
-    const signature = await airnodeWallet.signMessage(
-      hre.ethers.utils.arrayify(
-        hre.ethers.utils.keccak256(
-          hre.ethers.utils.solidityPack(['bytes32', 'uint256', 'bytes'], [requestHash, timestamp, data])
-        )
-      )
-    );
-    return [data, signature];
-  }
-
-  async function deriveRegularRequestId() {
-    return hre.ethers.utils.keccak256(
-      hre.ethers.utils.solidityPack(
-        ['uint256', 'address', 'address', 'uint256', 'address', 'bytes32', 'bytes', 'address', 'bytes4'],
-        [
-          (await hre.ethers.provider.getNetwork()).chainId,
-          airnodeProtocol.address,
-          dapiServer.address,
-          (await airnodeProtocol.requesterToRequestCount(dapiServer.address)).add(1),
-          airnodeAddress,
-          templateId,
-          '0x',
-          roles.sponsor.address,
-          dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
-        ]
-      )
-    );
-  }
-
-  async function deriveRelayedRequestId() {
-    return hre.ethers.utils.keccak256(
-      hre.ethers.utils.solidityPack(
-        ['uint256', 'address', 'address', 'uint256', 'address', 'bytes32', 'bytes', 'address', 'address', 'bytes4'],
-        [
-          (await hre.ethers.provider.getNetwork()).chainId,
-          airnodeProtocol.address,
-          dapiServer.address,
-          (await airnodeProtocol.requesterToRequestCount(dapiServer.address)).add(1),
-          airnodeAddress,
-          templateId,
-          '0x',
-          relayerAddress,
-          roles.sponsor.address,
-          dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
-        ]
-      )
-    );
-  }
-
-  async function updateBeacon(airnodeAddress, templateId, value) {
-    const beaconTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-    await hre.ethers.provider.send('evm_setNextBlockTimestamp', [beaconTimestamp]);
-    const [data, signature] = await encodeAndSignData(value, templateId, beaconTimestamp);
-    await dapiServer.updateDataFeedWithSignedData([
-      hre.ethers.utils.defaultAbiCoder.encode(
-        ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-        [airnodeAddress, templateId, beaconTimestamp, data, signature]
-      ),
-    ]);
-    return beaconTimestamp;
-  }
-
-  async function setBeacon(templateId, decodedData, timestamp) {
-    const [data, signature] = await encodeAndSignData(decodedData, templateId, timestamp);
-    await hre.ethers.provider.send('evm_setNextBlockTimestamp', [timestamp]);
-    await dapiServer
-      .connect(roles.randomPerson)
-      .updateDataFeedWithSignedData([
-        hre.ethers.utils.defaultAbiCoder.encode(
-          ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-          [airnodeAddress, templateId, timestamp, data, signature]
-        ),
-      ]);
-  }
-
-  async function setBeaconSet(airnodeAddress, templateIds, decodedData, timestamps) {
-    const dataArray = [];
-    const signatureArray = [];
-    for (let ind = 0; ind < decodedData.length; ind++) {
-      const [data, signature] = await encodeAndSignData(decodedData[ind], beaconSetTemplateIds[ind], timestamps[ind]);
-      dataArray.push(data);
-      signatureArray.push(signature);
-    }
-    await hre.ethers.provider.send('evm_setNextBlockTimestamp', [Math.max(...timestamps)]);
-    await dapiServer.updateDataFeedWithSignedData([
-      hre.ethers.utils.defaultAbiCoder.encode(
-        ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-        [airnodeAddress, templateIds[0], timestamps[0], dataArray[0], signatureArray[0]]
-      ),
-      hre.ethers.utils.defaultAbiCoder.encode(
-        ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-        [airnodeAddress, templateIds[1], timestamps[1], dataArray[1], signatureArray[1]]
-      ),
-      hre.ethers.utils.defaultAbiCoder.encode(
-        ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-        [airnodeAddress, templateIds[2], timestamps[2], dataArray[2], signatureArray[2]]
-      ),
-    ]);
-  }
-
-  beforeEach(async () => {
-    const accounts = await hre.ethers.getSigners();
-    roles = {
-      deployer: accounts[0],
-      manager: accounts[1],
-      unlimitedReader: accounts[2],
-      dapiNameSetter: accounts[3],
-      sponsor: accounts[4],
-      updateRequester: accounts[5],
-      searcher: accounts[6],
-      oevBeneficiary: accounts[7],
-      mockOevProxy: accounts[8],
-      randomPerson: accounts[9],
+    const beaconSet = {
+      beaconIds,
+      beaconSetId,
+      beaconSetUpdateSubscriptionConditionParameters,
+      beaconSetUpdateSubscriptionConditions,
+      beaconSetUpdateSubscriptionId,
     };
-    await deployContracts();
-    await setUpRoles();
-    await setUpSponsorWallets();
-    await setUpTemplate();
-    await setUpBeacon();
-    await setUpBeaconSet();
-  });
+
+    const dataFeedProxyWithOevFactory = await ethers.getContractFactory('DataFeedProxyWithOev', roles.deployer);
+    const oevProxy = await dataFeedProxyWithOevFactory.deploy(
+      dapiServer.address,
+      beacons[0].beaconId,
+      roles.oevBeneficiary.address
+    );
+
+    return {
+      roles,
+      accessControlRegistry,
+      airnodeProtocol,
+      dapiServer,
+      oevProxy,
+      dapiServerAdminRoleDescription,
+      dapiNameSetterRole,
+      beacons,
+      beaconSet,
+    };
+  }
 
   describe('constructor', function () {
     context('AirnodeProtocol address is not zero', function () {
       it('constructs', async function () {
+        const {
+          roles,
+          accessControlRegistry,
+          airnodeProtocol,
+          dapiServer,
+          dapiServerAdminRoleDescription,
+          dapiNameSetterRole,
+        } = await helpers.loadFixture(deploy);
         expect(await dapiServer.DAPI_NAME_SETTER_ROLE_DESCRIPTION()).to.equal('dAPI name setter');
-        expect(await dapiServer.HUNDRED_PERCENT()).to.equal(Math.pow(10, 8));
+        expect(await dapiServer.HUNDRED_PERCENT()).to.equal(HUNDRED_PERCENT);
         expect(await dapiServer.accessControlRegistry()).to.equal(accessControlRegistry.address);
         expect(await dapiServer.adminRoleDescription()).to.equal(dapiServerAdminRoleDescription);
         expect(await dapiServer.manager()).to.equal(roles.manager.address);
@@ -438,13 +335,14 @@ describe('DapiServer', function () {
     });
     context('AirnodeProtocol address is zero', function () {
       it('reverts', async function () {
-        const dapiServerFactory = await hre.ethers.getContractFactory('DapiServer', roles.deployer);
+        const { roles, accessControlRegistry, dapiServerAdminRoleDescription } = await helpers.loadFixture(deploy);
+        const dapiServerFactory = await ethers.getContractFactory('DapiServer', roles.deployer);
         await expect(
           dapiServerFactory.deploy(
             accessControlRegistry.address,
             dapiServerAdminRoleDescription,
             roles.manager.address,
-            hre.ethers.constants.AddressZero
+            ethers.constants.AddressZero
           )
         ).to.be.revertedWith('AirnodeProtocol address zero');
       });
@@ -454,6 +352,7 @@ describe('DapiServer', function () {
   describe('setRrpBeaconUpdatePermissionStatus', function () {
     context('Update requester is not zero address', function () {
       it('sets RRP-based beacon update permission status', async function () {
+        const { roles, dapiServer } = await helpers.loadFixture(deploy);
         expect(
           await dapiServer.sponsorToRrpBeaconUpdateRequesterToPermissionStatus(
             roles.sponsor.address,
@@ -486,8 +385,9 @@ describe('DapiServer', function () {
     });
     context('Update requester is zero address', function () {
       it('reverts', async function () {
+        const { roles, dapiServer } = await helpers.loadFixture(deploy);
         await expect(
-          dapiServer.connect(roles.sponsor).setRrpBeaconUpdatePermissionStatus(hre.ethers.constants.AddressZero, false)
+          dapiServer.connect(roles.sponsor).setRrpBeaconUpdatePermissionStatus(ethers.constants.AddressZero, false)
         ).to.be.revertedWith('Update requester zero');
       });
     });
@@ -496,51 +396,88 @@ describe('DapiServer', function () {
   describe('requestRrpBeaconUpdateWithTemplate', function () {
     context('Request updater is the sponsor', function () {
       it('requests RRP Beacon update', async function () {
-        const requestId = await deriveRegularRequestId();
+        const { roles, airnodeProtocol, dapiServer, beacons } = await helpers.loadFixture(deploy);
+        const beacon = beacons[0];
+        const requestId = await testUtils.deriveRequestId(
+          airnodeProtocol,
+          dapiServer.address,
+          beacon.airnode.wallet.address,
+          beacon.templateId,
+          '0x',
+          roles.sponsor.address,
+          dapiServer.interface.getSighash('fulfillRrpBeaconUpdate')
+        );
         expect(
           await dapiServer
             .connect(roles.sponsor)
-            .callStatic.requestRrpBeaconUpdateWithTemplate(airnodeAddress, templateId, roles.sponsor.address)
+            .callStatic.requestRrpBeaconUpdateWithTemplate(
+              beacon.airnode.wallet.address,
+              beacon.templateId,
+              roles.sponsor.address
+            )
         ).to.equal(requestId);
         await expect(
           dapiServer
             .connect(roles.sponsor)
-            .requestRrpBeaconUpdateWithTemplate(airnodeAddress, templateId, roles.sponsor.address)
+            .requestRrpBeaconUpdateWithTemplate(beacon.airnode.wallet.address, beacon.templateId, roles.sponsor.address)
         )
           .to.emit(dapiServer, 'RequestedRrpBeaconUpdate')
-          .withArgs(beaconId, roles.sponsor.address, roles.sponsor.address, requestId, airnodeAddress, templateId);
+          .withArgs(
+            beacon.beaconId,
+            roles.sponsor.address,
+            roles.sponsor.address,
+            requestId,
+            beacon.airnode.wallet.address,
+            beacon.templateId
+          );
       });
     });
     context('Request updater is permitted', function () {
       it('requests RRP Beacon update', async function () {
-        const requestId = await deriveRegularRequestId();
+        const { roles, airnodeProtocol, dapiServer, beacons } = await helpers.loadFixture(deploy);
+        const beacon = beacons[0];
+        const requestId = await testUtils.deriveRequestId(
+          airnodeProtocol,
+          dapiServer.address,
+          beacon.airnode.wallet.address,
+          beacon.templateId,
+          '0x',
+          roles.sponsor.address,
+          dapiServer.interface.getSighash('fulfillRrpBeaconUpdate')
+        );
         expect(
           await dapiServer
             .connect(roles.updateRequester)
-            .callStatic.requestRrpBeaconUpdateWithTemplate(airnodeAddress, templateId, roles.sponsor.address)
+            .callStatic.requestRrpBeaconUpdateWithTemplate(
+              beacon.airnode.wallet.address,
+              beacon.templateId,
+              roles.sponsor.address
+            )
         ).to.equal(requestId);
         await expect(
           dapiServer
             .connect(roles.updateRequester)
-            .requestRrpBeaconUpdateWithTemplate(airnodeAddress, templateId, roles.sponsor.address)
+            .requestRrpBeaconUpdateWithTemplate(beacon.airnode.wallet.address, beacon.templateId, roles.sponsor.address)
         )
           .to.emit(dapiServer, 'RequestedRrpBeaconUpdate')
           .withArgs(
-            beaconId,
+            beacon.beaconId,
             roles.sponsor.address,
             roles.updateRequester.address,
             requestId,
-            airnodeAddress,
-            templateId
+            beacon.airnode.wallet.address,
+            beacon.templateId
           );
       });
     });
     context('Request updater is not permitted', function () {
       it('reverts', async function () {
+        const { roles, dapiServer, beacons } = await helpers.loadFixture(deploy);
+        const beacon = beacons[0];
         await expect(
           dapiServer
             .connect(roles.randomPerson)
-            .requestRrpBeaconUpdateWithTemplate(airnodeAddress, templateId, roles.sponsor.address)
+            .requestRrpBeaconUpdateWithTemplate(beacon.airnode.wallet.address, beacon.templateId, roles.sponsor.address)
         ).to.be.revertedWith('Sender not permitted');
       });
     });
@@ -549,91 +486,105 @@ describe('DapiServer', function () {
   describe('requestRrpBeaconUpdateWithEndpoint', function () {
     context('Request updater is the sponsor', function () {
       it('requests RRP Beacon update', async function () {
-        const requestId = hre.ethers.utils.keccak256(
-          hre.ethers.utils.solidityPack(
-            ['uint256', 'address', 'address', 'uint256', 'address', 'bytes32', 'bytes', 'address', 'bytes4'],
-            [
-              (await hre.ethers.provider.getNetwork()).chainId,
-              airnodeProtocol.address,
-              dapiServer.address,
-              (await airnodeProtocol.requesterToRequestCount(dapiServer.address)).add(1),
-              airnodeAddress,
-              endpointId,
-              parameters,
-              roles.sponsor.address,
-              dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
-            ]
-          )
+        const { roles, airnodeProtocol, dapiServer, beacons } = await helpers.loadFixture(deploy);
+        const beacon = beacons[0];
+        const requestId = await testUtils.deriveRequestId(
+          airnodeProtocol,
+          dapiServer.address,
+          beacon.airnode.wallet.address,
+          beacon.endpointId,
+          beacon.templateParameters,
+          roles.sponsor.address,
+          dapiServer.interface.getSighash('fulfillRrpBeaconUpdate')
         );
         expect(
           await dapiServer
             .connect(roles.sponsor)
             .callStatic.requestRrpBeaconUpdateWithEndpoint(
-              airnodeAddress,
-              endpointId,
-              parameters,
+              beacon.airnode.wallet.address,
+              beacon.endpointId,
+              beacon.templateParameters,
               roles.sponsor.address
             )
         ).to.equal(requestId);
         await expect(
           dapiServer
             .connect(roles.sponsor)
-            .requestRrpBeaconUpdateWithEndpoint(airnodeAddress, endpointId, parameters, roles.sponsor.address)
+            .requestRrpBeaconUpdateWithEndpoint(
+              beacon.airnode.wallet.address,
+              beacon.endpointId,
+              beacon.templateParameters,
+              roles.sponsor.address
+            )
         )
           .to.emit(dapiServer, 'RequestedRrpBeaconUpdate')
-          .withArgs(beaconId, roles.sponsor.address, roles.sponsor.address, requestId, airnodeAddress, templateId);
+          .withArgs(
+            beacon.beaconId,
+            roles.sponsor.address,
+            roles.sponsor.address,
+            requestId,
+            beacon.airnode.wallet.address,
+            beacon.templateId
+          );
       });
     });
     context('Request updater is permitted', function () {
       it('requests RRP Beacon update', async function () {
-        const requestId = hre.ethers.utils.keccak256(
-          hre.ethers.utils.solidityPack(
-            ['uint256', 'address', 'address', 'uint256', 'address', 'bytes32', 'bytes', 'address', 'bytes4'],
-            [
-              (await hre.ethers.provider.getNetwork()).chainId,
-              airnodeProtocol.address,
-              dapiServer.address,
-              (await airnodeProtocol.requesterToRequestCount(dapiServer.address)).add(1),
-              airnodeAddress,
-              endpointId,
-              parameters,
-              roles.sponsor.address,
-              dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
-            ]
-          )
+        const { roles, airnodeProtocol, dapiServer, beacons } = await helpers.loadFixture(deploy);
+        const beacon = beacons[0];
+        const requestId = await testUtils.deriveRequestId(
+          airnodeProtocol,
+          dapiServer.address,
+          beacon.airnode.wallet.address,
+          beacon.endpointId,
+          beacon.templateParameters,
+          roles.sponsor.address,
+          dapiServer.interface.getSighash('fulfillRrpBeaconUpdate')
         );
         expect(
           await dapiServer
             .connect(roles.updateRequester)
             .callStatic.requestRrpBeaconUpdateWithEndpoint(
-              airnodeAddress,
-              endpointId,
-              parameters,
+              beacon.airnode.wallet.address,
+              beacon.endpointId,
+              beacon.templateParameters,
               roles.sponsor.address
             )
         ).to.equal(requestId);
         await expect(
           dapiServer
             .connect(roles.updateRequester)
-            .requestRrpBeaconUpdateWithEndpoint(airnodeAddress, endpointId, parameters, roles.sponsor.address)
+            .requestRrpBeaconUpdateWithEndpoint(
+              beacon.airnode.wallet.address,
+              beacon.endpointId,
+              beacon.templateParameters,
+              roles.sponsor.address
+            )
         )
           .to.emit(dapiServer, 'RequestedRrpBeaconUpdate')
           .withArgs(
-            beaconId,
+            beacon.beaconId,
             roles.sponsor.address,
             roles.updateRequester.address,
             requestId,
-            airnodeAddress,
-            templateId
+            beacon.airnode.wallet.address,
+            beacon.templateId
           );
       });
     });
     context('Request updater is not permitted', function () {
       it('reverts', async function () {
+        const { roles, dapiServer, beacons } = await helpers.loadFixture(deploy);
+        const beacon = beacons[0];
         await expect(
           dapiServer
             .connect(roles.randomPerson)
-            .requestRrpBeaconUpdateWithEndpoint(airnodeAddress, endpointId, parameters, roles.sponsor.address)
+            .requestRrpBeaconUpdateWithEndpoint(
+              beacon.airnode.wallet.address,
+              beacon.endpointId,
+              beacon.templateParameters,
+              roles.sponsor.address
+            )
         ).to.be.revertedWith('Sender not permitted');
       });
     });
@@ -642,14 +593,25 @@ describe('DapiServer', function () {
   describe('requestRelayedRrpBeaconUpdateWithTemplate', function () {
     context('Request updater is the sponsor', function () {
       it('requests RRP Beacon update', async function () {
-        const requestId = await deriveRelayedRequestId();
+        const { roles, airnodeProtocol, dapiServer, beacons } = await helpers.loadFixture(deploy);
+        const beacon = beacons[0];
+        const requestId = await testUtils.deriveRelayedRequestId(
+          airnodeProtocol,
+          dapiServer.address,
+          beacon.airnode.wallet.address,
+          beacon.templateId,
+          '0x',
+          beacon.relayer.wallet.address,
+          roles.sponsor.address,
+          dapiServer.interface.getSighash('fulfillRrpBeaconUpdate')
+        );
         expect(
           await dapiServer
             .connect(roles.sponsor)
             .callStatic.requestRelayedRrpBeaconUpdateWithTemplate(
-              airnodeAddress,
-              templateId,
-              relayerAddress,
+              beacon.airnode.wallet.address,
+              beacon.templateId,
+              beacon.relayer.wallet.address,
               roles.sponsor.address
             )
         ).to.equal(requestId);
@@ -657,34 +619,45 @@ describe('DapiServer', function () {
           dapiServer
             .connect(roles.sponsor)
             .requestRelayedRrpBeaconUpdateWithTemplate(
-              airnodeAddress,
-              templateId,
-              relayerAddress,
+              beacon.airnode.wallet.address,
+              beacon.templateId,
+              beacon.relayer.wallet.address,
               roles.sponsor.address
             )
         )
           .to.emit(dapiServer, 'RequestedRelayedRrpBeaconUpdate')
           .withArgs(
-            beaconId,
+            beacon.beaconId,
             roles.sponsor.address,
             roles.sponsor.address,
             requestId,
-            airnodeAddress,
-            relayerAddress,
-            templateId
+            beacon.airnode.wallet.address,
+            beacon.relayer.wallet.address,
+            beacon.templateId
           );
       });
     });
     context('Request updater is permitted', function () {
       it('requests RRP Beacon update', async function () {
-        const requestId = await deriveRelayedRequestId();
+        const { roles, airnodeProtocol, dapiServer, beacons } = await helpers.loadFixture(deploy);
+        const beacon = beacons[0];
+        const requestId = await testUtils.deriveRelayedRequestId(
+          airnodeProtocol,
+          dapiServer.address,
+          beacon.airnode.wallet.address,
+          beacon.templateId,
+          '0x',
+          beacon.relayer.wallet.address,
+          roles.sponsor.address,
+          dapiServer.interface.getSighash('fulfillRrpBeaconUpdate')
+        );
         expect(
           await dapiServer
             .connect(roles.updateRequester)
             .callStatic.requestRelayedRrpBeaconUpdateWithTemplate(
-              airnodeAddress,
-              templateId,
-              relayerAddress,
+              beacon.airnode.wallet.address,
+              beacon.templateId,
+              beacon.relayer.wallet.address,
               roles.sponsor.address
             )
         ).to.equal(requestId);
@@ -692,33 +665,35 @@ describe('DapiServer', function () {
           dapiServer
             .connect(roles.updateRequester)
             .requestRelayedRrpBeaconUpdateWithTemplate(
-              airnodeAddress,
-              templateId,
-              relayerAddress,
+              beacon.airnode.wallet.address,
+              beacon.templateId,
+              beacon.relayer.wallet.address,
               roles.sponsor.address
             )
         )
           .to.emit(dapiServer, 'RequestedRelayedRrpBeaconUpdate')
           .withArgs(
-            beaconId,
+            beacon.beaconId,
             roles.sponsor.address,
             roles.updateRequester.address,
             requestId,
-            airnodeAddress,
-            relayerAddress,
-            templateId
+            beacon.airnode.wallet.address,
+            beacon.relayer.wallet.address,
+            beacon.templateId
           );
       });
     });
     context('Request updater is not permitted', function () {
       it('reverts', async function () {
+        const { roles, dapiServer, beacons } = await helpers.loadFixture(deploy);
+        const beacon = beacons[0];
         await expect(
           dapiServer
             .connect(roles.randomPerson)
             .requestRelayedRrpBeaconUpdateWithTemplate(
-              airnodeAddress,
-              templateId,
-              relayerAddress,
+              beacon.airnode.wallet.address,
+              beacon.templateId,
+              beacon.relayer.wallet.address,
               roles.sponsor.address
             )
         ).to.be.revertedWith('Sender not permitted');
@@ -729,31 +704,26 @@ describe('DapiServer', function () {
   describe('requestRelayedRrpBeaconUpdateWithEndpoint', function () {
     context('Request updater is the sponsor', function () {
       it('requests RRP Beacon update', async function () {
-        const requestId = hre.ethers.utils.keccak256(
-          hre.ethers.utils.solidityPack(
-            ['uint256', 'address', 'address', 'uint256', 'address', 'bytes32', 'bytes', 'address', 'address', 'bytes4'],
-            [
-              (await hre.ethers.provider.getNetwork()).chainId,
-              airnodeProtocol.address,
-              dapiServer.address,
-              (await airnodeProtocol.requesterToRequestCount(dapiServer.address)).add(1),
-              airnodeAddress,
-              endpointId,
-              parameters,
-              relayerAddress,
-              roles.sponsor.address,
-              dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
-            ]
-          )
+        const { roles, airnodeProtocol, dapiServer, beacons } = await helpers.loadFixture(deploy);
+        const beacon = beacons[0];
+        const requestId = await testUtils.deriveRelayedRequestId(
+          airnodeProtocol,
+          dapiServer.address,
+          beacon.airnode.wallet.address,
+          beacon.endpointId,
+          beacon.templateParameters,
+          beacon.relayer.wallet.address,
+          roles.sponsor.address,
+          dapiServer.interface.getSighash('fulfillRrpBeaconUpdate')
         );
         expect(
           await dapiServer
             .connect(roles.sponsor)
             .callStatic.requestRelayedRrpBeaconUpdateWithEndpoint(
-              airnodeAddress,
-              endpointId,
-              parameters,
-              relayerAddress,
+              beacon.airnode.wallet.address,
+              beacon.endpointId,
+              beacon.templateParameters,
+              beacon.relayer.wallet.address,
               roles.sponsor.address
             )
         ).to.equal(requestId);
@@ -761,52 +731,47 @@ describe('DapiServer', function () {
           dapiServer
             .connect(roles.sponsor)
             .requestRelayedRrpBeaconUpdateWithEndpoint(
-              airnodeAddress,
-              endpointId,
-              parameters,
-              relayerAddress,
+              beacon.airnode.wallet.address,
+              beacon.endpointId,
+              beacon.templateParameters,
+              beacon.relayer.wallet.address,
               roles.sponsor.address
             )
         )
           .to.emit(dapiServer, 'RequestedRelayedRrpBeaconUpdate')
           .withArgs(
-            beaconId,
+            beacon.beaconId,
             roles.sponsor.address,
             roles.sponsor.address,
             requestId,
-            airnodeAddress,
-            relayerAddress,
-            templateId
+            beacon.airnode.wallet.address,
+            beacon.relayer.wallet.address,
+            beacon.templateId
           );
       });
     });
     context('Request updater is permitted', function () {
       it('requests RRP Beacon update', async function () {
-        const requestId = hre.ethers.utils.keccak256(
-          hre.ethers.utils.solidityPack(
-            ['uint256', 'address', 'address', 'uint256', 'address', 'bytes32', 'bytes', 'address', 'address', 'bytes4'],
-            [
-              (await hre.ethers.provider.getNetwork()).chainId,
-              airnodeProtocol.address,
-              dapiServer.address,
-              (await airnodeProtocol.requesterToRequestCount(dapiServer.address)).add(1),
-              airnodeAddress,
-              endpointId,
-              parameters,
-              relayerAddress,
-              roles.sponsor.address,
-              dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
-            ]
-          )
+        const { roles, airnodeProtocol, dapiServer, beacons } = await helpers.loadFixture(deploy);
+        const beacon = beacons[0];
+        const requestId = await testUtils.deriveRelayedRequestId(
+          airnodeProtocol,
+          dapiServer.address,
+          beacon.airnode.wallet.address,
+          beacon.endpointId,
+          beacon.templateParameters,
+          beacon.relayer.wallet.address,
+          roles.sponsor.address,
+          dapiServer.interface.getSighash('fulfillRrpBeaconUpdate')
         );
         expect(
           await dapiServer
             .connect(roles.updateRequester)
             .callStatic.requestRelayedRrpBeaconUpdateWithEndpoint(
-              airnodeAddress,
-              endpointId,
-              parameters,
-              relayerAddress,
+              beacon.airnode.wallet.address,
+              beacon.endpointId,
+              beacon.templateParameters,
+              beacon.relayer.wallet.address,
               roles.sponsor.address
             )
         ).to.equal(requestId);
@@ -814,35 +779,37 @@ describe('DapiServer', function () {
           dapiServer
             .connect(roles.updateRequester)
             .requestRelayedRrpBeaconUpdateWithEndpoint(
-              airnodeAddress,
-              endpointId,
-              parameters,
-              relayerAddress,
+              beacon.airnode.wallet.address,
+              beacon.endpointId,
+              beacon.templateParameters,
+              beacon.relayer.wallet.address,
               roles.sponsor.address
             )
         )
           .to.emit(dapiServer, 'RequestedRelayedRrpBeaconUpdate')
           .withArgs(
-            beaconId,
+            beacon.beaconId,
             roles.sponsor.address,
             roles.updateRequester.address,
             requestId,
-            airnodeAddress,
-            relayerAddress,
-            templateId
+            beacon.airnode.wallet.address,
+            beacon.relayer.wallet.address,
+            beacon.templateId
           );
       });
     });
     context('Request updater is not permitted', function () {
       it('reverts', async function () {
+        const { roles, dapiServer, beacons } = await helpers.loadFixture(deploy);
+        const beacon = beacons[0];
         await expect(
           dapiServer
             .connect(roles.randomPerson)
             .requestRelayedRrpBeaconUpdateWithEndpoint(
-              airnodeAddress,
-              endpointId,
-              parameters,
-              relayerAddress,
+              beacon.airnode.wallet.address,
+              beacon.endpointId,
+              beacon.templateParameters,
+              beacon.relayer.wallet.address,
               roles.sponsor.address
             )
         ).to.be.revertedWith('Sender not permitted');
@@ -858,28 +825,42 @@ describe('DapiServer', function () {
             context('Data is fresher than Beacon', function () {
               context('Request is regular', function () {
                 it('updates Beacon', async function () {
-                  const initialBeacon = await dapiServer.dataFeeds(beaconId);
-                  expect(initialBeacon.value).to.equal(0);
-                  expect(initialBeacon.timestamp).to.equal(0);
-                  const requestId = await deriveRegularRequestId();
+                  const { roles, airnodeProtocol, dapiServer, beacons } = await deploy();
+                  const beacon = beacons[0];
+                  const requestId = await testUtils.deriveRequestId(
+                    airnodeProtocol,
+                    dapiServer.address,
+                    beacon.airnode.wallet.address,
+                    beacon.templateId,
+                    '0x',
+                    roles.sponsor.address,
+                    dapiServer.interface.getSighash('fulfillRrpBeaconUpdate')
+                  );
                   await dapiServer
-                    .connect(roles.updateRequester)
-                    .requestRrpBeaconUpdateWithTemplate(airnodeAddress, templateId, roles.sponsor.address);
+                    .connect(roles.sponsor)
+                    .requestRrpBeaconUpdateWithTemplate(
+                      beacon.airnode.wallet.address,
+                      beacon.templateId,
+                      roles.sponsor.address
+                    );
+                  const beaconBefore = await dapiServer.dataFeeds(beacon.beaconId);
+                  expect(beaconBefore.value).to.equal(0);
+                  expect(beaconBefore.timestamp).to.equal(0);
                   const decodedData = 123;
-                  const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                  await hre.ethers.provider.send('evm_setNextBlockTimestamp', [timestamp]);
-                  const [data, signature] = await encodeAndSignFulfillment(
-                    decodedData,
+                  const data = encodeData(decodedData);
+                  const timestamp = await helpers.time.latest();
+                  const signature = testUtils.signRrpFulfillment(
+                    beacon.airnode.wallet,
                     requestId,
                     timestamp,
-                    airnodeRrpSponsorWallet.address
+                    beacon.airnode.rrpSponsorWallet.address
                   );
                   await expect(
                     airnodeProtocol
-                      .connect(airnodeRrpSponsorWallet)
+                      .connect(beacon.airnode.rrpSponsorWallet)
                       .fulfillRequest(
                         requestId,
-                        airnodeAddress,
+                        beacon.airnode.wallet.address,
                         dapiServer.address,
                         dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
                         timestamp,
@@ -889,43 +870,55 @@ describe('DapiServer', function () {
                       )
                   )
                     .to.emit(dapiServer, 'UpdatedBeaconWithRrp')
-                    .withArgs(beaconId, requestId, decodedData, timestamp);
-                  const beacon = await dapiServer.dataFeeds(beaconId);
-                  expect(beacon.value).to.equal(decodedData);
-                  expect(beacon.timestamp).to.equal(timestamp);
+                    .withArgs(beacon.beaconId, requestId, decodedData, timestamp);
+                  const beaconAfter = await dapiServer.dataFeeds(beacon.beaconId);
+                  expect(beaconAfter.value).to.equal(decodedData);
+                  expect(beaconAfter.timestamp).to.equal(timestamp);
                 });
               });
               context('Request is relayed', function () {
                 it('updates Beacon', async function () {
-                  const initialBeacon = await dapiServer.dataFeeds(beaconId);
-                  expect(initialBeacon.value).to.equal(0);
-                  expect(initialBeacon.timestamp).to.equal(0);
-                  const requestId = await deriveRelayedRequestId();
+                  const { roles, airnodeProtocol, dapiServer, beacons } = await helpers.loadFixture(deploy);
+                  const beacon = beacons[0];
+                  const requestId = await testUtils.deriveRelayedRequestId(
+                    airnodeProtocol,
+                    dapiServer.address,
+                    beacon.airnode.wallet.address,
+                    beacon.templateId,
+                    '0x',
+                    beacon.relayer.wallet.address,
+                    roles.sponsor.address,
+                    dapiServer.interface.getSighash('fulfillRrpBeaconUpdate')
+                  );
                   await dapiServer
-                    .connect(roles.updateRequester)
+                    .connect(roles.sponsor)
                     .requestRelayedRrpBeaconUpdateWithTemplate(
-                      airnodeAddress,
-                      templateId,
-                      relayerAddress,
+                      beacon.airnode.wallet.address,
+                      beacon.templateId,
+                      beacon.relayer.wallet.address,
                       roles.sponsor.address
                     );
+                  const beaconBefore = await dapiServer.dataFeeds(beacon.beaconId);
+                  expect(beaconBefore.value).to.equal(0);
+                  expect(beaconBefore.timestamp).to.equal(0);
                   const decodedData = 123;
-                  const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                  await hre.ethers.provider.send('evm_setNextBlockTimestamp', [timestamp]);
-                  const [data, signature] = await encodeAndSignFulfillmentRelayed(
-                    decodedData,
+                  const data = encodeData(decodedData);
+                  const timestamp = await helpers.time.latest();
+                  const signature = testUtils.signRrpRelayedFulfillment(
+                    beacon.airnode.wallet,
                     requestId,
                     timestamp,
-                    relayerRrpSponsorWallet.address
+                    beacon.relayer.rrpRelayedSponsorWallet.address,
+                    data
                   );
                   await expect(
                     airnodeProtocol
-                      .connect(relayerRrpSponsorWallet)
+                      .connect(beacon.relayer.rrpRelayedSponsorWallet)
                       .fulfillRequestRelayed(
                         requestId,
-                        airnodeAddress,
+                        beacon.airnode.wallet.address,
                         dapiServer.address,
-                        relayerAddress,
+                        beacon.relayer.wallet.address,
                         dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
                         timestamp,
                         data,
@@ -934,36 +927,55 @@ describe('DapiServer', function () {
                       )
                   )
                     .to.emit(dapiServer, 'UpdatedBeaconWithRrp')
-                    .withArgs(beaconId, requestId, decodedData, timestamp);
-                  const beacon = await dapiServer.dataFeeds(beaconId);
-                  expect(beacon.value).to.equal(decodedData);
-                  expect(beacon.timestamp).to.equal(timestamp);
+                    .withArgs(beacon.beaconId, requestId, decodedData, timestamp);
+                  const beaconAfter = await dapiServer.dataFeeds(beacon.beaconId);
+                  expect(beaconAfter.value).to.equal(decodedData);
+                  expect(beaconAfter.timestamp).to.equal(timestamp);
                 });
               });
             });
             context('Data is not fresher than Beacon', function () {
               it('does not update Beacon', async function () {
-                const initialTimestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-                const requestId = await deriveRegularRequestId();
-                await dapiServer
-                  .connect(roles.updateRequester)
-                  .requestRrpBeaconUpdateWithTemplate(airnodeAddress, templateId, roles.sponsor.address);
-                const [data, signature] = await encodeAndSignFulfillment(
-                  456,
-                  requestId,
-                  initialTimestamp,
-                  airnodeRrpSponsorWallet.address
+                const { roles, airnodeProtocol, dapiServer, beacons } = await deploy();
+                const beacon = beacons[0];
+                const requestId = await testUtils.deriveRequestId(
+                  airnodeProtocol,
+                  dapiServer.address,
+                  beacon.airnode.wallet.address,
+                  beacon.templateId,
+                  '0x',
+                  roles.sponsor.address,
+                  dapiServer.interface.getSighash('fulfillRrpBeaconUpdate')
                 );
-                const futureTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                await setBeacon(templateId, 123, futureTimestamp);
+                await dapiServer
+                  .connect(roles.sponsor)
+                  .requestRrpBeaconUpdateWithTemplate(
+                    beacon.airnode.wallet.address,
+                    beacon.templateId,
+                    roles.sponsor.address
+                  );
+                const beaconBefore = await dapiServer.dataFeeds(beacon.beaconId);
+                expect(beaconBefore.value).to.equal(0);
+                expect(beaconBefore.timestamp).to.equal(0);
+                const decodedData = 123;
+                const data = encodeData(decodedData);
+                const timestamp = (await helpers.time.latest()) - 10 * 60;
+                const signature = testUtils.signRrpFulfillment(
+                  beacon.airnode.wallet,
+                  requestId,
+                  timestamp,
+                  beacon.airnode.rrpSponsorWallet.address
+                );
+                const updatedDecodedData = 456;
+                const updatedTimestamp = await updateBeacon(roles, dapiServer, beacon, updatedDecodedData);
                 const staticCallResult = await airnodeProtocol
-                  .connect(airnodeRrpSponsorWallet)
+                  .connect(beacon.airnode.rrpSponsorWallet)
                   .callStatic.fulfillRequest(
                     requestId,
-                    airnodeAddress,
+                    beacon.airnode.wallet.address,
                     dapiServer.address,
                     dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
-                    initialTimestamp,
+                    timestamp,
                     data,
                     signature,
                     { gasLimit: 500000 }
@@ -972,45 +984,59 @@ describe('DapiServer', function () {
                 expect(testUtils.decodeRevertString(staticCallResult.callData)).to.equal('Does not update timestamp');
                 await expect(
                   airnodeProtocol
-                    .connect(airnodeRrpSponsorWallet)
+                    .connect(beacon.airnode.rrpSponsorWallet)
                     .fulfillRequest(
                       requestId,
-                      airnodeAddress,
+                      beacon.airnode.wallet.address,
                       dapiServer.address,
                       dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
-                      initialTimestamp,
+                      timestamp,
                       data,
                       signature,
                       { gasLimit: 500000 }
                     )
                 ).to.not.emit(dapiServer, 'UpdatedBeaconWithRrp');
-                const beacon = await dapiServer.dataFeeds(beaconId);
-                expect(beacon.value).to.equal(123);
-                expect(beacon.timestamp).to.equal(futureTimestamp);
+                const beaconAfter = await dapiServer.dataFeeds(beacon.beaconId);
+                expect(beaconAfter.value).to.equal(updatedDecodedData);
+                expect(beaconAfter.timestamp).to.equal(updatedTimestamp);
               });
             });
           });
           context('Data is not typecast successfully', function () {
             context('Data larger than maximum int224', function () {
               it('does not update Beacon', async function () {
-                const requestId = await deriveRegularRequestId();
+                const { roles, airnodeProtocol, dapiServer, beacons } = await deploy();
+                const beacon = beacons[0];
+                const requestId = await testUtils.deriveRequestId(
+                  airnodeProtocol,
+                  dapiServer.address,
+                  beacon.airnode.wallet.address,
+                  beacon.templateId,
+                  '0x',
+                  roles.sponsor.address,
+                  dapiServer.interface.getSighash('fulfillRrpBeaconUpdate')
+                );
                 await dapiServer
-                  .connect(roles.updateRequester)
-                  .requestRrpBeaconUpdateWithTemplate(airnodeAddress, templateId, roles.sponsor.address);
-                const largeDecodedData = hre.ethers.BigNumber.from(2).pow(223);
-                const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                await hre.ethers.provider.send('evm_setNextBlockTimestamp', [timestamp]);
-                const [data, signature] = await encodeAndSignFulfillment(
-                  largeDecodedData,
+                  .connect(roles.sponsor)
+                  .requestRrpBeaconUpdateWithTemplate(
+                    beacon.airnode.wallet.address,
+                    beacon.templateId,
+                    roles.sponsor.address
+                  );
+                const decodedData = ethers.BigNumber.from(2).pow(223);
+                const data = encodeData(decodedData);
+                const timestamp = await helpers.time.latest();
+                const signature = testUtils.signRrpFulfillment(
+                  beacon.airnode.wallet,
                   requestId,
                   timestamp,
-                  airnodeRrpSponsorWallet.address
+                  beacon.airnode.rrpSponsorWallet.address
                 );
                 const staticCallResult = await airnodeProtocol
-                  .connect(airnodeRrpSponsorWallet)
+                  .connect(beacon.airnode.rrpSponsorWallet)
                   .callStatic.fulfillRequest(
                     requestId,
-                    airnodeAddress,
+                    beacon.airnode.wallet.address,
                     dapiServer.address,
                     dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
                     timestamp,
@@ -1022,10 +1048,10 @@ describe('DapiServer', function () {
                 expect(testUtils.decodeRevertString(staticCallResult.callData)).to.equal('Value typecasting error');
                 await expect(
                   airnodeProtocol
-                    .connect(airnodeRrpSponsorWallet)
+                    .connect(beacon.airnode.rrpSponsorWallet)
                     .fulfillRequest(
                       requestId,
-                      airnodeAddress,
+                      beacon.airnode.wallet.address,
                       dapiServer.address,
                       dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
                       timestamp,
@@ -1034,31 +1060,45 @@ describe('DapiServer', function () {
                       { gasLimit: 500000 }
                     )
                 ).to.not.emit(dapiServer, 'UpdatedBeaconWithRrp');
-                const beacon = await dapiServer.dataFeeds(beaconId);
-                expect(beacon.value).to.equal(0);
-                expect(beacon.timestamp).to.equal(0);
+                const beaconAfter = await dapiServer.dataFeeds(beacon.beaconId);
+                expect(beaconAfter.value).to.equal(0);
+                expect(beaconAfter.timestamp).to.equal(0);
               });
             });
             context('Data smaller than minimum int224', function () {
               it('does not update Beacon', async function () {
-                const requestId = await deriveRegularRequestId();
+                const { roles, airnodeProtocol, dapiServer, beacons } = await deploy();
+                const beacon = beacons[0];
+                const requestId = await testUtils.deriveRequestId(
+                  airnodeProtocol,
+                  dapiServer.address,
+                  beacon.airnode.wallet.address,
+                  beacon.templateId,
+                  '0x',
+                  roles.sponsor.address,
+                  dapiServer.interface.getSighash('fulfillRrpBeaconUpdate')
+                );
                 await dapiServer
-                  .connect(roles.updateRequester)
-                  .requestRrpBeaconUpdateWithTemplate(airnodeAddress, templateId, roles.sponsor.address);
-                const smallDecodedData = hre.ethers.BigNumber.from(2).pow(223).add(1).mul(-1);
-                const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                await hre.ethers.provider.send('evm_setNextBlockTimestamp', [timestamp]);
-                const [data, signature] = await encodeAndSignFulfillment(
-                  smallDecodedData,
+                  .connect(roles.sponsor)
+                  .requestRrpBeaconUpdateWithTemplate(
+                    beacon.airnode.wallet.address,
+                    beacon.templateId,
+                    roles.sponsor.address
+                  );
+                const decodedData = ethers.BigNumber.from(2).pow(223).add(1).mul(-1);
+                const data = encodeData(decodedData);
+                const timestamp = await helpers.time.latest();
+                const signature = testUtils.signRrpFulfillment(
+                  beacon.airnode.wallet,
                   requestId,
                   timestamp,
-                  airnodeRrpSponsorWallet.address
+                  beacon.airnode.rrpSponsorWallet.address
                 );
                 const staticCallResult = await airnodeProtocol
-                  .connect(airnodeRrpSponsorWallet)
+                  .connect(beacon.airnode.rrpSponsorWallet)
                   .callStatic.fulfillRequest(
                     requestId,
-                    airnodeAddress,
+                    beacon.airnode.wallet.address,
                     dapiServer.address,
                     dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
                     timestamp,
@@ -1070,10 +1110,10 @@ describe('DapiServer', function () {
                 expect(testUtils.decodeRevertString(staticCallResult.callData)).to.equal('Value typecasting error');
                 await expect(
                   airnodeProtocol
-                    .connect(airnodeRrpSponsorWallet)
+                    .connect(beacon.airnode.rrpSponsorWallet)
                     .fulfillRequest(
                       requestId,
-                      airnodeAddress,
+                      beacon.airnode.wallet.address,
                       dapiServer.address,
                       dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
                       timestamp,
@@ -1082,38 +1122,51 @@ describe('DapiServer', function () {
                       { gasLimit: 500000 }
                     )
                 ).to.not.emit(dapiServer, 'UpdatedBeaconWithRrp');
-                const beacon = await dapiServer.dataFeeds(beaconId);
-                expect(beacon.value).to.equal(0);
-                expect(beacon.timestamp).to.equal(0);
+                const beaconAfter = await dapiServer.dataFeeds(beacon.beaconId);
+                expect(beaconAfter.value).to.equal(0);
+                expect(beaconAfter.timestamp).to.equal(0);
               });
             });
           });
         });
         context('Encoded data length is too long', function () {
           it('does not update Beacon', async function () {
-            const requestId = await deriveRegularRequestId();
+            const { roles, airnodeProtocol, dapiServer, beacons } = await deploy();
+            const beacon = beacons[0];
+            const requestId = await testUtils.deriveRequestId(
+              airnodeProtocol,
+              dapiServer.address,
+              beacon.airnode.wallet.address,
+              beacon.templateId,
+              '0x',
+              roles.sponsor.address,
+              dapiServer.interface.getSighash('fulfillRrpBeaconUpdate')
+            );
             await dapiServer
-              .connect(roles.updateRequester)
-              .requestRrpBeaconUpdateWithTemplate(airnodeAddress, templateId, roles.sponsor.address);
+              .connect(roles.sponsor)
+              .requestRrpBeaconUpdateWithTemplate(
+                beacon.airnode.wallet.address,
+                beacon.templateId,
+                roles.sponsor.address
+              );
             const decodedData = 123;
-            const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-            await hre.ethers.provider.send('evm_setNextBlockTimestamp', [timestamp]);
-            const [data, signature] = await encodeAndSignFulfillment(
-              decodedData,
+            const data = encodeData(decodedData) + '00';
+            const timestamp = await helpers.time.latest();
+            const signature = testUtils.signRrpFulfillment(
+              beacon.airnode.wallet,
               requestId,
               timestamp,
-              airnodeRrpSponsorWallet.address
+              beacon.airnode.rrpSponsorWallet.address
             );
-            const longData = data + '00';
             const staticCallResult = await airnodeProtocol
-              .connect(airnodeRrpSponsorWallet)
+              .connect(beacon.airnode.rrpSponsorWallet)
               .callStatic.fulfillRequest(
                 requestId,
-                airnodeAddress,
+                beacon.airnode.wallet.address,
                 dapiServer.address,
                 dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
                 timestamp,
-                longData,
+                data,
                 signature,
                 { gasLimit: 500000 }
               );
@@ -1121,48 +1174,62 @@ describe('DapiServer', function () {
             expect(testUtils.decodeRevertString(staticCallResult.callData)).to.equal('Data length not correct');
             await expect(
               airnodeProtocol
-                .connect(airnodeRrpSponsorWallet)
+                .connect(beacon.airnode.rrpSponsorWallet)
                 .fulfillRequest(
                   requestId,
-                  airnodeAddress,
+                  beacon.airnode.wallet.address,
                   dapiServer.address,
                   dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
                   timestamp,
-                  longData,
+                  data,
                   signature,
                   { gasLimit: 500000 }
                 )
             ).to.not.emit(dapiServer, 'UpdatedBeaconWithRrp');
-            const beacon = await dapiServer.dataFeeds(beaconId);
-            expect(beacon.value).to.equal(0);
-            expect(beacon.timestamp).to.equal(0);
+            const beaconAfter = await dapiServer.dataFeeds(beacon.beaconId);
+            expect(beaconAfter.value).to.equal(0);
+            expect(beaconAfter.timestamp).to.equal(0);
           });
         });
         context('Encoded data length is too short', function () {
           it('reverts', async function () {
-            const requestId = await deriveRegularRequestId();
+            const { roles, airnodeProtocol, dapiServer, beacons } = await deploy();
+            const beacon = beacons[0];
+            const requestId = await testUtils.deriveRequestId(
+              airnodeProtocol,
+              dapiServer.address,
+              beacon.airnode.wallet.address,
+              beacon.templateId,
+              '0x',
+              roles.sponsor.address,
+              dapiServer.interface.getSighash('fulfillRrpBeaconUpdate')
+            );
             await dapiServer
-              .connect(roles.updateRequester)
-              .requestRrpBeaconUpdateWithTemplate(airnodeAddress, templateId, roles.sponsor.address);
+              .connect(roles.sponsor)
+              .requestRrpBeaconUpdateWithTemplate(
+                beacon.airnode.wallet.address,
+                beacon.templateId,
+                roles.sponsor.address
+              );
             const decodedData = 123;
-            const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-            await hre.ethers.provider.send('evm_setNextBlockTimestamp', [timestamp]);
-            const [data, signature] = await encodeAndSignFulfillment(
-              decodedData,
+            const encodedData = encodeData(decodedData);
+            const data = encodedData.substring(0, encodedData.length - 2);
+            const timestamp = await helpers.time.latest();
+            const signature = testUtils.signRrpFulfillment(
+              beacon.airnode.wallet,
               requestId,
               timestamp,
-              airnodeRrpSponsorWallet.address
+              beacon.airnode.rrpSponsorWallet.address
             );
-            const shortData = data.substring(0, data.length - 2);
             const staticCallResult = await airnodeProtocol
-              .connect(airnodeRrpSponsorWallet)
+              .connect(beacon.airnode.rrpSponsorWallet)
               .callStatic.fulfillRequest(
                 requestId,
-                airnodeAddress,
+                beacon.airnode.wallet.address,
                 dapiServer.address,
                 dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
                 timestamp,
-                shortData,
+                data,
                 signature,
                 { gasLimit: 500000 }
               );
@@ -1170,45 +1237,58 @@ describe('DapiServer', function () {
             expect(testUtils.decodeRevertString(staticCallResult.callData)).to.equal('Data length not correct');
             await expect(
               airnodeProtocol
-                .connect(airnodeRrpSponsorWallet)
+                .connect(beacon.airnode.rrpSponsorWallet)
                 .fulfillRequest(
                   requestId,
-                  airnodeAddress,
+                  beacon.airnode.wallet.address,
                   dapiServer.address,
                   dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
                   timestamp,
-                  shortData,
+                  data,
                   signature,
                   { gasLimit: 500000 }
                 )
             ).to.not.emit(dapiServer, 'UpdatedBeaconWithRrp');
-            const beacon = await dapiServer.dataFeeds(beaconId);
-            expect(beacon.value).to.equal(0);
-            expect(beacon.timestamp).to.equal(0);
+            const beaconAfter = await dapiServer.dataFeeds(beacon.beaconId);
+            expect(beaconAfter.value).to.equal(0);
+            expect(beaconAfter.timestamp).to.equal(0);
           });
         });
       });
       context('Timestamp is older than 1 hour', function () {
         it('does not update Beacon', async function () {
-          const requestId = await deriveRegularRequestId();
+          const { roles, airnodeProtocol, dapiServer, beacons } = await deploy();
+          const beacon = beacons[0];
+          const requestId = await testUtils.deriveRequestId(
+            airnodeProtocol,
+            dapiServer.address,
+            beacon.airnode.wallet.address,
+            beacon.templateId,
+            '0x',
+            roles.sponsor.address,
+            dapiServer.interface.getSighash('fulfillRrpBeaconUpdate')
+          );
           await dapiServer
-            .connect(roles.updateRequester)
-            .requestRrpBeaconUpdateWithTemplate(airnodeAddress, templateId, roles.sponsor.address);
+            .connect(roles.sponsor)
+            .requestRrpBeaconUpdateWithTemplate(
+              beacon.airnode.wallet.address,
+              beacon.templateId,
+              roles.sponsor.address
+            );
           const decodedData = 123;
-          const currentTimestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-          await hre.ethers.provider.send('evm_setNextBlockTimestamp', [currentTimestamp + 1]);
-          const timestamp = currentTimestamp - 60 * 60;
-          const [data, signature] = await encodeAndSignFulfillment(
-            decodedData,
+          const data = encodeData(decodedData);
+          const timestamp = (await helpers.time.latest()) - 60 * 60;
+          const signature = testUtils.signRrpFulfillment(
+            beacon.airnode.wallet,
             requestId,
             timestamp,
-            airnodeRrpSponsorWallet.address
+            beacon.airnode.rrpSponsorWallet.address
           );
           const staticCallResult = await airnodeProtocol
-            .connect(airnodeRrpSponsorWallet)
+            .connect(beacon.airnode.rrpSponsorWallet)
             .callStatic.fulfillRequest(
               requestId,
-              airnodeAddress,
+              beacon.airnode.wallet.address,
               dapiServer.address,
               dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
               timestamp,
@@ -1220,10 +1300,10 @@ describe('DapiServer', function () {
           expect(testUtils.decodeRevertString(staticCallResult.callData)).to.equal('Timestamp not valid');
           await expect(
             airnodeProtocol
-              .connect(airnodeRrpSponsorWallet)
+              .connect(beacon.airnode.rrpSponsorWallet)
               .fulfillRequest(
                 requestId,
-                airnodeAddress,
+                beacon.airnode.wallet.address,
                 dapiServer.address,
                 dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
                 timestamp,
@@ -1232,32 +1312,45 @@ describe('DapiServer', function () {
                 { gasLimit: 500000 }
               )
           ).to.not.emit(dapiServer, 'UpdatedBeaconWithRrp');
-          const beacon = await dapiServer.dataFeeds(beaconId);
-          expect(beacon.value).to.equal(0);
-          expect(beacon.timestamp).to.equal(0);
+          const beaconAfter = await dapiServer.dataFeeds(beacon.beaconId);
+          expect(beaconAfter.value).to.equal(0);
+          expect(beaconAfter.timestamp).to.equal(0);
         });
       });
       context('Timestamp is more than 15 minutes from the future', function () {
         it('reverts', async function () {
-          const requestId = await deriveRegularRequestId();
+          const { roles, airnodeProtocol, dapiServer, beacons } = await deploy();
+          const beacon = beacons[0];
+          const requestId = await testUtils.deriveRequestId(
+            airnodeProtocol,
+            dapiServer.address,
+            beacon.airnode.wallet.address,
+            beacon.templateId,
+            '0x',
+            roles.sponsor.address,
+            dapiServer.interface.getSighash('fulfillRrpBeaconUpdate')
+          );
           await dapiServer
-            .connect(roles.updateRequester)
-            .requestRrpBeaconUpdateWithTemplate(airnodeAddress, templateId, roles.sponsor.address);
-          const currentTimestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-          await hre.ethers.provider.send('evm_setNextBlockTimestamp', [currentTimestamp + 1]);
-          const timestamp = currentTimestamp + 15 * 60 + 1;
+            .connect(roles.sponsor)
+            .requestRrpBeaconUpdateWithTemplate(
+              beacon.airnode.wallet.address,
+              beacon.templateId,
+              roles.sponsor.address
+            );
           const decodedData = 123;
-          const [data, signature] = await encodeAndSignFulfillment(
-            decodedData,
+          const data = encodeData(decodedData);
+          const timestamp = (await helpers.time.latest()) + 15 * 60 + 1;
+          const signature = testUtils.signRrpFulfillment(
+            beacon.airnode.wallet,
             requestId,
             timestamp,
-            airnodeRrpSponsorWallet.address
+            beacon.airnode.rrpSponsorWallet.address
           );
           const staticCallResult = await airnodeProtocol
-            .connect(airnodeRrpSponsorWallet)
+            .connect(beacon.airnode.rrpSponsorWallet)
             .callStatic.fulfillRequest(
               requestId,
-              airnodeAddress,
+              beacon.airnode.wallet.address,
               dapiServer.address,
               dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
               timestamp,
@@ -1269,10 +1362,10 @@ describe('DapiServer', function () {
           expect(testUtils.decodeRevertString(staticCallResult.callData)).to.equal('Timestamp not valid');
           await expect(
             airnodeProtocol
-              .connect(airnodeRrpSponsorWallet)
+              .connect(beacon.airnode.rrpSponsorWallet)
               .fulfillRequest(
                 requestId,
-                airnodeAddress,
+                beacon.airnode.wallet.address,
                 dapiServer.address,
                 dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
                 timestamp,
@@ -1281,16 +1374,17 @@ describe('DapiServer', function () {
                 { gasLimit: 500000 }
               )
           ).to.not.emit(dapiServer, 'UpdatedBeaconWithRrp');
-          const beacon = await dapiServer.dataFeeds(beaconId);
-          expect(beacon.value).to.equal(0);
-          expect(beacon.timestamp).to.equal(0);
+          const beaconAfter = await dapiServer.dataFeeds(beacon.beaconId);
+          expect(beaconAfter.value).to.equal(0);
+          expect(beaconAfter.timestamp).to.equal(0);
         });
       });
     });
     context('Sender is not AirnodeProtocol', function () {
       it('reverts', async function () {
+        const { roles, dapiServer } = await deploy();
         await expect(
-          dapiServer.connect(roles.randomPerson).fulfillRrpBeaconUpdate(hre.ethers.constants.HashZero, 0, '0x')
+          dapiServer.connect(roles.randomPerson).fulfillRrpBeaconUpdate(ethers.constants.HashZero, 0, '0x')
         ).to.be.revertedWith('Sender not Airnode protocol');
       });
     });
@@ -1299,44 +1393,78 @@ describe('DapiServer', function () {
   describe('registerBeaconUpdateSubscription', function () {
     context('Relayer address is not zero', function () {
       context('Sponsor address is not zero', function () {
-        it('registers beacon update subscription', async function () {
-          await expect(
-            dapiServer
+        context('Subscription is not registered', function () {
+          it('registers beacon update subscription', async function () {
+            const { roles, dapiServer, beacons } = await deploy();
+            const beacon = beacons[0];
+            await expect(
+              dapiServer
+                .connect(roles.randomPerson)
+                .registerBeaconUpdateSubscription(
+                  beacon.airnode.wallet.address,
+                  beacon.templateId,
+                  beacon.beaconUpdateSubscriptionConditions,
+                  beacon.airnode.wallet.address,
+                  roles.sponsor.address
+                )
+            )
+              .to.emit(dapiServer, 'RegisteredBeaconUpdateSubscription')
+              .withArgs(
+                beacon.beaconUpdateSubscriptionId,
+                beacon.airnode.wallet.address,
+                beacon.templateId,
+                '0x',
+                beacon.beaconUpdateSubscriptionConditions,
+                beacon.airnode.wallet.address,
+                roles.sponsor.address,
+                dapiServer.address,
+                dapiServer.interface.getSighash('fulfillPspBeaconUpdate')
+              );
+            expect(await dapiServer.subscriptionIdToBeaconId(beacon.beaconUpdateSubscriptionId)).to.equal(
+              beacon.beaconId
+            );
+          });
+        });
+        context('Subscription is already registered', function () {
+          it('reverts', async function () {
+            const { roles, dapiServer, beacons } = await deploy();
+            const beacon = beacons[0];
+            await dapiServer
               .connect(roles.randomPerson)
               .registerBeaconUpdateSubscription(
-                airnodeAddress,
-                templateId,
-                beaconUpdateSubscriptionConditions,
-                airnodeAddress,
+                beacon.airnode.wallet.address,
+                beacon.templateId,
+                beacon.beaconUpdateSubscriptionConditions,
+                beacon.airnode.wallet.address,
                 roles.sponsor.address
-              )
-          )
-            .to.emit(dapiServer, 'RegisteredBeaconUpdateSubscription')
-            .withArgs(
-              beaconUpdateSubscriptionId,
-              airnodeAddress,
-              templateId,
-              '0x',
-              beaconUpdateSubscriptionConditions,
-              airnodeAddress,
-              roles.sponsor.address,
-              dapiServer.address,
-              dapiServer.interface.getSighash('fulfillPspBeaconUpdate')
-            );
-          expect(await dapiServer.subscriptionIdToBeaconId(beaconUpdateSubscriptionId)).to.equal(beaconId);
+              );
+            await expect(
+              dapiServer
+                .connect(roles.randomPerson)
+                .registerBeaconUpdateSubscription(
+                  beacon.airnode.wallet.address,
+                  beacon.templateId,
+                  beacon.beaconUpdateSubscriptionConditions,
+                  beacon.airnode.wallet.address,
+                  roles.sponsor.address
+                )
+            ).to.be.revertedWith('Subscription already registered');
+          });
         });
       });
       context('Sponsor address is zero', function () {
         it('reverts', async function () {
+          const { roles, dapiServer, beacons } = await deploy();
+          const beacon = beacons[0];
           await expect(
             dapiServer
               .connect(roles.randomPerson)
               .registerBeaconUpdateSubscription(
-                airnodeAddress,
-                templateId,
-                beaconUpdateSubscriptionConditions,
-                airnodeAddress,
-                hre.ethers.constants.AddressZero
+                beacon.airnode.wallet.address,
+                beacon.templateId,
+                beacon.beaconUpdateSubscriptionConditions,
+                beacon.airnode.wallet.address,
+                ethers.constants.AddressZero
               )
           ).to.be.revertedWith('Sponsor address zero');
         });
@@ -1344,14 +1472,16 @@ describe('DapiServer', function () {
     });
     context('Relayer address is zero', function () {
       it('reverts', async function () {
+        const { roles, dapiServer, beacons } = await deploy();
+        const beacon = beacons[0];
         await expect(
           dapiServer
             .connect(roles.randomPerson)
             .registerBeaconUpdateSubscription(
-              airnodeAddress,
-              templateId,
-              beaconUpdateSubscriptionConditions,
-              hre.ethers.constants.AddressZero,
+              beacon.airnode.wallet.address,
+              beacon.templateId,
+              beacon.beaconUpdateSubscriptionConditions,
+              ethers.constants.AddressZero,
               roles.sponsor.address
             )
         ).to.be.revertedWith('Relayer address zero');
@@ -1365,18 +1495,40 @@ describe('DapiServer', function () {
         context('Condition parameters length is correct', function () {
           context('Beacon timestamp is zero', function () {
             it('returns true', async function () {
-              // Even if the deviation and heartbeat interval is zero, since the Beacon timestamp
+              const { roles, dapiServer, beacons } = await deploy();
+              const beacon = beacons[0];
+              // Even if the deviation and heartbeat interval are zero, since the Beacon timestamp
               // is zero, the condition will return true
-              const conditionData = encodeData(0);
-              const conditionParameters = hre.ethers.utils.defaultAbiCoder.encode(
-                ['uint256', 'int224', 'uint256'],
-                [0, 0, 0]
+              const beaconUpdateSubscriptionConditionParameters = encodeUpdateSubscriptionConditionParameters(0, 0, 0);
+              const beaconUpdateSubscriptionConditions = await encodeUpdateSubscriptionConditions(
+                dapiServer,
+                dapiServer.interface.getSighash('conditionPspBeaconUpdate'),
+                beaconUpdateSubscriptionConditionParameters
               );
+              const beaconUpdateSubscriptionId = await dapiServer
+                .connect(roles.randomPerson)
+                .callStatic.registerBeaconUpdateSubscription(
+                  beacon.airnode.wallet.address,
+                  beacon.templateId,
+                  beaconUpdateSubscriptionConditions,
+                  beacon.airnode.wallet.address,
+                  roles.sponsor.address
+                );
+              await dapiServer
+                .connect(roles.randomPerson)
+                .registerBeaconUpdateSubscription(
+                  beacon.airnode.wallet.address,
+                  beacon.templateId,
+                  beaconUpdateSubscriptionConditions,
+                  beacon.airnode.wallet.address,
+                  roles.sponsor.address
+                );
+              const data = encodeData(0);
               expect(
                 await dapiServer.callStatic.conditionPspBeaconUpdate(
                   beaconUpdateSubscriptionId,
-                  conditionData,
-                  conditionParameters
+                  data,
+                  beaconUpdateSubscriptionConditionParameters
                 )
               ).to.equal(true);
             });
@@ -1386,91 +1538,116 @@ describe('DapiServer', function () {
               context('Update is upwards', function () {
                 context('It has been at least heartbeat interval seconds since the last update', function () {
                   it('returns true', async function () {
+                    const { roles, dapiServer, beacons } = await deploy();
+                    const beacon = beacons[0];
+                    await dapiServer
+                      .connect(roles.randomPerson)
+                      .registerBeaconUpdateSubscription(
+                        beacon.airnode.wallet.address,
+                        beacon.templateId,
+                        beacon.beaconUpdateSubscriptionConditions,
+                        beacon.airnode.wallet.address,
+                        roles.sponsor.address
+                      );
                     // Set the Beacon to 100 first
-                    const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                    await setBeacon(templateId, 100, timestamp);
-                    // beaconUpdateSubscriptionConditionParameters is 10% and 1 day
-                    // 100 -> 110 satisfies the condition
-                    const conditionData = encodeData(110);
+                    const timestamp = await updateBeacon(roles, dapiServer, beacon, 100);
+                    // beaconUpdateSubscriptionConditionParameters is 10%, -100 and 1 day
+                    // 100 -> 120 satisfies the condition (note that deviation reference is -100)
+                    const data = encodeData(120);
                     // It has been 1 day since the Beacon timestamp
-                    await hre.ethers.provider.send('evm_setNextBlockTimestamp', [timestamp + 24 * 60 * 60]);
-                    await hre.ethers.provider.send('evm_mine');
+                    await helpers.time.setNextBlockTimestamp(timestamp + 24 * 60 * 60);
+                    await helpers.mine();
                     expect(
                       await dapiServer.callStatic.conditionPspBeaconUpdate(
-                        beaconUpdateSubscriptionId,
-                        conditionData,
-                        beaconUpdateSubscriptionConditionParameters
+                        beacon.beaconUpdateSubscriptionId,
+                        data,
+                        beacon.beaconUpdateSubscriptionConditionParameters
                       )
                     ).to.equal(true);
                   });
                 });
                 context('It has not been at least heartbeat interval seconds since the last update', function () {
                   it('returns true', async function () {
+                    const { roles, dapiServer, beacons } = await deploy();
+                    const beacon = beacons[0];
+                    await dapiServer
+                      .connect(roles.randomPerson)
+                      .registerBeaconUpdateSubscription(
+                        beacon.airnode.wallet.address,
+                        beacon.templateId,
+                        beacon.beaconUpdateSubscriptionConditions,
+                        beacon.airnode.wallet.address,
+                        roles.sponsor.address
+                      );
                     // Set the Beacon to 100 first
-                    const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                    await setBeacon(templateId, 100, timestamp);
-                    // beaconUpdateSubscriptionConditionParameters is 10%
-                    // 100 -> 110 satisfies the condition and returns true
-                    const conditionData = encodeData(110);
+                    await updateBeacon(roles, dapiServer, beacon, 100);
+                    // beaconUpdateSubscriptionConditionParameters is 10%, -100 and 1 day
+                    // 100 -> 120 satisfies the condition (note that deviation reference is -100)
+                    const data = encodeData(120);
                     expect(
                       await dapiServer.callStatic.conditionPspBeaconUpdate(
-                        beaconUpdateSubscriptionId,
-                        conditionData,
-                        beaconUpdateSubscriptionConditionParameters
+                        beacon.beaconUpdateSubscriptionId,
+                        data,
+                        beacon.beaconUpdateSubscriptionConditionParameters
                       )
                     ).to.equal(true);
                   });
-                });
-                it('returns true', async function () {
-                  // Set the Beacon to 100 first
-                  const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                  await setBeacon(templateId, 100, timestamp);
-                  // beaconUpdateSubscriptionConditionParameters is 10%
-                  // 100 -> 110 satisfies the condition and returns true
-                  const conditionData = encodeData(110);
-                  expect(
-                    await dapiServer.callStatic.conditionPspBeaconUpdate(
-                      beaconUpdateSubscriptionId,
-                      conditionData,
-                      beaconUpdateSubscriptionConditionParameters
-                    )
-                  ).to.equal(true);
                 });
               });
               context('Update is downwards', function () {
                 context('It has been at least heartbeat interval seconds since the last update', function () {
                   it('returns true', async function () {
+                    const { roles, dapiServer, beacons } = await deploy();
+                    const beacon = beacons[0];
+                    await dapiServer
+                      .connect(roles.randomPerson)
+                      .registerBeaconUpdateSubscription(
+                        beacon.airnode.wallet.address,
+                        beacon.templateId,
+                        beacon.beaconUpdateSubscriptionConditions,
+                        beacon.airnode.wallet.address,
+                        roles.sponsor.address
+                      );
                     // Set the Beacon to 100 first
-                    const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                    await setBeacon(templateId, 100, timestamp);
-                    // beaconUpdateSubscriptionConditionParameters is 10% and 1 day
-                    // 100 -> 90 satisfies the condition
-                    const conditionData = encodeData(90);
+                    const timestamp = await updateBeacon(roles, dapiServer, beacon, 100);
+                    // beaconUpdateSubscriptionConditionParameters is 10%, -100 and 1 day
+                    // 100 -> 80 satisfies the condition (note that deviation reference is -100)
+                    const data = encodeData(80);
                     // It has been 1 day since the Beacon timestamp
-                    await hre.ethers.provider.send('evm_setNextBlockTimestamp', [timestamp + 24 * 60 * 60]);
-                    await hre.ethers.provider.send('evm_mine');
+                    await helpers.time.setNextBlockTimestamp(timestamp + 24 * 60 * 60);
+                    await helpers.mine();
                     expect(
                       await dapiServer.callStatic.conditionPspBeaconUpdate(
-                        beaconUpdateSubscriptionId,
-                        conditionData,
-                        beaconUpdateSubscriptionConditionParameters
+                        beacon.beaconUpdateSubscriptionId,
+                        data,
+                        beacon.beaconUpdateSubscriptionConditionParameters
                       )
                     ).to.equal(true);
                   });
                 });
                 context('It has not been at least heartbeat interval seconds since the last update', function () {
                   it('returns true', async function () {
+                    const { roles, dapiServer, beacons } = await deploy();
+                    const beacon = beacons[0];
+                    await dapiServer
+                      .connect(roles.randomPerson)
+                      .registerBeaconUpdateSubscription(
+                        beacon.airnode.wallet.address,
+                        beacon.templateId,
+                        beacon.beaconUpdateSubscriptionConditions,
+                        beacon.airnode.wallet.address,
+                        roles.sponsor.address
+                      );
                     // Set the Beacon to 100 first
-                    const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                    await setBeacon(templateId, 100, timestamp);
-                    // beaconUpdateSubscriptionConditionParameters is 10%
-                    // 100 -> 90 satisfies the condition and returns true
-                    const conditionData = encodeData(90);
+                    await updateBeacon(roles, dapiServer, beacon, 100);
+                    // beaconUpdateSubscriptionConditionParameters is 10%, -100 and 1 day
+                    // 100 -> 80 satisfies the condition (note that deviation reference is -100)
+                    const data = encodeData(80);
                     expect(
                       await dapiServer.callStatic.conditionPspBeaconUpdate(
-                        beaconUpdateSubscriptionId,
-                        conditionData,
-                        beaconUpdateSubscriptionConditionParameters
+                        beacon.beaconUpdateSubscriptionId,
+                        data,
+                        beacon.beaconUpdateSubscriptionConditionParameters
                       )
                     ).to.equal(true);
                   });
@@ -1481,18 +1658,27 @@ describe('DapiServer', function () {
               context('Update is upwards', function () {
                 context('Initial value is deviation reference', function () {
                   it('returns true', async function () {
-                    // Set the Beacon to 0 first
-                    const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                    await setBeacon(templateId, 0, timestamp);
-                    // beaconUpdateSubscriptionConditionParameters is 10%
-                    // 0 -> 1 doesn't satisfy the condition but the initial value is deviation reference,
-                    // so this will always return true
-                    const conditionData = encodeData(1);
+                    const { roles, dapiServer, beacons } = await deploy();
+                    const beacon = beacons[0];
+                    await dapiServer
+                      .connect(roles.randomPerson)
+                      .registerBeaconUpdateSubscription(
+                        beacon.airnode.wallet.address,
+                        beacon.templateId,
+                        beacon.beaconUpdateSubscriptionConditions,
+                        beacon.airnode.wallet.address,
+                        roles.sponsor.address
+                      );
+                    // Set the Beacon to -100 first (deviation reference)
+                    await updateBeacon(roles, dapiServer, beacon, -100);
+                    // beaconUpdateSubscriptionConditionParameters is 10%, -100 and 1 day
+                    // Any value satisfies the condition
+                    const data = encodeData(-99);
                     expect(
                       await dapiServer.callStatic.conditionPspBeaconUpdate(
-                        beaconUpdateSubscriptionId,
-                        conditionData,
-                        beaconUpdateSubscriptionConditionParameters
+                        beacon.beaconUpdateSubscriptionId,
+                        data,
+                        beacon.beaconUpdateSubscriptionConditionParameters
                       )
                     ).to.equal(true);
                   });
@@ -1500,37 +1686,57 @@ describe('DapiServer', function () {
                 context('Initial value is not deviation reference', function () {
                   context('It has been at least heartbeat interval seconds since the last update', function () {
                     it('returns true', async function () {
+                      const { roles, dapiServer, beacons } = await deploy();
+                      const beacon = beacons[0];
+                      await dapiServer
+                        .connect(roles.randomPerson)
+                        .registerBeaconUpdateSubscription(
+                          beacon.airnode.wallet.address,
+                          beacon.templateId,
+                          beacon.beaconUpdateSubscriptionConditions,
+                          beacon.airnode.wallet.address,
+                          roles.sponsor.address
+                        );
                       // Set the Beacon to 100 first
-                      const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                      await setBeacon(templateId, 100, timestamp);
-                      // beaconUpdateSubscriptionConditionParameters is 10% and 1 day
-                      // 100 -> 109 doesn't satisfy the condition
-                      const conditionData = encodeData(109);
+                      const timestamp = await updateBeacon(roles, dapiServer, beacon, 100);
+                      // beaconUpdateSubscriptionConditionParameters is 10%, -100 and 1 day
+                      // 100 -> 120 satisfies the condition (note that deviation reference is -100)
+                      const data = encodeData(119);
                       // It has been 1 day since the Beacon timestamp
-                      await hre.ethers.provider.send('evm_setNextBlockTimestamp', [timestamp + 24 * 60 * 60]);
-                      await hre.ethers.provider.send('evm_mine');
+                      await helpers.time.setNextBlockTimestamp(timestamp + 24 * 60 * 60);
+                      await helpers.mine();
                       expect(
                         await dapiServer.callStatic.conditionPspBeaconUpdate(
-                          beaconUpdateSubscriptionId,
-                          conditionData,
-                          beaconUpdateSubscriptionConditionParameters
+                          beacon.beaconUpdateSubscriptionId,
+                          data,
+                          beacon.beaconUpdateSubscriptionConditionParameters
                         )
                       ).to.equal(true);
                     });
                   });
                   context('It has not been at least heartbeat interval seconds since the last update', function () {
                     it('returns false', async function () {
+                      const { roles, dapiServer, beacons } = await deploy();
+                      const beacon = beacons[0];
+                      await dapiServer
+                        .connect(roles.randomPerson)
+                        .registerBeaconUpdateSubscription(
+                          beacon.airnode.wallet.address,
+                          beacon.templateId,
+                          beacon.beaconUpdateSubscriptionConditions,
+                          beacon.airnode.wallet.address,
+                          roles.sponsor.address
+                        );
                       // Set the Beacon to 100 first
-                      const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                      await setBeacon(templateId, 100, timestamp);
-                      // beaconUpdateSubscriptionConditionParameters is 10%
-                      // 100 -> 109 doesn't satisfy the condition and returns false
-                      const conditionData = encodeData(109);
+                      await updateBeacon(roles, dapiServer, beacon, 100);
+                      // beaconUpdateSubscriptionConditionParameters is 10%, -100 and 1 day
+                      // 100 -> 120 satisfies the condition (note that deviation reference is -100)
+                      const data = encodeData(119);
                       expect(
                         await dapiServer.callStatic.conditionPspBeaconUpdate(
-                          beaconUpdateSubscriptionId,
-                          conditionData,
-                          beaconUpdateSubscriptionConditionParameters
+                          beacon.beaconUpdateSubscriptionId,
+                          data,
+                          beacon.beaconUpdateSubscriptionConditionParameters
                         )
                       ).to.equal(false);
                     });
@@ -1540,18 +1746,27 @@ describe('DapiServer', function () {
               context('Update is downwards', function () {
                 context('Initial value is deviation reference', function () {
                   it('returns true', async function () {
-                    // Set the Beacon to 0 first
-                    const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                    await setBeacon(templateId, 0, timestamp);
-                    // beaconUpdateSubscriptionConditionParameters is 10%
-                    // 0 -> -1 doesn't satisfy the condition but the initial value is deviation reference,
-                    // so this will always return true
-                    const conditionData = encodeData(-1);
+                    const { roles, dapiServer, beacons } = await deploy();
+                    const beacon = beacons[0];
+                    await dapiServer
+                      .connect(roles.randomPerson)
+                      .registerBeaconUpdateSubscription(
+                        beacon.airnode.wallet.address,
+                        beacon.templateId,
+                        beacon.beaconUpdateSubscriptionConditions,
+                        beacon.airnode.wallet.address,
+                        roles.sponsor.address
+                      );
+                    // Set the Beacon to -100 first (deviation reference)
+                    await updateBeacon(roles, dapiServer, beacon, -100);
+                    // beaconUpdateSubscriptionConditionParameters is 10%, -100 and 1 day
+                    // Any value satisfies the condition
+                    const data = encodeData(-101);
                     expect(
                       await dapiServer.callStatic.conditionPspBeaconUpdate(
-                        beaconUpdateSubscriptionId,
-                        conditionData,
-                        beaconUpdateSubscriptionConditionParameters
+                        beacon.beaconUpdateSubscriptionId,
+                        data,
+                        beacon.beaconUpdateSubscriptionConditionParameters
                       )
                     ).to.equal(true);
                   });
@@ -1559,37 +1774,57 @@ describe('DapiServer', function () {
                 context('Initial value is not deviation reference', function () {
                   context('It has been at least heartbeat interval seconds since the last update', function () {
                     it('returns true', async function () {
+                      const { roles, dapiServer, beacons } = await deploy();
+                      const beacon = beacons[0];
+                      await dapiServer
+                        .connect(roles.randomPerson)
+                        .registerBeaconUpdateSubscription(
+                          beacon.airnode.wallet.address,
+                          beacon.templateId,
+                          beacon.beaconUpdateSubscriptionConditions,
+                          beacon.airnode.wallet.address,
+                          roles.sponsor.address
+                        );
                       // Set the Beacon to 100 first
-                      const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                      await setBeacon(templateId, 100, timestamp);
-                      // beaconUpdateSubscriptionConditionParameters is 10% and 1 day
-                      // 100 -> 91 doesn't satisfy the condition
-                      const conditionData = encodeData(91);
+                      const timestamp = await updateBeacon(roles, dapiServer, beacon, 100);
+                      // beaconUpdateSubscriptionConditionParameters is 10%, -100 and 1 day
+                      // 100 -> 80 satisfies the condition (note that deviation reference is -100)
+                      const data = encodeData(81);
                       // It has been 1 day since the Beacon timestamp
-                      await hre.ethers.provider.send('evm_setNextBlockTimestamp', [timestamp + 24 * 60 * 60]);
-                      await hre.ethers.provider.send('evm_mine');
+                      await helpers.time.setNextBlockTimestamp(timestamp + 24 * 60 * 60);
+                      await helpers.mine();
                       expect(
                         await dapiServer.callStatic.conditionPspBeaconUpdate(
-                          beaconUpdateSubscriptionId,
-                          conditionData,
-                          beaconUpdateSubscriptionConditionParameters
+                          beacon.beaconUpdateSubscriptionId,
+                          data,
+                          beacon.beaconUpdateSubscriptionConditionParameters
                         )
                       ).to.equal(true);
                     });
                   });
                   context('It has not been at least heartbeat interval seconds since the last update', function () {
                     it('returns false', async function () {
+                      const { roles, dapiServer, beacons } = await deploy();
+                      const beacon = beacons[0];
+                      await dapiServer
+                        .connect(roles.randomPerson)
+                        .registerBeaconUpdateSubscription(
+                          beacon.airnode.wallet.address,
+                          beacon.templateId,
+                          beacon.beaconUpdateSubscriptionConditions,
+                          beacon.airnode.wallet.address,
+                          roles.sponsor.address
+                        );
                       // Set the Beacon to 100 first
-                      const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                      await setBeacon(templateId, 100, timestamp);
-                      // beaconUpdateSubscriptionConditionParameters is 10%
-                      // 100 -> 91 doesn't satisfy the condition and returns false
-                      const conditionData = encodeData(91);
+                      await updateBeacon(roles, dapiServer, beacon, 100);
+                      // beaconUpdateSubscriptionConditionParameters is 10%, -100 and 1 day
+                      // 100 -> 80 satisfies the condition (note that deviation reference is -100)
+                      const data = encodeData(81);
                       expect(
                         await dapiServer.callStatic.conditionPspBeaconUpdate(
-                          beaconUpdateSubscriptionId,
-                          conditionData,
-                          beaconUpdateSubscriptionConditionParameters
+                          beacon.beaconUpdateSubscriptionId,
+                          data,
+                          beacon.beaconUpdateSubscriptionConditionParameters
                         )
                       ).to.equal(false);
                     });
@@ -1601,31 +1836,74 @@ describe('DapiServer', function () {
         });
         context('Condition parameters length is not correct', function () {
           it('reverts', async function () {
+            const { roles, dapiServer, beacons } = await deploy();
+            const beacon = beacons[0];
+
+            const longConditionParameters = beacon.beaconUpdateSubscriptionConditionParameters + '00';
+            const longConditions = await encodeUpdateSubscriptionConditions(
+              dapiServer,
+              dapiServer.interface.getSighash('conditionPspBeaconUpdate'),
+              longConditionParameters
+            );
+            const subscriptionIdWithLongConditionParameters = await dapiServer
+              .connect(roles.randomPerson)
+              .callStatic.registerBeaconUpdateSubscription(
+                beacon.airnode.wallet.address,
+                beacon.templateId,
+                longConditions,
+                beacon.airnode.wallet.address,
+                roles.sponsor.address
+              );
             await dapiServer
               .connect(roles.randomPerson)
               .registerBeaconUpdateSubscription(
-                airnodeAddress,
-                templateId,
-                beaconUpdateSubscriptionConditions,
-                airnodeAddress,
+                beacon.airnode.wallet.address,
+                beacon.templateId,
+                longConditions,
+                beacon.airnode.wallet.address,
                 roles.sponsor.address
               );
-            const data = encodeData(123);
-            const shortBeaconUpdateSubscriptionConditionParameters =
-              beaconUpdateSubscriptionConditionParameters.substring(0, data.length - 2);
-            const longBeaconUpdateSubscriptionConditionParameters = beaconUpdateSubscriptionConditionParameters + '00';
+            const data = encodeData(0);
             await expect(
               dapiServer.callStatic.conditionPspBeaconUpdate(
-                beaconUpdateSubscriptionId,
+                subscriptionIdWithLongConditionParameters,
                 data,
-                shortBeaconUpdateSubscriptionConditionParameters
+                longConditionParameters
               )
             ).to.be.revertedWith('Incorrect parameter length');
+
+            const shortConditionParameters = beacon.beaconUpdateSubscriptionConditionParameters.substring(
+              0,
+              beacon.beaconUpdateSubscriptionConditionParameters.length - 2
+            );
+            const shortConditions = await encodeUpdateSubscriptionConditions(
+              dapiServer,
+              dapiServer.interface.getSighash('conditionPspBeaconUpdate'),
+              shortConditionParameters
+            );
+            const subscriptionIdWithShortConditionParameters = await dapiServer
+              .connect(roles.randomPerson)
+              .callStatic.registerBeaconUpdateSubscription(
+                beacon.airnode.wallet.address,
+                beacon.templateId,
+                shortConditions,
+                beacon.airnode.wallet.address,
+                roles.sponsor.address
+              );
+            await dapiServer
+              .connect(roles.randomPerson)
+              .registerBeaconUpdateSubscription(
+                beacon.airnode.wallet.address,
+                beacon.templateId,
+                shortConditions,
+                beacon.airnode.wallet.address,
+                roles.sponsor.address
+              );
             await expect(
               dapiServer.callStatic.conditionPspBeaconUpdate(
-                beaconUpdateSubscriptionId,
+                subscriptionIdWithShortConditionParameters,
                 data,
-                longBeaconUpdateSubscriptionConditionParameters
+                shortConditionParameters
               )
             ).to.be.revertedWith('Incorrect parameter length');
           });
@@ -1633,21 +1911,32 @@ describe('DapiServer', function () {
       });
       context('Data length is not correct', function () {
         it('reverts', async function () {
+          const { roles, dapiServer, beacons } = await deploy();
+          const beacon = beacons[0];
+          await dapiServer
+            .connect(roles.randomPerson)
+            .registerBeaconUpdateSubscription(
+              beacon.airnode.wallet.address,
+              beacon.templateId,
+              beacon.beaconUpdateSubscriptionConditions,
+              beacon.airnode.wallet.address,
+              roles.sponsor.address
+            );
           const data = encodeData(123);
           const shortData = data.substring(0, data.length - 2);
           const longData = data + '00';
           await expect(
             dapiServer.callStatic.conditionPspBeaconUpdate(
-              beaconUpdateSubscriptionId,
+              beacon.beaconUpdateSubscriptionId,
               shortData,
-              beaconUpdateSubscriptionConditionParameters
+              beacon.beaconUpdateSubscriptionConditionParameters
             )
           ).to.be.revertedWith('Data length not correct');
           await expect(
             dapiServer.callStatic.conditionPspBeaconUpdate(
-              beaconUpdateSubscriptionId,
+              beacon.beaconUpdateSubscriptionId,
               longData,
-              beaconUpdateSubscriptionConditionParameters
+              beacon.beaconUpdateSubscriptionConditionParameters
             )
           ).to.be.revertedWith('Data length not correct');
         });
@@ -1655,13 +1944,10 @@ describe('DapiServer', function () {
     });
     context('Subscription is not registered', function () {
       it('reverts', async function () {
+        const { dapiServer } = await deploy();
         const data = encodeData(123);
         await expect(
-          dapiServer.callStatic.conditionPspBeaconUpdate(
-            testUtils.generateRandomBytes32(),
-            data,
-            beaconUpdateSubscriptionConditionParameters
-          )
+          dapiServer.callStatic.conditionPspBeaconUpdate(testUtils.generateRandomBytes32(), data, '0x')
         ).to.be.revertedWith('Subscription not registered');
       });
     });
@@ -1675,21 +1961,42 @@ describe('DapiServer', function () {
             context('Subscription is regular', function () {
               context('Signature is valid', function () {
                 it('updates Beacon', async function () {
-                  const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                  await hre.ethers.provider.send('evm_setNextBlockTimestamp', [timestamp]);
-                  const [data, signature] = await encodeAndSignFulfillment(
-                    123,
-                    beaconUpdateSubscriptionId,
+                  const { roles, dapiServer, beacons } = await deploy();
+                  const beacon = beacons[0];
+                  const subscriptionId = await dapiServer
+                    .connect(roles.randomPerson)
+                    .callStatic.registerBeaconUpdateSubscription(
+                      beacon.airnode.wallet.address,
+                      beacon.templateId,
+                      beacon.beaconUpdateSubscriptionConditions,
+                      beacon.airnode.wallet.address,
+                      roles.sponsor.address
+                    );
+                  await dapiServer
+                    .connect(roles.randomPerson)
+                    .registerBeaconUpdateSubscription(
+                      beacon.airnode.wallet.address,
+                      beacon.templateId,
+                      beacon.beaconUpdateSubscriptionConditions,
+                      beacon.airnode.wallet.address,
+                      roles.sponsor.address
+                    );
+                  const decodedData = 123;
+                  const data = encodeData(decodedData);
+                  const timestamp = await helpers.time.latest();
+                  const signature = testUtils.signPspFulfillment(
+                    beacon.airnode.wallet,
+                    subscriptionId,
                     timestamp,
-                    airnodePspSponsorWallet.address
+                    beacon.airnode.pspSponsorWallet.address
                   );
                   await expect(
                     dapiServer
-                      .connect(airnodePspSponsorWallet)
+                      .connect(beacon.airnode.pspSponsorWallet)
                       .fulfillPspBeaconUpdate(
-                        beaconUpdateSubscriptionId,
-                        airnodeAddress,
-                        airnodeAddress,
+                        subscriptionId,
+                        beacon.airnode.wallet.address,
+                        beacon.airnode.wallet.address,
                         roles.sponsor.address,
                         timestamp,
                         data,
@@ -1698,24 +2005,44 @@ describe('DapiServer', function () {
                       )
                   )
                     .to.emit(dapiServer, 'UpdatedBeaconWithPsp')
-                    .withArgs(beaconId, beaconUpdateSubscriptionId, 123, timestamp);
-                  const beacon = await dapiServer.dataFeeds(beaconId);
-                  expect(beacon.value).to.equal(123);
-                  expect(beacon.timestamp).to.equal(timestamp);
+                    .withArgs(beacon.beaconId, subscriptionId, decodedData, timestamp);
+                  const beaconAfter = await dapiServer.dataFeeds(beacon.beaconId);
+                  expect(beaconAfter.value).to.equal(decodedData);
+                  expect(beaconAfter.timestamp).to.equal(timestamp);
                 });
               });
               context('Signature is not valid', function () {
                 it('reverts', async function () {
-                  const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                  await hre.ethers.provider.send('evm_setNextBlockTimestamp', [timestamp]);
-                  const data = encodeData(123);
+                  const { roles, dapiServer, beacons } = await deploy();
+                  const beacon = beacons[0];
+                  const subscriptionId = await dapiServer
+                    .connect(roles.randomPerson)
+                    .callStatic.registerBeaconUpdateSubscription(
+                      beacon.airnode.wallet.address,
+                      beacon.templateId,
+                      beacon.beaconUpdateSubscriptionConditions,
+                      beacon.airnode.wallet.address,
+                      roles.sponsor.address
+                    );
+                  await dapiServer
+                    .connect(roles.randomPerson)
+                    .registerBeaconUpdateSubscription(
+                      beacon.airnode.wallet.address,
+                      beacon.templateId,
+                      beacon.beaconUpdateSubscriptionConditions,
+                      beacon.airnode.wallet.address,
+                      roles.sponsor.address
+                    );
+                  const decodedData = 123;
+                  const data = encodeData(decodedData);
+                  const timestamp = await helpers.time.latest();
                   await expect(
                     dapiServer
-                      .connect(airnodePspSponsorWallet)
+                      .connect(beacon.airnode.pspSponsorWallet)
                       .fulfillPspBeaconUpdate(
-                        beaconUpdateSubscriptionId,
-                        airnodeAddress,
-                        airnodeAddress,
+                        subscriptionId,
+                        beacon.airnode.wallet.address,
+                        beacon.airnode.wallet.address,
                         roles.sponsor.address,
                         timestamp,
                         data,
@@ -1729,21 +2056,43 @@ describe('DapiServer', function () {
             context('Subscription is relayed', function () {
               context('Signature is valid', function () {
                 it('updates Beacon', async function () {
-                  const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                  await hre.ethers.provider.send('evm_setNextBlockTimestamp', [timestamp]);
-                  const [data, signature] = await encodeAndSignFulfillmentRelayed(
-                    123,
-                    beaconUpdateSubscriptionRelayedId,
+                  const { roles, dapiServer, beacons } = await deploy();
+                  const beacon = beacons[0];
+                  const subscriptionId = await dapiServer
+                    .connect(roles.randomPerson)
+                    .callStatic.registerBeaconUpdateSubscription(
+                      beacon.airnode.wallet.address,
+                      beacon.templateId,
+                      beacon.beaconUpdateSubscriptionConditions,
+                      beacon.relayer.wallet.address,
+                      roles.sponsor.address
+                    );
+                  await dapiServer
+                    .connect(roles.randomPerson)
+                    .registerBeaconUpdateSubscription(
+                      beacon.airnode.wallet.address,
+                      beacon.templateId,
+                      beacon.beaconUpdateSubscriptionConditions,
+                      beacon.relayer.wallet.address,
+                      roles.sponsor.address
+                    );
+                  const decodedData = 123;
+                  const data = encodeData(decodedData);
+                  const timestamp = await helpers.time.latest();
+                  const signature = testUtils.signPspRelayedFulfillment(
+                    beacon.airnode.wallet,
+                    subscriptionId,
                     timestamp,
-                    relayerPspSponsorWallet.address
+                    beacon.relayer.pspRelayedSponsorWallet.address,
+                    data
                   );
                   await expect(
                     dapiServer
-                      .connect(relayerPspSponsorWallet)
+                      .connect(beacon.relayer.pspRelayedSponsorWallet)
                       .fulfillPspBeaconUpdate(
-                        beaconUpdateSubscriptionRelayedId,
-                        airnodeAddress,
-                        relayerAddress,
+                        subscriptionId,
+                        beacon.airnode.wallet.address,
+                        beacon.relayer.wallet.address,
                         roles.sponsor.address,
                         timestamp,
                         data,
@@ -1752,24 +2101,44 @@ describe('DapiServer', function () {
                       )
                   )
                     .to.emit(dapiServer, 'UpdatedBeaconWithPsp')
-                    .withArgs(beaconId, beaconUpdateSubscriptionRelayedId, 123, timestamp);
-                  const beacon = await dapiServer.dataFeeds(beaconId);
-                  expect(beacon.value).to.equal(123);
-                  expect(beacon.timestamp).to.equal(timestamp);
+                    .withArgs(beacon.beaconId, subscriptionId, decodedData, timestamp);
+                  const beaconAfter = await dapiServer.dataFeeds(beacon.beaconId);
+                  expect(beaconAfter.value).to.equal(decodedData);
+                  expect(beaconAfter.timestamp).to.equal(timestamp);
                 });
               });
               context('Signature is not valid', function () {
                 it('reverts', async function () {
-                  const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                  await hre.ethers.provider.send('evm_setNextBlockTimestamp', [timestamp]);
-                  const data = encodeData(123);
+                  const { roles, dapiServer, beacons } = await deploy();
+                  const beacon = beacons[0];
+                  const subscriptionId = await dapiServer
+                    .connect(roles.randomPerson)
+                    .callStatic.registerBeaconUpdateSubscription(
+                      beacon.airnode.wallet.address,
+                      beacon.templateId,
+                      beacon.beaconUpdateSubscriptionConditions,
+                      beacon.relayer.wallet.address,
+                      roles.sponsor.address
+                    );
+                  await dapiServer
+                    .connect(roles.randomPerson)
+                    .registerBeaconUpdateSubscription(
+                      beacon.airnode.wallet.address,
+                      beacon.templateId,
+                      beacon.beaconUpdateSubscriptionConditions,
+                      beacon.relayer.wallet.address,
+                      roles.sponsor.address
+                    );
+                  const decodedData = 123;
+                  const data = encodeData(decodedData);
+                  const timestamp = await helpers.time.latest();
                   await expect(
                     dapiServer
-                      .connect(airnodePspSponsorWallet)
+                      .connect(beacon.relayer.pspRelayedSponsorWallet)
                       .fulfillPspBeaconUpdate(
-                        beaconUpdateSubscriptionRelayedId,
-                        airnodeAddress,
-                        relayerAddress,
+                        subscriptionId,
+                        beacon.airnode.wallet.address,
+                        beacon.relayer.wallet.address,
                         roles.sponsor.address,
                         timestamp,
                         data,
@@ -1783,24 +2152,46 @@ describe('DapiServer', function () {
           });
           context('Data is not fresher than Beacon', function () {
             it('reverts', async function () {
-              const initialTimestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-              const futureTimestamp = initialTimestamp + 1;
-              await setBeacon(templateId, 123, futureTimestamp);
-              const [data, signature] = await encodeAndSignFulfillment(
-                456,
-                beaconUpdateSubscriptionId,
-                initialTimestamp,
-                airnodePspSponsorWallet.address
+              const { roles, dapiServer, beacons } = await deploy();
+              const beacon = beacons[0];
+              const subscriptionId = await dapiServer
+                .connect(roles.randomPerson)
+                .callStatic.registerBeaconUpdateSubscription(
+                  beacon.airnode.wallet.address,
+                  beacon.templateId,
+                  beacon.beaconUpdateSubscriptionConditions,
+                  beacon.airnode.wallet.address,
+                  roles.sponsor.address
+                );
+              await dapiServer
+                .connect(roles.randomPerson)
+                .registerBeaconUpdateSubscription(
+                  beacon.airnode.wallet.address,
+                  beacon.templateId,
+                  beacon.beaconUpdateSubscriptionConditions,
+                  beacon.airnode.wallet.address,
+                  roles.sponsor.address
+                );
+              const decodedData = 123;
+              const data = encodeData(decodedData);
+              const timestamp = (await helpers.time.latest()) - 10 * 60;
+              const signature = testUtils.signPspFulfillment(
+                beacon.airnode.wallet,
+                subscriptionId,
+                timestamp,
+                beacon.airnode.pspSponsorWallet.address
               );
+              const updatedDecodedData = 456;
+              await updateBeacon(roles, dapiServer, beacon, updatedDecodedData);
               await expect(
                 dapiServer
-                  .connect(airnodePspSponsorWallet)
+                  .connect(beacon.airnode.pspSponsorWallet)
                   .fulfillPspBeaconUpdate(
-                    beaconUpdateSubscriptionId,
-                    airnodeAddress,
-                    airnodeAddress,
+                    subscriptionId,
+                    beacon.airnode.wallet.address,
+                    beacon.airnode.wallet.address,
                     roles.sponsor.address,
-                    initialTimestamp,
+                    timestamp,
                     data,
                     signature,
                     { gasLimit: 500000 }
@@ -1811,25 +2202,61 @@ describe('DapiServer', function () {
         });
         context('Data length is not correct', function () {
           it('reverts', async function () {
-            const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-            await hre.ethers.provider.send('evm_setNextBlockTimestamp', [timestamp]);
-            const [data, signature] = await encodeAndSignFulfillment(
-              123,
-              beaconUpdateSubscriptionId,
+            const { roles, dapiServer, beacons } = await deploy();
+            const beacon = beacons[0];
+            const subscriptionId = await dapiServer
+              .connect(roles.randomPerson)
+              .callStatic.registerBeaconUpdateSubscription(
+                beacon.airnode.wallet.address,
+                beacon.templateId,
+                beacon.beaconUpdateSubscriptionConditions,
+                beacon.airnode.wallet.address,
+                roles.sponsor.address
+              );
+            await dapiServer
+              .connect(roles.randomPerson)
+              .registerBeaconUpdateSubscription(
+                beacon.airnode.wallet.address,
+                beacon.templateId,
+                beacon.beaconUpdateSubscriptionConditions,
+                beacon.airnode.wallet.address,
+                roles.sponsor.address
+              );
+            const decodedData = 123;
+            const data = encodeData(decodedData);
+            const timestamp = await helpers.time.latest();
+            const signature = testUtils.signPspFulfillment(
+              beacon.airnode.wallet,
+              subscriptionId,
               timestamp,
-              airnodePspSponsorWallet.address
+              beacon.airnode.pspSponsorWallet.address
             );
             const longData = data + '00';
             await expect(
               dapiServer
-                .connect(airnodePspSponsorWallet)
+                .connect(beacon.airnode.pspSponsorWallet)
                 .fulfillPspBeaconUpdate(
-                  beaconUpdateSubscriptionId,
-                  airnodeAddress,
-                  airnodeAddress,
+                  subscriptionId,
+                  beacon.airnode.wallet.address,
+                  beacon.airnode.wallet.address,
                   roles.sponsor.address,
                   timestamp,
                   longData,
+                  signature,
+                  { gasLimit: 500000 }
+                )
+            ).to.be.revertedWith('Data length not correct');
+            const shortData = data.substring(0, data.length - 2);
+            await expect(
+              dapiServer
+                .connect(beacon.airnode.pspSponsorWallet)
+                .fulfillPspBeaconUpdate(
+                  subscriptionId,
+                  beacon.airnode.wallet.address,
+                  beacon.airnode.wallet.address,
+                  roles.sponsor.address,
+                  timestamp,
+                  shortData,
                   signature,
                   { gasLimit: 500000 }
                 )
@@ -1839,22 +2266,33 @@ describe('DapiServer', function () {
       });
       context('Subscription is not registered', function () {
         it('reverts', async function () {
-          const anotherBeaconUpdateSubscriptionId = testUtils.generateRandomBytes32();
-          const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-          await hre.ethers.provider.send('evm_setNextBlockTimestamp', [timestamp]);
-          const [data, signature] = await encodeAndSignFulfillment(
-            123,
-            anotherBeaconUpdateSubscriptionId,
+          const { roles, dapiServer, beacons } = await deploy();
+          const beacon = beacons[0];
+          const subscriptionId = await dapiServer
+            .connect(roles.randomPerson)
+            .callStatic.registerBeaconUpdateSubscription(
+              beacon.airnode.wallet.address,
+              beacon.templateId,
+              beacon.beaconUpdateSubscriptionConditions,
+              beacon.airnode.wallet.address,
+              roles.sponsor.address
+            );
+          const decodedData = 123;
+          const data = encodeData(decodedData);
+          const timestamp = await helpers.time.latest();
+          const signature = testUtils.signPspFulfillment(
+            beacon.airnode.wallet,
+            subscriptionId,
             timestamp,
-            airnodePspSponsorWallet.address
+            beacon.airnode.pspSponsorWallet.address
           );
           await expect(
             dapiServer
-              .connect(airnodePspSponsorWallet)
+              .connect(beacon.airnode.pspSponsorWallet)
               .fulfillPspBeaconUpdate(
-                anotherBeaconUpdateSubscriptionId,
-                airnodeAddress,
-                airnodeAddress,
+                subscriptionId,
+                beacon.airnode.wallet.address,
+                beacon.airnode.wallet.address,
                 roles.sponsor.address,
                 timestamp,
                 data,
@@ -1867,24 +2305,69 @@ describe('DapiServer', function () {
     });
     context('Timestamp is not valid', function () {
       it('reverts', async function () {
-        const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) - 60 * 60;
-        const [data, signature] = await encodeAndSignFulfillment(
-          123,
-          beaconUpdateSubscriptionId,
-          timestamp,
-          airnodePspSponsorWallet.address
+        const { roles, dapiServer, beacons } = await deploy();
+        const beacon = beacons[0];
+        const subscriptionId = await dapiServer
+          .connect(roles.randomPerson)
+          .callStatic.registerBeaconUpdateSubscription(
+            beacon.airnode.wallet.address,
+            beacon.templateId,
+            beacon.beaconUpdateSubscriptionConditions,
+            beacon.airnode.wallet.address,
+            roles.sponsor.address
+          );
+        await dapiServer
+          .connect(roles.randomPerson)
+          .registerBeaconUpdateSubscription(
+            beacon.airnode.wallet.address,
+            beacon.templateId,
+            beacon.beaconUpdateSubscriptionConditions,
+            beacon.airnode.wallet.address,
+            roles.sponsor.address
+          );
+        const decodedData = 123;
+        const data = encodeData(decodedData);
+        const nextTimestamp = (await helpers.time.latest()) + 1;
+        await helpers.time.setNextBlockTimestamp(nextTimestamp);
+        const timestampTooOld = nextTimestamp - 60 * 60;
+        const signatureWithTimestampTooOld = testUtils.signPspFulfillment(
+          beacon.airnode.wallet,
+          subscriptionId,
+          timestampTooOld,
+          beacon.airnode.pspSponsorWallet.address
         );
         await expect(
           dapiServer
-            .connect(airnodePspSponsorWallet)
+            .connect(beacon.airnode.pspSponsorWallet)
             .fulfillPspBeaconUpdate(
-              beaconUpdateSubscriptionId,
-              airnodeAddress,
-              airnodeAddress,
+              subscriptionId,
+              beacon.airnode.wallet.address,
+              beacon.airnode.wallet.address,
               roles.sponsor.address,
-              timestamp,
+              timestampTooOld,
               data,
-              signature,
+              signatureWithTimestampTooOld,
+              { gasLimit: 500000 }
+            )
+        ).to.be.revertedWith('Timestamp not valid');
+        const timestampFromFuture = nextTimestamp + 15 * 60 + 1;
+        const signatureWithTimestampFromFuture = testUtils.signPspFulfillment(
+          beacon.airnode.wallet,
+          subscriptionId,
+          timestampFromFuture,
+          beacon.airnode.pspSponsorWallet.address
+        );
+        await expect(
+          dapiServer
+            .connect(beacon.airnode.pspSponsorWallet)
+            .fulfillPspBeaconUpdate(
+              subscriptionId,
+              beacon.airnode.wallet.address,
+              beacon.airnode.wallet.address,
+              roles.sponsor.address,
+              timestampFromFuture,
+              data,
+              signatureWithTimestampFromFuture,
               { gasLimit: 500000 }
             )
         ).to.be.revertedWith('Timestamp not valid');
@@ -1896,48 +2379,61 @@ describe('DapiServer', function () {
     context('Did not specify less than two Beacons', function () {
       context('Updated value updates timestamp', function () {
         it('updates Beacon set', async function () {
+          const { roles, dapiServer, beacons, beaconSet } = await deploy();
           // Populate the Beacons
-          let timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-          const beaconData = [123, 456, 789];
-          for (let ind = 0; ind < beaconData.length; ind++) {
-            timestamp++;
-            await setBeacon(beaconSetTemplateIds[ind], beaconData[ind], timestamp);
-          }
-          const beaconSetInitial = await dapiServer.dataFeeds(beaconSetId);
-          expect(beaconSetInitial.value).to.equal(0);
-          expect(beaconSetInitial.timestamp).to.equal(0);
+          const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
+          const currentTimestamp = await helpers.time.latest();
+          const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
+          await Promise.all(
+            beacons.map(async (beacon, index) => {
+              await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+            })
+          );
+          const beaconSetValue = median(beaconValues);
+          const beaconSetTimestamp = Math.floor(
+            beaconTimestamps.reduce((sum, beaconTimestamp) => {
+              return sum + beaconTimestamp;
+            }, 0) / beaconTimestamps.length
+          );
+          const beaconSetBefore = await dapiServer.dataFeeds(beaconSet.beaconSetId);
+          expect(beaconSetBefore.value).to.equal(0);
+          expect(beaconSetBefore.timestamp).to.equal(0);
           expect(
-            await dapiServer.connect(roles.randomPerson).callStatic.updateBeaconSetWithBeacons(beaconSetBeaconIds)
-          ).to.equal(beaconSetId);
-          await expect(dapiServer.connect(roles.randomPerson).updateBeaconSetWithBeacons(beaconSetBeaconIds))
+            await dapiServer.connect(roles.randomPerson).callStatic.updateBeaconSetWithBeacons(beaconSet.beaconIds)
+          ).to.equal(beaconSet.beaconSetId);
+          await expect(dapiServer.connect(roles.randomPerson).updateBeaconSetWithBeacons(beaconSet.beaconIds))
             .to.emit(dapiServer, 'UpdatedBeaconSetWithBeacons')
-            .withArgs(beaconSetId, 456, timestamp - 1);
+            .withArgs(beaconSet.beaconSetId, beaconSetValue, beaconSetTimestamp);
+          const beaconSetAfter = await dapiServer.dataFeeds(beaconSet.beaconSetId);
+          expect(beaconSetAfter.value).to.equal(beaconSetValue);
+          expect(beaconSetAfter.timestamp).to.equal(beaconSetTimestamp);
         });
       });
       context('Updated value does not update timestamp', function () {
         it('reverts', async function () {
-          // Populate the Beacons
-          let timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-          const beaconData = [123, 456, 789];
-          for (let ind = 0; ind < beaconData.length; ind++) {
-            timestamp++;
-            await setBeacon(beaconSetTemplateIds[ind], beaconData[ind], timestamp);
-          }
-          // Update the Beacon set with signed data
-          const beaconSetData = [321, 654, 987];
-          timestamp++;
-          await setBeaconSet(airnodeAddress, beaconSetTemplateIds, beaconSetData, [timestamp, timestamp, timestamp]);
-          // Update with Beacons will fail because the previous update with signed data was fresher
+          const { roles, dapiServer, beacons, beaconSet } = await deploy();
+          // Update Beacon set with recent timestamp
+          await updateBeaconSet(roles, dapiServer, beacons, 123);
+          // Populate the Beacons with slightly outdated timestamps
+          const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
+          const currentTimestamp = await helpers.time.latest();
+          const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
+          await Promise.all(
+            beacons.map(async (beacon, index) => {
+              await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+            })
+          );
           await expect(
-            dapiServer.connect(roles.randomPerson).updateBeaconSetWithBeacons(beaconSetBeaconIds)
+            dapiServer.connect(roles.randomPerson).updateBeaconSetWithBeacons(beaconSet.beaconIds)
           ).to.be.revertedWith('Does not update timestamp');
         });
       });
     });
     context('Specified less than two Beacons', function () {
       it('reverts', async function () {
+        const { roles, dapiServer, beacons } = await deploy();
         await expect(
-          dapiServer.connect(roles.randomPerson).updateBeaconSetWithBeacons([testUtils.generateRandomBytes32()])
+          dapiServer.connect(roles.randomPerson).updateBeaconSetWithBeacons([beacons[0].beaconId])
         ).to.be.revertedWith('Specified less than two Beacons');
         await expect(dapiServer.connect(roles.randomPerson).updateBeaconSetWithBeacons([])).to.be.revertedWith(
           'Specified less than two Beacons'
@@ -1952,34 +2448,39 @@ describe('DapiServer', function () {
         context('Beacon set timestamp is zero', function () {
           context('Update will set the Beacon set timestamp to a non-zero value', function () {
             it('returns true', async function () {
-              let timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-              const encodedData = [0, 0, 0];
-              for (let ind = 0; ind < encodedData.length; ind++) {
-                timestamp++;
-                await setBeacon(beaconSetTemplateIds[ind], encodedData[ind], timestamp);
-              }
+              const { roles, dapiServer, beacons, beaconSet } = await deploy();
+              // Populate the Beacons
+              const beaconValues = beacons.map(() => 0);
+              const currentTimestamp = await helpers.time.latest();
+              const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
+              await Promise.all(
+                beacons.map(async (beacon, index) => {
+                  await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+                })
+              );
               // Even if the Beacon values are zero, since their timestamps are not zero,
               // the condition will return true
               expect(
                 await dapiServer
                   .connect(roles.randomPerson)
                   .callStatic.conditionPspBeaconSetUpdate(
-                    beaconSetUpdateSubscriptionId,
-                    hre.ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSetBeaconIds]),
-                    beaconSetUpdateSubscriptionConditionParameters
+                    beaconSet.beaconSetUpdateSubscriptionId,
+                    ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSet.beaconIds]),
+                    beaconSet.beaconSetUpdateSubscriptionConditionParameters
                   )
               ).to.equal(true);
             });
           });
           context('Update will not set the Beacon set timestamp to a non-zero value', function () {
             it('returns false', async function () {
+              const { roles, dapiServer, beaconSet } = await deploy();
               expect(
                 await dapiServer
                   .connect(roles.randomPerson)
                   .callStatic.conditionPspBeaconSetUpdate(
-                    beaconSetUpdateSubscriptionId,
-                    hre.ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSetBeaconIds]),
-                    beaconSetUpdateSubscriptionConditionParameters
+                    beaconSet.beaconSetUpdateSubscriptionId,
+                    ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSet.beaconIds]),
+                    beaconSet.beaconSetUpdateSubscriptionConditionParameters
                   )
               ).to.equal(false);
             });
@@ -1990,60 +2491,48 @@ describe('DapiServer', function () {
             context('Update is upwards', function () {
               context('It has been at least heartbeat interval seconds since the last update', function () {
                 it('returns true', async function () {
+                  const { roles, dapiServer, beacons, beaconSet } = await deploy();
                   // Set the Beacon set to 100 first
-                  let timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-                  timestamp++;
-                  await setBeaconSet(
-                    airnodeAddress,
-                    beaconSetTemplateIds,
-                    [100, 100, 100],
-                    [timestamp, timestamp, timestamp]
+                  await updateBeaconSet(roles, dapiServer, beacons, 100);
+                  // beaconSetUpdateSubscriptionConditionParameters is 5%, -100 and 2 days
+                  // Fast forward to after the heartbeat interval
+                  await helpers.time.increase(2 * 24 * 60 * 60);
+                  // 100 -> 110 satisfies the condition (note that deviation reference is -100)
+                  await Promise.all(
+                    beacons.map(async (beacon) => {
+                      await updateBeacon(roles, dapiServer, beacon, 110);
+                    })
                   );
-                  // beaconSetUpdateSubscriptionConditionParameters is 5% and 2 days
-                  // 100 -> 105 satisfies the condition
-                  const encodedData = [105, 110, 100];
-                  // It has been 2 days since the Beacon set timestamp
-                  timestamp = timestamp + 2 * 24 * 60 * 60;
-                  for (let ind = 0; ind < encodedData.length; ind++) {
-                    timestamp++;
-                    await setBeacon(beaconSetTemplateIds[ind], encodedData[ind], timestamp);
-                  }
                   expect(
                     await dapiServer
                       .connect(roles.randomPerson)
                       .callStatic.conditionPspBeaconSetUpdate(
-                        beaconSetUpdateSubscriptionId,
-                        hre.ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSetBeaconIds]),
-                        beaconSetUpdateSubscriptionConditionParameters
+                        beaconSet.beaconSetUpdateSubscriptionId,
+                        ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSet.beaconIds]),
+                        beaconSet.beaconSetUpdateSubscriptionConditionParameters
                       )
                   ).to.equal(true);
                 });
               });
               context('It has not been at least heartbeat interval seconds since the last update', function () {
                 it('returns true', async function () {
+                  const { roles, dapiServer, beacons, beaconSet } = await deploy();
                   // Set the Beacon set to 100 first
-                  let timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-                  timestamp++;
-                  await setBeaconSet(
-                    airnodeAddress,
-                    beaconSetTemplateIds,
-                    [100, 100, 100],
-                    [timestamp, timestamp, timestamp]
+                  await updateBeaconSet(roles, dapiServer, beacons, 100);
+                  // beaconSetUpdateSubscriptionConditionParameters is 5%, -100 and 2 days
+                  // 100 -> 110 satisfies the condition (note that deviation reference is -100)
+                  await Promise.all(
+                    beacons.map(async (beacon) => {
+                      await updateBeacon(roles, dapiServer, beacon, 110);
+                    })
                   );
-                  // beaconSetUpdateSubscriptionConditionParameters is 5%
-                  // 100 -> 105 satisfies the condition and returns true
-                  const encodedData = [105, 110, 100];
-                  for (let ind = 0; ind < encodedData.length; ind++) {
-                    timestamp++;
-                    await setBeacon(beaconSetTemplateIds[ind], encodedData[ind], timestamp);
-                  }
                   expect(
                     await dapiServer
                       .connect(roles.randomPerson)
                       .callStatic.conditionPspBeaconSetUpdate(
-                        beaconSetUpdateSubscriptionId,
-                        hre.ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSetBeaconIds]),
-                        beaconSetUpdateSubscriptionConditionParameters
+                        beaconSet.beaconSetUpdateSubscriptionId,
+                        ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSet.beaconIds]),
+                        beaconSet.beaconSetUpdateSubscriptionConditionParameters
                       )
                   ).to.equal(true);
                 });
@@ -2052,60 +2541,48 @@ describe('DapiServer', function () {
             context('Update is downwards', function () {
               context('It has been at least heartbeat interval seconds since the last update', function () {
                 it('returns true', async function () {
+                  const { roles, dapiServer, beacons, beaconSet } = await deploy();
                   // Set the Beacon set to 100 first
-                  let timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-                  timestamp++;
-                  await setBeaconSet(
-                    airnodeAddress,
-                    beaconSetTemplateIds,
-                    [100, 100, 100],
-                    [timestamp, timestamp, timestamp]
+                  await updateBeaconSet(roles, dapiServer, beacons, 100);
+                  // beaconSetUpdateSubscriptionConditionParameters is 5%, -100 and 2 days
+                  // Fast forward to after the heartbeat interval
+                  await helpers.time.increase(2 * 24 * 60 * 60);
+                  // 100 -> 90 satisfies the condition (note that deviation reference is -100)
+                  await Promise.all(
+                    beacons.map(async (beacon) => {
+                      await updateBeacon(roles, dapiServer, beacon, 90);
+                    })
                   );
-                  // beaconSetUpdateSubscriptionConditionParameters is 5% and 2 days
-                  // 100 -> 95 satisfies the condition
-                  const encodedData = [95, 100, 90];
-                  // It has been 2 days since the Beacon set timestamp
-                  timestamp = timestamp + 2 * 24 * 60 * 60;
-                  for (let ind = 0; ind < encodedData.length; ind++) {
-                    timestamp++;
-                    await setBeacon(beaconSetTemplateIds[ind], encodedData[ind], timestamp);
-                  }
                   expect(
                     await dapiServer
                       .connect(roles.randomPerson)
                       .callStatic.conditionPspBeaconSetUpdate(
-                        beaconSetUpdateSubscriptionId,
-                        hre.ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSetBeaconIds]),
-                        beaconSetUpdateSubscriptionConditionParameters
+                        beaconSet.beaconSetUpdateSubscriptionId,
+                        ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSet.beaconIds]),
+                        beaconSet.beaconSetUpdateSubscriptionConditionParameters
                       )
                   ).to.equal(true);
                 });
               });
               context('It has not been at least heartbeat interval seconds since the last update', function () {
                 it('returns true', async function () {
+                  const { roles, dapiServer, beacons, beaconSet } = await deploy();
                   // Set the Beacon set to 100 first
-                  let timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-                  timestamp++;
-                  await setBeaconSet(
-                    airnodeAddress,
-                    beaconSetTemplateIds,
-                    [100, 100, 100],
-                    [timestamp, timestamp, timestamp]
+                  await updateBeaconSet(roles, dapiServer, beacons, 100);
+                  // beaconSetUpdateSubscriptionConditionParameters is 5%, -100 and 2 days
+                  // 100 -> 90 satisfies the condition (note that deviation reference is -100)
+                  await Promise.all(
+                    beacons.map(async (beacon) => {
+                      await updateBeacon(roles, dapiServer, beacon, 90);
+                    })
                   );
-                  // beaconSetUpdateSubscriptionConditionParameters is 5%
-                  // 100 -> 95 satisfies the condition and returns true
-                  const encodedData = [95, 100, 90];
-                  for (let ind = 0; ind < encodedData.length; ind++) {
-                    timestamp++;
-                    await setBeacon(beaconSetTemplateIds[ind], encodedData[ind], timestamp);
-                  }
                   expect(
                     await dapiServer
                       .connect(roles.randomPerson)
                       .callStatic.conditionPspBeaconSetUpdate(
-                        beaconSetUpdateSubscriptionId,
-                        hre.ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSetBeaconIds]),
-                        beaconSetUpdateSubscriptionConditionParameters
+                        beaconSet.beaconSetUpdateSubscriptionId,
+                        ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSet.beaconIds]),
+                        beaconSet.beaconSetUpdateSubscriptionConditionParameters
                       )
                   ).to.equal(true);
                 });
@@ -2116,60 +2593,48 @@ describe('DapiServer', function () {
             context('Update is upwards', function () {
               context('It has been at least heartbeat interval seconds since the last update', function () {
                 it('returns true', async function () {
+                  const { roles, dapiServer, beacons, beaconSet } = await deploy();
                   // Set the Beacon set to 100 first
-                  let timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-                  timestamp++;
-                  await setBeaconSet(
-                    airnodeAddress,
-                    beaconSetTemplateIds,
-                    [100, 100, 100],
-                    [timestamp, timestamp, timestamp]
+                  await updateBeaconSet(roles, dapiServer, beacons, 100);
+                  // beaconSetUpdateSubscriptionConditionParameters is 5%, -100 and 2 days
+                  // Fast forward to after the heartbeat interval
+                  await helpers.time.increase(2 * 24 * 60 * 60);
+                  // 100 -> 109 does not satisfy the condition (note that deviation reference is -100)
+                  await Promise.all(
+                    beacons.map(async (beacon) => {
+                      await updateBeacon(roles, dapiServer, beacon, 109);
+                    })
                   );
-                  // beaconSetUpdateSubscriptionConditionParameters is 5% and 2 days
-                  // 100 -> 104 does not satisfy the condition
-                  const encodedData = [110, 104, 95];
-                  // It has been 2 days since the Beacon set timestamp
-                  timestamp = timestamp + 2 * 24 * 60 * 60;
-                  for (let ind = 0; ind < encodedData.length; ind++) {
-                    timestamp++;
-                    await setBeacon(beaconSetTemplateIds[ind], encodedData[ind], timestamp);
-                  }
                   expect(
                     await dapiServer
                       .connect(roles.randomPerson)
                       .callStatic.conditionPspBeaconSetUpdate(
-                        beaconSetUpdateSubscriptionId,
-                        hre.ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSetBeaconIds]),
-                        beaconSetUpdateSubscriptionConditionParameters
+                        beaconSet.beaconSetUpdateSubscriptionId,
+                        ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSet.beaconIds]),
+                        beaconSet.beaconSetUpdateSubscriptionConditionParameters
                       )
                   ).to.equal(true);
                 });
               });
               context('It has not been at least heartbeat interval seconds since the last update', function () {
                 it('returns false', async function () {
+                  const { roles, dapiServer, beacons, beaconSet } = await deploy();
                   // Set the Beacon set to 100 first
-                  let timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-                  timestamp++;
-                  await setBeaconSet(
-                    airnodeAddress,
-                    beaconSetTemplateIds,
-                    [100, 100, 100],
-                    [timestamp, timestamp, timestamp]
+                  await updateBeaconSet(roles, dapiServer, beacons, 100);
+                  // beaconSetUpdateSubscriptionConditionParameters is 5%, -100 and 2 days
+                  // 100 -> 109 does not satisfy the condition (note that deviation reference is -100)
+                  await Promise.all(
+                    beacons.map(async (beacon) => {
+                      await updateBeacon(roles, dapiServer, beacon, 109);
+                    })
                   );
-                  // beaconSetUpdateSubscriptionConditionParameters is 5%
-                  // 100 -> 104 does not satisfy the condition and returns false
-                  const encodedData = [110, 104, 95];
-                  for (let ind = 0; ind < encodedData.length; ind++) {
-                    timestamp++;
-                    await setBeacon(beaconSetTemplateIds[ind], encodedData[ind], timestamp);
-                  }
                   expect(
                     await dapiServer
                       .connect(roles.randomPerson)
                       .callStatic.conditionPspBeaconSetUpdate(
-                        beaconSetUpdateSubscriptionId,
-                        hre.ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSetBeaconIds]),
-                        beaconSetUpdateSubscriptionConditionParameters
+                        beaconSet.beaconSetUpdateSubscriptionId,
+                        ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSet.beaconIds]),
+                        beaconSet.beaconSetUpdateSubscriptionConditionParameters
                       )
                   ).to.equal(false);
                 });
@@ -2178,60 +2643,48 @@ describe('DapiServer', function () {
             context('Update is downwards', function () {
               context('It has been at least heartbeat interval seconds since the last update', function () {
                 it('returns true', async function () {
+                  const { roles, dapiServer, beacons, beaconSet } = await deploy();
                   // Set the Beacon set to 100 first
-                  let timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-                  timestamp++;
-                  await setBeaconSet(
-                    airnodeAddress,
-                    beaconSetTemplateIds,
-                    [100, 100, 100],
-                    [timestamp, timestamp, timestamp]
+                  await updateBeaconSet(roles, dapiServer, beacons, 100);
+                  // beaconSetUpdateSubscriptionConditionParameters is 5%, -100 and 2 days
+                  // Fast forward to after the heartbeat interval
+                  await helpers.time.increase(2 * 24 * 60 * 60);
+                  // 100 -> 91 does not satisfy the condition (note that deviation reference is -100)
+                  await Promise.all(
+                    beacons.map(async (beacon) => {
+                      await updateBeacon(roles, dapiServer, beacon, 91);
+                    })
                   );
-                  // beaconSetUpdateSubscriptionConditionParameters is 5% and 2 days
-                  // 100 -> 96 does not satisfy the condition
-                  const encodedData = [105, 96, 95];
-                  // It has been 2 days since the Beacon set timestamp
-                  timestamp = timestamp + 2 * 24 * 60 * 60;
-                  for (let ind = 0; ind < encodedData.length; ind++) {
-                    timestamp++;
-                    await setBeacon(beaconSetTemplateIds[ind], encodedData[ind], timestamp);
-                  }
                   expect(
                     await dapiServer
                       .connect(roles.randomPerson)
                       .callStatic.conditionPspBeaconSetUpdate(
-                        beaconSetUpdateSubscriptionId,
-                        hre.ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSetBeaconIds]),
-                        beaconSetUpdateSubscriptionConditionParameters
+                        beaconSet.beaconSetUpdateSubscriptionId,
+                        ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSet.beaconIds]),
+                        beaconSet.beaconSetUpdateSubscriptionConditionParameters
                       )
                   ).to.equal(true);
                 });
               });
               context('It has not been at least heartbeat interval seconds since the last update', function () {
                 it('returns false', async function () {
+                  const { roles, dapiServer, beacons, beaconSet } = await deploy();
                   // Set the Beacon set to 100 first
-                  let timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-                  timestamp++;
-                  await setBeaconSet(
-                    airnodeAddress,
-                    beaconSetTemplateIds,
-                    [100, 100, 100],
-                    [timestamp, timestamp, timestamp]
+                  await updateBeaconSet(roles, dapiServer, beacons, 100);
+                  // beaconSetUpdateSubscriptionConditionParameters is 5%, -100 and 2 days
+                  // 100 -> 91 does not satisfy the condition (note that deviation reference is -100)
+                  await Promise.all(
+                    beacons.map(async (beacon) => {
+                      await updateBeacon(roles, dapiServer, beacon, 91);
+                    })
                   );
-                  // beaconSetUpdateSubscriptionConditionParameters is 5%
-                  // 100 -> 96 does not satisfy the condition and returns false
-                  const encodedData = [105, 96, 95];
-                  for (let ind = 0; ind < encodedData.length; ind++) {
-                    timestamp++;
-                    await setBeacon(beaconSetTemplateIds[ind], encodedData[ind], timestamp);
-                  }
                   expect(
                     await dapiServer
                       .connect(roles.randomPerson)
                       .callStatic.conditionPspBeaconSetUpdate(
-                        beaconSetUpdateSubscriptionId,
-                        hre.ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSetBeaconIds]),
-                        beaconSetUpdateSubscriptionConditionParameters
+                        beaconSet.beaconSetUpdateSubscriptionId,
+                        ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSet.beaconIds]),
+                        beaconSet.beaconSetUpdateSubscriptionConditionParameters
                       )
                   ).to.equal(false);
                 });
@@ -2242,22 +2695,14 @@ describe('DapiServer', function () {
       });
       context('Condition parameters length is not correct', function () {
         it('reverts', async function () {
+          const { roles, dapiServer, beaconSet } = await deploy();
           await expect(
             dapiServer
               .connect(roles.randomPerson)
               .callStatic.conditionPspBeaconSetUpdate(
-                testUtils.generateRandomBytes32(),
-                hre.ethers.utils.defaultAbiCoder.encode(
-                  ['bytes32[]'],
-                  [
-                    [
-                      testUtils.generateRandomBytes32(),
-                      testUtils.generateRandomBytes32(),
-                      testUtils.generateRandomBytes32(),
-                    ],
-                  ]
-                ),
-                beaconSetUpdateSubscriptionConditionParameters + '00'
+                beaconSet.beaconSetUpdateSubscriptionId,
+                ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSet.beaconIds]),
+                beaconSet.beaconSetUpdateSubscriptionConditionParameters + '00'
               )
           ).to.be.revertedWith('Incorrect parameter length');
         });
@@ -2265,22 +2710,14 @@ describe('DapiServer', function () {
     });
     context('Data length is not correct', function () {
       it('reverts', async function () {
+        const { roles, dapiServer, beaconSet } = await deploy();
         await expect(
           dapiServer
             .connect(roles.randomPerson)
             .callStatic.conditionPspBeaconSetUpdate(
-              testUtils.generateRandomBytes32(),
-              hre.ethers.utils.defaultAbiCoder.encode(
-                ['bytes32[]'],
-                [
-                  [
-                    testUtils.generateRandomBytes32(),
-                    testUtils.generateRandomBytes32(),
-                    testUtils.generateRandomBytes32(),
-                  ],
-                ]
-              ) + '00',
-              beaconSetUpdateSubscriptionConditionParameters
+              beaconSet.beaconSetUpdateSubscriptionId,
+              ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSet.beaconIds]) + '00',
+              beaconSet.beaconSetUpdateSubscriptionConditionParameters + '00'
             )
         ).to.be.revertedWith('Data length not correct');
       });
@@ -2291,30 +2728,40 @@ describe('DapiServer', function () {
     context('Data length is correct', function () {
       context('Subscription is regular', function () {
         it('updates Beacon set', async function () {
-          let timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-          const encodedData = [95, 100, 90];
-          for (let ind = 0; ind < encodedData.length; ind++) {
-            timestamp++;
-            await setBeacon(beaconSetTemplateIds[ind], encodedData[ind], timestamp);
-          }
-          const data = hre.ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSetBeaconIds]);
-          const signature = await airnodeWallet.signMessage(
-            hre.ethers.utils.arrayify(
-              hre.ethers.utils.keccak256(
-                hre.ethers.utils.solidityPack(
-                  ['bytes32', 'uint256', 'address'],
-                  [beaconSetUpdateSubscriptionId, timestamp, airnodePspSponsorWallet.address]
-                )
-              )
-            )
+          const { roles, dapiServer, beacons, beaconSet } = await deploy();
+          // Populate the Beacons
+          const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
+          const currentTimestamp = await helpers.time.latest();
+          const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
+          await Promise.all(
+            beacons.map(async (beacon, index) => {
+              await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+            })
           );
+          const beaconSetValue = median(beaconValues);
+          const beaconSetTimestamp = Math.floor(
+            beaconTimestamps.reduce((sum, beaconTimestamp) => {
+              return sum + beaconTimestamp;
+            }, 0) / beaconTimestamps.length
+          );
+          const data = ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSet.beaconIds]);
+          const timestamp = await helpers.time.latest();
+          const signature = testUtils.signPspFulfillment(
+            beacons[0].airnode.wallet,
+            beaconSet.beaconSetUpdateSubscriptionId,
+            timestamp,
+            beacons[0].airnode.pspSponsorWallet.address
+          );
+          const beaconSetBefore = await dapiServer.dataFeeds(beaconSet.beaconSetId);
+          expect(beaconSetBefore.value).to.equal(0);
+          expect(beaconSetBefore.timestamp).to.equal(0);
           await expect(
             dapiServer
-              .connect(airnodePspSponsorWallet)
+              .connect(beacons[0].airnode.pspSponsorWallet)
               .fulfillPspBeaconSetUpdate(
-                beaconSetUpdateSubscriptionId,
-                airnodeAddress,
-                airnodeAddress,
+                beaconSet.beaconSetUpdateSubscriptionId,
+                beacons[0].airnode.wallet.address,
+                beacons[0].airnode.wallet.address,
                 roles.sponsor.address,
                 timestamp,
                 data,
@@ -2323,40 +2770,61 @@ describe('DapiServer', function () {
               )
           )
             .to.emit(dapiServer, 'UpdatedBeaconSetWithBeacons')
-            .withArgs(beaconSetId, 95, timestamp - 1);
-          const beaconSet = await dapiServer.dataFeeds(beaconSetId);
-          expect(beaconSet.value).to.equal(95);
-          expect(beaconSet.timestamp).to.equal(timestamp - 1);
+            .withArgs(beaconSet.beaconSetId, beaconSetValue, beaconSetTimestamp);
+          const beaconSetAfter = await dapiServer.dataFeeds(beaconSet.beaconSetId);
+          expect(beaconSetAfter.value).to.equal(beaconSetValue);
+          expect(beaconSetAfter.timestamp).to.equal(beaconSetTimestamp);
         });
       });
       context('Subscription is relayed', function () {
         it('updates Beacon set', async function () {
           // Note that updating a Beacon set with a relayed subscription makes no sense
           // We are testing this for the sake of completeness
-          let timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-          const encodedData = [95, 100, 90];
-          for (let ind = 0; ind < encodedData.length; ind++) {
-            timestamp++;
-            await setBeacon(beaconSetTemplateIds[ind], encodedData[ind], timestamp);
-          }
-          const data = hre.ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSetBeaconIds]);
-          const signature = await airnodeWallet.signMessage(
-            hre.ethers.utils.arrayify(
-              hre.ethers.utils.keccak256(
-                hre.ethers.utils.solidityPack(
-                  ['bytes32', 'uint256', 'address', 'bytes'],
-                  [beaconSetUpdateSubscriptionRelayedId, timestamp, relayerPspSponsorWallet.address, data]
-                )
-              )
-            )
+          const { roles, dapiServer, beacons, beaconSet } = await deploy();
+          // Populate the Beacons
+          const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
+          const currentTimestamp = await helpers.time.latest();
+          const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
+          await Promise.all(
+            beacons.map(async (beacon, index) => {
+              await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+            })
           );
+          const beaconSetValue = median(beaconValues);
+          const beaconSetTimestamp = Math.floor(
+            beaconTimestamps.reduce((sum, beaconTimestamp) => {
+              return sum + beaconTimestamp;
+            }, 0) / beaconTimestamps.length
+          );
+          const beaconSetUpdateSubscriptionId = await deriveUpdateSubscriptionId(
+            dapiServer,
+            beacons[0].airnode.wallet.address,
+            ethers.constants.HashZero,
+            beaconSet.beaconSetUpdateSubscriptionConditions,
+            beacons[0].relayer.wallet.address,
+            roles.sponsor.address,
+            dapiServer.interface.getSighash('fulfillPspBeaconSetUpdate'),
+            ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSet.beaconIds])
+          );
+          const data = ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSet.beaconIds]);
+          const timestamp = await helpers.time.latest();
+          const signature = testUtils.signPspRelayedFulfillment(
+            beacons[0].airnode.wallet,
+            beaconSetUpdateSubscriptionId,
+            timestamp,
+            beacons[0].relayer.pspRelayedSponsorWallet.address,
+            data
+          );
+          const beaconSetBefore = await dapiServer.dataFeeds(beaconSet.beaconSetId);
+          expect(beaconSetBefore.value).to.equal(0);
+          expect(beaconSetBefore.timestamp).to.equal(0);
           await expect(
             dapiServer
-              .connect(relayerPspSponsorWallet)
+              .connect(beacons[0].relayer.pspRelayedSponsorWallet)
               .fulfillPspBeaconSetUpdate(
-                beaconSetUpdateSubscriptionRelayedId,
-                airnodeAddress,
-                relayerAddress,
+                beaconSetUpdateSubscriptionId,
+                beacons[0].airnode.wallet.address,
+                beacons[0].relayer.wallet.address,
                 roles.sponsor.address,
                 timestamp,
                 data,
@@ -2365,40 +2833,43 @@ describe('DapiServer', function () {
               )
           )
             .to.emit(dapiServer, 'UpdatedBeaconSetWithBeacons')
-            .withArgs(beaconSetId, 95, timestamp - 1);
-          const beaconSet = await dapiServer.dataFeeds(beaconSetId);
-          expect(beaconSet.value).to.equal(95);
-          expect(beaconSet.timestamp).to.equal(timestamp - 1);
+            .withArgs(beaconSet.beaconSetId, beaconSetValue, beaconSetTimestamp);
+          const beaconSetAfter = await dapiServer.dataFeeds(beaconSet.beaconSetId);
+          expect(beaconSetAfter.value).to.equal(beaconSetValue);
+          expect(beaconSetAfter.timestamp).to.equal(beaconSetTimestamp);
         });
       });
     });
     context('Data length is not correct', function () {
       it('reverts', async function () {
-        await updateBeacon(airnodeAddress, beaconSetTemplateIds[0], 100);
-        const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-        await hre.ethers.provider.send('evm_setNextBlockTimestamp', [timestamp]);
-        const data = hre.ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSetBeaconIds]);
-        const longData = data + '00';
-        const signature = await airnodeWallet.signMessage(
-          hre.ethers.utils.arrayify(
-            hre.ethers.utils.keccak256(
-              hre.ethers.utils.solidityPack(
-                ['bytes32', 'uint256', 'address'],
-                [beaconSetUpdateSubscriptionId, timestamp, airnodePspSponsorWallet.address]
-              )
-            )
-          )
+        const { roles, dapiServer, beacons, beaconSet } = await deploy();
+        // Populate the Beacons
+        const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
+        const currentTimestamp = await helpers.time.latest();
+        const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
+        await Promise.all(
+          beacons.map(async (beacon, index) => {
+            await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+          })
+        );
+        const data = ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSet.beaconIds]) + '00';
+        const timestamp = await helpers.time.latest();
+        const signature = testUtils.signPspFulfillment(
+          beacons[0].airnode.wallet,
+          beaconSet.beaconSetUpdateSubscriptionId,
+          timestamp,
+          beacons[0].airnode.pspSponsorWallet.address
         );
         await expect(
           dapiServer
-            .connect(airnodePspSponsorWallet)
+            .connect(beacons[0].airnode.pspSponsorWallet)
             .fulfillPspBeaconSetUpdate(
-              beaconSetUpdateSubscriptionId,
-              airnodeAddress,
-              airnodeAddress,
+              beaconSet.beaconSetUpdateSubscriptionId,
+              beacons[0].airnode.wallet.address,
+              beacons[0].airnode.wallet.address,
               roles.sponsor.address,
               timestamp,
-              longData,
+              data,
               signature,
               { gasLimit: 500000 }
             )
@@ -2417,470 +2888,512 @@ describe('DapiServer', function () {
                 context('All timestamps are valid', function () {
                   context('Updates timestamp', function () {
                     it('updates Beacon set with signed data', async function () {
-                      const timestamp0 = await updateBeacon(airnodeAddress, beaconSetTemplateIds[0], 100);
-                      const signedData0 = hre.ethers.utils.defaultAbiCoder.encode(
-                        ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                        [airnodeAddress, beaconSetTemplateIds[0], 0, '0x', '0x']
+                      const { roles, dapiServer, beacons, beaconSet } = await deploy();
+                      // Populate the Beacons
+                      const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
+                      const currentTimestamp = await helpers.time.latest();
+                      const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
+                      const beaconSetValue = median(beaconValues);
+                      const beaconSetTimestamp = Math.floor(
+                        beaconTimestamps.reduce((sum, beaconTimestamp) => {
+                          return sum + beaconTimestamp;
+                        }, 0) / beaconTimestamps.length
                       );
-                      const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                      await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-                      const data1 = encodeData(105);
-                      const signature1 = await airnodeWallet.signMessage(
-                        hre.ethers.utils.arrayify(
-                          hre.ethers.utils.keccak256(
-                            hre.ethers.utils.solidityPack(
-                              ['bytes32', 'uint256', 'bytes'],
-                              [beaconSetTemplateIds[1], nextTimestamp, data1]
-                            )
-                          )
-                        )
+                      await Promise.all(
+                        beacons.map(async (beacon, index) => {
+                          await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+                        })
                       );
-                      const signedData1 = hre.ethers.utils.defaultAbiCoder.encode(
-                        ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                        [airnodeAddress, beaconSetTemplateIds[1], nextTimestamp, data1, signature1]
+                      // Randomly omit one of the signatures for the Beacon value to be read from the chain
+                      const omitSignatureAtIndex = Math.floor(Math.random() * beacons.length);
+                      const signatures = await Promise.all(
+                        beacons.map(async (beacon, index) => {
+                          if (index === omitSignatureAtIndex) {
+                            return '0x';
+                          } else {
+                            return await testUtils.signData(
+                              beacon.airnode.wallet,
+                              beacon.templateId,
+                              beaconTimestamps[index],
+                              encodeData(beaconValues[index])
+                            );
+                          }
+                        })
                       );
-                      const data2 = encodeData(110);
-                      const signature2 = await airnodeWallet.signMessage(
-                        hre.ethers.utils.arrayify(
-                          hre.ethers.utils.keccak256(
-                            hre.ethers.utils.solidityPack(
-                              ['bytes32', 'uint256', 'bytes'],
-                              [beaconSetTemplateIds[2], nextTimestamp, data2]
-                            )
-                          )
-                        )
-                      );
-                      const signedData2 = hre.ethers.utils.defaultAbiCoder.encode(
-                        ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                        [airnodeAddress, beaconSetTemplateIds[2], nextTimestamp, data2, signature2]
-                      );
-                      const expectedTimestamp = Math.floor((timestamp0 + nextTimestamp + nextTimestamp) / 3);
-                      await expect(
-                        dapiServer
-                          .connect(roles.randomPerson)
-                          .updateDataFeedWithSignedData([signedData0, signedData1, signedData2])
-                      )
+                      // Omit the data if the signature is omitted
+                      const signedData = signatures.map((signature, index) => {
+                        if (signature === '0x') {
+                          return encodeSignedData(
+                            beacons[index].airnode.wallet.address,
+                            beacons[index].templateId,
+                            0,
+                            '0x',
+                            signature
+                          );
+                        } else {
+                          return encodeSignedData(
+                            beacons[index].airnode.wallet.address,
+                            beacons[index].templateId,
+                            beaconTimestamps[index],
+                            encodeData(beaconValues[index]),
+                            signature
+                          );
+                        }
+                      });
+                      const beaconSetBefore = await dapiServer.dataFeeds(beaconSet.beaconSetId);
+                      expect(beaconSetBefore.value).to.equal(0);
+                      expect(beaconSetBefore.timestamp).to.equal(0);
+                      await expect(dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData(signedData))
                         .to.emit(dapiServer, 'UpdatedBeaconSetWithSignedData')
-                        .withArgs(beaconSetId, 105, expectedTimestamp);
-                      const beaconSet = await dapiServer.dataFeeds(beaconSetId);
-                      expect(beaconSet.value).to.equal(105);
-                      expect(beaconSet.timestamp).to.equal(expectedTimestamp);
+                        .withArgs(beaconSet.beaconSetId, beaconSetValue, beaconSetTimestamp);
+                      const beaconSetAfter = await dapiServer.dataFeeds(beaconSet.beaconSetId);
+                      expect(beaconSetAfter.value).to.equal(beaconSetValue);
+                      expect(beaconSetAfter.timestamp).to.equal(beaconSetTimestamp);
                     });
                   });
                   context('Does not update timestamp', function () {
                     it('reverts', async function () {
-                      await updateBeacon(airnodeAddress, beaconSetTemplateIds[0], 100);
-                      const signedData0 = hre.ethers.utils.defaultAbiCoder.encode(
-                        ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                        [airnodeAddress, beaconSetTemplateIds[0], 0, '0x', '0x']
+                      const { roles, dapiServer, beacons, beaconSet } = await deploy();
+                      // Populate the Beacons
+                      const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
+                      const currentTimestamp = await helpers.time.latest();
+                      const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
+                      await Promise.all(
+                        beacons.map(async (beacon, index) => {
+                          await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+                        })
                       );
-                      const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                      await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-                      const data1 = encodeData(105);
-                      const signature1 = await airnodeWallet.signMessage(
-                        hre.ethers.utils.arrayify(
-                          hre.ethers.utils.keccak256(
-                            hre.ethers.utils.solidityPack(
-                              ['bytes32', 'uint256', 'bytes'],
-                              [beaconSetTemplateIds[1], nextTimestamp, data1]
-                            )
-                          )
-                        )
+                      // Update Beacon set with Beacons, which will disallow the same values from being used
+                      await dapiServer.connect(roles.randomPerson).updateBeaconSetWithBeacons(beaconSet.beaconIds);
+                      // Randomly omit one of the signatures for the Beacon value to be read from the chain
+                      const omitSignatureAtIndex = Math.floor(Math.random() * beacons.length);
+                      const signatures = await Promise.all(
+                        beacons.map(async (beacon, index) => {
+                          if (index === omitSignatureAtIndex) {
+                            return '0x';
+                          } else {
+                            return await testUtils.signData(
+                              beacon.airnode.wallet,
+                              beacon.templateId,
+                              beaconTimestamps[index],
+                              encodeData(beaconValues[index])
+                            );
+                          }
+                        })
                       );
-                      const signedData1 = hre.ethers.utils.defaultAbiCoder.encode(
-                        ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                        [airnodeAddress, beaconSetTemplateIds[1], nextTimestamp, data1, signature1]
-                      );
-                      const data2 = encodeData(110);
-                      const signature2 = await airnodeWallet.signMessage(
-                        hre.ethers.utils.arrayify(
-                          hre.ethers.utils.keccak256(
-                            hre.ethers.utils.solidityPack(
-                              ['bytes32', 'uint256', 'bytes'],
-                              [beaconSetTemplateIds[2], nextTimestamp, data2]
-                            )
-                          )
-                        )
-                      );
-                      const signedData2 = hre.ethers.utils.defaultAbiCoder.encode(
-                        ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                        [airnodeAddress, beaconSetTemplateIds[2], nextTimestamp, data2, signature2]
-                      );
-                      dapiServer
-                        .connect(roles.randomPerson)
-                        .updateDataFeedWithSignedData([signedData0, signedData1, signedData2]);
+                      // Omit the data if the signature is omitted
+                      const signedData = signatures.map((signature, index) => {
+                        if (signature === '0x') {
+                          return encodeSignedData(
+                            beacons[index].airnode.wallet.address,
+                            beacons[index].templateId,
+                            0,
+                            '0x',
+                            signature
+                          );
+                        } else {
+                          return encodeSignedData(
+                            beacons[index].airnode.wallet.address,
+                            beacons[index].templateId,
+                            beaconTimestamps[index],
+                            encodeData(beaconValues[index]),
+                            signature
+                          );
+                        }
+                      });
                       await expect(
-                        dapiServer
-                          .connect(roles.randomPerson)
-                          .updateDataFeedWithSignedData([signedData0, signedData1, signedData2])
+                        dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData(signedData)
                       ).to.be.revertedWith('Does not update timestamp');
                     });
                   });
                 });
                 context('Not all timestamps are not valid', function () {
                   it('reverts', async function () {
-                    await updateBeacon(airnodeAddress, beaconSetTemplateIds[0], 100);
-                    const signedData0 = hre.ethers.utils.defaultAbiCoder.encode(
-                      ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                      [airnodeAddress, beaconSetTemplateIds[0], 0, '0x', '0x']
+                    const { roles, dapiServer, beacons } = await deploy();
+                    // Populate the Beacons
+                    const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
+                    const currentTimestamp = await helpers.time.latest();
+                    const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
+                    await Promise.all(
+                      beacons.map(async (beacon, index) => {
+                        await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+                      })
                     );
-                    const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                    await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-                    const data1 = encodeData(105);
-                    const signature1 = await airnodeWallet.signMessage(
-                      hre.ethers.utils.arrayify(
-                        hre.ethers.utils.keccak256(
-                          hre.ethers.utils.solidityPack(
-                            ['bytes32', 'uint256', 'bytes'],
-                            [beaconSetTemplateIds[1], nextTimestamp, data1]
-                          )
-                        )
-                      )
+                    // Randomly omit one of the signatures for the Beacon value to be read from the chain
+                    const omitSignatureAtIndex = Math.floor(Math.random() * beacons.length);
+                    // Make timestamp invalid
+                    if (omitSignatureAtIndex === beacons.length - 1) {
+                      beaconTimestamps[beacons.length - 2] = 0;
+                    } else {
+                      beaconTimestamps[beacons.length - 1] = 0;
+                    }
+                    const signatures = await Promise.all(
+                      beacons.map(async (beacon, index) => {
+                        if (index === omitSignatureAtIndex) {
+                          return '0x';
+                        } else {
+                          return await testUtils.signData(
+                            beacon.airnode.wallet,
+                            beacon.templateId,
+                            beaconTimestamps[index],
+                            encodeData(beaconValues[index])
+                          );
+                        }
+                      })
                     );
-                    const signedData1 = hre.ethers.utils.defaultAbiCoder.encode(
-                      ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                      [airnodeAddress, beaconSetTemplateIds[1], nextTimestamp, data1, signature1]
-                    );
-                    const data2 = encodeData(110);
-                    const timestampThatIsTooOld = nextTimestamp - 60 * 60;
-                    const signature2OfTimestampThatIsTooOld = await airnodeWallet.signMessage(
-                      hre.ethers.utils.arrayify(
-                        hre.ethers.utils.keccak256(
-                          hre.ethers.utils.solidityPack(
-                            ['bytes32', 'uint256', 'bytes'],
-                            [beaconSetTemplateIds[2], timestampThatIsTooOld, data2]
-                          )
-                        )
-                      )
-                    );
-                    const signedData2WithTimestampThatIsTooOld = hre.ethers.utils.defaultAbiCoder.encode(
-                      ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                      [
-                        airnodeAddress,
-                        beaconSetTemplateIds[2],
-                        timestampThatIsTooOld,
-                        data2,
-                        signature2OfTimestampThatIsTooOld,
-                      ]
-                    );
+                    // Omit the data if the signature is omitted
+                    const signedData = signatures.map((signature, index) => {
+                      if (signature === '0x') {
+                        return encodeSignedData(
+                          beacons[index].airnode.wallet.address,
+                          beacons[index].templateId,
+                          beaconTimestamps[index],
+                          '0x',
+                          signature
+                        );
+                      } else {
+                        return encodeSignedData(
+                          beacons[index].airnode.wallet.address,
+                          beacons[index].templateId,
+                          beaconTimestamps[index],
+                          encodeData(beaconValues[index]),
+                          signature
+                        );
+                      }
+                    });
                     await expect(
-                      dapiServer
-                        .connect(roles.randomPerson)
-                        .updateDataFeedWithSignedData([signedData0, signedData1, signedData2WithTimestampThatIsTooOld])
-                    ).to.be.revertedWith('Timestamp not valid');
-                    const timestampThatIsTooNew = nextTimestamp + 15 * 60 + 1;
-                    const signature2OfTimestampThatIsTooNew = await airnodeWallet.signMessage(
-                      hre.ethers.utils.arrayify(
-                        hre.ethers.utils.keccak256(
-                          hre.ethers.utils.solidityPack(
-                            ['bytes32', 'uint256', 'bytes'],
-                            [beaconSetTemplateIds[2], timestampThatIsTooNew, data2]
-                          )
-                        )
-                      )
-                    );
-                    const signedData2WithTimestampThatIsTooNew = hre.ethers.utils.defaultAbiCoder.encode(
-                      ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                      [
-                        airnodeAddress,
-                        beaconSetTemplateIds[2],
-                        timestampThatIsTooNew,
-                        data2,
-                        signature2OfTimestampThatIsTooNew,
-                      ]
-                    );
-                    await expect(
-                      dapiServer
-                        .connect(roles.randomPerson)
-                        .updateDataFeedWithSignedData([signedData0, signedData1, signedData2WithTimestampThatIsTooNew])
+                      dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData(signedData)
                     ).to.be.revertedWith('Timestamp not valid');
                   });
                 });
               });
               context('Not all decoded fulfillment data can be typecasted into int224', function () {
                 it('reverts', async function () {
-                  await updateBeacon(airnodeAddress, beaconSetTemplateIds[0], 100);
-                  const signedData0 = hre.ethers.utils.defaultAbiCoder.encode(
-                    ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                    [airnodeAddress, beaconSetTemplateIds[0], 0, '0x', '0x']
+                  const { roles, dapiServer, beacons } = await deploy();
+                  // Populate the Beacons
+                  const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
+                  const currentTimestamp = await helpers.time.latest();
+                  const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
+                  await Promise.all(
+                    beacons.map(async (beacon, index) => {
+                      await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+                    })
                   );
-                  const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                  await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-                  const data1 = encodeData(105);
-                  const signature1 = await airnodeWallet.signMessage(
-                    hre.ethers.utils.arrayify(
-                      hre.ethers.utils.keccak256(
-                        hre.ethers.utils.solidityPack(
-                          ['bytes32', 'uint256', 'bytes'],
-                          [beaconSetTemplateIds[1], nextTimestamp, data1]
-                        )
-                      )
-                    )
+                  // Randomly omit one of the signatures for the Beacon value to be read from the chain
+                  const omitSignatureAtIndex = Math.floor(Math.random() * beacons.length);
+                  // Make value overflow
+                  if (omitSignatureAtIndex === beacons.length - 1) {
+                    beaconValues[beacons.length - 2] = ethers.BigNumber.from(2).pow(223);
+                  } else {
+                    beaconValues[beacons.length - 1] = ethers.BigNumber.from(2).pow(223);
+                  }
+                  const signaturesWithOverflow = await Promise.all(
+                    beacons.map(async (beacon, index) => {
+                      if (index === omitSignatureAtIndex) {
+                        return '0x';
+                      } else {
+                        return await testUtils.signData(
+                          beacon.airnode.wallet,
+                          beacon.templateId,
+                          beaconTimestamps[index],
+                          encodeData(beaconValues[index])
+                        );
+                      }
+                    })
                   );
-                  const signedData1 = hre.ethers.utils.defaultAbiCoder.encode(
-                    ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                    [airnodeAddress, beaconSetTemplateIds[1], nextTimestamp, data1, signature1]
-                  );
-                  const overflowingData2 = encodeData(hre.ethers.BigNumber.from(2).pow(223));
-                  const signature2OfOverlowingData = await airnodeWallet.signMessage(
-                    hre.ethers.utils.arrayify(
-                      hre.ethers.utils.keccak256(
-                        hre.ethers.utils.solidityPack(
-                          ['bytes32', 'uint256', 'bytes'],
-                          [beaconSetTemplateIds[2], nextTimestamp, overflowingData2]
-                        )
-                      )
-                    )
-                  );
-                  const signedData2WithOverflowingData = hre.ethers.utils.defaultAbiCoder.encode(
-                    ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                    [
-                      airnodeAddress,
-                      beaconSetTemplateIds[2],
-                      nextTimestamp,
-                      overflowingData2,
-                      signature2OfOverlowingData,
-                    ]
-                  );
+                  // Omit the data if the signature is omitted
+                  const signedDataWithOverflow = signaturesWithOverflow.map((signature, index) => {
+                    if (signature === '0x') {
+                      return encodeSignedData(
+                        beacons[index].airnode.wallet.address,
+                        beacons[index].templateId,
+                        beaconTimestamps[index],
+                        '0x',
+                        signature
+                      );
+                    } else {
+                      return encodeSignedData(
+                        beacons[index].airnode.wallet.address,
+                        beacons[index].templateId,
+                        beaconTimestamps[index],
+                        encodeData(beaconValues[index]),
+                        signature
+                      );
+                    }
+                  });
                   await expect(
-                    dapiServer
-                      .connect(roles.randomPerson)
-                      .updateDataFeedWithSignedData([signedData0, signedData1, signedData2WithOverflowingData])
+                    dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData(signedDataWithOverflow)
                   ).to.be.revertedWith('Value typecasting error');
-                  const underflowingData2 = encodeData(hre.ethers.BigNumber.from(-2).pow(223).sub(1));
-                  const signature2OfUnderflowingData = await airnodeWallet.signMessage(
-                    hre.ethers.utils.arrayify(
-                      hre.ethers.utils.keccak256(
-                        hre.ethers.utils.solidityPack(
-                          ['bytes32', 'uint256', 'bytes'],
-                          [beaconSetTemplateIds[2], nextTimestamp, underflowingData2]
-                        )
-                      )
-                    )
+                  // Make value underflow
+                  if (omitSignatureAtIndex === beacons.length - 1) {
+                    beaconValues[beacons.length - 2] = ethers.BigNumber.from(-2).pow(223).sub(1);
+                  } else {
+                    beaconValues[beacons.length - 1] = ethers.BigNumber.from(-2).pow(223).sub(1);
+                  }
+                  const signaturesWithUnderflow = await Promise.all(
+                    beacons.map(async (beacon, index) => {
+                      if (index === omitSignatureAtIndex) {
+                        return '0x';
+                      } else {
+                        return await testUtils.signData(
+                          beacon.airnode.wallet,
+                          beacon.templateId,
+                          beaconTimestamps[index],
+                          encodeData(beaconValues[index])
+                        );
+                      }
+                    })
                   );
-                  const signedData2WithUnderflowingData = hre.ethers.utils.defaultAbiCoder.encode(
-                    ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                    [
-                      airnodeAddress,
-                      beaconSetTemplateIds[2],
-                      nextTimestamp,
-                      underflowingData2,
-                      signature2OfUnderflowingData,
-                    ]
-                  );
+                  // Omit the data if the signature is omitted
+                  const signedDataWithUnderflow = signaturesWithUnderflow.map((signature, index) => {
+                    if (signature === '0x') {
+                      return encodeSignedData(
+                        beacons[index].airnode.wallet.address,
+                        beacons[index].templateId,
+                        beaconTimestamps[index],
+                        '0x',
+                        signature
+                      );
+                    } else {
+                      return encodeSignedData(
+                        beacons[index].airnode.wallet.address,
+                        beacons[index].templateId,
+                        beaconTimestamps[index],
+                        encodeData(beaconValues[index]),
+                        signature
+                      );
+                    }
+                  });
                   await expect(
-                    dapiServer
-                      .connect(roles.randomPerson)
-                      .updateDataFeedWithSignedData([signedData0, signedData1, signedData2WithUnderflowingData])
+                    dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData(signedDataWithUnderflow)
                   ).to.be.revertedWith('Value typecasting error');
                 });
               });
             });
             context('All fulfillment data length is not correct', function () {
               it('reverts', async function () {
-                await updateBeacon(airnodeAddress, beaconSetTemplateIds[0], 100);
-                const signedData0 = hre.ethers.utils.defaultAbiCoder.encode(
-                  ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                  [airnodeAddress, beaconSetTemplateIds[0], 0, '0x', '0x']
+                const { roles, dapiServer, beacons } = await deploy();
+                // Populate the Beacons
+                const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
+                const currentTimestamp = await helpers.time.latest();
+                const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
+                await Promise.all(
+                  beacons.map(async (beacon, index) => {
+                    await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+                  })
                 );
-                const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-                const data1 = encodeData(105);
-                const signature1 = await airnodeWallet.signMessage(
-                  hre.ethers.utils.arrayify(
-                    hre.ethers.utils.keccak256(
-                      hre.ethers.utils.solidityPack(
-                        ['bytes32', 'uint256', 'bytes'],
-                        [beaconSetTemplateIds[1], nextTimestamp, data1]
-                      )
-                    )
-                  )
+                // Randomly omit one of the signatures for the Beacon value to be read from the chain
+                const omitSignatureAtIndex = Math.floor(Math.random() * beacons.length);
+                // Lengthen one of the encoded data
+                const encodedData = beacons.map((_, index) => {
+                  return encodeData(beaconValues[index]);
+                });
+                if (omitSignatureAtIndex === beacons.length - 1) {
+                  encodedData[beacons.length - 2] = encodedData[beacons.length - 2] + '00';
+                } else {
+                  encodedData[beacons.length - 1] = encodedData[beacons.length - 1] + '00';
+                }
+                const signatures = await Promise.all(
+                  beacons.map(async (beacon, index) => {
+                    if (index === omitSignatureAtIndex) {
+                      return '0x';
+                    } else {
+                      return await testUtils.signData(
+                        beacon.airnode.wallet,
+                        beacon.templateId,
+                        beaconTimestamps[index],
+                        encodedData[index]
+                      );
+                    }
+                  })
                 );
-                const signedData1 = hre.ethers.utils.defaultAbiCoder.encode(
-                  ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                  [airnodeAddress, beaconSetTemplateIds[1], nextTimestamp, data1, signature1]
-                );
-                const data2WithWrongLength = hre.ethers.utils.defaultAbiCoder.encode(['int256', 'int256'], [110, 110]);
-                const signature2 = await airnodeWallet.signMessage(
-                  hre.ethers.utils.arrayify(
-                    hre.ethers.utils.keccak256(
-                      hre.ethers.utils.solidityPack(
-                        ['bytes32', 'uint256', 'bytes'],
-                        [beaconSetTemplateIds[2], nextTimestamp, data2WithWrongLength]
-                      )
-                    )
-                  )
-                );
-                const signedData2WithDataWithWrongLength = hre.ethers.utils.defaultAbiCoder.encode(
-                  ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                  [airnodeAddress, beaconSetTemplateIds[2], nextTimestamp, data2WithWrongLength, signature2]
-                );
+                // Omit the data if the signature is omitted
+                const signedData = signatures.map((signature, index) => {
+                  if (signature === '0x') {
+                    return encodeSignedData(
+                      beacons[index].airnode.wallet.address,
+                      beacons[index].templateId,
+                      beaconTimestamps[index],
+                      '0x',
+                      signature
+                    );
+                  } else {
+                    return encodeSignedData(
+                      beacons[index].airnode.wallet.address,
+                      beacons[index].templateId,
+                      beaconTimestamps[index],
+                      encodedData[index],
+                      signature
+                    );
+                  }
+                });
                 await expect(
-                  dapiServer
-                    .connect(roles.randomPerson)
-                    .updateDataFeedWithSignedData([signedData0, signedData1, signedData2WithDataWithWrongLength])
+                  dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData(signedData)
                 ).to.be.revertedWith('Data length not correct');
               });
             });
           });
           context('Not all signatures are valid', function () {
             it('reverts', async function () {
-              await updateBeacon(airnodeAddress, beaconSetTemplateIds[0], 100);
-              const signedData0 = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, beaconSetTemplateIds[0], 0, '0x', '0x']
+              const { roles, dapiServer, beacons } = await deploy();
+              // Populate the Beacons
+              const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
+              const currentTimestamp = await helpers.time.latest();
+              const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
+              await Promise.all(
+                beacons.map(async (beacon, index) => {
+                  await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+                })
               );
-              const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-              await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-              const data1 = encodeData(105);
-              const signature1 = await airnodeWallet.signMessage(
-                hre.ethers.utils.arrayify(
-                  hre.ethers.utils.keccak256(
-                    hre.ethers.utils.solidityPack(
-                      ['bytes32', 'uint256', 'bytes'],
-                      [beaconSetTemplateIds[1], nextTimestamp, data1]
-                    )
-                  )
-                )
+              // Randomly omit one of the signatures for the Beacon value to be read from the chain
+              const omitSignatureAtIndex = Math.floor(Math.random() * beacons.length);
+              const signatures = await Promise.all(
+                beacons.map(async (beacon, index) => {
+                  if (index === omitSignatureAtIndex) {
+                    return '0x';
+                  } else {
+                    return await testUtils.signData(
+                      beacon.airnode.wallet,
+                      beacon.templateId,
+                      beaconTimestamps[index],
+                      encodeData(beaconValues[index])
+                    );
+                  }
+                })
               );
-              const signedData1 = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, beaconSetTemplateIds[1], nextTimestamp, data1, signature1]
-              );
-              const data2 = encodeData(110);
-              const signature2 = await airnodeWallet.signMessage(
-                hre.ethers.utils.arrayify(
-                  hre.ethers.utils.keccak256(
-                    hre.ethers.utils.solidityPack(
-                      ['bytes32', 'uint256', 'bytes'],
-                      [beaconSetTemplateIds[2], nextTimestamp, data2]
-                    )
-                  )
-                )
-              );
-              const signedData2WithWrongAirnodeAddress = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [testUtils.generateRandomAddress(), beaconSetTemplateIds[2], nextTimestamp, data2, signature2]
-              );
+              // Change one of the signatures
+              if (omitSignatureAtIndex === beacons.length - 1) {
+                signatures[beacons.length - 2] = '0x12345678';
+              } else {
+                signatures[beacons.length - 1] = '0x12345678';
+              }
+              // Omit the data if the signature is omitted
+              const signedData = signatures.map((signature, index) => {
+                if (signature === '0x') {
+                  return encodeSignedData(
+                    beacons[index].airnode.wallet.address,
+                    beacons[index].templateId,
+                    beaconTimestamps[index],
+                    '0x',
+                    signature
+                  );
+                } else {
+                  return encodeSignedData(
+                    beacons[index].airnode.wallet.address,
+                    beacons[index].templateId,
+                    beaconTimestamps[index],
+                    encodeData(beaconValues[index]),
+                    signature
+                  );
+                }
+              });
               await expect(
-                dapiServer
-                  .connect(roles.randomPerson)
-                  .updateDataFeedWithSignedData([signedData0, signedData1, signedData2WithWrongAirnodeAddress])
-              ).to.be.revertedWith('Signature mismatch');
-              const signedData2WithWrongTemplateId = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, testUtils.generateRandomBytes32(), nextTimestamp, data2, signature2]
-              );
-              await expect(
-                dapiServer
-                  .connect(roles.randomPerson)
-                  .updateDataFeedWithSignedData([signedData0, signedData1, signedData2WithWrongTemplateId])
-              ).to.be.revertedWith('Signature mismatch');
-              const signedData2WithWrongTimestamp = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, beaconSetTemplateIds[2], 123456, data2, signature2]
-              );
-              await expect(
-                dapiServer
-                  .connect(roles.randomPerson)
-                  .updateDataFeedWithSignedData([signedData0, signedData1, signedData2WithWrongTimestamp])
-              ).to.be.revertedWith('Signature mismatch');
-              const signedData2WithWrongData = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, beaconSetTemplateIds[2], nextTimestamp, encodeData(123456), signature2]
-              );
-              await expect(
-                dapiServer
-                  .connect(roles.randomPerson)
-                  .updateDataFeedWithSignedData([signedData0, signedData1, signedData2WithWrongData])
-              ).to.be.revertedWith('Signature mismatch');
-              const signedData2WithInvalidSignature = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, beaconSetTemplateIds[2], nextTimestamp, data2, '0x123456']
-              );
-              await expect(
-                dapiServer
-                  .connect(roles.randomPerson)
-                  .updateDataFeedWithSignedData([signedData0, signedData1, signedData2WithInvalidSignature])
+                dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData(signedData)
               ).to.be.revertedWith('ECDSA: invalid signature length');
             });
           });
         });
         context('Signed data with no signature has data', function () {
           it('reverts', async function () {
-            const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-            await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-            const data0 = encodeData(100);
-            const signedData0 = hre.ethers.utils.defaultAbiCoder.encode(
-              ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-              [airnodeAddress, beaconSetTemplateIds[0], nextTimestamp, data0, '0x']
+            const { roles, dapiServer, beacons } = await deploy();
+            // Populate the Beacons
+            const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
+            const currentTimestamp = await helpers.time.latest();
+            const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
+            await Promise.all(
+              beacons.map(async (beacon, index) => {
+                await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+              })
             );
-            const data1 = encodeData(105);
-            const signature1 = await airnodeWallet.signMessage(
-              hre.ethers.utils.arrayify(
-                hre.ethers.utils.keccak256(
-                  hre.ethers.utils.solidityPack(
-                    ['bytes32', 'uint256', 'bytes'],
-                    [beaconSetTemplateIds[1], nextTimestamp, data1]
-                  )
-                )
-              )
+            // Randomly omit one of the signatures for the Beacon value to be read from the chain
+            const omitSignatureAtIndex = Math.floor(Math.random() * beacons.length);
+            const signatures = await Promise.all(
+              beacons.map(async (beacon, index) => {
+                if (index === omitSignatureAtIndex) {
+                  return '0x';
+                } else {
+                  return await testUtils.signData(
+                    beacon.airnode.wallet,
+                    beacon.templateId,
+                    beaconTimestamps[index],
+                    encodeData(beaconValues[index])
+                  );
+                }
+              })
             );
-            const signedData1 = hre.ethers.utils.defaultAbiCoder.encode(
-              ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-              [airnodeAddress, beaconSetTemplateIds[1], nextTimestamp, data1, signature1]
-            );
-            const data2 = encodeData(110);
-            const signature2 = await airnodeWallet.signMessage(
-              hre.ethers.utils.arrayify(
-                hre.ethers.utils.keccak256(
-                  hre.ethers.utils.solidityPack(
-                    ['bytes32', 'uint256', 'bytes'],
-                    [beaconSetTemplateIds[2], nextTimestamp, data2]
-                  )
-                )
-              )
-            );
-            const signedData2 = hre.ethers.utils.defaultAbiCoder.encode(
-              ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-              [airnodeAddress, beaconSetTemplateIds[2], nextTimestamp, data2, signature2]
-            );
+            // Do not omit the data if the signature is omitted
+            const signedData = signatures.map((signature, index) => {
+              return encodeSignedData(
+                beacons[index].airnode.wallet.address,
+                beacons[index].templateId,
+                beaconTimestamps[index],
+                encodeData(beaconValues[index]),
+                signature
+              );
+            });
             await expect(
-              dapiServer
-                .connect(roles.randomPerson)
-                .updateDataFeedWithSignedData([signedData0, signedData1, signedData2])
+              dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData(signedData)
             ).to.be.revertedWith('Missing signature');
           });
         });
       });
       context('All signed data is not decodable', function () {
         it('reverts', async function () {
-          await updateBeacon(airnodeAddress, beaconSetTemplateIds[0], 100);
-          const signedData0 = hre.ethers.utils.defaultAbiCoder.encode(
-            ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-            [airnodeAddress, beaconSetTemplateIds[0], 0, '0x', '0x']
+          const { roles, dapiServer, beacons } = await deploy();
+          // Populate the Beacons
+          const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
+          const currentTimestamp = await helpers.time.latest();
+          const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
+          await Promise.all(
+            beacons.map(async (beacon, index) => {
+              await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+            })
           );
-          const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-          await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-          const data1 = encodeData(105);
-          const signature1 = await airnodeWallet.signMessage(
-            hre.ethers.utils.arrayify(
-              hre.ethers.utils.keccak256(
-                hre.ethers.utils.solidityPack(
-                  ['bytes32', 'uint256', 'bytes'],
-                  [beaconSetTemplateIds[1], nextTimestamp, data1]
-                )
-              )
-            )
+          // Randomly omit one of the signatures for the Beacon value to be read from the chain
+          const omitSignatureAtIndex = Math.floor(Math.random() * beacons.length);
+          const signatures = await Promise.all(
+            beacons.map(async (beacon, index) => {
+              if (index === omitSignatureAtIndex) {
+                return '0x';
+              } else {
+                return await testUtils.signData(
+                  beacon.airnode.wallet,
+                  beacon.templateId,
+                  beaconTimestamps[index],
+                  encodeData(beaconValues[index])
+                );
+              }
+            })
           );
-          const signedData1 = hre.ethers.utils.defaultAbiCoder.encode(
-            ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-            [airnodeAddress, beaconSetTemplateIds[1], nextTimestamp, data1, signature1]
-          );
-          const signedData2 = '0x123456';
+          // Omit the data if the signature is omitted
+          const signedData = signatures.map((signature, index) => {
+            if (signature === '0x') {
+              return encodeSignedData(
+                beacons[index].airnode.wallet.address,
+                beacons[index].templateId,
+                beaconTimestamps[index],
+                '0x',
+                signature
+              );
+            } else {
+              return encodeSignedData(
+                beacons[index].airnode.wallet.address,
+                beacons[index].templateId,
+                beaconTimestamps[index],
+                encodeData(beaconValues[index]),
+                signature
+              );
+            }
+          });
+          // Change one of the signedData
+          if (omitSignatureAtIndex === beacons.length - 1) {
+            signedData[beacons.length - 2] = '0x12345678';
+          } else {
+            signedData[beacons.length - 1] = '0x12345678';
+          }
           await expect(
-            dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData([signedData0, signedData1, signedData2])
-          ).to.be.reverted;
+            dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData(signedData)
+          ).to.be.revertedWithoutReason;
         });
       });
     });
@@ -2893,51 +3406,54 @@ describe('DapiServer', function () {
                 context('Timestamp is valid', function () {
                   context('Updates timestamp', function () {
                     it('updates Beacon with signed data', async function () {
-                      const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                      await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-                      const data = encodeData(100);
-                      const signature = await airnodeWallet.signMessage(
-                        hre.ethers.utils.arrayify(
-                          hre.ethers.utils.keccak256(
-                            hre.ethers.utils.solidityPack(
-                              ['bytes32', 'uint256', 'bytes'],
-                              [templateId, nextTimestamp, data]
-                            )
-                          )
-                        )
+                      const { roles, dapiServer, beacons } = await deploy();
+                      const beacon = beacons[0];
+                      const beaconValue = Math.floor(Math.random() * 200 - 100);
+                      const beaconTimestamp = await helpers.time.latest();
+                      const signature = await testUtils.signData(
+                        beacon.airnode.wallet,
+                        beacon.templateId,
+                        beaconTimestamp,
+                        encodeData(beaconValue)
                       );
-                      const signedData = hre.ethers.utils.defaultAbiCoder.encode(
-                        ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                        [airnodeAddress, templateId, nextTimestamp, data, signature]
+                      const signedData = await encodeSignedData(
+                        beacon.airnode.wallet.address,
+                        beacon.templateId,
+                        beaconTimestamp,
+                        encodeData(beaconValue),
+                        signature
                       );
+                      const beaconBefore = await dapiServer.dataFeeds(beacon.beaconId);
+                      expect(beaconBefore.value).to.equal(0);
+                      expect(beaconBefore.timestamp).to.equal(0);
                       await expect(dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData([signedData]))
                         .to.emit(dapiServer, 'UpdatedBeaconWithSignedData')
-                        .withArgs(beaconId, 100, nextTimestamp);
-                      const beacon = await dapiServer.dataFeeds(beaconId);
-                      expect(beacon.value).to.equal(100);
-                      expect(beacon.timestamp).to.equal(nextTimestamp);
+                        .withArgs(beacon.beaconId, beaconValue, beaconTimestamp);
+                      const beaconAfter = await dapiServer.dataFeeds(beacon.beaconId);
+                      expect(beaconAfter.value).to.equal(beaconValue);
+                      expect(beaconAfter.timestamp).to.equal(beaconTimestamp);
                     });
                   });
                   context('Does not update timestamp', function () {
                     it('reverts', async function () {
-                      const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                      await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-                      const data = encodeData(100);
-                      const signature = await airnodeWallet.signMessage(
-                        hre.ethers.utils.arrayify(
-                          hre.ethers.utils.keccak256(
-                            hre.ethers.utils.solidityPack(
-                              ['bytes32', 'uint256', 'bytes'],
-                              [templateId, nextTimestamp, data]
-                            )
-                          )
-                        )
+                      const { roles, dapiServer, beacons } = await deploy();
+                      const beacon = beacons[0];
+                      const beaconValue = Math.floor(Math.random() * 200 - 100);
+                      const beaconTimestamp = await helpers.time.latest();
+                      const signature = await testUtils.signData(
+                        beacon.airnode.wallet,
+                        beacon.templateId,
+                        beaconTimestamp,
+                        encodeData(beaconValue)
                       );
-                      const signedData = hre.ethers.utils.defaultAbiCoder.encode(
-                        ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                        [airnodeAddress, templateId, nextTimestamp, data, signature]
+                      const signedData = await encodeSignedData(
+                        beacon.airnode.wallet.address,
+                        beacon.templateId,
+                        beaconTimestamp,
+                        encodeData(beaconValue),
+                        signature
                       );
-                      await dapiServer.updateDataFeedWithSignedData([signedData]);
+                      await dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData([signedData]);
                       await expect(
                         dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData([signedData])
                       ).to.be.revertedWith('Does not update timestamp');
@@ -2946,170 +3462,130 @@ describe('DapiServer', function () {
                 });
                 context('Timestamp is not valid', function () {
                   it('reverts', async function () {
-                    const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                    await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-                    const timestampThatIsTooOld = nextTimestamp - 60 * 60;
-                    const data = encodeData(100);
-                    const signatureOfTimestampThatIsTooOld = await airnodeWallet.signMessage(
-                      hre.ethers.utils.arrayify(
-                        hre.ethers.utils.keccak256(
-                          hre.ethers.utils.solidityPack(
-                            ['bytes32', 'uint256', 'bytes'],
-                            [templateId, timestampThatIsTooOld, data]
-                          )
-                        )
-                      )
+                    const { roles, dapiServer, beacons } = await deploy();
+                    const beacon = beacons[0];
+                    const beaconValue = Math.floor(Math.random() * 200 - 100);
+                    const nextTimestamp = (await helpers.time.latest()) + 1;
+                    await helpers.time.setNextBlockTimestamp(nextTimestamp);
+                    const beaconTimestampTooLate = nextTimestamp - 60 * 60;
+                    const signatureTooLate = await testUtils.signData(
+                      beacon.airnode.wallet,
+                      beacon.templateId,
+                      beaconTimestampTooLate,
+                      encodeData(beaconValue)
                     );
-                    const signedDataWithTimestampThatIsTooOld = hre.ethers.utils.defaultAbiCoder.encode(
-                      ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                      [airnodeAddress, templateId, timestampThatIsTooOld, data, signatureOfTimestampThatIsTooOld]
+                    const signedDataTooLate = await encodeSignedData(
+                      beacon.airnode.wallet.address,
+                      beacon.templateId,
+                      beaconTimestampTooLate,
+                      encodeData(beaconValue),
+                      signatureTooLate
                     );
                     await expect(
-                      dapiServer
-                        .connect(roles.randomPerson)
-                        .updateDataFeedWithSignedData([signedDataWithTimestampThatIsTooOld])
+                      dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData([signedDataTooLate])
                     ).to.be.revertedWith('Timestamp not valid');
-                    const timestampThatIsTooNew = nextTimestamp + 15 * 60 + 1;
-                    const signatureOfTimestampThatIsTooNew = await airnodeWallet.signMessage(
-                      hre.ethers.utils.arrayify(
-                        hre.ethers.utils.keccak256(
-                          hre.ethers.utils.solidityPack(
-                            ['bytes32', 'uint256', 'bytes'],
-                            [templateId, timestampThatIsTooNew, data]
-                          )
-                        )
-                      )
+                    const beaconTimestampFromFuture = nextTimestamp + 15 * 60 + 1;
+                    const signatureFromFuture = await testUtils.signData(
+                      beacon.airnode.wallet,
+                      beacon.templateId,
+                      beaconTimestampFromFuture,
+                      encodeData(beaconValue)
                     );
-                    const signedDataWithTimestampThatIsTooNew = hre.ethers.utils.defaultAbiCoder.encode(
-                      ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                      [airnodeAddress, templateId, timestampThatIsTooNew, data, signatureOfTimestampThatIsTooNew]
+                    const signedDataFromFuture = await encodeSignedData(
+                      beacon.airnode.wallet.address,
+                      beacon.templateId,
+                      beaconTimestampFromFuture,
+                      encodeData(beaconValue),
+                      signatureFromFuture
                     );
                     await expect(
-                      dapiServer
-                        .connect(roles.randomPerson)
-                        .updateDataFeedWithSignedData([signedDataWithTimestampThatIsTooNew])
+                      dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData([signedDataFromFuture])
                     ).to.be.revertedWith('Timestamp not valid');
                   });
                 });
               });
               context('Decoded fulfillment data cannot be typecasted into int224', function () {
                 it('reverts', async function () {
-                  const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                  await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-                  const overflowingData = encodeData(hre.ethers.BigNumber.from(2).pow(223));
-                  const signatureOfOverflowingData = await airnodeWallet.signMessage(
-                    hre.ethers.utils.arrayify(
-                      hre.ethers.utils.keccak256(
-                        hre.ethers.utils.solidityPack(
-                          ['bytes32', 'uint256', 'bytes'],
-                          [templateId, nextTimestamp, overflowingData]
-                        )
-                      )
-                    )
+                  const { roles, dapiServer, beacons } = await deploy();
+                  const beacon = beacons[0];
+                  const beaconValueWithOverflow = ethers.BigNumber.from(2).pow(223);
+                  const beaconTimestamp = await helpers.time.latest();
+                  const signatureWithOverflow = await testUtils.signData(
+                    beacon.airnode.wallet,
+                    beacon.templateId,
+                    beaconTimestamp,
+                    encodeData(beaconValueWithOverflow)
                   );
-                  const signedDataWithOverflowingData = hre.ethers.utils.defaultAbiCoder.encode(
-                    ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                    [airnodeAddress, templateId, nextTimestamp, overflowingData, signatureOfOverflowingData]
+                  const signedDataWithOverflow = await encodeSignedData(
+                    beacon.airnode.wallet.address,
+                    beacon.templateId,
+                    beaconTimestamp,
+                    encodeData(beaconValueWithOverflow),
+                    signatureWithOverflow
                   );
                   await expect(
-                    dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData([signedDataWithOverflowingData])
+                    dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData([signedDataWithOverflow])
                   ).to.be.revertedWith('Value typecasting error');
-                  const underflowingData = encodeData(hre.ethers.BigNumber.from(-2).pow(223).sub(1));
-                  const signatureOfUnderflowingData = await airnodeWallet.signMessage(
-                    hre.ethers.utils.arrayify(
-                      hre.ethers.utils.keccak256(
-                        hre.ethers.utils.solidityPack(
-                          ['bytes32', 'uint256', 'bytes'],
-                          [templateId, nextTimestamp, underflowingData]
-                        )
-                      )
-                    )
+                  const beaconValueWithUnderflow = ethers.BigNumber.from(-2).pow(223).sub(1);
+                  const signatureWithUnderflow = await testUtils.signData(
+                    beacon.airnode.wallet,
+                    beacon.templateId,
+                    beaconTimestamp,
+                    encodeData(beaconValueWithUnderflow)
                   );
-                  const signedDataWithUnderflowingData = hre.ethers.utils.defaultAbiCoder.encode(
-                    ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                    [airnodeAddress, templateId, nextTimestamp, underflowingData, signatureOfUnderflowingData]
+                  const signedDataWithUnderflow = await encodeSignedData(
+                    beacon.airnode.wallet.address,
+                    beacon.templateId,
+                    beaconTimestamp,
+                    encodeData(beaconValueWithUnderflow),
+                    signatureWithUnderflow
                   );
                   await expect(
-                    dapiServer
-                      .connect(roles.randomPerson)
-                      .updateDataFeedWithSignedData([signedDataWithUnderflowingData])
+                    dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData([signedDataWithUnderflow])
                   ).to.be.revertedWith('Value typecasting error');
                 });
               });
             });
             context('Fulfillment data length is not correct', function () {
               it('reverts', async function () {
-                const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-                const dataWithWrongLength = hre.ethers.utils.defaultAbiCoder.encode(['int256', 'int256'], [100, 100]);
-                const signature = await airnodeWallet.signMessage(
-                  hre.ethers.utils.arrayify(
-                    hre.ethers.utils.keccak256(
-                      hre.ethers.utils.solidityPack(
-                        ['bytes32', 'uint256', 'bytes'],
-                        [templateId, nextTimestamp, dataWithWrongLength]
-                      )
-                    )
-                  )
+                const { roles, dapiServer, beacons } = await deploy();
+                const beacon = beacons[0];
+                const beaconValue = Math.floor(Math.random() * 200 - 100);
+                const beaconTimestamp = await helpers.time.latest();
+                const signature = await testUtils.signData(
+                  beacon.airnode.wallet,
+                  beacon.templateId,
+                  beaconTimestamp,
+                  encodeData(beaconValue) + '00'
                 );
-                const signedDataWithDataWithWrongLength = hre.ethers.utils.defaultAbiCoder.encode(
-                  ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                  [airnodeAddress, templateId, nextTimestamp, dataWithWrongLength, signature]
+                const signedData = await encodeSignedData(
+                  beacon.airnode.wallet.address,
+                  beacon.templateId,
+                  beaconTimestamp,
+                  encodeData(beaconValue) + '00',
+                  signature
                 );
                 await expect(
-                  dapiServer
-                    .connect(roles.randomPerson)
-                    .updateDataFeedWithSignedData([signedDataWithDataWithWrongLength])
+                  dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData([signedData])
                 ).to.be.revertedWith('Data length not correct');
               });
             });
           });
           context('Signature is not valid', function () {
             it('reverts', async function () {
-              const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-              await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-              const data = encodeData(100);
-              const signature = await airnodeWallet.signMessage(
-                hre.ethers.utils.arrayify(
-                  hre.ethers.utils.keccak256(
-                    hre.ethers.utils.solidityPack(['bytes32', 'uint256', 'bytes'], [templateId, nextTimestamp, data])
-                  )
-                )
-              );
-              const signedDataWithWrongAirnodeAddress = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [testUtils.generateRandomAddress(), templateId, nextTimestamp, data, signature]
+              const { roles, dapiServer, beacons } = await deploy();
+              const beacon = beacons[0];
+              const beaconValue = Math.floor(Math.random() * 200 - 100);
+              const beaconTimestamp = await helpers.time.latest();
+              const signedData = await encodeSignedData(
+                beacon.airnode.wallet.address,
+                beacon.templateId,
+                beaconTimestamp,
+                encodeData(beaconValue),
+                '0x12345678'
               );
               await expect(
-                dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData([signedDataWithWrongAirnodeAddress])
-              ).to.be.revertedWith('Signature mismatch');
-              const signedDataWithWrongTemplateId = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, testUtils.generateRandomBytes32(), nextTimestamp, data, signature]
-              );
-              await expect(
-                dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData([signedDataWithWrongTemplateId])
-              ).to.be.revertedWith('Signature mismatch');
-              const signedDataWithWrongTimestamp = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, templateId, 123456, data, signature]
-              );
-              await expect(
-                dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData([signedDataWithWrongTimestamp])
-              ).to.be.revertedWith('Signature mismatch');
-              const signedDataWithWrongData = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, templateId, nextTimestamp, encodeData(123456), signature]
-              );
-              await expect(
-                dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData([signedDataWithWrongData])
-              ).to.be.revertedWith('Signature mismatch');
-              const signedDataWithInvalidSignature = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, templateId, nextTimestamp, data, '0x123456']
-              );
-              await expect(
-                dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData([signedDataWithInvalidSignature])
+                dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData([signedData])
               ).to.be.revertedWith('ECDSA: invalid signature length');
             });
           });
@@ -3117,13 +3593,16 @@ describe('DapiServer', function () {
         context('Signature length is zero', function () {
           context('Data length is not zero', function () {
             it('reverts', async function () {
-              const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-              await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-              const data = encodeData(100);
-              const signature = '0x';
-              const signedData = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, templateId, nextTimestamp, data, signature]
+              const { roles, dapiServer, beacons } = await deploy();
+              const beacon = beacons[0];
+              const beaconValue = Math.floor(Math.random() * 200 - 100);
+              const beaconTimestamp = await helpers.time.latest();
+              const signedData = await encodeSignedData(
+                beacon.airnode.wallet.address,
+                beacon.templateId,
+                beaconTimestamp,
+                encodeData(beaconValue),
+                '0x'
               );
               await expect(
                 dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData([signedData])
@@ -3132,13 +3611,14 @@ describe('DapiServer', function () {
           });
           context('Data length is zero', function () {
             it('reverts', async function () {
-              const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-              await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-              const data = '0x';
-              const signature = '0x';
-              const signedData = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, templateId, nextTimestamp, data, signature]
+              const { roles, dapiServer, beacons } = await deploy();
+              const beacon = beacons[0];
+              const signedData = await encodeSignedData(
+                beacon.airnode.wallet.address,
+                beacon.templateId,
+                0,
+                '0x',
+                '0x'
               );
               await expect(
                 dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData([signedData])
@@ -3149,15 +3629,16 @@ describe('DapiServer', function () {
       });
       context('Signed data is not decodable', function () {
         it('reverts', async function () {
-          const signedData = '0x123456';
+          const { roles, dapiServer } = await deploy();
           await expect(
-            dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData([signedData])
-          ).to.be.reverted;
+            dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData(['0x12345678'])
+          ).to.be.revertedWithoutReason;
         });
       });
     });
     context('No Beacon is specified', function () {
       it('reverts', async function () {
+        const { roles, dapiServer } = await deploy();
         await expect(dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData([])).to.be.revertedWith(
           'Specified no Beacons'
         );
@@ -3165,1031 +3646,991 @@ describe('DapiServer', function () {
     });
   });
 
-  describe('updateDataFeedWithDomainSignedData', function () {
-    context('More than one Beacon is specified', function () {
-      context('All signed data is decodable', function () {
-        context('Signed data with no signature has no data', function () {
-          context('All signatures are valid', function () {
-            context('All fulfillment data lengths are correct', function () {
-              context('All decoded fulfillment data can be typecasted into int224', function () {
-                context('All timestamps are valid', function () {
-                  context('Updates timestamp', function () {
-                    it('updates Beacon set with signed data', async function () {
-                      const timestamp0 = await updateBeacon(airnodeAddress, beaconSetTemplateIds[0], 100);
-                      const signedData0 = hre.ethers.utils.defaultAbiCoder.encode(
-                        ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                        [airnodeAddress, beaconSetTemplateIds[0], 0, '0x', '0x']
-                      );
-                      const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                      await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-                      const data1 = encodeData(105);
-                      const signature1 = await airnodeWallet.signMessage(
-                        hre.ethers.utils.arrayify(
-                          hre.ethers.utils.keccak256(
-                            hre.ethers.utils.solidityPack(
-                              ['uint256', 'address', 'bytes32', 'uint256', 'bytes'],
-                              [
-                                (await hre.ethers.provider.getNetwork()).chainId,
-                                dapiServer.address,
-                                beaconSetTemplateIds[1],
-                                nextTimestamp,
-                                data1,
-                              ]
-                            )
-                          )
-                        )
-                      );
-                      const signedData1 = hre.ethers.utils.defaultAbiCoder.encode(
-                        ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                        [airnodeAddress, beaconSetTemplateIds[1], nextTimestamp, data1, signature1]
-                      );
-                      const data2 = encodeData(110);
-                      const signature2 = await airnodeWallet.signMessage(
-                        hre.ethers.utils.arrayify(
-                          hre.ethers.utils.keccak256(
-                            hre.ethers.utils.solidityPack(
-                              ['uint256', 'address', 'bytes32', 'uint256', 'bytes'],
-                              [
-                                (await hre.ethers.provider.getNetwork()).chainId,
-                                dapiServer.address,
-                                beaconSetTemplateIds[2],
-                                nextTimestamp,
-                                data2,
-                              ]
-                            )
-                          )
-                        )
-                      );
-                      const signedData2 = hre.ethers.utils.defaultAbiCoder.encode(
-                        ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                        [airnodeAddress, beaconSetTemplateIds[2], nextTimestamp, data2, signature2]
-                      );
-                      const expectedTimestamp = Math.floor((timestamp0 + nextTimestamp + nextTimestamp) / 3);
-                      await expect(
-                        dapiServer
-                          .connect(roles.randomPerson)
-                          .updateDataFeedWithDomainSignedData([signedData0, signedData1, signedData2])
-                      )
-                        .to.emit(dapiServer, 'UpdatedBeaconSetWithDomainSignedData')
-                        .withArgs(beaconSetId, 105, expectedTimestamp);
-                      const beaconSet = await dapiServer.dataFeeds(beaconSetId);
-                      expect(beaconSet.value).to.equal(105);
-                      expect(beaconSet.timestamp).to.equal(expectedTimestamp);
+  ['updateDataFeedWithSignedData', 'updateDataFeedWithDomainSignedData'].map((updateDataFeedFunctionName) => {
+    describe(updateDataFeedFunctionName, function () {
+      context('More than one Beacon is specified', function () {
+        context('All signed data is decodable', function () {
+          context('Signed data with no signature has no data', function () {
+            context('All signatures are valid', function () {
+              context('All fulfillment data lengths are correct', function () {
+                context('All decoded fulfillment data can be typecasted into int224', function () {
+                  context('All timestamps are valid', function () {
+                    context('Updates timestamp', function () {
+                      it('updates Beacon set with signed data', async function () {
+                        const { roles, dapiServer, beacons, beaconSet } = await deploy();
+                        // Populate the Beacons
+                        const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
+                        const currentTimestamp = await helpers.time.latest();
+                        const beaconTimestamps = beacons.map(() =>
+                          Math.floor(currentTimestamp - Math.random() * 5 * 60)
+                        );
+                        const beaconSetValue = median(beaconValues);
+                        const beaconSetTimestamp = Math.floor(
+                          beaconTimestamps.reduce((sum, beaconTimestamp) => {
+                            return sum + beaconTimestamp;
+                          }, 0) / beaconTimestamps.length
+                        );
+                        await Promise.all(
+                          beacons.map(async (beacon, index) => {
+                            await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+                          })
+                        );
+                        // Randomly omit one of the signatures for the Beacon value to be read from the chain
+                        const omitSignatureAtIndex = Math.floor(Math.random() * beacons.length);
+                        const signatures = await Promise.all(
+                          beacons.map(async (beacon, index) => {
+                            if (index === omitSignatureAtIndex) {
+                              return '0x';
+                            } else {
+                              if (updateDataFeedFunctionName === 'updateDataFeedWithSignedData') {
+                                return await testUtils.signData(
+                                  beacon.airnode.wallet,
+                                  beacon.templateId,
+                                  beaconTimestamps[index],
+                                  encodeData(beaconValues[index])
+                                );
+                              } else if (updateDataFeedFunctionName === 'updateDataFeedWithDomainSignedData') {
+                                return await testUtils.domainSignData(
+                                  beacon.airnode.wallet,
+                                  dapiServer,
+                                  beacon.templateId,
+                                  beaconTimestamps[index],
+                                  encodeData(beaconValues[index])
+                                );
+                              } else {
+                                throw new Error('Unkown signed data feed update function');
+                              }
+                            }
+                          })
+                        );
+                        // Omit the data if the signature is omitted
+                        const signedData = signatures.map((signature, index) => {
+                          if (signature === '0x') {
+                            return encodeSignedData(
+                              beacons[index].airnode.wallet.address,
+                              beacons[index].templateId,
+                              0,
+                              '0x',
+                              signature
+                            );
+                          } else {
+                            return encodeSignedData(
+                              beacons[index].airnode.wallet.address,
+                              beacons[index].templateId,
+                              beaconTimestamps[index],
+                              encodeData(beaconValues[index]),
+                              signature
+                            );
+                          }
+                        });
+                        const beaconSetBefore = await dapiServer.dataFeeds(beaconSet.beaconSetId);
+                        expect(beaconSetBefore.value).to.equal(0);
+                        expect(beaconSetBefore.timestamp).to.equal(0);
+                        if (updateDataFeedFunctionName === 'updateDataFeedWithSignedData') {
+                          await expect(dapiServer.connect(roles.randomPerson)[updateDataFeedFunctionName](signedData))
+                            .to.emit(dapiServer, 'UpdatedBeaconSetWithSignedData')
+                            .withArgs(beaconSet.beaconSetId, beaconSetValue, beaconSetTimestamp);
+                        } else if (updateDataFeedFunctionName === 'updateDataFeedWithDomainSignedData') {
+                          await expect(dapiServer.connect(roles.randomPerson)[updateDataFeedFunctionName](signedData))
+                            .to.emit(dapiServer, 'UpdatedBeaconSetWithDomainSignedData')
+                            .withArgs(beaconSet.beaconSetId, beaconSetValue, beaconSetTimestamp);
+                        } else {
+                          throw new Error('Unkown signed data feed update function');
+                        }
+                        const beaconSetAfter = await dapiServer.dataFeeds(beaconSet.beaconSetId);
+                        expect(beaconSetAfter.value).to.equal(beaconSetValue);
+                        expect(beaconSetAfter.timestamp).to.equal(beaconSetTimestamp);
+                      });
+                    });
+                    context('Does not update timestamp', function () {
+                      it('reverts', async function () {
+                        const { roles, dapiServer, beacons, beaconSet } = await deploy();
+                        // Populate the Beacons
+                        const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
+                        const currentTimestamp = await helpers.time.latest();
+                        const beaconTimestamps = beacons.map(() =>
+                          Math.floor(currentTimestamp - Math.random() * 5 * 60)
+                        );
+                        await Promise.all(
+                          beacons.map(async (beacon, index) => {
+                            await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+                          })
+                        );
+                        // Update Beacon set with Beacons, which will disallow the same values from being used
+                        await dapiServer.connect(roles.randomPerson).updateBeaconSetWithBeacons(beaconSet.beaconIds);
+                        // Randomly omit one of the signatures for the Beacon value to be read from the chain
+                        const omitSignatureAtIndex = Math.floor(Math.random() * beacons.length);
+                        const signatures = await Promise.all(
+                          beacons.map(async (beacon, index) => {
+                            if (index === omitSignatureAtIndex) {
+                              return '0x';
+                            } else {
+                              if (updateDataFeedFunctionName === 'updateDataFeedWithSignedData') {
+                                return await testUtils.signData(
+                                  beacon.airnode.wallet,
+                                  beacon.templateId,
+                                  beaconTimestamps[index],
+                                  encodeData(beaconValues[index])
+                                );
+                              } else if (updateDataFeedFunctionName === 'updateDataFeedWithDomainSignedData') {
+                                return await testUtils.domainSignData(
+                                  beacon.airnode.wallet,
+                                  dapiServer,
+                                  beacon.templateId,
+                                  beaconTimestamps[index],
+                                  encodeData(beaconValues[index])
+                                );
+                              } else {
+                                throw new Error('Unkown signed data feed update function');
+                              }
+                            }
+                          })
+                        );
+                        // Omit the data if the signature is omitted
+                        const signedData = signatures.map((signature, index) => {
+                          if (signature === '0x') {
+                            return encodeSignedData(
+                              beacons[index].airnode.wallet.address,
+                              beacons[index].templateId,
+                              0,
+                              '0x',
+                              signature
+                            );
+                          } else {
+                            return encodeSignedData(
+                              beacons[index].airnode.wallet.address,
+                              beacons[index].templateId,
+                              beaconTimestamps[index],
+                              encodeData(beaconValues[index]),
+                              signature
+                            );
+                          }
+                        });
+                        await expect(
+                          dapiServer.connect(roles.randomPerson)[updateDataFeedFunctionName](signedData)
+                        ).to.be.revertedWith('Does not update timestamp');
+                      });
                     });
                   });
-                  context('Does not update timestamp', function () {
+                  context('Not all timestamps are not valid', function () {
                     it('reverts', async function () {
-                      await updateBeacon(airnodeAddress, beaconSetTemplateIds[0], 100);
-                      const signedData0 = hre.ethers.utils.defaultAbiCoder.encode(
-                        ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                        [airnodeAddress, beaconSetTemplateIds[0], 0, '0x', '0x']
+                      const { roles, dapiServer, beacons } = await deploy();
+                      // Populate the Beacons
+                      const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
+                      const currentTimestamp = await helpers.time.latest();
+                      const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
+                      await Promise.all(
+                        beacons.map(async (beacon, index) => {
+                          await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+                        })
                       );
-                      const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                      await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-                      const data1 = encodeData(105);
-                      const signature1 = await airnodeWallet.signMessage(
-                        hre.ethers.utils.arrayify(
-                          hre.ethers.utils.keccak256(
-                            hre.ethers.utils.solidityPack(
-                              ['uint256', 'address', 'bytes32', 'uint256', 'bytes'],
-                              [
-                                (await hre.ethers.provider.getNetwork()).chainId,
-                                dapiServer.address,
-                                beaconSetTemplateIds[1],
-                                nextTimestamp,
-                                data1,
-                              ]
-                            )
-                          )
-                        )
+                      // Randomly omit one of the signatures for the Beacon value to be read from the chain
+                      const omitSignatureAtIndex = Math.floor(Math.random() * beacons.length);
+                      // Make timestamp invalid
+                      if (omitSignatureAtIndex === beacons.length - 1) {
+                        beaconTimestamps[beacons.length - 2] = 0;
+                      } else {
+                        beaconTimestamps[beacons.length - 1] = 0;
+                      }
+                      const signatures = await Promise.all(
+                        beacons.map(async (beacon, index) => {
+                          if (index === omitSignatureAtIndex) {
+                            return '0x';
+                          } else {
+                            if (updateDataFeedFunctionName === 'updateDataFeedWithSignedData') {
+                              return await testUtils.signData(
+                                beacon.airnode.wallet,
+                                beacon.templateId,
+                                beaconTimestamps[index],
+                                encodeData(beaconValues[index])
+                              );
+                            } else if (updateDataFeedFunctionName === 'updateDataFeedWithDomainSignedData') {
+                              return await testUtils.domainSignData(
+                                beacon.airnode.wallet,
+                                dapiServer,
+                                beacon.templateId,
+                                beaconTimestamps[index],
+                                encodeData(beaconValues[index])
+                              );
+                            } else {
+                              throw new Error('Unkown signed data feed update function');
+                            }
+                          }
+                        })
                       );
-                      const signedData1 = hre.ethers.utils.defaultAbiCoder.encode(
-                        ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                        [airnodeAddress, beaconSetTemplateIds[1], nextTimestamp, data1, signature1]
-                      );
-                      const data2 = encodeData(110);
-                      const signature2 = await airnodeWallet.signMessage(
-                        hre.ethers.utils.arrayify(
-                          hre.ethers.utils.keccak256(
-                            hre.ethers.utils.solidityPack(
-                              ['uint256', 'address', 'bytes32', 'uint256', 'bytes'],
-                              [
-                                (await hre.ethers.provider.getNetwork()).chainId,
-                                dapiServer.address,
-                                beaconSetTemplateIds[2],
-                                nextTimestamp,
-                                data2,
-                              ]
-                            )
-                          )
-                        )
-                      );
-                      const signedData2 = hre.ethers.utils.defaultAbiCoder.encode(
-                        ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                        [airnodeAddress, beaconSetTemplateIds[2], nextTimestamp, data2, signature2]
-                      );
-                      dapiServer
-                        .connect(roles.randomPerson)
-                        .updateDataFeedWithDomainSignedData([signedData0, signedData1, signedData2]);
+                      // Omit the data if the signature is omitted
+                      const signedData = signatures.map((signature, index) => {
+                        if (signature === '0x') {
+                          return encodeSignedData(
+                            beacons[index].airnode.wallet.address,
+                            beacons[index].templateId,
+                            beaconTimestamps[index],
+                            '0x',
+                            signature
+                          );
+                        } else {
+                          return encodeSignedData(
+                            beacons[index].airnode.wallet.address,
+                            beacons[index].templateId,
+                            beaconTimestamps[index],
+                            encodeData(beaconValues[index]),
+                            signature
+                          );
+                        }
+                      });
                       await expect(
-                        dapiServer
-                          .connect(roles.randomPerson)
-                          .updateDataFeedWithDomainSignedData([signedData0, signedData1, signedData2])
-                      ).to.be.revertedWith('Does not update timestamp');
+                        dapiServer.connect(roles.randomPerson)[updateDataFeedFunctionName](signedData)
+                      ).to.be.revertedWith('Timestamp not valid');
                     });
                   });
                 });
-                context('Not all timestamps are not valid', function () {
+                context('Not all decoded fulfillment data can be typecasted into int224', function () {
                   it('reverts', async function () {
-                    await updateBeacon(airnodeAddress, beaconSetTemplateIds[0], 100);
-                    const signedData0 = hre.ethers.utils.defaultAbiCoder.encode(
-                      ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                      [airnodeAddress, beaconSetTemplateIds[0], 0, '0x', '0x']
+                    const { roles, dapiServer, beacons } = await deploy();
+                    // Populate the Beacons
+                    const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
+                    const currentTimestamp = await helpers.time.latest();
+                    const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
+                    await Promise.all(
+                      beacons.map(async (beacon, index) => {
+                        await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+                      })
                     );
-                    const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                    await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-                    const data1 = encodeData(105);
-                    const signature1 = await airnodeWallet.signMessage(
-                      hre.ethers.utils.arrayify(
-                        hre.ethers.utils.keccak256(
-                          hre.ethers.utils.solidityPack(
-                            ['uint256', 'address', 'bytes32', 'uint256', 'bytes'],
-                            [
-                              (await hre.ethers.provider.getNetwork()).chainId,
-                              dapiServer.address,
-                              beaconSetTemplateIds[1],
-                              nextTimestamp,
-                              data1,
-                            ]
-                          )
-                        )
-                      )
+                    // Randomly omit one of the signatures for the Beacon value to be read from the chain
+                    const omitSignatureAtIndex = Math.floor(Math.random() * beacons.length);
+                    // Make value overflow
+                    if (omitSignatureAtIndex === beacons.length - 1) {
+                      beaconValues[beacons.length - 2] = ethers.BigNumber.from(2).pow(223);
+                    } else {
+                      beaconValues[beacons.length - 1] = ethers.BigNumber.from(2).pow(223);
+                    }
+                    const signaturesWithOverflow = await Promise.all(
+                      beacons.map(async (beacon, index) => {
+                        if (index === omitSignatureAtIndex) {
+                          return '0x';
+                        } else {
+                          if (updateDataFeedFunctionName === 'updateDataFeedWithSignedData') {
+                            return await testUtils.signData(
+                              beacon.airnode.wallet,
+                              beacon.templateId,
+                              beaconTimestamps[index],
+                              encodeData(beaconValues[index])
+                            );
+                          } else if (updateDataFeedFunctionName === 'updateDataFeedWithDomainSignedData') {
+                            return await testUtils.domainSignData(
+                              beacon.airnode.wallet,
+                              dapiServer,
+                              beacon.templateId,
+                              beaconTimestamps[index],
+                              encodeData(beaconValues[index])
+                            );
+                          } else {
+                            throw new Error('Unkown signed data feed update function');
+                          }
+                        }
+                      })
                     );
-                    const signedData1 = hre.ethers.utils.defaultAbiCoder.encode(
-                      ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                      [airnodeAddress, beaconSetTemplateIds[1], nextTimestamp, data1, signature1]
-                    );
-                    const data2 = encodeData(110);
-                    const timestampThatIsTooOld = nextTimestamp - 60 * 60;
-                    const signature2OfTimestampThatIsTooOld = await airnodeWallet.signMessage(
-                      hre.ethers.utils.arrayify(
-                        hre.ethers.utils.keccak256(
-                          hre.ethers.utils.solidityPack(
-                            ['uint256', 'address', 'bytes32', 'uint256', 'bytes'],
-                            [
-                              (await hre.ethers.provider.getNetwork()).chainId,
-                              dapiServer.address,
-                              beaconSetTemplateIds[2],
-                              timestampThatIsTooOld,
-                              data2,
-                            ]
-                          )
-                        )
-                      )
-                    );
-                    const signedData2WithTimestampThatIsTooOld = hre.ethers.utils.defaultAbiCoder.encode(
-                      ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                      [
-                        airnodeAddress,
-                        beaconSetTemplateIds[2],
-                        timestampThatIsTooOld,
-                        data2,
-                        signature2OfTimestampThatIsTooOld,
-                      ]
-                    );
-                    await expect(
-                      dapiServer
-                        .connect(roles.randomPerson)
-                        .updateDataFeedWithDomainSignedData([
-                          signedData0,
-                          signedData1,
-                          signedData2WithTimestampThatIsTooOld,
-                        ])
-                    ).to.be.revertedWith('Timestamp not valid');
-                    const timestampThatIsTooNew = nextTimestamp + 15 * 60 + 1;
-                    const signature2OfTimestampThatIsTooNew = await airnodeWallet.signMessage(
-                      hre.ethers.utils.arrayify(
-                        hre.ethers.utils.keccak256(
-                          hre.ethers.utils.solidityPack(
-                            ['uint256', 'address', 'bytes32', 'uint256', 'bytes'],
-                            [
-                              (await hre.ethers.provider.getNetwork()).chainId,
-                              dapiServer.address,
-                              beaconSetTemplateIds[2],
-                              timestampThatIsTooNew,
-                              data2,
-                            ]
-                          )
-                        )
-                      )
-                    );
-                    const signedData2WithTimestampThatIsTooNew = hre.ethers.utils.defaultAbiCoder.encode(
-                      ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                      [
-                        airnodeAddress,
-                        beaconSetTemplateIds[2],
-                        timestampThatIsTooNew,
-                        data2,
-                        signature2OfTimestampThatIsTooNew,
-                      ]
-                    );
-                    await expect(
-                      dapiServer
-                        .connect(roles.randomPerson)
-                        .updateDataFeedWithDomainSignedData([
-                          signedData0,
-                          signedData1,
-                          signedData2WithTimestampThatIsTooNew,
-                        ])
-                    ).to.be.revertedWith('Timestamp not valid');
-                  });
-                });
-              });
-              context('Not all decoded fulfillment data can be typecasted into int224', function () {
-                it('reverts', async function () {
-                  await updateBeacon(airnodeAddress, beaconSetTemplateIds[0], 100);
-                  const signedData0 = hre.ethers.utils.defaultAbiCoder.encode(
-                    ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                    [airnodeAddress, beaconSetTemplateIds[0], 0, '0x', '0x']
-                  );
-                  const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                  await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-                  const data1 = encodeData(105);
-                  const signature1 = await airnodeWallet.signMessage(
-                    hre.ethers.utils.arrayify(
-                      hre.ethers.utils.keccak256(
-                        hre.ethers.utils.solidityPack(
-                          ['uint256', 'address', 'bytes32', 'uint256', 'bytes'],
-                          [
-                            (await hre.ethers.provider.getNetwork()).chainId,
-                            dapiServer.address,
-                            beaconSetTemplateIds[1],
-                            nextTimestamp,
-                            data1,
-                          ]
-                        )
-                      )
-                    )
-                  );
-                  const signedData1 = hre.ethers.utils.defaultAbiCoder.encode(
-                    ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                    [airnodeAddress, beaconSetTemplateIds[1], nextTimestamp, data1, signature1]
-                  );
-                  const overflowingData2 = encodeData(hre.ethers.BigNumber.from(2).pow(223));
-                  const signature2OfOverlowingData = await airnodeWallet.signMessage(
-                    hre.ethers.utils.arrayify(
-                      hre.ethers.utils.keccak256(
-                        hre.ethers.utils.solidityPack(
-                          ['uint256', 'address', 'bytes32', 'uint256', 'bytes'],
-                          [
-                            (await hre.ethers.provider.getNetwork()).chainId,
-                            dapiServer.address,
-                            beaconSetTemplateIds[2],
-                            nextTimestamp,
-                            overflowingData2,
-                          ]
-                        )
-                      )
-                    )
-                  );
-                  const signedData2WithOverflowingData = hre.ethers.utils.defaultAbiCoder.encode(
-                    ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                    [
-                      airnodeAddress,
-                      beaconSetTemplateIds[2],
-                      nextTimestamp,
-                      overflowingData2,
-                      signature2OfOverlowingData,
-                    ]
-                  );
-                  await expect(
-                    dapiServer
-                      .connect(roles.randomPerson)
-                      .updateDataFeedWithDomainSignedData([signedData0, signedData1, signedData2WithOverflowingData])
-                  ).to.be.revertedWith('Value typecasting error');
-                  const underflowingData2 = encodeData(hre.ethers.BigNumber.from(-2).pow(223).sub(1));
-                  const signature2OfUnderflowingData = await airnodeWallet.signMessage(
-                    hre.ethers.utils.arrayify(
-                      hre.ethers.utils.keccak256(
-                        hre.ethers.utils.solidityPack(
-                          ['uint256', 'address', 'bytes32', 'uint256', 'bytes'],
-                          [
-                            (await hre.ethers.provider.getNetwork()).chainId,
-                            dapiServer.address,
-                            beaconSetTemplateIds[2],
-                            nextTimestamp,
-                            underflowingData2,
-                          ]
-                        )
-                      )
-                    )
-                  );
-                  const signedData2WithUnderflowingData = hre.ethers.utils.defaultAbiCoder.encode(
-                    ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                    [
-                      airnodeAddress,
-                      beaconSetTemplateIds[2],
-                      nextTimestamp,
-                      underflowingData2,
-                      signature2OfUnderflowingData,
-                    ]
-                  );
-                  await expect(
-                    dapiServer
-                      .connect(roles.randomPerson)
-                      .updateDataFeedWithDomainSignedData([signedData0, signedData1, signedData2WithUnderflowingData])
-                  ).to.be.revertedWith('Value typecasting error');
-                });
-              });
-            });
-            context('All fulfillment data length is not correct', function () {
-              it('reverts', async function () {
-                await updateBeacon(airnodeAddress, beaconSetTemplateIds[0], 100);
-                const signedData0 = hre.ethers.utils.defaultAbiCoder.encode(
-                  ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                  [airnodeAddress, beaconSetTemplateIds[0], 0, '0x', '0x']
-                );
-                const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-                const data1 = encodeData(105);
-                const signature1 = await airnodeWallet.signMessage(
-                  hre.ethers.utils.arrayify(
-                    hre.ethers.utils.keccak256(
-                      hre.ethers.utils.solidityPack(
-                        ['uint256', 'address', 'bytes32', 'uint256', 'bytes'],
-                        [
-                          (await hre.ethers.provider.getNetwork()).chainId,
-                          dapiServer.address,
-                          beaconSetTemplateIds[1],
-                          nextTimestamp,
-                          data1,
-                        ]
-                      )
-                    )
-                  )
-                );
-                const signedData1 = hre.ethers.utils.defaultAbiCoder.encode(
-                  ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                  [airnodeAddress, beaconSetTemplateIds[1], nextTimestamp, data1, signature1]
-                );
-                const data2WithWrongLength = hre.ethers.utils.defaultAbiCoder.encode(['int256', 'int256'], [110, 110]);
-                const signature2 = await airnodeWallet.signMessage(
-                  hre.ethers.utils.arrayify(
-                    hre.ethers.utils.keccak256(
-                      hre.ethers.utils.solidityPack(
-                        ['uint256', 'address', 'bytes32', 'uint256', 'bytes'],
-                        [
-                          (await hre.ethers.provider.getNetwork()).chainId,
-                          dapiServer.address,
-                          beaconSetTemplateIds[2],
-                          nextTimestamp,
-                          data2WithWrongLength,
-                        ]
-                      )
-                    )
-                  )
-                );
-                const signedData2WithDataWithWrongLength = hre.ethers.utils.defaultAbiCoder.encode(
-                  ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                  [airnodeAddress, beaconSetTemplateIds[2], nextTimestamp, data2WithWrongLength, signature2]
-                );
-                await expect(
-                  dapiServer
-                    .connect(roles.randomPerson)
-                    .updateDataFeedWithDomainSignedData([signedData0, signedData1, signedData2WithDataWithWrongLength])
-                ).to.be.revertedWith('Data length not correct');
-              });
-            });
-          });
-          context('Not all signatures are valid', function () {
-            it('reverts', async function () {
-              await updateBeacon(airnodeAddress, beaconSetTemplateIds[0], 100);
-              const signedData0 = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, beaconSetTemplateIds[0], 0, '0x', '0x']
-              );
-              const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-              await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-              const data1 = encodeData(105);
-              const signature1 = await airnodeWallet.signMessage(
-                hre.ethers.utils.arrayify(
-                  hre.ethers.utils.keccak256(
-                    hre.ethers.utils.solidityPack(
-                      ['uint256', 'address', 'bytes32', 'uint256', 'bytes'],
-                      [
-                        (await hre.ethers.provider.getNetwork()).chainId,
-                        dapiServer.address,
-                        beaconSetTemplateIds[1],
-                        nextTimestamp,
-                        data1,
-                      ]
-                    )
-                  )
-                )
-              );
-              const signedData1 = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, beaconSetTemplateIds[1], nextTimestamp, data1, signature1]
-              );
-              const data2 = encodeData(110);
-              const signature2WithWrongChainId = await airnodeWallet.signMessage(
-                hre.ethers.utils.arrayify(
-                  hre.ethers.utils.keccak256(
-                    hre.ethers.utils.solidityPack(
-                      ['uint256', 'address', 'bytes32', 'uint256', 'bytes'],
-                      [123456, dapiServer.address, beaconSetTemplateIds[2], nextTimestamp, data2]
-                    )
-                  )
-                )
-              );
-              const signedData2WithSignatureWithWrongChainId = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, beaconSetTemplateIds[2], nextTimestamp, data2, signature2WithWrongChainId]
-              );
-              await expect(
-                dapiServer
-                  .connect(roles.randomPerson)
-                  .updateDataFeedWithDomainSignedData([
-                    signedData0,
-                    signedData1,
-                    signedData2WithSignatureWithWrongChainId,
-                  ])
-              ).to.be.revertedWith('Signature mismatch');
-              const signature2WithWrongDapiServerAddress = await airnodeWallet.signMessage(
-                hre.ethers.utils.arrayify(
-                  hre.ethers.utils.keccak256(
-                    hre.ethers.utils.solidityPack(
-                      ['uint256', 'address', 'bytes32', 'uint256', 'bytes'],
-                      [
-                        (await hre.ethers.provider.getNetwork()).chainId,
-                        testUtils.generateRandomAddress(),
-                        beaconSetTemplateIds[2],
-                        nextTimestamp,
-                        data2,
-                      ]
-                    )
-                  )
-                )
-              );
-              const signedData2WithSignatureWithWrongDapiServerAddress = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, beaconSetTemplateIds[2], nextTimestamp, data2, signature2WithWrongDapiServerAddress]
-              );
-              await expect(
-                dapiServer
-                  .connect(roles.randomPerson)
-                  .updateDataFeedWithDomainSignedData([
-                    signedData0,
-                    signedData1,
-                    signedData2WithSignatureWithWrongDapiServerAddress,
-                  ])
-              ).to.be.revertedWith('Signature mismatch');
-              const signature2 = await airnodeWallet.signMessage(
-                hre.ethers.utils.arrayify(
-                  hre.ethers.utils.keccak256(
-                    hre.ethers.utils.solidityPack(
-                      ['uint256', 'address', 'bytes32', 'uint256', 'bytes'],
-                      [
-                        (await hre.ethers.provider.getNetwork()).chainId,
-                        dapiServer.address,
-                        beaconSetTemplateIds[2],
-                        nextTimestamp,
-                        data2,
-                      ]
-                    )
-                  )
-                )
-              );
-              const signedData2WithWrongAirnodeAddress = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [testUtils.generateRandomAddress(), beaconSetTemplateIds[2], nextTimestamp, data2, signature2]
-              );
-              await expect(
-                dapiServer
-                  .connect(roles.randomPerson)
-                  .updateDataFeedWithDomainSignedData([signedData0, signedData1, signedData2WithWrongAirnodeAddress])
-              ).to.be.revertedWith('Signature mismatch');
-              const signedData2WithWrongTemplateId = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, testUtils.generateRandomBytes32(), nextTimestamp, data2, signature2]
-              );
-              await expect(
-                dapiServer
-                  .connect(roles.randomPerson)
-                  .updateDataFeedWithDomainSignedData([signedData0, signedData1, signedData2WithWrongTemplateId])
-              ).to.be.revertedWith('Signature mismatch');
-              const signedData2WithWrongTimestamp = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, beaconSetTemplateIds[2], 123456, data2, signature2]
-              );
-              await expect(
-                dapiServer
-                  .connect(roles.randomPerson)
-                  .updateDataFeedWithDomainSignedData([signedData0, signedData1, signedData2WithWrongTimestamp])
-              ).to.be.revertedWith('Signature mismatch');
-              const signedData2WithWrongData = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, beaconSetTemplateIds[2], nextTimestamp, encodeData(123456), signature2]
-              );
-              await expect(
-                dapiServer
-                  .connect(roles.randomPerson)
-                  .updateDataFeedWithDomainSignedData([signedData0, signedData1, signedData2WithWrongData])
-              ).to.be.revertedWith('Signature mismatch');
-              const signedData2WithInvalidSignature = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, beaconSetTemplateIds[2], nextTimestamp, data2, '0x123456']
-              );
-              await expect(
-                dapiServer
-                  .connect(roles.randomPerson)
-                  .updateDataFeedWithDomainSignedData([signedData0, signedData1, signedData2WithInvalidSignature])
-              ).to.be.revertedWith('ECDSA: invalid signature length');
-            });
-          });
-        });
-        context('Signed data with no signature has data', function () {
-          it('reverts', async function () {
-            const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-            await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-            const data0 = encodeData(100);
-            const signedData0 = hre.ethers.utils.defaultAbiCoder.encode(
-              ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-              [airnodeAddress, beaconSetTemplateIds[0], nextTimestamp, data0, '0x']
-            );
-            const data1 = encodeData(105);
-            const signature1 = await airnodeWallet.signMessage(
-              hre.ethers.utils.arrayify(
-                hre.ethers.utils.keccak256(
-                  hre.ethers.utils.solidityPack(
-                    ['uint256', 'address', 'bytes32', 'uint256', 'bytes'],
-                    [
-                      (await hre.ethers.provider.getNetwork()).chainId,
-                      dapiServer.address,
-                      beaconSetTemplateIds[1],
-                      nextTimestamp,
-                      data1,
-                    ]
-                  )
-                )
-              )
-            );
-            const signedData1 = hre.ethers.utils.defaultAbiCoder.encode(
-              ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-              [airnodeAddress, beaconSetTemplateIds[1], nextTimestamp, data1, signature1]
-            );
-            const data2 = encodeData(110);
-            const signature2 = await airnodeWallet.signMessage(
-              hre.ethers.utils.arrayify(
-                hre.ethers.utils.keccak256(
-                  hre.ethers.utils.solidityPack(
-                    ['uint256', 'address', 'bytes32', 'uint256', 'bytes'],
-                    [
-                      (await hre.ethers.provider.getNetwork()).chainId,
-                      dapiServer.address,
-                      beaconSetTemplateIds[2],
-                      nextTimestamp,
-                      data2,
-                    ]
-                  )
-                )
-              )
-            );
-            const signedData2 = hre.ethers.utils.defaultAbiCoder.encode(
-              ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-              [airnodeAddress, beaconSetTemplateIds[2], nextTimestamp, data2, signature2]
-            );
-            await expect(
-              dapiServer
-                .connect(roles.randomPerson)
-                .updateDataFeedWithDomainSignedData([signedData0, signedData1, signedData2])
-            ).to.be.revertedWith('Missing signature');
-          });
-        });
-      });
-      context('All signed data is not decodable', function () {
-        it('reverts', async function () {
-          await updateBeacon(airnodeAddress, beaconSetTemplateIds[0], 100);
-          const signedData0 = hre.ethers.utils.defaultAbiCoder.encode(
-            ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-            [airnodeAddress, beaconSetTemplateIds[0], 0, '0x', '0x']
-          );
-          const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-          await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-          const data1 = encodeData(105);
-          const signature1 = await airnodeWallet.signMessage(
-            hre.ethers.utils.arrayify(
-              hre.ethers.utils.keccak256(
-                hre.ethers.utils.solidityPack(
-                  ['uint256', 'address', 'bytes32', 'uint256', 'bytes'],
-                  [
-                    (await hre.ethers.provider.getNetwork()).chainId,
-                    dapiServer.address,
-                    beaconSetTemplateIds[1],
-                    nextTimestamp,
-                    data1,
-                  ]
-                )
-              )
-            )
-          );
-          const signedData1 = hre.ethers.utils.defaultAbiCoder.encode(
-            ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-            [airnodeAddress, beaconSetTemplateIds[1], nextTimestamp, data1, signature1]
-          );
-          const signedData2 = '0x123456';
-          await expect(
-            dapiServer
-              .connect(roles.randomPerson)
-              .updateDataFeedWithDomainSignedData([signedData0, signedData1, signedData2])
-          ).to.be.reverted;
-        });
-      });
-    });
-    context('One Beacon is specified', function () {
-      context('Signed data is decodable', function () {
-        context('Signature length is not zero', function () {
-          context('Signature is valid', function () {
-            context('Fulfillment data length is correct', function () {
-              context('Decoded fulfillment data can be typecasted into int224', function () {
-                context('Timestamp is valid', function () {
-                  context('Updates timestamp', function () {
-                    it('updates Beacon with signed data', async function () {
-                      const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                      await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-                      const data = encodeData(100);
-                      const signature = await airnodeWallet.signMessage(
-                        hre.ethers.utils.arrayify(
-                          hre.ethers.utils.keccak256(
-                            hre.ethers.utils.solidityPack(
-                              ['uint256', 'address', 'bytes32', 'uint256', 'bytes'],
-                              [
-                                (await hre.ethers.provider.getNetwork()).chainId,
-                                dapiServer.address,
-                                templateId,
-                                nextTimestamp,
-                                data,
-                              ]
-                            )
-                          )
-                        )
-                      );
-                      const signedData = hre.ethers.utils.defaultAbiCoder.encode(
-                        ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                        [airnodeAddress, templateId, nextTimestamp, data, signature]
-                      );
-                      await expect(
-                        dapiServer.connect(roles.randomPerson).updateDataFeedWithDomainSignedData([signedData])
-                      )
-                        .to.emit(dapiServer, 'UpdatedBeaconWithDomainSignedData')
-                        .withArgs(beaconId, 100, nextTimestamp);
-                      const beacon = await dapiServer.dataFeeds(beaconId);
-                      expect(beacon.value).to.equal(100);
-                      expect(beacon.timestamp).to.equal(nextTimestamp);
+                    // Omit the data if the signature is omitted
+                    const signedDataWithOverflow = signaturesWithOverflow.map((signature, index) => {
+                      if (signature === '0x') {
+                        return encodeSignedData(
+                          beacons[index].airnode.wallet.address,
+                          beacons[index].templateId,
+                          beaconTimestamps[index],
+                          '0x',
+                          signature
+                        );
+                      } else {
+                        return encodeSignedData(
+                          beacons[index].airnode.wallet.address,
+                          beacons[index].templateId,
+                          beaconTimestamps[index],
+                          encodeData(beaconValues[index]),
+                          signature
+                        );
+                      }
                     });
-                  });
-                  context('Does not update timestamp', function () {
-                    it('reverts', async function () {
-                      const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                      await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-                      const data = encodeData(100);
-                      const signature = await airnodeWallet.signMessage(
-                        hre.ethers.utils.arrayify(
-                          hre.ethers.utils.keccak256(
-                            hre.ethers.utils.solidityPack(
-                              ['uint256', 'address', 'bytes32', 'uint256', 'bytes'],
-                              [
-                                (await hre.ethers.provider.getNetwork()).chainId,
-                                dapiServer.address,
-                                templateId,
-                                nextTimestamp,
-                                data,
-                              ]
-                            )
-                          )
-                        )
-                      );
-                      const signedData = hre.ethers.utils.defaultAbiCoder.encode(
-                        ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                        [airnodeAddress, templateId, nextTimestamp, data, signature]
-                      );
-                      await dapiServer.updateDataFeedWithDomainSignedData([signedData]);
-                      await expect(
-                        dapiServer.connect(roles.randomPerson).updateDataFeedWithDomainSignedData([signedData])
-                      ).to.be.revertedWith('Does not update timestamp');
+                    await expect(
+                      dapiServer.connect(roles.randomPerson)[updateDataFeedFunctionName](signedDataWithOverflow)
+                    ).to.be.revertedWith('Value typecasting error');
+                    // Make value underflow
+                    if (omitSignatureAtIndex === beacons.length - 1) {
+                      beaconValues[beacons.length - 2] = ethers.BigNumber.from(-2).pow(223).sub(1);
+                    } else {
+                      beaconValues[beacons.length - 1] = ethers.BigNumber.from(-2).pow(223).sub(1);
+                    }
+                    const signaturesWithUnderflow = await Promise.all(
+                      beacons.map(async (beacon, index) => {
+                        if (index === omitSignatureAtIndex) {
+                          return '0x';
+                        } else {
+                          if (updateDataFeedFunctionName === 'updateDataFeedWithSignedData') {
+                            return await testUtils.signData(
+                              beacon.airnode.wallet,
+                              beacon.templateId,
+                              beaconTimestamps[index],
+                              encodeData(beaconValues[index])
+                            );
+                          } else if (updateDataFeedFunctionName === 'updateDataFeedWithDomainSignedData') {
+                            return await testUtils.domainSignData(
+                              beacon.airnode.wallet,
+                              dapiServer,
+                              beacon.templateId,
+                              beaconTimestamps[index],
+                              encodeData(beaconValues[index])
+                            );
+                          } else {
+                            throw new Error('Unkown signed data feed update function');
+                          }
+                        }
+                      })
+                    );
+                    // Omit the data if the signature is omitted
+                    const signedDataWithUnderflow = signaturesWithUnderflow.map((signature, index) => {
+                      if (signature === '0x') {
+                        return encodeSignedData(
+                          beacons[index].airnode.wallet.address,
+                          beacons[index].templateId,
+                          beaconTimestamps[index],
+                          '0x',
+                          signature
+                        );
+                      } else {
+                        return encodeSignedData(
+                          beacons[index].airnode.wallet.address,
+                          beacons[index].templateId,
+                          beaconTimestamps[index],
+                          encodeData(beaconValues[index]),
+                          signature
+                        );
+                      }
                     });
-                  });
-                });
-                context('Timestamp is not valid', function () {
-                  it('reverts', async function () {
-                    const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                    await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-                    const timestampThatIsTooOld = nextTimestamp - 60 * 60;
-                    const data = encodeData(100);
-                    const signatureOfTimestampThatIsTooOld = await airnodeWallet.signMessage(
-                      hre.ethers.utils.arrayify(
-                        hre.ethers.utils.keccak256(
-                          hre.ethers.utils.solidityPack(
-                            ['uint256', 'address', 'bytes32', 'uint256', 'bytes'],
-                            [
-                              (await hre.ethers.provider.getNetwork()).chainId,
-                              dapiServer.address,
-                              templateId,
-                              timestampThatIsTooOld,
-                              data,
-                            ]
-                          )
-                        )
-                      )
-                    );
-                    const signedDataWithTimestampThatIsTooOld = hre.ethers.utils.defaultAbiCoder.encode(
-                      ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                      [airnodeAddress, templateId, timestampThatIsTooOld, data, signatureOfTimestampThatIsTooOld]
-                    );
                     await expect(
-                      dapiServer
-                        .connect(roles.randomPerson)
-                        .updateDataFeedWithDomainSignedData([signedDataWithTimestampThatIsTooOld])
-                    ).to.be.revertedWith('Timestamp not valid');
-                    const timestampThatIsTooNew = nextTimestamp + 15 * 60 + 1;
-                    const signatureOfTimestampThatIsTooNew = await airnodeWallet.signMessage(
-                      hre.ethers.utils.arrayify(
-                        hre.ethers.utils.keccak256(
-                          hre.ethers.utils.solidityPack(
-                            ['uint256', 'address', 'bytes32', 'uint256', 'bytes'],
-                            [
-                              (await hre.ethers.provider.getNetwork()).chainId,
-                              dapiServer.address,
-                              templateId,
-                              timestampThatIsTooNew,
-                              data,
-                            ]
-                          )
-                        )
-                      )
-                    );
-                    const signedDataWithTimestampThatIsTooNew = hre.ethers.utils.defaultAbiCoder.encode(
-                      ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                      [airnodeAddress, templateId, timestampThatIsTooNew, data, signatureOfTimestampThatIsTooNew]
-                    );
-                    await expect(
-                      dapiServer
-                        .connect(roles.randomPerson)
-                        .updateDataFeedWithDomainSignedData([signedDataWithTimestampThatIsTooNew])
-                    ).to.be.revertedWith('Timestamp not valid');
+                      dapiServer.connect(roles.randomPerson)[updateDataFeedFunctionName](signedDataWithUnderflow)
+                    ).to.be.revertedWith('Value typecasting error');
                   });
                 });
               });
-              context('Decoded fulfillment data cannot be typecasted into int224', function () {
+              context('All fulfillment data length is not correct', function () {
                 it('reverts', async function () {
-                  const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                  await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-                  const overflowingData = encodeData(hre.ethers.BigNumber.from(2).pow(223));
-                  const signatureOfOverflowingData = await airnodeWallet.signMessage(
-                    hre.ethers.utils.arrayify(
-                      hre.ethers.utils.keccak256(
-                        hre.ethers.utils.solidityPack(
-                          ['uint256', 'address', 'bytes32', 'uint256', 'bytes'],
-                          [
-                            (await hre.ethers.provider.getNetwork()).chainId,
-                            dapiServer.address,
-                            templateId,
-                            nextTimestamp,
-                            overflowingData,
-                          ]
-                        )
-                      )
-                    )
+                  const { roles, dapiServer, beacons } = await deploy();
+                  // Populate the Beacons
+                  const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
+                  const currentTimestamp = await helpers.time.latest();
+                  const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
+                  await Promise.all(
+                    beacons.map(async (beacon, index) => {
+                      await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+                    })
                   );
-                  const signedDataWithOverflowingData = hre.ethers.utils.defaultAbiCoder.encode(
-                    ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                    [airnodeAddress, templateId, nextTimestamp, overflowingData, signatureOfOverflowingData]
+                  // Randomly omit one of the signatures for the Beacon value to be read from the chain
+                  const omitSignatureAtIndex = Math.floor(Math.random() * beacons.length);
+                  // Lengthen one of the encoded data
+                  const encodedData = beacons.map((_, index) => {
+                    return encodeData(beaconValues[index]);
+                  });
+                  if (omitSignatureAtIndex === beacons.length - 1) {
+                    encodedData[beacons.length - 2] = encodedData[beacons.length - 2] + '00';
+                  } else {
+                    encodedData[beacons.length - 1] = encodedData[beacons.length - 1] + '00';
+                  }
+                  const signatures = await Promise.all(
+                    beacons.map(async (beacon, index) => {
+                      if (index === omitSignatureAtIndex) {
+                        return '0x';
+                      } else {
+                        if (updateDataFeedFunctionName === 'updateDataFeedWithSignedData') {
+                          return await testUtils.signData(
+                            beacon.airnode.wallet,
+                            beacon.templateId,
+                            beaconTimestamps[index],
+                            encodedData[index]
+                          );
+                        } else if (updateDataFeedFunctionName === 'updateDataFeedWithDomainSignedData') {
+                          return await testUtils.domainSignData(
+                            beacon.airnode.wallet,
+                            dapiServer,
+                            beacon.templateId,
+                            beaconTimestamps[index],
+                            encodedData[index]
+                          );
+                        } else {
+                          throw new Error('Unkown signed data feed update function');
+                        }
+                      }
+                    })
                   );
+                  // Omit the data if the signature is omitted
+                  const signedData = signatures.map((signature, index) => {
+                    if (signature === '0x') {
+                      return encodeSignedData(
+                        beacons[index].airnode.wallet.address,
+                        beacons[index].templateId,
+                        beaconTimestamps[index],
+                        '0x',
+                        signature
+                      );
+                    } else {
+                      return encodeSignedData(
+                        beacons[index].airnode.wallet.address,
+                        beacons[index].templateId,
+                        beaconTimestamps[index],
+                        encodedData[index],
+                        signature
+                      );
+                    }
+                  });
                   await expect(
-                    dapiServer
-                      .connect(roles.randomPerson)
-                      .updateDataFeedWithDomainSignedData([signedDataWithOverflowingData])
-                  ).to.be.revertedWith('Value typecasting error');
-                  const underflowingData = encodeData(hre.ethers.BigNumber.from(-2).pow(223).sub(1));
-                  const signatureOfUnderflowingData = await airnodeWallet.signMessage(
-                    hre.ethers.utils.arrayify(
-                      hre.ethers.utils.keccak256(
-                        hre.ethers.utils.solidityPack(
-                          ['uint256', 'address', 'bytes32', 'uint256', 'bytes'],
-                          [
-                            (await hre.ethers.provider.getNetwork()).chainId,
-                            dapiServer.address,
-                            templateId,
-                            nextTimestamp,
-                            underflowingData,
-                          ]
-                        )
-                      )
-                    )
-                  );
-                  const signedDataWithUnderflowingData = hre.ethers.utils.defaultAbiCoder.encode(
-                    ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                    [airnodeAddress, templateId, nextTimestamp, underflowingData, signatureOfUnderflowingData]
-                  );
-                  await expect(
-                    dapiServer
-                      .connect(roles.randomPerson)
-                      .updateDataFeedWithDomainSignedData([signedDataWithUnderflowingData])
-                  ).to.be.revertedWith('Value typecasting error');
+                    dapiServer.connect(roles.randomPerson)[updateDataFeedFunctionName](signedData)
+                  ).to.be.revertedWith('Data length not correct');
                 });
               });
             });
-            context('Fulfillment data length is not correct', function () {
+            context('Not all signatures are valid', function () {
               it('reverts', async function () {
-                const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-                const dataWithWrongLength = hre.ethers.utils.defaultAbiCoder.encode(['int256', 'int256'], [100, 100]);
-                const signature = await airnodeWallet.signMessage(
-                  hre.ethers.utils.arrayify(
-                    hre.ethers.utils.keccak256(
-                      hre.ethers.utils.solidityPack(
-                        ['uint256', 'address', 'bytes32', 'uint256', 'bytes'],
-                        [
-                          (await hre.ethers.provider.getNetwork()).chainId,
-                          dapiServer.address,
-                          templateId,
-                          nextTimestamp,
-                          dataWithWrongLength,
-                        ]
-                      )
-                    )
-                  )
+                const { roles, dapiServer, beacons } = await deploy();
+                // Populate the Beacons
+                const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
+                const currentTimestamp = await helpers.time.latest();
+                const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
+                await Promise.all(
+                  beacons.map(async (beacon, index) => {
+                    await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+                  })
                 );
-                const signedDataWithDataWithWrongLength = hre.ethers.utils.defaultAbiCoder.encode(
-                  ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                  [airnodeAddress, templateId, nextTimestamp, dataWithWrongLength, signature]
+                // Randomly omit one of the signatures for the Beacon value to be read from the chain
+                const omitSignatureAtIndex = Math.floor(Math.random() * beacons.length);
+                const signatures = await Promise.all(
+                  beacons.map(async (beacon, index) => {
+                    if (index === omitSignatureAtIndex) {
+                      return '0x';
+                    } else {
+                      if (updateDataFeedFunctionName === 'updateDataFeedWithSignedData') {
+                        return await testUtils.signData(
+                          beacon.airnode.wallet,
+                          beacon.templateId,
+                          beaconTimestamps[index],
+                          encodeData(beaconValues[index])
+                        );
+                      } else if (updateDataFeedFunctionName === 'updateDataFeedWithDomainSignedData') {
+                        return await testUtils.domainSignData(
+                          beacon.airnode.wallet,
+                          dapiServer,
+                          beacon.templateId,
+                          beaconTimestamps[index],
+                          encodeData(beaconValues[index])
+                        );
+                      } else {
+                        throw new Error('Unkown signed data feed update function');
+                      }
+                    }
+                  })
                 );
+                // Change one of the signatures
+                if (omitSignatureAtIndex === beacons.length - 1) {
+                  signatures[beacons.length - 2] = '0x12345678';
+                } else {
+                  signatures[beacons.length - 1] = '0x12345678';
+                }
+                // Omit the data if the signature is omitted
+                const signedData = signatures.map((signature, index) => {
+                  if (signature === '0x') {
+                    return encodeSignedData(
+                      beacons[index].airnode.wallet.address,
+                      beacons[index].templateId,
+                      beaconTimestamps[index],
+                      '0x',
+                      signature
+                    );
+                  } else {
+                    return encodeSignedData(
+                      beacons[index].airnode.wallet.address,
+                      beacons[index].templateId,
+                      beaconTimestamps[index],
+                      encodeData(beaconValues[index]),
+                      signature
+                    );
+                  }
+                });
                 await expect(
-                  dapiServer
-                    .connect(roles.randomPerson)
-                    .updateDataFeedWithDomainSignedData([signedDataWithDataWithWrongLength])
-                ).to.be.revertedWith('Data length not correct');
+                  dapiServer.connect(roles.randomPerson)[updateDataFeedFunctionName](signedData)
+                ).to.be.revertedWith('ECDSA: invalid signature length');
               });
             });
           });
-          context('Signature is not valid', function () {
+          context('Signed data with no signature has data', function () {
             it('reverts', async function () {
-              const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-              await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-              const data = encodeData(100);
-              const signatureWithWrongChainId = await airnodeWallet.signMessage(
-                hre.ethers.utils.arrayify(
-                  hre.ethers.utils.keccak256(
-                    hre.ethers.utils.solidityPack(
-                      ['uint256', 'address', 'bytes32', 'uint256', 'bytes'],
-                      [123456, dapiServer.address, templateId, nextTimestamp, data]
-                    )
-                  )
-                )
+              const { roles, dapiServer, beacons } = await deploy();
+              // Populate the Beacons
+              const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
+              const currentTimestamp = await helpers.time.latest();
+              const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
+              await Promise.all(
+                beacons.map(async (beacon, index) => {
+                  await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+                })
               );
-              const signedDataWithSignatureWithWrongChainId = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, templateId, nextTimestamp, data, signatureWithWrongChainId]
+              // Randomly omit one of the signatures for the Beacon value to be read from the chain
+              const omitSignatureAtIndex = Math.floor(Math.random() * beacons.length);
+              const signatures = await Promise.all(
+                beacons.map(async (beacon, index) => {
+                  if (index === omitSignatureAtIndex) {
+                    return '0x';
+                  } else {
+                    if (updateDataFeedFunctionName === 'updateDataFeedWithSignedData') {
+                      return await testUtils.signData(
+                        beacon.airnode.wallet,
+                        beacon.templateId,
+                        beaconTimestamps[index],
+                        encodeData(beaconValues[index])
+                      );
+                    } else if (updateDataFeedFunctionName === 'updateDataFeedWithDomainSignedData') {
+                      return await testUtils.domainSignData(
+                        beacon.airnode.wallet,
+                        dapiServer,
+                        beacon.templateId,
+                        beaconTimestamps[index],
+                        encodeData(beaconValues[index])
+                      );
+                    } else {
+                      throw new Error('Unkown signed data feed update function');
+                    }
+                  }
+                })
               );
+              // Do not omit the data if the signature is omitted
+              const signedData = signatures.map((signature, index) => {
+                return encodeSignedData(
+                  beacons[index].airnode.wallet.address,
+                  beacons[index].templateId,
+                  beaconTimestamps[index],
+                  encodeData(beaconValues[index]),
+                  signature
+                );
+              });
               await expect(
-                dapiServer
-                  .connect(roles.randomPerson)
-                  .updateDataFeedWithDomainSignedData([signedDataWithSignatureWithWrongChainId])
-              ).to.be.revertedWith('Signature mismatch');
-              const signatureWithWrongDapiServerAddress = await airnodeWallet.signMessage(
-                hre.ethers.utils.arrayify(
-                  hre.ethers.utils.keccak256(
-                    hre.ethers.utils.solidityPack(
-                      ['uint256', 'address', 'bytes32', 'uint256', 'bytes'],
-                      [
-                        (await hre.ethers.provider.getNetwork()).chainId,
-                        testUtils.generateRandomAddress(),
-                        templateId,
-                        nextTimestamp,
-                        data,
-                      ]
-                    )
-                  )
-                )
-              );
-              const signedDataWithSignatureWithWrongDapiServerAddress = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, templateId, nextTimestamp, data, signatureWithWrongDapiServerAddress]
-              );
-              await expect(
-                dapiServer
-                  .connect(roles.randomPerson)
-                  .updateDataFeedWithDomainSignedData([signedDataWithSignatureWithWrongDapiServerAddress])
-              ).to.be.revertedWith('Signature mismatch');
-              const signature = await airnodeWallet.signMessage(
-                hre.ethers.utils.arrayify(
-                  hre.ethers.utils.keccak256(
-                    hre.ethers.utils.solidityPack(
-                      ['uint256', 'address', 'bytes32', 'uint256', 'bytes'],
-                      [
-                        (await hre.ethers.provider.getNetwork()).chainId,
-                        dapiServer.address,
-                        templateId,
-                        nextTimestamp,
-                        data,
-                      ]
-                    )
-                  )
-                )
-              );
-              const signedDataWithWrongAirnodeAddress = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [testUtils.generateRandomAddress(), templateId, nextTimestamp, data, signature]
-              );
-              await expect(
-                dapiServer
-                  .connect(roles.randomPerson)
-                  .updateDataFeedWithDomainSignedData([signedDataWithWrongAirnodeAddress])
-              ).to.be.revertedWith('Signature mismatch');
-              const signedDataWithWrongTemplateId = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, testUtils.generateRandomBytes32(), nextTimestamp, data, signature]
-              );
-              await expect(
-                dapiServer
-                  .connect(roles.randomPerson)
-                  .updateDataFeedWithDomainSignedData([signedDataWithWrongTemplateId])
-              ).to.be.revertedWith('Signature mismatch');
-              const signedDataWithWrongTimestamp = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, templateId, 123456, data, signature]
-              );
-              await expect(
-                dapiServer
-                  .connect(roles.randomPerson)
-                  .updateDataFeedWithDomainSignedData([signedDataWithWrongTimestamp])
-              ).to.be.revertedWith('Signature mismatch');
-              const signedDataWithWrongData = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, templateId, nextTimestamp, encodeData(123456), signature]
-              );
-              await expect(
-                dapiServer.connect(roles.randomPerson).updateDataFeedWithDomainSignedData([signedDataWithWrongData])
-              ).to.be.revertedWith('Signature mismatch');
-              const signedDataWithInvalidSignature = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, templateId, nextTimestamp, data, '0x123456']
-              );
-              await expect(
-                dapiServer
-                  .connect(roles.randomPerson)
-                  .updateDataFeedWithDomainSignedData([signedDataWithInvalidSignature])
-              ).to.be.revertedWith('ECDSA: invalid signature length');
-            });
-          });
-        });
-        context('Signature length is zero', function () {
-          context('Data length is not zero', function () {
-            it('reverts', async function () {
-              const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-              await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-              const data = encodeData(100);
-              const signature = '0x';
-              const signedData = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, templateId, nextTimestamp, data, signature]
-              );
-              await expect(
-                dapiServer.connect(roles.randomPerson).updateDataFeedWithDomainSignedData([signedData])
+                dapiServer.connect(roles.randomPerson)[updateDataFeedFunctionName](signedData)
               ).to.be.revertedWith('Missing signature');
             });
           });
-          context('Data length is zero', function () {
-            it('reverts', async function () {
-              const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-              await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-              const data = '0x';
-              const signature = '0x';
-              const signedData = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, templateId, nextTimestamp, data, signature]
-              );
-              await expect(
-                dapiServer.connect(roles.randomPerson).updateDataFeedWithDomainSignedData([signedData])
-              ).to.be.revertedWith('Missing data');
+        });
+        context('All signed data is not decodable', function () {
+          it('reverts', async function () {
+            const { roles, dapiServer, beacons } = await deploy();
+            // Populate the Beacons
+            const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
+            const currentTimestamp = await helpers.time.latest();
+            const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
+            await Promise.all(
+              beacons.map(async (beacon, index) => {
+                await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+              })
+            );
+            // Randomly omit one of the signatures for the Beacon value to be read from the chain
+            const omitSignatureAtIndex = Math.floor(Math.random() * beacons.length);
+            const signatures = await Promise.all(
+              beacons.map(async (beacon, index) => {
+                if (index === omitSignatureAtIndex) {
+                  return '0x';
+                } else {
+                  if (updateDataFeedFunctionName === 'updateDataFeedWithSignedData') {
+                    return await testUtils.signData(
+                      beacon.airnode.wallet,
+                      beacon.templateId,
+                      beaconTimestamps[index],
+                      encodeData(beaconValues[index])
+                    );
+                  } else if (updateDataFeedFunctionName === 'updateDataFeedWithDomainSignedData') {
+                    return await testUtils.domainSignData(
+                      beacon.airnode.wallet,
+                      dapiServer,
+                      beacon.templateId,
+                      beaconTimestamps[index],
+                      encodeData(beaconValues[index])
+                    );
+                  } else {
+                    throw new Error('Unkown signed data feed update function');
+                  }
+                }
+              })
+            );
+            // Omit the data if the signature is omitted
+            const signedData = signatures.map((signature, index) => {
+              if (signature === '0x') {
+                return encodeSignedData(
+                  beacons[index].airnode.wallet.address,
+                  beacons[index].templateId,
+                  beaconTimestamps[index],
+                  '0x',
+                  signature
+                );
+              } else {
+                return encodeSignedData(
+                  beacons[index].airnode.wallet.address,
+                  beacons[index].templateId,
+                  beaconTimestamps[index],
+                  encodeData(beaconValues[index]),
+                  signature
+                );
+              }
             });
+            // Change one of the signedData
+            if (omitSignatureAtIndex === beacons.length - 1) {
+              signedData[beacons.length - 2] = '0x12345678';
+            } else {
+              signedData[beacons.length - 1] = '0x12345678';
+            }
+            await expect(
+              dapiServer.connect(roles.randomPerson)[updateDataFeedFunctionName](signedData)
+            ).to.be.revertedWithoutReason;
           });
         });
       });
-      context('Signed data is not decodable', function () {
-        it('reverts', async function () {
-          const signedData = '0x123456';
-          await expect(
-            dapiServer.connect(roles.randomPerson).updateDataFeedWithDomainSignedData([signedData])
-          ).to.be.reverted;
+      context('One Beacon is specified', function () {
+        context('Signed data is decodable', function () {
+          context('Signature length is not zero', function () {
+            context('Signature is valid', function () {
+              context('Fulfillment data length is correct', function () {
+                context('Decoded fulfillment data can be typecasted into int224', function () {
+                  context('Timestamp is valid', function () {
+                    context('Updates timestamp', function () {
+                      it('updates Beacon with signed data', async function () {
+                        const { roles, dapiServer, beacons } = await deploy();
+                        const beacon = beacons[0];
+                        const beaconValue = Math.floor(Math.random() * 200 - 100);
+                        const beaconTimestamp = await helpers.time.latest();
+                        let signature;
+                        if (updateDataFeedFunctionName === 'updateDataFeedWithSignedData') {
+                          signature = await testUtils.signData(
+                            beacon.airnode.wallet,
+                            beacon.templateId,
+                            beaconTimestamp,
+                            encodeData(beaconValue)
+                          );
+                        } else if (updateDataFeedFunctionName === 'updateDataFeedWithDomainSignedData') {
+                          signature = await testUtils.domainSignData(
+                            beacon.airnode.wallet,
+                            dapiServer,
+                            beacon.templateId,
+                            beaconTimestamp,
+                            encodeData(beaconValue)
+                          );
+                        } else {
+                          throw new Error('Unkown signed data feed update function');
+                        }
+                        const signedData = await encodeSignedData(
+                          beacon.airnode.wallet.address,
+                          beacon.templateId,
+                          beaconTimestamp,
+                          encodeData(beaconValue),
+                          signature
+                        );
+                        const beaconBefore = await dapiServer.dataFeeds(beacon.beaconId);
+                        expect(beaconBefore.value).to.equal(0);
+                        expect(beaconBefore.timestamp).to.equal(0);
+                        if (updateDataFeedFunctionName === 'updateDataFeedWithSignedData') {
+                          await expect(dapiServer.connect(roles.randomPerson)[updateDataFeedFunctionName]([signedData]))
+                            .to.emit(dapiServer, 'UpdatedBeaconWithSignedData')
+                            .withArgs(beacon.beaconId, beaconValue, beaconTimestamp);
+                        } else if (updateDataFeedFunctionName === 'updateDataFeedWithDomainSignedData') {
+                          await expect(dapiServer.connect(roles.randomPerson)[updateDataFeedFunctionName]([signedData]))
+                            .to.emit(dapiServer, 'UpdatedBeaconWithDomainSignedData')
+                            .withArgs(beacon.beaconId, beaconValue, beaconTimestamp);
+                        } else {
+                          throw new Error('Unkown signed data feed update function');
+                        }
+                        const beaconAfter = await dapiServer.dataFeeds(beacon.beaconId);
+                        expect(beaconAfter.value).to.equal(beaconValue);
+                        expect(beaconAfter.timestamp).to.equal(beaconTimestamp);
+                      });
+                    });
+                    context('Does not update timestamp', function () {
+                      it('reverts', async function () {
+                        const { roles, dapiServer, beacons } = await deploy();
+                        const beacon = beacons[0];
+                        const beaconValue = Math.floor(Math.random() * 200 - 100);
+                        const beaconTimestamp = await helpers.time.latest();
+                        let signature;
+                        if (updateDataFeedFunctionName === 'updateDataFeedWithSignedData') {
+                          signature = await testUtils.signData(
+                            beacon.airnode.wallet,
+                            beacon.templateId,
+                            beaconTimestamp,
+                            encodeData(beaconValue)
+                          );
+                        } else if (updateDataFeedFunctionName === 'updateDataFeedWithDomainSignedData') {
+                          signature = await testUtils.domainSignData(
+                            beacon.airnode.wallet,
+                            dapiServer,
+                            beacon.templateId,
+                            beaconTimestamp,
+                            encodeData(beaconValue)
+                          );
+                        } else {
+                          throw new Error('Unkown signed data feed update function');
+                        }
+                        const signedData = await encodeSignedData(
+                          beacon.airnode.wallet.address,
+                          beacon.templateId,
+                          beaconTimestamp,
+                          encodeData(beaconValue),
+                          signature
+                        );
+                        await dapiServer.connect(roles.randomPerson)[updateDataFeedFunctionName]([signedData]);
+                        await expect(
+                          dapiServer.connect(roles.randomPerson)[updateDataFeedFunctionName]([signedData])
+                        ).to.be.revertedWith('Does not update timestamp');
+                      });
+                    });
+                  });
+                  context('Timestamp is not valid', function () {
+                    it('reverts', async function () {
+                      const { roles, dapiServer, beacons } = await deploy();
+                      const beacon = beacons[0];
+                      const beaconValue = Math.floor(Math.random() * 200 - 100);
+                      const nextTimestamp = (await helpers.time.latest()) + 1;
+                      await helpers.time.setNextBlockTimestamp(nextTimestamp);
+                      const beaconTimestampTooLate = nextTimestamp - 60 * 60;
+                      let signatureTooLate;
+                      if (updateDataFeedFunctionName === 'updateDataFeedWithSignedData') {
+                        signatureTooLate = await testUtils.signData(
+                          beacon.airnode.wallet,
+                          beacon.templateId,
+                          beaconTimestampTooLate,
+                          encodeData(beaconValue)
+                        );
+                      } else if (updateDataFeedFunctionName === 'updateDataFeedWithDomainSignedData') {
+                        signatureTooLate = await testUtils.domainSignData(
+                          beacon.airnode.wallet,
+                          dapiServer,
+                          beacon.templateId,
+                          beaconTimestampTooLate,
+                          encodeData(beaconValue)
+                        );
+                      } else {
+                        throw new Error('Unkown signed data feed update function');
+                      }
+                      const signedDataTooLate = await encodeSignedData(
+                        beacon.airnode.wallet.address,
+                        beacon.templateId,
+                        beaconTimestampTooLate,
+                        encodeData(beaconValue),
+                        signatureTooLate
+                      );
+                      await expect(
+                        dapiServer.connect(roles.randomPerson)[updateDataFeedFunctionName]([signedDataTooLate])
+                      ).to.be.revertedWith('Timestamp not valid');
+                      const beaconTimestampFromFuture = nextTimestamp + 15 * 60 + 1;
+                      let signatureFromFuture;
+                      if (updateDataFeedFunctionName === 'updateDataFeedWithSignedData') {
+                        signatureFromFuture = await testUtils.signData(
+                          beacon.airnode.wallet,
+                          beacon.templateId,
+                          beaconTimestampFromFuture,
+                          encodeData(beaconValue)
+                        );
+                      } else if (updateDataFeedFunctionName === 'updateDataFeedWithDomainSignedData') {
+                        signatureFromFuture = await testUtils.domainSignData(
+                          beacon.airnode.wallet,
+                          dapiServer,
+                          beacon.templateId,
+                          beaconTimestampFromFuture,
+                          encodeData(beaconValue)
+                        );
+                      } else {
+                        throw new Error('Unkown signed data feed update function');
+                      }
+                      const signedDataFromFuture = await encodeSignedData(
+                        beacon.airnode.wallet.address,
+                        beacon.templateId,
+                        beaconTimestampFromFuture,
+                        encodeData(beaconValue),
+                        signatureFromFuture
+                      );
+                      await expect(
+                        dapiServer.connect(roles.randomPerson)[updateDataFeedFunctionName]([signedDataFromFuture])
+                      ).to.be.revertedWith('Timestamp not valid');
+                    });
+                  });
+                });
+                context('Decoded fulfillment data cannot be typecasted into int224', function () {
+                  it('reverts', async function () {
+                    const { roles, dapiServer, beacons } = await deploy();
+                    const beacon = beacons[0];
+                    const beaconValueWithOverflow = ethers.BigNumber.from(2).pow(223);
+                    const beaconTimestamp = await helpers.time.latest();
+                    let signatureWithOverflow;
+                    if (updateDataFeedFunctionName === 'updateDataFeedWithSignedData') {
+                      signatureWithOverflow = await testUtils.signData(
+                        beacon.airnode.wallet,
+                        beacon.templateId,
+                        beaconTimestamp,
+                        encodeData(beaconValueWithOverflow)
+                      );
+                    } else if (updateDataFeedFunctionName === 'updateDataFeedWithDomainSignedData') {
+                      signatureWithOverflow = await testUtils.domainSignData(
+                        beacon.airnode.wallet,
+                        dapiServer,
+                        beacon.templateId,
+                        beaconTimestamp,
+                        encodeData(beaconValueWithOverflow)
+                      );
+                    } else {
+                      throw new Error('Unkown signed data feed update function');
+                    }
+                    const signedDataWithOverflow = await encodeSignedData(
+                      beacon.airnode.wallet.address,
+                      beacon.templateId,
+                      beaconTimestamp,
+                      encodeData(beaconValueWithOverflow),
+                      signatureWithOverflow
+                    );
+                    await expect(
+                      dapiServer.connect(roles.randomPerson)[updateDataFeedFunctionName]([signedDataWithOverflow])
+                    ).to.be.revertedWith('Value typecasting error');
+                    const beaconValueWithUnderflow = ethers.BigNumber.from(-2).pow(223).sub(1);
+                    let signatureWithUnderflow;
+                    if (updateDataFeedFunctionName === 'updateDataFeedWithSignedData') {
+                      signatureWithUnderflow = await testUtils.signData(
+                        beacon.airnode.wallet,
+                        beacon.templateId,
+                        beaconTimestamp,
+                        encodeData(beaconValueWithUnderflow)
+                      );
+                    } else if (updateDataFeedFunctionName === 'updateDataFeedWithDomainSignedData') {
+                      signatureWithUnderflow = await testUtils.domainSignData(
+                        beacon.airnode.wallet,
+                        dapiServer,
+                        beacon.templateId,
+                        beaconTimestamp,
+                        encodeData(beaconValueWithUnderflow)
+                      );
+                    } else {
+                      throw new Error('Unkown signed data feed update function');
+                    }
+                    const signedDataWithUnderflow = await encodeSignedData(
+                      beacon.airnode.wallet.address,
+                      beacon.templateId,
+                      beaconTimestamp,
+                      encodeData(beaconValueWithUnderflow),
+                      signatureWithUnderflow
+                    );
+                    await expect(
+                      dapiServer.connect(roles.randomPerson)[updateDataFeedFunctionName]([signedDataWithUnderflow])
+                    ).to.be.revertedWith('Value typecasting error');
+                  });
+                });
+              });
+              context('Fulfillment data length is not correct', function () {
+                it('reverts', async function () {
+                  const { roles, dapiServer, beacons } = await deploy();
+                  const beacon = beacons[0];
+                  const beaconValue = Math.floor(Math.random() * 200 - 100);
+                  const beaconTimestamp = await helpers.time.latest();
+                  let signature;
+                  if (updateDataFeedFunctionName === 'updateDataFeedWithSignedData') {
+                    signature = await testUtils.signData(
+                      beacon.airnode.wallet,
+                      beacon.templateId,
+                      beaconTimestamp,
+                      encodeData(beaconValue) + '00'
+                    );
+                  } else if (updateDataFeedFunctionName === 'updateDataFeedWithDomainSignedData') {
+                    signature = await testUtils.domainSignData(
+                      beacon.airnode.wallet,
+                      dapiServer,
+                      beacon.templateId,
+                      beaconTimestamp,
+                      encodeData(beaconValue) + '00'
+                    );
+                  } else {
+                    throw new Error('Unkown signed data feed update function');
+                  }
+                  const signedData = await encodeSignedData(
+                    beacon.airnode.wallet.address,
+                    beacon.templateId,
+                    beaconTimestamp,
+                    encodeData(beaconValue) + '00',
+                    signature
+                  );
+                  await expect(
+                    dapiServer.connect(roles.randomPerson)[updateDataFeedFunctionName]([signedData])
+                  ).to.be.revertedWith('Data length not correct');
+                });
+              });
+            });
+            context('Signature is not valid', function () {
+              it('reverts', async function () {
+                const { roles, dapiServer, beacons } = await deploy();
+                const beacon = beacons[0];
+                const beaconValue = Math.floor(Math.random() * 200 - 100);
+                const beaconTimestamp = await helpers.time.latest();
+                const signedData = await encodeSignedData(
+                  beacon.airnode.wallet.address,
+                  beacon.templateId,
+                  beaconTimestamp,
+                  encodeData(beaconValue),
+                  '0x12345678'
+                );
+                await expect(
+                  dapiServer.connect(roles.randomPerson)[updateDataFeedFunctionName]([signedData])
+                ).to.be.revertedWith('ECDSA: invalid signature length');
+              });
+            });
+          });
+          context('Signature length is zero', function () {
+            context('Data length is not zero', function () {
+              it('reverts', async function () {
+                const { roles, dapiServer, beacons } = await deploy();
+                const beacon = beacons[0];
+                const beaconValue = Math.floor(Math.random() * 200 - 100);
+                const beaconTimestamp = await helpers.time.latest();
+                const signedData = await encodeSignedData(
+                  beacon.airnode.wallet.address,
+                  beacon.templateId,
+                  beaconTimestamp,
+                  encodeData(beaconValue),
+                  '0x'
+                );
+                await expect(
+                  dapiServer.connect(roles.randomPerson)[updateDataFeedFunctionName]([signedData])
+                ).to.be.revertedWith('Missing signature');
+              });
+            });
+            context('Data length is zero', function () {
+              it('reverts', async function () {
+                const { roles, dapiServer, beacons } = await deploy();
+                const beacon = beacons[0];
+                const signedData = await encodeSignedData(
+                  beacon.airnode.wallet.address,
+                  beacon.templateId,
+                  0,
+                  '0x',
+                  '0x'
+                );
+                await expect(
+                  dapiServer.connect(roles.randomPerson)[updateDataFeedFunctionName]([signedData])
+                ).to.be.revertedWith('Missing data');
+              });
+            });
+          });
+        });
+        context('Signed data is not decodable', function () {
+          it('reverts', async function () {
+            const { roles, dapiServer } = await deploy();
+            await expect(
+              dapiServer.connect(roles.randomPerson)[updateDataFeedFunctionName](['0x12345678'])
+            ).to.be.revertedWithoutReason;
+          });
         });
       });
-    });
-    context('No Beacon is specified', function () {
-      it('reverts', async function () {
-        await expect(dapiServer.connect(roles.randomPerson).updateDataFeedWithDomainSignedData([])).to.be.revertedWith(
-          'Specified no Beacons'
-        );
+      context('No Beacon is specified', function () {
+        it('reverts', async function () {
+          const { roles, dapiServer } = await deploy();
+          await expect(dapiServer.connect(roles.randomPerson)[updateDataFeedFunctionName]([])).to.be.revertedWith(
+            'Specified no Beacons'
+          );
+        });
       });
     });
   });
@@ -4205,141 +4646,175 @@ describe('DapiServer', function () {
                   context('Updates timestamp', function () {
                     context('Signed data includes correct number of signatures', function () {
                       it('updates Beacon set with signed data', async function () {
-                        const timestamp0 = await updateBeacon(airnodeAddress, beaconSetTemplateIds[0], 100);
-                        const signedData0 = hre.ethers.utils.defaultAbiCoder.encode(
-                          ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                          [airnodeAddress, beaconSetTemplateIds[0], 0, '0x', '0x']
+                        const { roles, dapiServer, oevProxy, beacons, beaconSet } = await deploy();
+                        // Populate the Beacons
+                        const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
+                        const currentTimestamp = await helpers.time.latest();
+                        const beaconTimestamps = beacons.map(() =>
+                          Math.floor(currentTimestamp - Math.random() * 5 * 60)
                         );
-                        const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                        await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-                        const data1 = encodeData(105);
+                        const beaconSetValue = median(beaconValues);
+                        const beaconSetTimestamp = Math.floor(
+                          beaconTimestamps.reduce((sum, beaconTimestamp) => {
+                            return sum + beaconTimestamp;
+                          }, 0) / beaconTimestamps.length
+                        );
+                        await Promise.all(
+                          beacons.map(async (beacon, index) => {
+                            await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+                          })
+                        );
                         const bidAmount = 10000;
                         const updateId = testUtils.generateRandomBytes32();
-                        const metadataHash = hre.ethers.utils.solidityKeccak256(
-                          ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
-                          [
-                            (await hre.ethers.provider.getNetwork()).chainId,
-                            dapiServer.address,
-                            oevProxy.address,
-                            roles.searcher.address,
-                            bidAmount,
-                            updateId,
-                            2,
-                            3,
-                          ]
+                        // Randomly omit one of the signatures for the Beacon value to be read from the chain
+                        const omitSignatureAtIndex = Math.floor(Math.random() * beacons.length);
+                        const signatures = await Promise.all(
+                          beacons.map(async (beacon, index) => {
+                            if (index === omitSignatureAtIndex) {
+                              return '0x';
+                            } else {
+                              return await testUtils.signOevData(
+                                dapiServer,
+                                oevProxy.address,
+                                roles.searcher.address,
+                                bidAmount,
+                                updateId,
+                                beacons.length - 1,
+                                beacons.length,
+                                beacon.airnode.wallet,
+                                beacon.templateId,
+                                beaconTimestamps[index],
+                                encodeData(beaconValues[index])
+                              );
+                            }
+                          })
                         );
-                        const signature1 = await airnodeWallet.signMessage(
-                          hre.ethers.utils.arrayify(
-                            hre.ethers.utils.keccak256(
-                              hre.ethers.utils.solidityPack(
-                                ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                                [metadataHash, beaconSetTemplateIds[1], nextTimestamp, data1]
-                              )
-                            )
-                          )
+                        // Omit the data if the signature is omitted
+                        const signedData = signatures.map((signature, index) => {
+                          if (signature === '0x') {
+                            return encodeSignedData(
+                              beacons[index].airnode.wallet.address,
+                              beacons[index].templateId,
+                              0,
+                              '0x',
+                              signature
+                            );
+                          } else {
+                            return encodeSignedData(
+                              beacons[index].airnode.wallet.address,
+                              beacons[index].templateId,
+                              beaconTimestamps[index],
+                              encodeData(beaconValues[index]),
+                              signature
+                            );
+                          }
+                        });
+                        const beaconSetBefore = await dapiServer.dataFeeds(beaconSet.beaconSetId);
+                        expect(beaconSetBefore.value).to.equal(0);
+                        expect(beaconSetBefore.timestamp).to.equal(0);
+                        const oevProxyBeaconSetBefore = await dapiServer.oevProxyToIdToDataFeed(
+                          oevProxy.address,
+                          beaconSet.beaconSetId
                         );
-                        const signedData1 = hre.ethers.utils.defaultAbiCoder.encode(
-                          ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                          [airnodeAddress, beaconSetTemplateIds[1], nextTimestamp, data1, signature1]
-                        );
-                        const data2 = encodeData(110);
-                        const signature2 = await airnodeWallet.signMessage(
-                          hre.ethers.utils.arrayify(
-                            hre.ethers.utils.keccak256(
-                              hre.ethers.utils.solidityPack(
-                                ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                                [metadataHash, beaconSetTemplateIds[2], nextTimestamp, data2]
-                              )
-                            )
-                          )
-                        );
-                        const signedData2 = hre.ethers.utils.defaultAbiCoder.encode(
-                          ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                          [airnodeAddress, beaconSetTemplateIds[2], nextTimestamp, data2, signature2]
-                        );
-                        const expectedTimestamp = Math.floor((timestamp0 + nextTimestamp + nextTimestamp) / 3);
+                        expect(oevProxyBeaconSetBefore.value).to.equal(0);
+                        expect(oevProxyBeaconSetBefore.timestamp).to.equal(0);
                         await expect(
                           dapiServer
                             .connect(roles.searcher)
                             .updateOevProxyDataFeedWithSignedData(
                               oevProxy.address,
                               updateId,
-                              2,
-                              [signedData0, signedData1, signedData2],
+                              beacons.length - 1,
+                              signedData,
                               { value: bidAmount }
                             )
                         )
                           .to.emit(dapiServer, 'UpdatedOevProxyBeaconSetWithSignedData')
-                          .withArgs(beaconSetId, oevProxy.address, updateId, 105, expectedTimestamp);
-                        const oevProxyBeaconSet = await dapiServer.oevProxyToIdToDataFeed(
+                          .withArgs(
+                            beaconSet.beaconSetId,
+                            oevProxy.address,
+                            updateId,
+                            beaconSetValue,
+                            beaconSetTimestamp
+                          );
+                        const beaconSetAfter = await dapiServer.dataFeeds(beaconSet.beaconSetId);
+                        expect(beaconSetAfter.value).to.equal(0);
+                        expect(beaconSetAfter.timestamp).to.equal(0);
+                        const oevProxyBeaconSetAfter = await dapiServer.oevProxyToIdToDataFeed(
                           oevProxy.address,
-                          beaconSetId
+                          beaconSet.beaconSetId
                         );
-                        expect(oevProxyBeaconSet.value).to.equal(105);
-                        expect(oevProxyBeaconSet.timestamp).to.equal(expectedTimestamp);
+                        expect(oevProxyBeaconSetAfter.value).to.equal(beaconSetValue);
+                        expect(oevProxyBeaconSetAfter.timestamp).to.equal(beaconSetTimestamp);
                       });
                     });
                     context('Signed data includes more signatures than stated', function () {
                       it('reverts', async function () {
-                        const signedData0 = hre.ethers.utils.defaultAbiCoder.encode(
-                          ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                          [airnodeAddress, beaconSetTemplateIds[0], 0, '0x', '0x']
+                        const { roles, dapiServer, oevProxy, beacons } = await deploy();
+                        // Populate the Beacons
+                        const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
+                        const currentTimestamp = await helpers.time.latest();
+                        const beaconTimestamps = beacons.map(() =>
+                          Math.floor(currentTimestamp - Math.random() * 5 * 60)
                         );
-                        const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                        await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-                        const data1 = encodeData(105);
+                        await Promise.all(
+                          beacons.map(async (beacon, index) => {
+                            await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+                          })
+                        );
                         const bidAmount = 10000;
                         const updateId = testUtils.generateRandomBytes32();
-                        const metadataHash = hre.ethers.utils.solidityKeccak256(
-                          ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
-                          [
-                            (await hre.ethers.provider.getNetwork()).chainId,
-                            dapiServer.address,
-                            oevProxy.address,
-                            roles.searcher.address,
-                            bidAmount,
-                            updateId,
-                            1,
-                            3,
-                          ]
+                        // Randomly omit one of the signatures for the Beacon value to be read from the chain
+                        const omitSignatureAtIndex = Math.floor(Math.random() * beacons.length);
+                        const signatures = await Promise.all(
+                          beacons.map(async (beacon, index) => {
+                            if (index === omitSignatureAtIndex) {
+                              return '0x';
+                            } else {
+                              return await testUtils.signOevData(
+                                dapiServer,
+                                oevProxy.address,
+                                roles.searcher.address,
+                                bidAmount,
+                                updateId,
+                                beacons.length - 2,
+                                beacons.length,
+                                beacon.airnode.wallet,
+                                beacon.templateId,
+                                beaconTimestamps[index],
+                                encodeData(beaconValues[index])
+                              );
+                            }
+                          })
                         );
-                        const signature1 = await airnodeWallet.signMessage(
-                          hre.ethers.utils.arrayify(
-                            hre.ethers.utils.keccak256(
-                              hre.ethers.utils.solidityPack(
-                                ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                                [metadataHash, beaconSetTemplateIds[1], nextTimestamp, data1]
-                              )
-                            )
-                          )
-                        );
-                        const signedData1 = hre.ethers.utils.defaultAbiCoder.encode(
-                          ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                          [airnodeAddress, beaconSetTemplateIds[1], nextTimestamp, data1, signature1]
-                        );
-                        const data2 = encodeData(110);
-                        const signature2 = await airnodeWallet.signMessage(
-                          hre.ethers.utils.arrayify(
-                            hre.ethers.utils.keccak256(
-                              hre.ethers.utils.solidityPack(
-                                ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                                [metadataHash, beaconSetTemplateIds[2], nextTimestamp, data2]
-                              )
-                            )
-                          )
-                        );
-                        const signedData2 = hre.ethers.utils.defaultAbiCoder.encode(
-                          ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                          [airnodeAddress, beaconSetTemplateIds[2], nextTimestamp, data2, signature2]
-                        );
+                        // Omit the data if the signature is omitted
+                        const signedData = signatures.map((signature, index) => {
+                          if (signature === '0x') {
+                            return encodeSignedData(
+                              beacons[index].airnode.wallet.address,
+                              beacons[index].templateId,
+                              0,
+                              '0x',
+                              signature
+                            );
+                          } else {
+                            return encodeSignedData(
+                              beacons[index].airnode.wallet.address,
+                              beacons[index].templateId,
+                              beaconTimestamps[index],
+                              encodeData(beaconValues[index]),
+                              signature
+                            );
+                          }
+                        });
                         await expect(
                           dapiServer
                             .connect(roles.searcher)
                             .updateOevProxyDataFeedWithSignedData(
                               oevProxy.address,
                               updateId,
-                              1,
-                              [signedData0, signedData1, signedData2],
+                              beacons.length - 2,
+                              signedData,
                               { value: bidAmount }
                             )
                         ).to.be.revertedWith('More signatures than stated');
@@ -4347,65 +4822,71 @@ describe('DapiServer', function () {
                     });
                     context('Signed data includes less signatures than stated', function () {
                       it('reverts', async function () {
-                        const signedData0 = hre.ethers.utils.defaultAbiCoder.encode(
-                          ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                          [airnodeAddress, beaconSetTemplateIds[0], 0, '0x', '0x']
+                        const { roles, dapiServer, oevProxy, beacons } = await deploy();
+                        // Populate the Beacons
+                        const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
+                        const currentTimestamp = await helpers.time.latest();
+                        const beaconTimestamps = beacons.map(() =>
+                          Math.floor(currentTimestamp - Math.random() * 5 * 60)
                         );
-                        const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                        await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-                        const data1 = encodeData(105);
+                        await Promise.all(
+                          beacons.map(async (beacon, index) => {
+                            await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+                          })
+                        );
                         const bidAmount = 10000;
                         const updateId = testUtils.generateRandomBytes32();
-                        const metadataHash = hre.ethers.utils.solidityKeccak256(
-                          ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
-                          [
-                            (await hre.ethers.provider.getNetwork()).chainId,
-                            dapiServer.address,
-                            oevProxy.address,
-                            roles.searcher.address,
-                            bidAmount,
-                            updateId,
-                            3,
-                            3,
-                          ]
+                        // Randomly omit one of the signatures for the Beacon value to be read from the chain
+                        const omitSignatureAtIndex = Math.floor(Math.random() * beacons.length);
+                        const signatures = await Promise.all(
+                          beacons.map(async (beacon, index) => {
+                            if (index === omitSignatureAtIndex) {
+                              return '0x';
+                            } else {
+                              return await testUtils.signOevData(
+                                dapiServer,
+                                oevProxy.address,
+                                roles.searcher.address,
+                                bidAmount,
+                                updateId,
+                                beacons.length,
+                                beacons.length,
+                                beacon.airnode.wallet,
+                                beacon.templateId,
+                                beaconTimestamps[index],
+                                encodeData(beaconValues[index])
+                              );
+                            }
+                          })
                         );
-                        const signature1 = await airnodeWallet.signMessage(
-                          hre.ethers.utils.arrayify(
-                            hre.ethers.utils.keccak256(
-                              hre.ethers.utils.solidityPack(
-                                ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                                [metadataHash, beaconSetTemplateIds[1], nextTimestamp, data1]
-                              )
-                            )
-                          )
-                        );
-                        const signedData1 = hre.ethers.utils.defaultAbiCoder.encode(
-                          ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                          [airnodeAddress, beaconSetTemplateIds[1], nextTimestamp, data1, signature1]
-                        );
-                        const data2 = encodeData(110);
-                        const signature2 = await airnodeWallet.signMessage(
-                          hre.ethers.utils.arrayify(
-                            hre.ethers.utils.keccak256(
-                              hre.ethers.utils.solidityPack(
-                                ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                                [metadataHash, beaconSetTemplateIds[2], nextTimestamp, data2]
-                              )
-                            )
-                          )
-                        );
-                        const signedData2 = hre.ethers.utils.defaultAbiCoder.encode(
-                          ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                          [airnodeAddress, beaconSetTemplateIds[2], nextTimestamp, data2, signature2]
-                        );
+                        // Omit the data if the signature is omitted
+                        const signedData = signatures.map((signature, index) => {
+                          if (signature === '0x') {
+                            return encodeSignedData(
+                              beacons[index].airnode.wallet.address,
+                              beacons[index].templateId,
+                              0,
+                              '0x',
+                              signature
+                            );
+                          } else {
+                            return encodeSignedData(
+                              beacons[index].airnode.wallet.address,
+                              beacons[index].templateId,
+                              beaconTimestamps[index],
+                              encodeData(beaconValues[index]),
+                              signature
+                            );
+                          }
+                        });
                         await expect(
                           dapiServer
                             .connect(roles.searcher)
                             .updateOevProxyDataFeedWithSignedData(
                               oevProxy.address,
                               updateId,
-                              3,
-                              [signedData0, signedData1, signedData2],
+                              beacons.length,
+                              signedData,
                               { value: bidAmount }
                             )
                         ).to.be.revertedWith('Less signatures than stated');
@@ -4414,65 +4895,68 @@ describe('DapiServer', function () {
                   });
                   context('Does not update timestamp', function () {
                     it('reverts', async function () {
-                      await updateBeacon(airnodeAddress, beaconSetTemplateIds[0], 100);
-                      const signedData0 = hre.ethers.utils.defaultAbiCoder.encode(
-                        ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                        [airnodeAddress, beaconSetTemplateIds[0], 0, '0x', '0x']
+                      const { roles, dapiServer, oevProxy, beacons } = await deploy();
+                      // Populate the Beacons
+                      const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
+                      const currentTimestamp = await helpers.time.latest();
+                      const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
+                      await Promise.all(
+                        beacons.map(async (beacon, index) => {
+                          await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+                        })
                       );
-                      const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                      await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-                      const data1 = encodeData(105);
                       const bidAmount = 10000;
                       const updateId = testUtils.generateRandomBytes32();
-                      const metadataHash = hre.ethers.utils.solidityKeccak256(
-                        ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
-                        [
-                          (await hre.ethers.provider.getNetwork()).chainId,
-                          dapiServer.address,
-                          oevProxy.address,
-                          roles.searcher.address,
-                          bidAmount,
-                          updateId,
-                          2,
-                          3,
-                        ]
+                      // Randomly omit one of the signatures for the Beacon value to be read from the chain
+                      const omitSignatureAtIndex = Math.floor(Math.random() * beacons.length);
+                      const signatures = await Promise.all(
+                        beacons.map(async (beacon, index) => {
+                          if (index === omitSignatureAtIndex) {
+                            return '0x';
+                          } else {
+                            return await testUtils.signOevData(
+                              dapiServer,
+                              oevProxy.address,
+                              roles.searcher.address,
+                              bidAmount,
+                              updateId,
+                              beacons.length - 1,
+                              beacons.length,
+                              beacon.airnode.wallet,
+                              beacon.templateId,
+                              beaconTimestamps[index],
+                              encodeData(beaconValues[index])
+                            );
+                          }
+                        })
                       );
-                      const signature1 = await airnodeWallet.signMessage(
-                        hre.ethers.utils.arrayify(
-                          hre.ethers.utils.keccak256(
-                            hre.ethers.utils.solidityPack(
-                              ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                              [metadataHash, beaconSetTemplateIds[1], nextTimestamp, data1]
-                            )
-                          )
-                        )
-                      );
-                      const signedData1 = hre.ethers.utils.defaultAbiCoder.encode(
-                        ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                        [airnodeAddress, beaconSetTemplateIds[1], nextTimestamp, data1, signature1]
-                      );
-                      const data2 = encodeData(110);
-                      const signature2 = await airnodeWallet.signMessage(
-                        hre.ethers.utils.arrayify(
-                          hre.ethers.utils.keccak256(
-                            hre.ethers.utils.solidityPack(
-                              ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                              [metadataHash, beaconSetTemplateIds[2], nextTimestamp, data2]
-                            )
-                          )
-                        )
-                      );
-                      const signedData2 = hre.ethers.utils.defaultAbiCoder.encode(
-                        ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                        [airnodeAddress, beaconSetTemplateIds[2], nextTimestamp, data2, signature2]
-                      );
+                      // Omit the data if the signature is omitted
+                      const signedData = signatures.map((signature, index) => {
+                        if (signature === '0x') {
+                          return encodeSignedData(
+                            beacons[index].airnode.wallet.address,
+                            beacons[index].templateId,
+                            0,
+                            '0x',
+                            signature
+                          );
+                        } else {
+                          return encodeSignedData(
+                            beacons[index].airnode.wallet.address,
+                            beacons[index].templateId,
+                            beaconTimestamps[index],
+                            encodeData(beaconValues[index]),
+                            signature
+                          );
+                        }
+                      });
                       await dapiServer
                         .connect(roles.searcher)
                         .updateOevProxyDataFeedWithSignedData(
                           oevProxy.address,
                           updateId,
-                          2,
-                          [signedData0, signedData1, signedData2],
+                          beacons.length - 1,
+                          signedData,
                           { value: bidAmount }
                         );
                       await expect(
@@ -4481,8 +4965,8 @@ describe('DapiServer', function () {
                           .updateOevProxyDataFeedWithSignedData(
                             oevProxy.address,
                             updateId,
-                            2,
-                            [signedData0, signedData1, signedData2],
+                            beacons.length - 1,
+                            signedData,
                             { value: bidAmount }
                           )
                       ).to.be.revertedWith('Does not update timestamp');
@@ -4491,105 +4975,75 @@ describe('DapiServer', function () {
                 });
                 context('Not all timestamps are not valid', function () {
                   it('reverts', async function () {
-                    await updateBeacon(airnodeAddress, beaconSetTemplateIds[0], 100);
-                    const signedData0 = hre.ethers.utils.defaultAbiCoder.encode(
-                      ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                      [airnodeAddress, beaconSetTemplateIds[0], 0, '0x', '0x']
+                    const { roles, dapiServer, oevProxy, beacons } = await deploy();
+                    // Populate the Beacons
+                    const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
+                    const currentTimestamp = await helpers.time.latest();
+                    const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
+                    await Promise.all(
+                      beacons.map(async (beacon, index) => {
+                        await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+                      })
                     );
-                    const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                    await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-                    const data1 = encodeData(105);
                     const bidAmount = 10000;
                     const updateId = testUtils.generateRandomBytes32();
-                    const metadataHash = hre.ethers.utils.solidityKeccak256(
-                      ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
-                      [
-                        (await hre.ethers.provider.getNetwork()).chainId,
-                        dapiServer.address,
-                        oevProxy.address,
-                        roles.searcher.address,
-                        bidAmount,
-                        updateId,
-                        2,
-                        3,
-                      ]
+                    // Randomly omit one of the signatures for the Beacon value to be read from the chain
+                    const omitSignatureAtIndex = Math.floor(Math.random() * beacons.length);
+                    // Make timestamp invalid
+                    if (omitSignatureAtIndex === beacons.length - 1) {
+                      beaconTimestamps[beacons.length - 2] = 0;
+                    } else {
+                      beaconTimestamps[beacons.length - 1] = 0;
+                    }
+                    const signatures = await Promise.all(
+                      beacons.map(async (beacon, index) => {
+                        if (index === omitSignatureAtIndex) {
+                          return '0x';
+                        } else {
+                          return await testUtils.signOevData(
+                            dapiServer,
+                            oevProxy.address,
+                            roles.searcher.address,
+                            bidAmount,
+                            updateId,
+                            beacons.length - 1,
+                            beacons.length,
+                            beacon.airnode.wallet,
+                            beacon.templateId,
+                            beaconTimestamps[index],
+                            encodeData(beaconValues[index])
+                          );
+                        }
+                      })
                     );
-                    const signature1 = await airnodeWallet.signMessage(
-                      hre.ethers.utils.arrayify(
-                        hre.ethers.utils.keccak256(
-                          hre.ethers.utils.solidityPack(
-                            ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                            [metadataHash, beaconSetTemplateIds[1], nextTimestamp, data1]
-                          )
-                        )
-                      )
-                    );
-                    const signedData1 = hre.ethers.utils.defaultAbiCoder.encode(
-                      ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                      [airnodeAddress, beaconSetTemplateIds[1], nextTimestamp, data1, signature1]
-                    );
-                    const data2 = encodeData(110);
-                    const timestampThatIsTooOld = nextTimestamp - 60 * 60;
-                    const signature2OfTimestampThatIsTooOld = await airnodeWallet.signMessage(
-                      hre.ethers.utils.arrayify(
-                        hre.ethers.utils.keccak256(
-                          hre.ethers.utils.solidityPack(
-                            ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                            [metadataHash, beaconSetTemplateIds[2], timestampThatIsTooOld, data2]
-                          )
-                        )
-                      )
-                    );
-                    const signedData2WithTimestampThatIsTooOld = hre.ethers.utils.defaultAbiCoder.encode(
-                      ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                      [
-                        airnodeAddress,
-                        beaconSetTemplateIds[2],
-                        timestampThatIsTooOld,
-                        data2,
-                        signature2OfTimestampThatIsTooOld,
-                      ]
-                    );
+                    // Omit the data if the signature is omitted
+                    const signedData = signatures.map((signature, index) => {
+                      if (signature === '0x') {
+                        return encodeSignedData(
+                          beacons[index].airnode.wallet.address,
+                          beacons[index].templateId,
+                          0,
+                          '0x',
+                          signature
+                        );
+                      } else {
+                        return encodeSignedData(
+                          beacons[index].airnode.wallet.address,
+                          beacons[index].templateId,
+                          beaconTimestamps[index],
+                          encodeData(beaconValues[index]),
+                          signature
+                        );
+                      }
+                    });
                     await expect(
                       dapiServer
                         .connect(roles.searcher)
                         .updateOevProxyDataFeedWithSignedData(
                           oevProxy.address,
                           updateId,
-                          2,
-                          [signedData0, signedData1, signedData2WithTimestampThatIsTooOld],
-                          { value: bidAmount }
-                        )
-                    ).to.be.revertedWith('Timestamp not valid');
-                    const timestampThatIsTooNew = nextTimestamp + 15 * 60 + 1;
-                    const signature2OfTimestampThatIsTooNew = await airnodeWallet.signMessage(
-                      hre.ethers.utils.arrayify(
-                        hre.ethers.utils.keccak256(
-                          hre.ethers.utils.solidityPack(
-                            ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                            [metadataHash, beaconSetTemplateIds[2], timestampThatIsTooNew, data2]
-                          )
-                        )
-                      )
-                    );
-                    const signedData2WithTimestampThatIsTooNew = hre.ethers.utils.defaultAbiCoder.encode(
-                      ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                      [
-                        airnodeAddress,
-                        beaconSetTemplateIds[2],
-                        timestampThatIsTooNew,
-                        data2,
-                        signature2OfTimestampThatIsTooNew,
-                      ]
-                    );
-                    await expect(
-                      dapiServer
-                        .connect(roles.searcher)
-                        .updateOevProxyDataFeedWithSignedData(
-                          oevProxy.address,
-                          updateId,
-                          2,
-                          [signedData0, signedData1, signedData2WithTimestampThatIsTooNew],
+                          beacons.length - 1,
+                          signedData,
                           { value: bidAmount }
                         )
                     ).to.be.revertedWith('Timestamp not valid');
@@ -4598,104 +5052,133 @@ describe('DapiServer', function () {
               });
               context('Not all decoded fulfillment data can be typecasted into int224', function () {
                 it('reverts', async function () {
-                  await updateBeacon(airnodeAddress, beaconSetTemplateIds[0], 100);
-                  const signedData0 = hre.ethers.utils.defaultAbiCoder.encode(
-                    ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                    [airnodeAddress, beaconSetTemplateIds[0], 0, '0x', '0x']
+                  const { roles, dapiServer, oevProxy, beacons } = await deploy();
+                  // Populate the Beacons
+                  const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
+                  const currentTimestamp = await helpers.time.latest();
+                  const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
+                  await Promise.all(
+                    beacons.map(async (beacon, index) => {
+                      await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+                    })
                   );
-                  const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                  await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-                  const data1 = encodeData(105);
                   const bidAmount = 10000;
                   const updateId = testUtils.generateRandomBytes32();
-                  const metadataHash = hre.ethers.utils.solidityKeccak256(
-                    ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
-                    [
-                      (await hre.ethers.provider.getNetwork()).chainId,
-                      dapiServer.address,
-                      oevProxy.address,
-                      roles.searcher.address,
-                      bidAmount,
-                      updateId,
-                      2,
-                      3,
-                    ]
+                  // Randomly omit one of the signatures for the Beacon value to be read from the chain
+                  const omitSignatureAtIndex = Math.floor(Math.random() * beacons.length);
+                  // Make value overflow
+                  if (omitSignatureAtIndex === beacons.length - 1) {
+                    beaconValues[beacons.length - 2] = ethers.BigNumber.from(2).pow(223);
+                  } else {
+                    beaconValues[beacons.length - 1] = ethers.BigNumber.from(2).pow(223);
+                  }
+                  const signaturesWithOverflow = await Promise.all(
+                    beacons.map(async (beacon, index) => {
+                      if (index === omitSignatureAtIndex) {
+                        return '0x';
+                      } else {
+                        return await testUtils.signOevData(
+                          dapiServer,
+                          oevProxy.address,
+                          roles.searcher.address,
+                          bidAmount,
+                          updateId,
+                          beacons.length - 1,
+                          beacons.length,
+                          beacon.airnode.wallet,
+                          beacon.templateId,
+                          beaconTimestamps[index],
+                          encodeData(beaconValues[index])
+                        );
+                      }
+                    })
                   );
-                  const signature1 = await airnodeWallet.signMessage(
-                    hre.ethers.utils.arrayify(
-                      hre.ethers.utils.keccak256(
-                        hre.ethers.utils.solidityPack(
-                          ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                          [metadataHash, beaconSetTemplateIds[1], nextTimestamp, data1]
-                        )
-                      )
-                    )
-                  );
-                  const signedData1 = hre.ethers.utils.defaultAbiCoder.encode(
-                    ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                    [airnodeAddress, beaconSetTemplateIds[1], nextTimestamp, data1, signature1]
-                  );
-                  const overflowingData2 = encodeData(hre.ethers.BigNumber.from(2).pow(223));
-                  const signature2OfOverlowingData = await airnodeWallet.signMessage(
-                    hre.ethers.utils.arrayify(
-                      hre.ethers.utils.keccak256(
-                        hre.ethers.utils.solidityPack(
-                          ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                          [metadataHash, beaconSetTemplateIds[2], nextTimestamp, overflowingData2]
-                        )
-                      )
-                    )
-                  );
-                  const signedData2WithOverflowingData = hre.ethers.utils.defaultAbiCoder.encode(
-                    ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                    [
-                      airnodeAddress,
-                      beaconSetTemplateIds[2],
-                      nextTimestamp,
-                      overflowingData2,
-                      signature2OfOverlowingData,
-                    ]
-                  );
+                  // Omit the data if the signature is omitted
+                  const signedDataWithOverflow = signaturesWithOverflow.map((signature, index) => {
+                    if (signature === '0x') {
+                      return encodeSignedData(
+                        beacons[index].airnode.wallet.address,
+                        beacons[index].templateId,
+                        0,
+                        '0x',
+                        signature
+                      );
+                    } else {
+                      return encodeSignedData(
+                        beacons[index].airnode.wallet.address,
+                        beacons[index].templateId,
+                        beaconTimestamps[index],
+                        encodeData(beaconValues[index]),
+                        signature
+                      );
+                    }
+                  });
                   await expect(
                     dapiServer
                       .connect(roles.searcher)
                       .updateOevProxyDataFeedWithSignedData(
                         oevProxy.address,
                         updateId,
-                        2,
-                        [signedData0, signedData1, signedData2WithOverflowingData],
+                        beacons.length - 1,
+                        signedDataWithOverflow,
                         { value: bidAmount }
                       )
                   ).to.be.revertedWith('Value typecasting error');
-                  const underflowingData2 = encodeData(hre.ethers.BigNumber.from(-2).pow(223).sub(1));
-                  const signature2OfUnderflowingData = await airnodeWallet.signMessage(
-                    hre.ethers.utils.arrayify(
-                      hre.ethers.utils.keccak256(
-                        hre.ethers.utils.solidityPack(
-                          ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                          [metadataHash, beaconSetTemplateIds[2], nextTimestamp, underflowingData2]
-                        )
-                      )
-                    )
+                  // Make value underflow
+                  if (omitSignatureAtIndex === beacons.length - 1) {
+                    beaconValues[beacons.length - 2] = ethers.BigNumber.from(-2).pow(223).sub(1);
+                  } else {
+                    beaconValues[beacons.length - 1] = ethers.BigNumber.from(-2).pow(223).sub(1);
+                  }
+                  const signaturesWithUnderflow = await Promise.all(
+                    beacons.map(async (beacon, index) => {
+                      if (index === omitSignatureAtIndex) {
+                        return '0x';
+                      } else {
+                        return await testUtils.signOevData(
+                          dapiServer,
+                          oevProxy.address,
+                          roles.searcher.address,
+                          bidAmount,
+                          updateId,
+                          beacons.length - 1,
+                          beacons.length,
+                          beacon.airnode.wallet,
+                          beacon.templateId,
+                          beaconTimestamps[index],
+                          encodeData(beaconValues[index])
+                        );
+                      }
+                    })
                   );
-                  const signedData2WithUnderflowingData = hre.ethers.utils.defaultAbiCoder.encode(
-                    ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                    [
-                      airnodeAddress,
-                      beaconSetTemplateIds[2],
-                      nextTimestamp,
-                      underflowingData2,
-                      signature2OfUnderflowingData,
-                    ]
-                  );
+                  // Omit the data if the signature is omitted
+                  const signedDataWithUnderflow = signaturesWithUnderflow.map((signature, index) => {
+                    if (signature === '0x') {
+                      return encodeSignedData(
+                        beacons[index].airnode.wallet.address,
+                        beacons[index].templateId,
+                        0,
+                        '0x',
+                        signature
+                      );
+                    } else {
+                      return encodeSignedData(
+                        beacons[index].airnode.wallet.address,
+                        beacons[index].templateId,
+                        beaconTimestamps[index],
+                        encodeData(beaconValues[index]),
+                        signature
+                      );
+                    }
+                  });
                   await expect(
                     dapiServer
                       .connect(roles.searcher)
                       .updateOevProxyDataFeedWithSignedData(
                         oevProxy.address,
                         updateId,
-                        2,
-                        [signedData0, signedData1, signedData2WithUnderflowingData],
+                        beacons.length - 1,
+                        signedDataWithUnderflow,
                         { value: bidAmount }
                       )
                   ).to.be.revertedWith('Value typecasting error');
@@ -4704,348 +5187,279 @@ describe('DapiServer', function () {
             });
             context('All fulfillment data length is not correct', function () {
               it('reverts', async function () {
-                await updateBeacon(airnodeAddress, beaconSetTemplateIds[0], 100);
-                const signedData0 = hre.ethers.utils.defaultAbiCoder.encode(
-                  ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                  [airnodeAddress, beaconSetTemplateIds[0], 0, '0x', '0x']
+                const { roles, dapiServer, oevProxy, beacons } = await deploy();
+                // Populate the Beacons
+                const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
+                const currentTimestamp = await helpers.time.latest();
+                const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
+                await Promise.all(
+                  beacons.map(async (beacon, index) => {
+                    await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+                  })
                 );
-                const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-                const data1 = encodeData(105);
                 const bidAmount = 10000;
                 const updateId = testUtils.generateRandomBytes32();
-                const metadataHash = hre.ethers.utils.solidityKeccak256(
-                  ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
-                  [
-                    (await hre.ethers.provider.getNetwork()).chainId,
-                    dapiServer.address,
-                    oevProxy.address,
-                    roles.searcher.address,
-                    bidAmount,
-                    updateId,
-                    2,
-                    3,
-                  ]
+                // Randomly omit one of the signatures for the Beacon value to be read from the chain
+                const omitSignatureAtIndex = Math.floor(Math.random() * beacons.length);
+                // Lengthen one of the encoded data
+                const encodedData = beacons.map((_, index) => {
+                  return encodeData(beaconValues[index]);
+                });
+                if (omitSignatureAtIndex === beacons.length - 1) {
+                  encodedData[beacons.length - 2] = encodedData[beacons.length - 2] + '00';
+                } else {
+                  encodedData[beacons.length - 1] = encodedData[beacons.length - 1] + '00';
+                }
+                const signatures = await Promise.all(
+                  beacons.map(async (beacon, index) => {
+                    if (index === omitSignatureAtIndex) {
+                      return '0x';
+                    } else {
+                      return await testUtils.signOevData(
+                        dapiServer,
+                        oevProxy.address,
+                        roles.searcher.address,
+                        bidAmount,
+                        updateId,
+                        beacons.length - 1,
+                        beacons.length,
+                        beacon.airnode.wallet,
+                        beacon.templateId,
+                        beaconTimestamps[index],
+                        encodedData[index]
+                      );
+                    }
+                  })
                 );
-                const signature1 = await airnodeWallet.signMessage(
-                  hre.ethers.utils.arrayify(
-                    hre.ethers.utils.keccak256(
-                      hre.ethers.utils.solidityPack(
-                        ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                        [metadataHash, beaconSetTemplateIds[1], nextTimestamp, data1]
-                      )
-                    )
-                  )
-                );
-                const signedData1 = hre.ethers.utils.defaultAbiCoder.encode(
-                  ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                  [airnodeAddress, beaconSetTemplateIds[1], nextTimestamp, data1, signature1]
-                );
-                const data2WithWrongLength = hre.ethers.utils.defaultAbiCoder.encode(['int256', 'int256'], [110, 110]);
-                const signature2 = await airnodeWallet.signMessage(
-                  hre.ethers.utils.arrayify(
-                    hre.ethers.utils.keccak256(
-                      hre.ethers.utils.solidityPack(
-                        ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                        [metadataHash, beaconSetTemplateIds[2], nextTimestamp, data2WithWrongLength]
-                      )
-                    )
-                  )
-                );
-                const signedData2WithDataWithWrongLength = hre.ethers.utils.defaultAbiCoder.encode(
-                  ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                  [airnodeAddress, beaconSetTemplateIds[2], nextTimestamp, data2WithWrongLength, signature2]
-                );
+                // Omit the data if the signature is omitted
+                const signedData = signatures.map((signature, index) => {
+                  if (signature === '0x') {
+                    return encodeSignedData(
+                      beacons[index].airnode.wallet.address,
+                      beacons[index].templateId,
+                      0,
+                      '0x',
+                      signature
+                    );
+                  } else {
+                    return encodeSignedData(
+                      beacons[index].airnode.wallet.address,
+                      beacons[index].templateId,
+                      beaconTimestamps[index],
+                      encodedData[index],
+                      signature
+                    );
+                  }
+                });
                 await expect(
                   dapiServer
                     .connect(roles.searcher)
-                    .updateOevProxyDataFeedWithSignedData(
-                      oevProxy.address,
-                      updateId,
-                      2,
-                      [signedData0, signedData1, signedData2WithDataWithWrongLength],
-                      { value: bidAmount }
-                    )
+                    .updateOevProxyDataFeedWithSignedData(oevProxy.address, updateId, beacons.length - 1, signedData, {
+                      value: bidAmount,
+                    })
                 ).to.be.revertedWith('Data length not correct');
               });
             });
           });
           context('Not all signatures are valid', function () {
             it('reverts', async function () {
-              await updateBeacon(airnodeAddress, beaconSetTemplateIds[0], 100);
-              const signedData0 = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, beaconSetTemplateIds[0], 0, '0x', '0x']
+              const { roles, dapiServer, oevProxy, beacons } = await deploy();
+              // Populate the Beacons
+              const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
+              const currentTimestamp = await helpers.time.latest();
+              const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
+              await Promise.all(
+                beacons.map(async (beacon, index) => {
+                  await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+                })
               );
-              const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-              await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-              const data1 = encodeData(105);
               const bidAmount = 10000;
               const updateId = testUtils.generateRandomBytes32();
-              const metadataHash = hre.ethers.utils.solidityKeccak256(
-                ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
-                [
-                  (await hre.ethers.provider.getNetwork()).chainId,
-                  dapiServer.address,
-                  oevProxy.address,
-                  roles.searcher.address,
-                  bidAmount,
-                  updateId,
-                  2,
-                  3,
-                ]
+              // Randomly omit one of the signatures for the Beacon value to be read from the chain
+              const omitSignatureAtIndex = Math.floor(Math.random() * beacons.length);
+              const signatures = await Promise.all(
+                beacons.map(async (beacon, index) => {
+                  if (index === omitSignatureAtIndex) {
+                    return '0x';
+                  } else {
+                    return await testUtils.signOevData(
+                      dapiServer,
+                      oevProxy.address,
+                      roles.searcher.address,
+                      bidAmount,
+                      updateId,
+                      beacons.length - 1,
+                      beacons.length,
+                      beacon.airnode.wallet,
+                      beacon.templateId,
+                      beaconTimestamps[index],
+                      encodeData(beaconValues[index])
+                    );
+                  }
+                })
               );
-              const signature1 = await airnodeWallet.signMessage(
-                hre.ethers.utils.arrayify(
-                  hre.ethers.utils.keccak256(
-                    hre.ethers.utils.solidityPack(
-                      ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                      [metadataHash, beaconSetTemplateIds[1], nextTimestamp, data1]
-                    )
-                  )
-                )
-              );
-              const signedData1 = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, beaconSetTemplateIds[1], nextTimestamp, data1, signature1]
-              );
-              const data2 = encodeData(110);
-              const signature2OfWrongMetadataHash = await airnodeWallet.signMessage(
-                hre.ethers.utils.arrayify(
-                  hre.ethers.utils.keccak256(
-                    hre.ethers.utils.solidityPack(
-                      ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                      [testUtils.generateRandomBytes32(), beaconSetTemplateIds[2], nextTimestamp, data2]
-                    )
-                  )
-                )
-              );
-              const signedData2WithSignatureOfWrongMetadataHash = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, beaconSetTemplateIds[2], nextTimestamp, data2, signature2OfWrongMetadataHash]
-              );
+              // Change one of the signatures
+              if (omitSignatureAtIndex === beacons.length - 1) {
+                signatures[beacons.length - 2] = '0x12345678';
+              } else {
+                signatures[beacons.length - 1] = '0x12345678';
+              }
+              // Omit the data if the signature is omitted
+              const signedData = signatures.map((signature, index) => {
+                if (signature === '0x') {
+                  return encodeSignedData(
+                    beacons[index].airnode.wallet.address,
+                    beacons[index].templateId,
+                    0,
+                    '0x',
+                    signature
+                  );
+                } else {
+                  return encodeSignedData(
+                    beacons[index].airnode.wallet.address,
+                    beacons[index].templateId,
+                    beaconTimestamps[index],
+                    encodeData(beaconValues[index]),
+                    signature
+                  );
+                }
+              });
               await expect(
                 dapiServer
                   .connect(roles.searcher)
-                  .updateOevProxyDataFeedWithSignedData(
-                    oevProxy.address,
-                    updateId,
-                    2,
-                    [signedData0, signedData1, signedData2WithSignatureOfWrongMetadataHash],
-                    { value: bidAmount }
-                  )
-              ).to.be.revertedWith('Signature mismatch');
-              const signature2 = await airnodeWallet.signMessage(
-                hre.ethers.utils.arrayify(
-                  hre.ethers.utils.keccak256(
-                    hre.ethers.utils.solidityPack(
-                      ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                      [metadataHash, beaconSetTemplateIds[2], nextTimestamp, data2]
-                    )
-                  )
-                )
-              );
-              const signedData2WithWrongAirnodeAddress = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [testUtils.generateRandomAddress(), beaconSetTemplateIds[2], nextTimestamp, data2, signature2]
-              );
-              await expect(
-                dapiServer
-                  .connect(roles.searcher)
-                  .updateOevProxyDataFeedWithSignedData(
-                    oevProxy.address,
-                    updateId,
-                    2,
-                    [signedData0, signedData1, signedData2WithWrongAirnodeAddress],
-                    { value: bidAmount }
-                  )
-              ).to.be.revertedWith('Signature mismatch');
-              const signedData2WithWrongTemplateId = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, testUtils.generateRandomBytes32(), nextTimestamp, data2, signature2]
-              );
-              await expect(
-                dapiServer
-                  .connect(roles.searcher)
-                  .updateOevProxyDataFeedWithSignedData(
-                    oevProxy.address,
-                    updateId,
-                    2,
-                    [signedData0, signedData1, signedData2WithWrongTemplateId],
-                    { value: bidAmount }
-                  )
-              ).to.be.revertedWith('Signature mismatch');
-              const signedData2WithWrongTimestamp = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, beaconSetTemplateIds[2], 123456, data2, signature2]
-              );
-              await expect(
-                dapiServer
-                  .connect(roles.searcher)
-                  .updateOevProxyDataFeedWithSignedData(
-                    oevProxy.address,
-                    updateId,
-                    2,
-                    [signedData0, signedData1, signedData2WithWrongTimestamp],
-                    { value: bidAmount }
-                  )
-              ).to.be.revertedWith('Signature mismatch');
-              const signedData2WithWrongData = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, beaconSetTemplateIds[2], nextTimestamp, encodeData(123456), signature2]
-              );
-              await expect(
-                dapiServer
-                  .connect(roles.searcher)
-                  .updateOevProxyDataFeedWithSignedData(
-                    oevProxy.address,
-                    updateId,
-                    2,
-                    [signedData0, signedData1, signedData2WithWrongData],
-                    { value: bidAmount }
-                  )
-              ).to.be.revertedWith('Signature mismatch');
-              const signedData2WithInvalidSignature = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, beaconSetTemplateIds[2], nextTimestamp, data2, '0x123456']
-              );
-              await expect(
-                dapiServer
-                  .connect(roles.searcher)
-                  .updateOevProxyDataFeedWithSignedData(
-                    oevProxy.address,
-                    updateId,
-                    2,
-                    [signedData0, signedData1, signedData2WithInvalidSignature],
-                    { value: bidAmount }
-                  )
+                  .updateOevProxyDataFeedWithSignedData(oevProxy.address, updateId, beacons.length - 1, signedData, {
+                    value: bidAmount,
+                  })
               ).to.be.revertedWith('ECDSA: invalid signature length');
             });
           });
         });
         context('Signed data with no signature has data', function () {
           it('reverts', async function () {
-            const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-            await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-            const data0 = encodeData(100);
-            const signedData0 = hre.ethers.utils.defaultAbiCoder.encode(
-              ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-              [airnodeAddress, beaconSetTemplateIds[0], nextTimestamp, data0, '0x']
+            const { roles, dapiServer, oevProxy, beacons } = await deploy();
+            // Populate the Beacons
+            const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
+            const currentTimestamp = await helpers.time.latest();
+            const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
+            await Promise.all(
+              beacons.map(async (beacon, index) => {
+                await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+              })
             );
-            const data1 = encodeData(105);
             const bidAmount = 10000;
             const updateId = testUtils.generateRandomBytes32();
-            const metadataHash = hre.ethers.utils.solidityKeccak256(
-              ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
-              [
-                (await hre.ethers.provider.getNetwork()).chainId,
-                dapiServer.address,
-                oevProxy.address,
-                roles.searcher.address,
-                bidAmount,
-                updateId,
-                2,
-                3,
-              ]
+            // Randomly omit one of the signatures for the Beacon value to be read from the chain
+            const omitSignatureAtIndex = Math.floor(Math.random() * beacons.length);
+            const signatures = await Promise.all(
+              beacons.map(async (beacon, index) => {
+                if (index === omitSignatureAtIndex) {
+                  return '0x';
+                } else {
+                  return await testUtils.signOevData(
+                    dapiServer,
+                    oevProxy.address,
+                    roles.searcher.address,
+                    bidAmount,
+                    updateId,
+                    beacons.length - 1,
+                    beacons.length,
+                    beacon.airnode.wallet,
+                    beacon.templateId,
+                    beaconTimestamps[index],
+                    encodeData(beaconValues[index])
+                  );
+                }
+              })
             );
-            const signature1 = await airnodeWallet.signMessage(
-              hre.ethers.utils.arrayify(
-                hre.ethers.utils.keccak256(
-                  hre.ethers.utils.solidityPack(
-                    ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                    [metadataHash, beaconSetTemplateIds[1], nextTimestamp, data1]
-                  )
-                )
-              )
-            );
-            const signedData1 = hre.ethers.utils.defaultAbiCoder.encode(
-              ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-              [airnodeAddress, beaconSetTemplateIds[1], nextTimestamp, data1, signature1]
-            );
-            const data2 = encodeData(110);
-            const signature2 = await airnodeWallet.signMessage(
-              hre.ethers.utils.arrayify(
-                hre.ethers.utils.keccak256(
-                  hre.ethers.utils.solidityPack(
-                    ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                    [metadataHash, beaconSetTemplateIds[2], nextTimestamp, data2]
-                  )
-                )
-              )
-            );
-            const signedData2 = hre.ethers.utils.defaultAbiCoder.encode(
-              ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-              [airnodeAddress, beaconSetTemplateIds[2], nextTimestamp, data2, signature2]
-            );
+            const signedData = signatures.map((signature, index) => {
+              return encodeSignedData(
+                beacons[index].airnode.wallet.address,
+                beacons[index].templateId,
+                beaconTimestamps[index],
+                encodeData(beaconValues[index]),
+                signature
+              );
+            });
             await expect(
               dapiServer
                 .connect(roles.searcher)
-                .updateOevProxyDataFeedWithSignedData(
-                  oevProxy.address,
-                  updateId,
-                  2,
-                  [signedData0, signedData1, signedData2],
-                  {
-                    value: bidAmount,
-                  }
-                )
+                .updateOevProxyDataFeedWithSignedData(oevProxy.address, updateId, beacons.length - 1, signedData, {
+                  value: bidAmount,
+                })
             ).to.be.revertedWith('Missing signature');
           });
         });
       });
       context('All signed data is not decodable', function () {
         it('reverts', async function () {
-          await updateBeacon(airnodeAddress, beaconSetTemplateIds[0], 100);
-          const signedData0 = hre.ethers.utils.defaultAbiCoder.encode(
-            ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-            [airnodeAddress, beaconSetTemplateIds[0], 0, '0x', '0x']
+          const { roles, dapiServer, oevProxy, beacons } = await deploy();
+          // Populate the Beacons
+          const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
+          const currentTimestamp = await helpers.time.latest();
+          const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
+          await Promise.all(
+            beacons.map(async (beacon, index) => {
+              await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+            })
           );
-          const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-          await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-          const data1 = encodeData(105);
           const bidAmount = 10000;
           const updateId = testUtils.generateRandomBytes32();
-          const metadataHash = hre.ethers.utils.solidityKeccak256(
-            ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
-            [
-              (await hre.ethers.provider.getNetwork()).chainId,
-              dapiServer.address,
-              oevProxy.address,
-              roles.searcher.address,
-              bidAmount,
-              updateId,
-              2,
-              3,
-            ]
+          // Randomly omit one of the signatures for the Beacon value to be read from the chain
+          const omitSignatureAtIndex = Math.floor(Math.random() * beacons.length);
+          const signatures = await Promise.all(
+            beacons.map(async (beacon, index) => {
+              if (index === omitSignatureAtIndex) {
+                return '0x';
+              } else {
+                return await testUtils.signOevData(
+                  dapiServer,
+                  oevProxy.address,
+                  roles.searcher.address,
+                  bidAmount,
+                  updateId,
+                  beacons.length - 1,
+                  beacons.length,
+                  beacon.airnode.wallet,
+                  beacon.templateId,
+                  beaconTimestamps[index],
+                  encodeData(beaconValues[index])
+                );
+              }
+            })
           );
-          const signature1 = await airnodeWallet.signMessage(
-            hre.ethers.utils.arrayify(
-              hre.ethers.utils.keccak256(
-                hre.ethers.utils.solidityPack(
-                  ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                  [metadataHash, beaconSetTemplateIds[1], nextTimestamp, data1]
-                )
-              )
-            )
-          );
-          const signedData1 = hre.ethers.utils.defaultAbiCoder.encode(
-            ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-            [airnodeAddress, beaconSetTemplateIds[1], nextTimestamp, data1, signature1]
-          );
-          const signedData2 = '0x123456';
+          // Omit the data if the signature is omitted
+          const signedData = signatures.map((signature, index) => {
+            if (signature === '0x') {
+              return encodeSignedData(
+                beacons[index].airnode.wallet.address,
+                beacons[index].templateId,
+                0,
+                '0x',
+                signature
+              );
+            } else {
+              return encodeSignedData(
+                beacons[index].airnode.wallet.address,
+                beacons[index].templateId,
+                beaconTimestamps[index],
+                encodeData(beaconValues[index]),
+                signature
+              );
+            }
+          });
+          // Change one of the signedData
+          if (omitSignatureAtIndex === beacons.length - 1) {
+            signedData[beacons.length - 2] = '0x12345678';
+          } else {
+            signedData[beacons.length - 1] = '0x12345678';
+          }
           await expect(
             dapiServer
               .connect(roles.searcher)
-              .updateOevProxyDataFeedWithSignedData(
-                oevProxy.address,
-                updateId,
-                2,
-                [signedData0, signedData1, signedData2],
-                {
-                  value: bidAmount,
-                }
-              )
-          ).to.be.reverted;
+              .updateOevProxyDataFeedWithSignedData(oevProxy.address, updateId, beacons.length - 1, signedData, {
+                value: bidAmount,
+              })
+          ).to.be.revertedWithoutReason;
         });
       });
     });
@@ -5058,38 +5472,41 @@ describe('DapiServer', function () {
                 context('Timestamp is valid', function () {
                   context('Updates timestamp', function () {
                     it('updates Beacon with signed data', async function () {
-                      const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                      await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-                      const data = encodeData(100);
+                      const { roles, dapiServer, oevProxy, beacons } = await deploy();
+                      const beacon = beacons[0];
+                      const beaconValue = Math.floor(Math.random() * 200 - 100);
+                      const beaconTimestamp = await helpers.time.latest();
                       const bidAmount = 10000;
                       const updateId = testUtils.generateRandomBytes32();
-                      const metadataHash = hre.ethers.utils.solidityKeccak256(
-                        ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
-                        [
-                          (await hre.ethers.provider.getNetwork()).chainId,
-                          dapiServer.address,
-                          oevProxy.address,
-                          roles.searcher.address,
-                          bidAmount,
-                          updateId,
-                          1,
-                          1,
-                        ]
+                      const signature = await testUtils.signOevData(
+                        dapiServer,
+                        oevProxy.address,
+                        roles.searcher.address,
+                        bidAmount,
+                        updateId,
+                        1,
+                        1,
+                        beacon.airnode.wallet,
+                        beacon.templateId,
+                        beaconTimestamp,
+                        encodeData(beaconValue)
                       );
-                      const signature = await airnodeWallet.signMessage(
-                        hre.ethers.utils.arrayify(
-                          hre.ethers.utils.keccak256(
-                            hre.ethers.utils.solidityPack(
-                              ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                              [metadataHash, templateId, nextTimestamp, data]
-                            )
-                          )
-                        )
+                      const signedData = await encodeSignedData(
+                        beacon.airnode.wallet.address,
+                        beacon.templateId,
+                        beaconTimestamp,
+                        encodeData(beaconValue),
+                        signature
                       );
-                      const signedData = hre.ethers.utils.defaultAbiCoder.encode(
-                        ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                        [airnodeAddress, templateId, nextTimestamp, data, signature]
+                      const beaconBefore = await dapiServer.dataFeeds(beacon.beaconId);
+                      expect(beaconBefore.value).to.equal(0);
+                      expect(beaconBefore.timestamp).to.equal(0);
+                      const oevProxyBeaconBefore = await dapiServer.oevProxyToIdToDataFeed(
+                        oevProxy.address,
+                        beacon.beaconId
                       );
+                      expect(oevProxyBeaconBefore.value).to.equal(0);
+                      expect(oevProxyBeaconBefore.timestamp).to.equal(0);
                       await expect(
                         dapiServer
                           .connect(roles.searcher)
@@ -5098,45 +5515,45 @@ describe('DapiServer', function () {
                           })
                       )
                         .to.emit(dapiServer, 'UpdatedOevProxyBeaconWithSignedData')
-                        .withArgs(beaconId, oevProxy.address, updateId, 100, nextTimestamp);
-                      const oevProxyBeacon = await dapiServer.oevProxyToIdToDataFeed(oevProxy.address, beaconId);
-                      expect(oevProxyBeacon.value).to.equal(100);
-                      expect(oevProxyBeacon.timestamp).to.equal(nextTimestamp);
+                        .withArgs(beacon.beaconId, oevProxy.address, updateId, beaconValue, beaconTimestamp);
+                      const beaconAfter = await dapiServer.dataFeeds(beacon.beaconId);
+                      expect(beaconAfter.value).to.equal(0);
+                      expect(beaconAfter.timestamp).to.equal(0);
+                      const oevProxyBeaconAfter = await dapiServer.oevProxyToIdToDataFeed(
+                        oevProxy.address,
+                        beacon.beaconId
+                      );
+                      expect(oevProxyBeaconAfter.value).to.equal(beaconValue);
+                      expect(oevProxyBeaconAfter.timestamp).to.equal(beaconTimestamp);
                     });
                   });
                   context('Does not update timestamp', function () {
                     it('reverts', async function () {
-                      const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                      await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-                      const data = encodeData(100);
+                      const { roles, dapiServer, oevProxy, beacons } = await deploy();
+                      const beacon = beacons[0];
+                      const beaconValue = Math.floor(Math.random() * 200 - 100);
+                      const beaconTimestamp = await helpers.time.latest();
                       const bidAmount = 10000;
                       const updateId = testUtils.generateRandomBytes32();
-                      const metadataHash = hre.ethers.utils.solidityKeccak256(
-                        ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
-                        [
-                          (await hre.ethers.provider.getNetwork()).chainId,
-                          dapiServer.address,
-                          oevProxy.address,
-                          roles.searcher.address,
-                          bidAmount,
-                          updateId,
-                          1,
-                          1,
-                        ]
+                      const signature = await testUtils.signOevData(
+                        dapiServer,
+                        oevProxy.address,
+                        roles.searcher.address,
+                        bidAmount,
+                        updateId,
+                        1,
+                        1,
+                        beacon.airnode.wallet,
+                        beacon.templateId,
+                        beaconTimestamp,
+                        encodeData(beaconValue)
                       );
-                      const signature = await airnodeWallet.signMessage(
-                        hre.ethers.utils.arrayify(
-                          hre.ethers.utils.keccak256(
-                            hre.ethers.utils.solidityPack(
-                              ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                              [metadataHash, templateId, nextTimestamp, data]
-                            )
-                          )
-                        )
-                      );
-                      const signedData = hre.ethers.utils.defaultAbiCoder.encode(
-                        ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                        [airnodeAddress, templateId, nextTimestamp, data, signature]
+                      const signedData = await encodeSignedData(
+                        beacon.airnode.wallet.address,
+                        beacon.templateId,
+                        beaconTimestamp,
+                        encodeData(beaconValue),
+                        signature
                       );
                       await dapiServer
                         .connect(roles.searcher)
@@ -5155,336 +5572,197 @@ describe('DapiServer', function () {
                 });
                 context('Timestamp is not valid', function () {
                   it('reverts', async function () {
-                    const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                    await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-                    const timestampThatIsTooOld = nextTimestamp - 60 * 60;
-                    const data = encodeData(100);
+                    const { roles, dapiServer, oevProxy, beacons } = await deploy();
+                    const beacon = beacons[0];
+                    const beaconValue = Math.floor(Math.random() * 200 - 100);
                     const bidAmount = 10000;
                     const updateId = testUtils.generateRandomBytes32();
-                    const metadataHash = hre.ethers.utils.solidityKeccak256(
-                      ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
-                      [
-                        (await hre.ethers.provider.getNetwork()).chainId,
-                        dapiServer.address,
-                        oevProxy.address,
-                        roles.searcher.address,
-                        bidAmount,
-                        updateId,
-                        1,
-                        1,
-                      ]
-                    );
-                    const signatureOfTimestampThatIsTooOld = await airnodeWallet.signMessage(
-                      hre.ethers.utils.arrayify(
-                        hre.ethers.utils.keccak256(
-                          hre.ethers.utils.solidityPack(
-                            ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                            [metadataHash, templateId, timestampThatIsTooOld, data]
-                          )
-                        )
-                      )
-                    );
-                    const signedDataWithTimestampThatIsTooOld = hre.ethers.utils.defaultAbiCoder.encode(
-                      ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                      [airnodeAddress, templateId, timestampThatIsTooOld, data, signatureOfTimestampThatIsTooOld]
-                    );
-                    await expect(
-                      dapiServer
-                        .connect(roles.searcher)
-                        .updateOevProxyDataFeedWithSignedData(
-                          oevProxy.address,
-                          updateId,
-                          1,
-                          [signedDataWithTimestampThatIsTooOld],
-                          { value: bidAmount }
-                        )
-                    ).to.be.revertedWith('Timestamp not valid');
-                    const timestampThatIsTooNew = nextTimestamp + 15 * 60 + 1;
-                    const signatureOfTimestampThatIsTooNew = await airnodeWallet.signMessage(
-                      hre.ethers.utils.arrayify(
-                        hre.ethers.utils.keccak256(
-                          hre.ethers.utils.solidityPack(
-                            ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                            [metadataHash, templateId, timestampThatIsTooNew, data]
-                          )
-                        )
-                      )
-                    );
-                    const signedDataWithTimestampThatIsTooNew = hre.ethers.utils.defaultAbiCoder.encode(
-                      ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                      [airnodeAddress, templateId, timestampThatIsTooNew, data, signatureOfTimestampThatIsTooNew]
-                    );
-                    await expect(
-                      dapiServer
-                        .connect(roles.searcher)
-                        .updateOevProxyDataFeedWithSignedData(
-                          oevProxy.address,
-                          updateId,
-                          1,
-                          [signedDataWithTimestampThatIsTooNew],
-                          { value: bidAmount }
-                        )
-                    ).to.be.revertedWith('Timestamp not valid');
-                  });
-                });
-              });
-              context('Decoded fulfillment data cannot be typecasted into int224', function () {
-                it('reverts', async function () {
-                  const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                  await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-                  const overflowingData = encodeData(hre.ethers.BigNumber.from(2).pow(223));
-                  const bidAmount = 10000;
-                  const updateId = testUtils.generateRandomBytes32();
-                  const metadataHash = hre.ethers.utils.solidityKeccak256(
-                    ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
-                    [
-                      (await hre.ethers.provider.getNetwork()).chainId,
-                      dapiServer.address,
+                    const nextTimestamp = (await helpers.time.latest()) + 1;
+                    await helpers.time.setNextBlockTimestamp(nextTimestamp);
+                    const beaconTimestampTooLate = nextTimestamp - 60 * 60;
+                    const signatureTooLate = await testUtils.signOevData(
+                      dapiServer,
                       oevProxy.address,
                       roles.searcher.address,
                       bidAmount,
                       updateId,
                       1,
                       1,
-                    ]
-                  );
-                  const signatureOfOverflowingData = await airnodeWallet.signMessage(
-                    hre.ethers.utils.arrayify(
-                      hre.ethers.utils.keccak256(
-                        hre.ethers.utils.solidityPack(
-                          ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                          [metadataHash, templateId, nextTimestamp, overflowingData]
-                        )
-                      )
-                    )
-                  );
-                  const signedDataWithOverflowingData = hre.ethers.utils.defaultAbiCoder.encode(
-                    ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                    [airnodeAddress, templateId, nextTimestamp, overflowingData, signatureOfOverflowingData]
-                  );
-                  await expect(
-                    dapiServer
-                      .connect(roles.searcher)
-                      .updateOevProxyDataFeedWithSignedData(
-                        oevProxy.address,
-                        updateId,
-                        1,
-                        [signedDataWithOverflowingData],
-                        {
+                      beacon.airnode.wallet,
+                      beacon.templateId,
+                      beaconTimestampTooLate,
+                      encodeData(beaconValue)
+                    );
+                    const signedDataTooLate = await encodeSignedData(
+                      beacon.airnode.wallet.address,
+                      beacon.templateId,
+                      beaconTimestampTooLate,
+                      encodeData(beaconValue),
+                      signatureTooLate
+                    );
+                    await expect(
+                      dapiServer
+                        .connect(roles.searcher)
+                        .updateOevProxyDataFeedWithSignedData(oevProxy.address, updateId, 1, [signedDataTooLate], {
                           value: bidAmount,
-                        }
-                      )
-                  ).to.be.revertedWith('Value typecasting error');
-                  const underflowingData = encodeData(hre.ethers.BigNumber.from(-2).pow(223).sub(1));
-                  const signatureOfUnderflowingData = await airnodeWallet.signMessage(
-                    hre.ethers.utils.arrayify(
-                      hre.ethers.utils.keccak256(
-                        hre.ethers.utils.solidityPack(
-                          ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                          [metadataHash, templateId, nextTimestamp, underflowingData]
-                        )
-                      )
-                    )
-                  );
-                  const signedDataWithUnderflowingData = hre.ethers.utils.defaultAbiCoder.encode(
-                    ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                    [airnodeAddress, templateId, nextTimestamp, underflowingData, signatureOfUnderflowingData]
-                  );
-                  await expect(
-                    dapiServer
-                      .connect(roles.searcher)
-                      .updateOevProxyDataFeedWithSignedData(
-                        oevProxy.address,
-                        updateId,
-                        1,
-                        [signedDataWithUnderflowingData],
-                        {
+                        })
+                    ).to.be.revertedWith('Timestamp not valid');
+                    const beaconTimestampFromFuture = nextTimestamp + 15 * 60 + 1;
+                    const signatureFromFuture = await testUtils.signOevData(
+                      dapiServer,
+                      oevProxy.address,
+                      roles.searcher.address,
+                      bidAmount,
+                      updateId,
+                      1,
+                      1,
+                      beacon.airnode.wallet,
+                      beacon.templateId,
+                      beaconTimestampFromFuture,
+                      encodeData(beaconValue)
+                    );
+                    const signedDataFromFuture = await encodeSignedData(
+                      beacon.airnode.wallet.address,
+                      beacon.templateId,
+                      beaconTimestampFromFuture,
+                      encodeData(beaconValue),
+                      signatureFromFuture
+                    );
+                    await expect(
+                      dapiServer
+                        .connect(roles.searcher)
+                        .updateOevProxyDataFeedWithSignedData(oevProxy.address, updateId, 1, [signedDataFromFuture], {
                           value: bidAmount,
-                        }
-                      )
-                  ).to.be.revertedWith('Value typecasting error');
+                        })
+                    ).to.be.revertedWith('Timestamp not valid');
+                  });
                 });
               });
-            });
-            context('Fulfillment data length is not correct', function () {
-              it('reverts', async function () {
-                const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-                await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-                const dataWithWrongLength = hre.ethers.utils.defaultAbiCoder.encode(['int256', 'int256'], [100, 100]);
-                const bidAmount = 10000;
-                const updateId = testUtils.generateRandomBytes32();
-                const metadataHash = hre.ethers.utils.solidityKeccak256(
-                  ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
-                  [
-                    (await hre.ethers.provider.getNetwork()).chainId,
-                    dapiServer.address,
+              context('Decoded fulfillment data cannot be typecasted into int224', function () {
+                it('reverts', async function () {
+                  const { roles, dapiServer, oevProxy, beacons } = await deploy();
+                  const beacon = beacons[0];
+                  const beaconTimestamp = await helpers.time.latest();
+                  const bidAmount = 10000;
+                  const updateId = testUtils.generateRandomBytes32();
+                  const beaconValueWithOverflow = ethers.BigNumber.from(2).pow(223);
+                  const signatureWithOverflow = await testUtils.signOevData(
+                    dapiServer,
                     oevProxy.address,
                     roles.searcher.address,
                     bidAmount,
                     updateId,
                     1,
                     1,
-                  ]
-                );
-                const signature = await airnodeWallet.signMessage(
-                  hre.ethers.utils.arrayify(
-                    hre.ethers.utils.keccak256(
-                      hre.ethers.utils.solidityPack(
-                        ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                        [metadataHash, templateId, nextTimestamp, dataWithWrongLength]
-                      )
-                    )
-                  )
-                );
-                const signedDataWithDataWithWrongLength = hre.ethers.utils.defaultAbiCoder.encode(
-                  ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                  [airnodeAddress, templateId, nextTimestamp, dataWithWrongLength, signature]
-                );
-                await expect(
-                  dapiServer
-                    .connect(roles.searcher)
-                    .updateOevProxyDataFeedWithSignedData(
-                      oevProxy.address,
-                      updateId,
-                      1,
-                      [signedDataWithDataWithWrongLength],
-                      {
+                    beacon.airnode.wallet,
+                    beacon.templateId,
+                    beaconTimestamp,
+                    encodeData(beaconValueWithOverflow)
+                  );
+                  const signedDataWithOverflow = await encodeSignedData(
+                    beacon.airnode.wallet.address,
+                    beacon.templateId,
+                    beaconTimestamp,
+                    encodeData(beaconValueWithOverflow),
+                    signatureWithOverflow
+                  );
+                  await expect(
+                    dapiServer
+                      .connect(roles.searcher)
+                      .updateOevProxyDataFeedWithSignedData(oevProxy.address, updateId, 1, [signedDataWithOverflow], {
                         value: bidAmount,
-                      }
-                    )
-                ).to.be.revertedWith('Data length not correct');
+                      })
+                  ).to.be.revertedWith('Value typecasting error');
+                  const beaconValueWithUnderflow = ethers.BigNumber.from(-2).pow(223).sub(1);
+                  const signatureWithUnderflow = await testUtils.signOevData(
+                    dapiServer,
+                    oevProxy.address,
+                    roles.searcher.address,
+                    bidAmount,
+                    updateId,
+                    1,
+                    1,
+                    beacon.airnode.wallet,
+                    beacon.templateId,
+                    beaconTimestamp,
+                    encodeData(beaconValueWithUnderflow)
+                  );
+                  const signedDataWithUnderflow = await encodeSignedData(
+                    beacon.airnode.wallet.address,
+                    beacon.templateId,
+                    beaconTimestamp,
+                    encodeData(beaconValueWithUnderflow),
+                    signatureWithUnderflow
+                  );
+                  await expect(
+                    dapiServer
+                      .connect(roles.searcher)
+                      .updateOevProxyDataFeedWithSignedData(oevProxy.address, updateId, 1, [signedDataWithUnderflow], {
+                        value: bidAmount,
+                      })
+                  ).to.be.revertedWith('Value typecasting error');
+                });
               });
             });
-          });
-          context('Signature is not valid', function () {
-            it('reverts', async function () {
-              const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-              await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-              const data = encodeData(100);
-              const bidAmount = 10000;
-              const updateId = testUtils.generateRandomBytes32();
-              const metadataHash = hre.ethers.utils.solidityKeccak256(
-                ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
-                [
-                  (await hre.ethers.provider.getNetwork()).chainId,
-                  dapiServer.address,
+            context('Fulfillment data length is not correct', function () {
+              it('reverts', async function () {
+                const { roles, dapiServer, oevProxy, beacons } = await deploy();
+                const beacon = beacons[0];
+                const beaconValue = Math.floor(Math.random() * 200 - 100);
+                const beaconTimestamp = await helpers.time.latest();
+                const bidAmount = 10000;
+                const updateId = testUtils.generateRandomBytes32();
+                const signature = await testUtils.signOevData(
+                  dapiServer,
                   oevProxy.address,
                   roles.searcher.address,
                   bidAmount,
                   updateId,
                   1,
                   1,
-                ]
-              );
-              const signatureOfWrongMetadataHash = await airnodeWallet.signMessage(
-                hre.ethers.utils.arrayify(
-                  hre.ethers.utils.keccak256(
-                    hre.ethers.utils.solidityPack(
-                      ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                      [testUtils.generateRandomBytes32(), templateId, nextTimestamp, data]
-                    )
-                  )
-                )
-              );
-              const signedDataWithSignatureOfWrongMetadataHash = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, templateId, nextTimestamp, data, signatureOfWrongMetadataHash]
-              );
-              await expect(
-                dapiServer
-                  .connect(roles.searcher)
-                  .updateOevProxyDataFeedWithSignedData(
-                    oevProxy.address,
-                    updateId,
-                    1,
-                    [signedDataWithSignatureOfWrongMetadataHash],
-                    {
+                  beacon.airnode.wallet,
+                  beacon.templateId,
+                  beaconTimestamp,
+                  encodeData(beaconValue) + '00'
+                );
+                const signedData = await encodeSignedData(
+                  beacon.airnode.wallet.address,
+                  beacon.templateId,
+                  beaconTimestamp,
+                  encodeData(beaconValue) + '00',
+                  signature
+                );
+                await expect(
+                  dapiServer
+                    .connect(roles.searcher)
+                    .updateOevProxyDataFeedWithSignedData(oevProxy.address, updateId, 1, [signedData], {
                       value: bidAmount,
-                    }
-                  )
-              ).to.be.revertedWith('Signature mismatch');
-              const signature = await airnodeWallet.signMessage(
-                hre.ethers.utils.arrayify(
-                  hre.ethers.utils.keccak256(
-                    hre.ethers.utils.solidityPack(
-                      ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                      [metadataHash, templateId, nextTimestamp, data]
-                    )
-                  )
-                )
-              );
-              const signedDataWithWrongAirnodeAddress = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [testUtils.generateRandomAddress(), templateId, nextTimestamp, data, signature]
-              );
-              await expect(
-                dapiServer
-                  .connect(roles.searcher)
-                  .updateOevProxyDataFeedWithSignedData(
-                    oevProxy.address,
-                    updateId,
-                    1,
-                    [signedDataWithWrongAirnodeAddress],
-                    {
-                      value: bidAmount,
-                    }
-                  )
-              ).to.be.revertedWith('Signature mismatch');
-              const signedDataWithWrongTemplateId = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, testUtils.generateRandomBytes32(), nextTimestamp, data, signature]
+                    })
+                ).to.be.revertedWith('Data length not correct');
+              });
+            });
+          });
+          context('Signature is not valid', function () {
+            it('reverts', async function () {
+              const { roles, dapiServer, oevProxy, beacons } = await deploy();
+              const beacon = beacons[0];
+              const beaconValue = Math.floor(Math.random() * 200 - 100);
+              const beaconTimestamp = await helpers.time.latest();
+              const bidAmount = 10000;
+              const updateId = testUtils.generateRandomBytes32();
+              const signedData = await encodeSignedData(
+                beacon.airnode.wallet.address,
+                beacon.templateId,
+                beaconTimestamp,
+                encodeData(beaconValue),
+                '0x12345678'
               );
               await expect(
                 dapiServer
                   .connect(roles.searcher)
-                  .updateOevProxyDataFeedWithSignedData(
-                    oevProxy.address,
-                    updateId,
-                    1,
-                    [signedDataWithWrongTemplateId],
-                    {
-                      value: bidAmount,
-                    }
-                  )
-              ).to.be.revertedWith('Signature mismatch');
-              const signedDataWithWrongTimestamp = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, templateId, 123456, data, signature]
-              );
-              await expect(
-                dapiServer
-                  .connect(roles.searcher)
-                  .updateOevProxyDataFeedWithSignedData(oevProxy.address, updateId, 1, [signedDataWithWrongTimestamp], {
+                  .updateOevProxyDataFeedWithSignedData(oevProxy.address, updateId, 1, [signedData], {
                     value: bidAmount,
                   })
-              ).to.be.revertedWith('Signature mismatch');
-              const signedDataWithWrongData = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, templateId, nextTimestamp, encodeData(123456), signature]
-              );
-              await expect(
-                dapiServer
-                  .connect(roles.searcher)
-                  .updateOevProxyDataFeedWithSignedData(oevProxy.address, updateId, 1, [signedDataWithWrongData], {
-                    value: bidAmount,
-                  })
-              ).to.be.revertedWith('Signature mismatch');
-              const signedDataWithInvalidSignature = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, templateId, nextTimestamp, data, '0x123456']
-              );
-              await expect(
-                dapiServer
-                  .connect(roles.searcher)
-                  .updateOevProxyDataFeedWithSignedData(
-                    oevProxy.address,
-                    updateId,
-                    1,
-                    [signedDataWithInvalidSignature],
-                    {
-                      value: bidAmount,
-                    }
-                  )
               ).to.be.revertedWith('ECDSA: invalid signature length');
             });
           });
@@ -5492,37 +5770,47 @@ describe('DapiServer', function () {
         context('Signature length is zero', function () {
           context('Data length is not zero', function () {
             it('reverts', async function () {
-              const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-              await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-              const data = encodeData(100);
-              const signature = '0x';
-              const signedData = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, templateId, nextTimestamp, data, signature]
-              );
+              const { roles, dapiServer, oevProxy, beacons } = await deploy();
+              const beacon = beacons[0];
+              const beaconValue = Math.floor(Math.random() * 200 - 100);
+              const beaconTimestamp = await helpers.time.latest();
+              const bidAmount = 10000;
               const updateId = testUtils.generateRandomBytes32();
+              const signedData = await encodeSignedData(
+                beacon.airnode.wallet.address,
+                beacon.templateId,
+                beaconTimestamp,
+                encodeData(beaconValue),
+                '0x'
+              );
               await expect(
                 dapiServer
-                  .connect(roles.randomPerson)
-                  .updateOevProxyDataFeedWithSignedData(oevProxy.address, updateId, 1, [signedData])
+                  .connect(roles.searcher)
+                  .updateOevProxyDataFeedWithSignedData(oevProxy.address, updateId, 1, [signedData], {
+                    value: bidAmount,
+                  })
               ).to.be.revertedWith('Missing signature');
             });
           });
           context('Data length is zero', function () {
             it('reverts', async function () {
-              const nextTimestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-              await hre.ethers.provider.send('evm_setNextBlockTimestamp', [nextTimestamp]);
-              const data = '0x';
-              const signature = '0x';
-              const signedData = hre.ethers.utils.defaultAbiCoder.encode(
-                ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                [airnodeAddress, templateId, nextTimestamp, data, signature]
-              );
+              const { roles, dapiServer, oevProxy, beacons } = await deploy();
+              const beacon = beacons[0];
+              const bidAmount = 10000;
               const updateId = testUtils.generateRandomBytes32();
+              const signedData = await encodeSignedData(
+                beacon.airnode.wallet.address,
+                beacon.templateId,
+                0,
+                '0x',
+                '0x'
+              );
               await expect(
                 dapiServer
-                  .connect(roles.randomPerson)
-                  .updateOevProxyDataFeedWithSignedData(oevProxy.address, updateId, 1, [signedData])
+                  .connect(roles.searcher)
+                  .updateOevProxyDataFeedWithSignedData(oevProxy.address, updateId, 1, [signedData], {
+                    value: bidAmount,
+                  })
               ).to.be.revertedWith('Missing data');
             });
           });
@@ -5530,21 +5818,28 @@ describe('DapiServer', function () {
       });
       context('Signed data is not decodable', function () {
         it('reverts', async function () {
-          const signedData = '0x123456';
+          const { roles, dapiServer, oevProxy } = await deploy();
+          const bidAmount = 10000;
           const updateId = testUtils.generateRandomBytes32();
           await expect(
             dapiServer
-              .connect(roles.randomPerson)
-              .updateOevProxyDataFeedWithSignedData(oevProxy.address, updateId, 1, [signedData])
-          ).to.be.reverted;
+              .connect(roles.searcher)
+              .updateOevProxyDataFeedWithSignedData(oevProxy.address, updateId, 1, ['0x12345678'], {
+                value: bidAmount,
+              })
+          ).to.be.revertedWithoutReason;
         });
       });
     });
     context('No Beacon is specified', function () {
       it('reverts', async function () {
+        const { roles, dapiServer, oevProxy } = await deploy();
+        const bidAmount = 10000;
         const updateId = testUtils.generateRandomBytes32();
         await expect(
-          dapiServer.connect(roles.randomPerson).updateOevProxyDataFeedWithSignedData(oevProxy.address, updateId, 1, [])
+          dapiServer.connect(roles.searcher).updateOevProxyDataFeedWithSignedData(oevProxy.address, updateId, 0, [], {
+            value: bidAmount,
+          })
         ).to.be.revertedWith('Specified no Beacons');
       });
     });
@@ -5556,54 +5851,44 @@ describe('DapiServer', function () {
         context('OEV proxy balance is not zero', function () {
           context('Beneficiary does not revert the transfer', function () {
             it('withdraws the OEV proxy balance to the respective beneficiary', async function () {
-              const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-              const data = encodeData(123);
+              const { roles, dapiServer, oevProxy, beacons } = await deploy();
+              const beacon = beacons[0];
+              const beaconValue = Math.floor(Math.random() * 200 - 100);
+              const beaconTimestamp = await helpers.time.latest();
               const bidAmount = 10000;
               const updateId = testUtils.generateRandomBytes32();
-              const metadataHash = hre.ethers.utils.solidityKeccak256(
-                ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
-                [
-                  (await hre.ethers.provider.getNetwork()).chainId,
-                  dapiServer.address,
-                  oevProxy.address,
-                  roles.searcher.address,
-                  bidAmount,
-                  updateId,
-                  1,
-                  1,
-                ]
+              const signature = await testUtils.signOevData(
+                dapiServer,
+                oevProxy.address,
+                roles.searcher.address,
+                bidAmount,
+                updateId,
+                1,
+                1,
+                beacon.airnode.wallet,
+                beacon.templateId,
+                beaconTimestamp,
+                encodeData(beaconValue)
               );
-              const signature = await airnodeWallet.signMessage(
-                hre.ethers.utils.arrayify(
-                  hre.ethers.utils.keccak256(
-                    hre.ethers.utils.solidityPack(
-                      ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                      [metadataHash, templateId, timestamp, data]
-                    )
-                  )
-                )
+              const signedData = await encodeSignedData(
+                beacon.airnode.wallet.address,
+                beacon.templateId,
+                beaconTimestamp,
+                encodeData(beaconValue),
+                signature
               );
               await dapiServer
                 .connect(roles.searcher)
-                .updateOevProxyDataFeedWithSignedData(
-                  oevProxy.address,
-                  updateId,
-                  1,
-                  [
-                    hre.ethers.utils.defaultAbiCoder.encode(
-                      ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                      [airnodeAddress, templateId, timestamp, data, signature]
-                    ),
-                  ],
-                  { value: bidAmount }
-                );
-              const oevBeneficiaryBalanceBeforeWithdrawal = await hre.ethers.provider.getBalance(
+                .updateOevProxyDataFeedWithSignedData(oevProxy.address, updateId, 1, [signedData], {
+                  value: bidAmount,
+                });
+              const oevBeneficiaryBalanceBeforeWithdrawal = await ethers.provider.getBalance(
                 roles.oevBeneficiary.address
               );
               await expect(dapiServer.connect(roles.randomPerson).withdraw(oevProxy.address))
                 .to.emit(dapiServer, 'Withdrew')
                 .withArgs(oevProxy.address, bidAmount);
-              const oevBeneficiaryBalanceAfterWithdrawal = await hre.ethers.provider.getBalance(
+              const oevBeneficiaryBalanceAfterWithdrawal = await ethers.provider.getBalance(
                 roles.oevBeneficiary.address
               );
               expect(oevBeneficiaryBalanceAfterWithdrawal.sub(oevBeneficiaryBalanceBeforeWithdrawal)).to.equal(
@@ -5613,41 +5898,40 @@ describe('DapiServer', function () {
           });
           context('Beneficiary reverts the transfer', function () {
             it('reverts', async function () {
-              const dataFeedProxyWithOevFactory = await hre.ethers.getContractFactory(
+              const { roles, dapiServer, beacons } = await deploy();
+              const beacon = beacons[0];
+              const dataFeedProxyWithOevFactory = await ethers.getContractFactory(
                 'DataFeedProxyWithOev',
                 roles.deployer
               );
               const oevProxyWithRevertingBeneficiary = await dataFeedProxyWithOevFactory.deploy(
                 dapiServer.address,
-                testUtils.generateRandomBytes32(),
+                beacon.beaconId,
                 dapiServer.address
               );
-              const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-              const data = encodeData(123);
+              const beaconValue = Math.floor(Math.random() * 200 - 100);
+              const beaconTimestamp = await helpers.time.latest();
               const bidAmount = 10000;
               const updateId = testUtils.generateRandomBytes32();
-              const metadataHash = hre.ethers.utils.solidityKeccak256(
-                ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
-                [
-                  (await hre.ethers.provider.getNetwork()).chainId,
-                  dapiServer.address,
-                  oevProxyWithRevertingBeneficiary.address,
-                  roles.searcher.address,
-                  bidAmount,
-                  updateId,
-                  1,
-                  1,
-                ]
+              const signature = await testUtils.signOevData(
+                dapiServer,
+                oevProxyWithRevertingBeneficiary.address,
+                roles.searcher.address,
+                bidAmount,
+                updateId,
+                1,
+                1,
+                beacon.airnode.wallet,
+                beacon.templateId,
+                beaconTimestamp,
+                encodeData(beaconValue)
               );
-              const signature = await airnodeWallet.signMessage(
-                hre.ethers.utils.arrayify(
-                  hre.ethers.utils.keccak256(
-                    hre.ethers.utils.solidityPack(
-                      ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                      [metadataHash, templateId, timestamp, data]
-                    )
-                  )
-                )
+              const signedData = await encodeSignedData(
+                beacon.airnode.wallet.address,
+                beacon.templateId,
+                beaconTimestamp,
+                encodeData(beaconValue),
+                signature
               );
               await dapiServer
                 .connect(roles.searcher)
@@ -5655,13 +5939,10 @@ describe('DapiServer', function () {
                   oevProxyWithRevertingBeneficiary.address,
                   updateId,
                   1,
-                  [
-                    hre.ethers.utils.defaultAbiCoder.encode(
-                      ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                      [airnodeAddress, templateId, timestamp, data, signature]
-                    ),
-                  ],
-                  { value: bidAmount }
+                  [signedData],
+                  {
+                    value: bidAmount,
+                  }
                 );
               await expect(
                 dapiServer.connect(roles.randomPerson).withdraw(oevProxyWithRevertingBeneficiary.address)
@@ -5671,6 +5952,7 @@ describe('DapiServer', function () {
         });
         context('OEV proxy balance is zero', function () {
           it('reverts', async function () {
+            const { roles, dapiServer, oevProxy } = await deploy();
             await expect(dapiServer.connect(roles.randomPerson).withdraw(oevProxy.address)).to.be.revertedWith(
               'OEV proxy balance zero'
             );
@@ -5679,14 +5961,13 @@ describe('DapiServer', function () {
       });
       context('OEV proxy announces a zero beneficiary address', function () {
         it('reverts', async function () {
-          const dataFeedProxyWithOevFactory = await hre.ethers.getContractFactory(
-            'DataFeedProxyWithOev',
-            roles.deployer
-          );
+          const { roles, dapiServer, beacons } = await deploy();
+          const beacon = beacons[0];
+          const dataFeedProxyWithOevFactory = await ethers.getContractFactory('DataFeedProxyWithOev', roles.deployer);
           const oevProxyWithZeroBeneficiary = await dataFeedProxyWithOevFactory.deploy(
             dapiServer.address,
-            testUtils.generateRandomBytes32(),
-            hre.ethers.constants.AddressZero
+            beacon.beaconId,
+            ethers.constants.AddressZero
           );
           await expect(
             dapiServer.connect(roles.randomPerson).withdraw(oevProxyWithZeroBeneficiary.address)
@@ -5696,6 +5977,7 @@ describe('DapiServer', function () {
     });
     context('OEV proxy does not announce a beneficiary address', function () {
       it('reverts', async function () {
+        const { roles, dapiServer } = await deploy();
         await expect(
           dapiServer.connect(roles.randomPerson).withdraw(roles.randomPerson.address)
         ).to.be.revertedWithoutReason;
@@ -5709,65 +5991,71 @@ describe('DapiServer', function () {
       context('Data feed ID is not zero', function () {
         context('Sender is manager', function () {
           it('sets dAPI name', async function () {
-            const dapiName = hre.ethers.utils.formatBytes32String('My dAPI');
-            expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(hre.ethers.constants.HashZero);
-            await expect(dapiServer.connect(roles.manager).setDapiName(dapiName, beaconSetId))
+            const { roles, dapiServer, beaconSet } = await deploy();
+            const dapiName = ethers.utils.formatBytes32String('My dAPI');
+            expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(ethers.constants.HashZero);
+            await expect(dapiServer.connect(roles.manager).setDapiName(dapiName, beaconSet.beaconSetId))
               .to.emit(dapiServer, 'SetDapiName')
-              .withArgs(dapiName, beaconSetId, roles.manager.address);
-            expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(beaconSetId);
+              .withArgs(dapiName, beaconSet.beaconSetId, roles.manager.address);
+            expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(beaconSet.beaconSetId);
           });
         });
         context('Sender is dAPI name setter', function () {
           it('sets dAPI name', async function () {
-            const dapiName = hre.ethers.utils.formatBytes32String('My dAPI');
-            expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(hre.ethers.constants.HashZero);
-            await expect(dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSetId))
+            const { roles, dapiServer, beaconSet } = await deploy();
+            const dapiName = ethers.utils.formatBytes32String('My dAPI');
+            expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(ethers.constants.HashZero);
+            await expect(dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSet.beaconSetId))
               .to.emit(dapiServer, 'SetDapiName')
-              .withArgs(dapiName, beaconSetId, roles.dapiNameSetter.address);
-            expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(beaconSetId);
+              .withArgs(dapiName, beaconSet.beaconSetId, roles.dapiNameSetter.address);
+            expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(beaconSet.beaconSetId);
           });
         });
         context('Sender is not dAPI name setter', function () {
           it('reverts', async function () {
-            const dapiName = hre.ethers.utils.formatBytes32String('My dAPI');
-            await expect(dapiServer.connect(roles.randomPerson).setDapiName(dapiName, beaconSetId)).to.be.revertedWith(
-              'Sender cannot set dAPI name'
-            );
+            const { roles, dapiServer, beaconSet } = await deploy();
+            const dapiName = ethers.utils.formatBytes32String('My dAPI');
+            await expect(
+              dapiServer.connect(roles.randomPerson).setDapiName(dapiName, beaconSet.beaconSetId)
+            ).to.be.revertedWith('Sender cannot set dAPI name');
           });
         });
       });
       context('Data feed ID is zero', function () {
         context('Sender is manager', function () {
           it('sets dAPI name', async function () {
-            const dapiName = hre.ethers.utils.formatBytes32String('My dAPI');
-            await dapiServer.connect(roles.manager).setDapiName(dapiName, beaconSetId);
-            await expect(dapiServer.connect(roles.manager).setDapiName(dapiName, hre.ethers.constants.HashZero))
+            const { roles, dapiServer, beaconSet } = await deploy();
+            const dapiName = ethers.utils.formatBytes32String('My dAPI');
+            await dapiServer.connect(roles.manager).setDapiName(dapiName, beaconSet.beaconSetId);
+            await expect(dapiServer.connect(roles.manager).setDapiName(dapiName, ethers.constants.HashZero))
               .to.emit(dapiServer, 'SetDapiName')
-              .withArgs(dapiName, hre.ethers.constants.HashZero, roles.manager.address);
-            expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(hre.ethers.constants.HashZero);
+              .withArgs(dapiName, ethers.constants.HashZero, roles.manager.address);
+            expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(ethers.constants.HashZero);
             // Check if we can still set the dAPI name
-            await dapiServer.connect(roles.manager).setDapiName(dapiName, beaconSetId);
-            expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(beaconSetId);
+            await dapiServer.connect(roles.manager).setDapiName(dapiName, beaconSet.beaconSetId);
+            expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(beaconSet.beaconSetId);
           });
         });
         context('Sender is dAPI name setter', function () {
           it('sets dAPI name', async function () {
-            const dapiName = hre.ethers.utils.formatBytes32String('My dAPI');
-            await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSetId);
-            await expect(dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, hre.ethers.constants.HashZero))
+            const { roles, dapiServer, beaconSet } = await deploy();
+            const dapiName = ethers.utils.formatBytes32String('My dAPI');
+            await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSet.beaconSetId);
+            await expect(dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, ethers.constants.HashZero))
               .to.emit(dapiServer, 'SetDapiName')
-              .withArgs(dapiName, hre.ethers.constants.HashZero, roles.dapiNameSetter.address);
-            expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(hre.ethers.constants.HashZero);
+              .withArgs(dapiName, ethers.constants.HashZero, roles.dapiNameSetter.address);
+            expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(ethers.constants.HashZero);
             // Check if we can still set the dAPI name
-            await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSetId);
-            expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(beaconSetId);
+            await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSet.beaconSetId);
+            expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(beaconSet.beaconSetId);
           });
         });
         context('Sender is not dAPI name setter', function () {
           it('reverts', async function () {
-            const dapiName = hre.ethers.utils.formatBytes32String('My dAPI');
+            const { roles, dapiServer, beaconSet } = await deploy();
+            const dapiName = ethers.utils.formatBytes32String('My dAPI');
             await expect(
-              dapiServer.connect(roles.randomPerson).setDapiName(dapiName, hre.ethers.constants.HashZero)
+              dapiServer.connect(roles.randomPerson).setDapiName(dapiName, beaconSet.beaconSetId)
             ).to.be.revertedWith('Sender cannot set dAPI name');
           });
         });
@@ -5775,8 +6063,9 @@ describe('DapiServer', function () {
     });
     context('dAPI name is zero', function () {
       it('reverts', async function () {
+        const { roles, dapiServer, beaconSet } = await deploy();
         await expect(
-          dapiServer.connect(roles.dapiNameSetter).setDapiName(hre.ethers.constants.HashZero, beaconSetId)
+          dapiServer.connect(roles.dapiNameSetter).setDapiName(ethers.constants.HashZero, beaconSet.beaconSetId)
         ).to.be.revertedWith('dAPI name zero');
       });
     });
@@ -5785,16 +6074,21 @@ describe('DapiServer', function () {
   describe('readDataFeedWithId', function () {
     context('Data feed is initialized', function () {
       it('reads data feed', async function () {
-        const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-        await setBeacon(templateId, 123, timestamp);
-        const beacon = await dapiServer.connect(roles.randomPerson).readDataFeedWithId(beaconId);
-        expect(beacon.value).to.equal(123);
-        expect(beacon.timestamp).to.equal(timestamp);
+        const { roles, dapiServer, beacons } = await deploy();
+        const beacon = beacons[0];
+        const beaconValue = Math.floor(Math.random() * 200 - 100);
+        const beaconTimestamp = await helpers.time.latest();
+        await updateBeacon(roles, dapiServer, beacon, beaconValue, beaconTimestamp);
+        const beaconAfter = await dapiServer.connect(roles.randomPerson).readDataFeedWithId(beacon.beaconId);
+        expect(beaconAfter.value).to.equal(beaconValue);
+        expect(beaconAfter.timestamp).to.equal(beaconTimestamp);
       });
     });
     context('Data feed is not initialized', function () {
       it('reverts', async function () {
-        await expect(dapiServer.connect(roles.randomPerson).readDataFeedWithId(beaconId)).to.be.revertedWith(
+        const { roles, dapiServer, beacons } = await deploy();
+        const beacon = beacons[0];
+        await expect(dapiServer.connect(roles.randomPerson).readDataFeedWithId(beacon.beaconId)).to.be.revertedWith(
           'Data feed not initialized'
         );
       });
@@ -5805,21 +6099,26 @@ describe('DapiServer', function () {
     context('dAPI name set to Beacon', function () {
       context('Data feed is initialized', function () {
         it('reads Beacon', async function () {
-          const dapiName = hre.ethers.utils.formatBytes32String('My beacon');
-          const dapiNameHash = hre.ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
-          await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconId);
-          const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-          await setBeacon(templateId, 123, timestamp);
-          const beacon = await dapiServer.connect(roles.randomPerson).readDataFeedWithDapiNameHash(dapiNameHash);
-          expect(beacon.value).to.be.equal(123);
-          expect(beacon.timestamp).to.be.equal(timestamp);
+          const { roles, dapiServer, beacons } = await deploy();
+          const beacon = beacons[0];
+          const beaconValue = Math.floor(Math.random() * 200 - 100);
+          const beaconTimestamp = await helpers.time.latest();
+          await updateBeacon(roles, dapiServer, beacon, beaconValue, beaconTimestamp);
+          const dapiName = ethers.utils.formatBytes32String('My dAPI');
+          const dapiNameHash = ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
+          await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beacon.beaconId);
+          const dapiAfter = await dapiServer.connect(roles.randomPerson).readDataFeedWithDapiNameHash(dapiNameHash);
+          expect(dapiAfter.value).to.be.equal(beaconValue);
+          expect(dapiAfter.timestamp).to.be.equal(beaconTimestamp);
         });
       });
       context('Data feed is not initialized', function () {
         it('reverts', async function () {
-          const dapiName = hre.ethers.utils.formatBytes32String('My beacon');
-          const dapiNameHash = hre.ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
-          await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconId);
+          const { roles, dapiServer, beacons } = await deploy();
+          const beacon = beacons[0];
+          const dapiName = ethers.utils.formatBytes32String('My dAPI');
+          const dapiNameHash = ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
+          await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beacon.beaconId);
           await expect(
             dapiServer.connect(roles.randomPerson).readDataFeedWithDapiNameHash(dapiNameHash)
           ).to.be.revertedWith('Data feed not initialized');
@@ -5829,26 +6128,24 @@ describe('DapiServer', function () {
     context('dAPI name set to Beacon set', function () {
       context('Data feed is initialized', function () {
         it('reads Beacon set', async function () {
-          const dapiName = hre.ethers.utils.formatBytes32String('My dAPI');
-          const dapiNameHash = hre.ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
-          await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSetId);
-          const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-          await setBeaconSet(
-            airnodeAddress,
-            beaconSetTemplateIds,
-            [123, 456, 789],
-            [timestamp - 2, timestamp, timestamp + 2]
-          );
-          const beaconSet = await dapiServer.connect(roles.randomPerson).readDataFeedWithDapiNameHash(dapiNameHash);
-          expect(beaconSet.value).to.be.equal(456);
-          expect(beaconSet.timestamp).to.be.equal(timestamp);
+          const { roles, dapiServer, beacons, beaconSet } = await deploy();
+          const beaconSetValue = Math.floor(Math.random() * 200 - 100);
+          const beaconSetTimestamp = await helpers.time.latest();
+          await updateBeaconSet(roles, dapiServer, beacons, beaconSetValue, beaconSetTimestamp);
+          const dapiName = ethers.utils.formatBytes32String('My dAPI');
+          const dapiNameHash = ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
+          await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSet.beaconSetId);
+          const dapiAfter = await dapiServer.connect(roles.randomPerson).readDataFeedWithDapiNameHash(dapiNameHash);
+          expect(dapiAfter.value).to.be.equal(beaconSetValue);
+          expect(dapiAfter.timestamp).to.be.equal(beaconSetTimestamp);
         });
       });
       context('Data feed is not initialized', function () {
         it('reverts', async function () {
-          const dapiName = hre.ethers.utils.formatBytes32String('My dAPI');
-          const dapiNameHash = hre.ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
-          await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSetId);
+          const { roles, dapiServer, beaconSet } = await deploy();
+          const dapiName = ethers.utils.formatBytes32String('My dAPI');
+          const dapiNameHash = ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
+          await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSet.beaconSetId);
           await expect(
             dapiServer.connect(roles.randomPerson).readDataFeedWithDapiNameHash(dapiNameHash)
           ).to.be.revertedWith('Data feed not initialized');
@@ -5857,8 +6154,9 @@ describe('DapiServer', function () {
     });
     context('dAPI name not set', function () {
       it('reverts', async function () {
-        const dapiName = hre.ethers.utils.formatBytes32String('My beacon');
-        const dapiNameHash = hre.ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
+        const { roles, dapiServer } = await deploy();
+        const dapiName = ethers.utils.formatBytes32String('My dAPI');
+        const dapiNameHash = ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
         await expect(
           dapiServer.connect(roles.randomPerson).readDataFeedWithDapiNameHash(dapiNameHash)
         ).to.be.revertedWith('dAPI name not set');
@@ -5870,67 +6168,66 @@ describe('DapiServer', function () {
     context('Data feed is initialized', function () {
       context('OEV proxy data feed is more up to date', function () {
         it('reads OEV proxy data feed', async function () {
-          const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-          const data = encodeData(123);
+          const { roles, dapiServer, beacons } = await deploy();
+          const beacon = beacons[0];
+          const beaconValue = Math.floor(Math.random() * 200 - 100);
+          const beaconTimestamp = await helpers.time.latest();
           const bidAmount = 10000;
           const updateId = testUtils.generateRandomBytes32();
-          const metadataHash = hre.ethers.utils.solidityKeccak256(
-            ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
-            [
-              (await hre.ethers.provider.getNetwork()).chainId,
-              dapiServer.address,
-              roles.mockOevProxy.address,
-              roles.searcher.address,
-              bidAmount,
-              updateId,
-              1,
-              1,
-            ]
+          const signature = await testUtils.signOevData(
+            dapiServer,
+            roles.mockOevProxy.address,
+            roles.searcher.address,
+            bidAmount,
+            updateId,
+            1,
+            1,
+            beacon.airnode.wallet,
+            beacon.templateId,
+            beaconTimestamp,
+            encodeData(beaconValue)
           );
-          const signature = await airnodeWallet.signMessage(
-            hre.ethers.utils.arrayify(
-              hre.ethers.utils.keccak256(
-                hre.ethers.utils.solidityPack(
-                  ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                  [metadataHash, templateId, timestamp, data]
-                )
-              )
-            )
+          const signedData = await encodeSignedData(
+            beacon.airnode.wallet.address,
+            beacon.templateId,
+            beaconTimestamp,
+            encodeData(beaconValue),
+            signature
           );
           await dapiServer
             .connect(roles.searcher)
-            .updateOevProxyDataFeedWithSignedData(
-              roles.mockOevProxy.address,
-              updateId,
-              1,
-              [
-                hre.ethers.utils.defaultAbiCoder.encode(
-                  ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                  [airnodeAddress, templateId, timestamp, data, signature]
-                ),
-              ],
-              { value: bidAmount }
-            );
-          const beacon = await dapiServer.connect(roles.mockOevProxy).readDataFeedWithIdAsOevProxy(beaconId);
-          expect(beacon.value).to.equal(123);
-          expect(beacon.timestamp).to.equal(timestamp);
+            .updateOevProxyDataFeedWithSignedData(roles.mockOevProxy.address, updateId, 1, [signedData], {
+              value: bidAmount,
+            });
+          const beaconAfter = await dapiServer
+            .connect(roles.mockOevProxy)
+            .readDataFeedWithIdAsOevProxy(beacon.beaconId);
+          expect(beaconAfter.value).to.equal(beaconValue);
+          expect(beaconAfter.timestamp).to.equal(beaconTimestamp);
         });
       });
       context('Base data feed is more up to date', function () {
         it('reads base data feed', async function () {
-          const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-          await setBeacon(templateId, 123, timestamp);
-          const beacon = await dapiServer.connect(roles.mockOevProxy).readDataFeedWithIdAsOevProxy(beaconId);
-          expect(beacon.value).to.equal(123);
-          expect(beacon.timestamp).to.equal(timestamp);
+          const { roles, dapiServer, beacons } = await deploy();
+          const beacon = beacons[0];
+          const beaconValue = Math.floor(Math.random() * 200 - 100);
+          const beaconTimestamp = await helpers.time.latest();
+          await updateBeacon(roles, dapiServer, beacon, beaconValue, beaconTimestamp);
+          const beaconAfter = await dapiServer
+            .connect(roles.mockOevProxy)
+            .readDataFeedWithIdAsOevProxy(beacon.beaconId);
+          expect(beaconAfter.value).to.equal(beaconValue);
+          expect(beaconAfter.timestamp).to.equal(beaconTimestamp);
         });
       });
     });
     context('Data feed is not initialized', function () {
       it('reverts', async function () {
-        await expect(dapiServer.connect(roles.mockOevProxy).readDataFeedWithIdAsOevProxy(beaconId)).to.be.revertedWith(
-          'Data feed not initialized'
-        );
+        const { roles, dapiServer, beacons } = await deploy();
+        const beacon = beacons[0];
+        await expect(
+          dapiServer.connect(roles.mockOevProxy).readDataFeedWithIdAsOevProxy(beacon.beaconId)
+        ).to.be.revertedWith('Data feed not initialized');
       });
     });
   });
@@ -5940,77 +6237,72 @@ describe('DapiServer', function () {
       context('Data feed is initialized', function () {
         context('OEV proxy data feed is more up to date', function () {
           it('reads OEV proxy data feed', async function () {
-            const dapiName = hre.ethers.utils.formatBytes32String('My beacon');
-            const dapiNameHash = hre.ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
-            await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconId);
-            const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-            const data = encodeData(123);
+            const { roles, dapiServer, beacons } = await deploy();
+            const beacon = beacons[0];
+            const beaconValue = Math.floor(Math.random() * 200 - 100);
+            const beaconTimestamp = await helpers.time.latest();
             const bidAmount = 10000;
             const updateId = testUtils.generateRandomBytes32();
-            const metadataHash = hre.ethers.utils.solidityKeccak256(
-              ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
-              [
-                (await hre.ethers.provider.getNetwork()).chainId,
-                dapiServer.address,
-                roles.mockOevProxy.address,
-                roles.searcher.address,
-                bidAmount,
-                updateId,
-                1,
-                1,
-              ]
+            const signature = await testUtils.signOevData(
+              dapiServer,
+              roles.mockOevProxy.address,
+              roles.searcher.address,
+              bidAmount,
+              updateId,
+              1,
+              1,
+              beacon.airnode.wallet,
+              beacon.templateId,
+              beaconTimestamp,
+              encodeData(beaconValue)
             );
-            const signature = await airnodeWallet.signMessage(
-              hre.ethers.utils.arrayify(
-                hre.ethers.utils.keccak256(
-                  hre.ethers.utils.solidityPack(
-                    ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                    [metadataHash, templateId, timestamp, data]
-                  )
-                )
-              )
+            const signedData = await encodeSignedData(
+              beacon.airnode.wallet.address,
+              beacon.templateId,
+              beaconTimestamp,
+              encodeData(beaconValue),
+              signature
             );
             await dapiServer
               .connect(roles.searcher)
-              .updateOevProxyDataFeedWithSignedData(
-                roles.mockOevProxy.address,
-                updateId,
-                1,
-                [
-                  hre.ethers.utils.defaultAbiCoder.encode(
-                    ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                    [airnodeAddress, templateId, timestamp, data, signature]
-                  ),
-                ],
-                { value: bidAmount }
-              );
-            const beacon = await dapiServer
+              .updateOevProxyDataFeedWithSignedData(roles.mockOevProxy.address, updateId, 1, [signedData], {
+                value: bidAmount,
+              });
+            const dapiName = ethers.utils.formatBytes32String('My dAPI');
+            const dapiNameHash = ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
+            await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beacon.beaconId);
+            const dapiAfter = await dapiServer
               .connect(roles.mockOevProxy)
               .readDataFeedWithDapiNameHashAsOevProxy(dapiNameHash);
-            expect(beacon.value).to.equal(123);
-            expect(beacon.timestamp).to.equal(timestamp);
+            expect(dapiAfter.value).to.equal(beaconValue);
+            expect(dapiAfter.timestamp).to.equal(beaconTimestamp);
           });
         });
         context('Base data feed is more up to date', function () {
           it('reads base data feed', async function () {
-            const dapiName = hre.ethers.utils.formatBytes32String('My beacon');
-            const dapiNameHash = hre.ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
-            await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconId);
-            const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-            await setBeacon(templateId, 123, timestamp);
-            const beacon = await dapiServer
+            const { roles, dapiServer, beacons } = await deploy();
+            const beacon = beacons[0];
+            const beaconValue = Math.floor(Math.random() * 200 - 100);
+            const beaconTimestamp = await helpers.time.latest();
+            await updateBeacon(roles, dapiServer, beacon, beaconValue, beaconTimestamp);
+            const dapiName = ethers.utils.formatBytes32String('My dAPI');
+            const dapiNameHash = ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
+            await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beacon.beaconId);
+            const dapiAfter = await dapiServer
               .connect(roles.mockOevProxy)
               .readDataFeedWithDapiNameHashAsOevProxy(dapiNameHash);
-            expect(beacon.value).to.equal(123);
-            expect(beacon.timestamp).to.equal(timestamp);
+            expect(dapiAfter.value).to.equal(beaconValue);
+            expect(dapiAfter.timestamp).to.equal(beaconTimestamp);
           });
         });
       });
       context('Data feed is not initialized', function () {
         it('reverts', async function () {
-          const dapiName = hre.ethers.utils.formatBytes32String('My beacon');
-          const dapiNameHash = hre.ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
-          await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconId);
+          const { roles, dapiServer, beacons } = await deploy();
+          const beacon = beacons[0];
+          const dapiName = ethers.utils.formatBytes32String('My dAPI');
+          const dapiNameHash = ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
+          await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beacon.beaconId);
           await expect(
             dapiServer.connect(roles.mockOevProxy).readDataFeedWithDapiNameHashAsOevProxy(dapiNameHash)
           ).to.be.revertedWith('Data feed not initialized');
@@ -6021,112 +6313,110 @@ describe('DapiServer', function () {
       context('Data feed is initialized', function () {
         context('OEV proxy data feed is more up to date', function () {
           it('reads OEV proxy data feed', async function () {
-            const dapiName = hre.ethers.utils.formatBytes32String('My beacon');
-            const dapiNameHash = hre.ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
-            await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSetId);
-            const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-            const data0 = encodeData(123);
+            const { roles, dapiServer, beacons, beaconSet } = await deploy();
+            // Populate the Beacons
+            const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
+            const currentTimestamp = await helpers.time.latest();
+            const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
+            const beaconSetValue = median(beaconValues);
+            const beaconSetTimestamp = Math.floor(
+              beaconTimestamps.reduce((sum, beaconTimestamp) => {
+                return sum + beaconTimestamp;
+              }, 0) / beaconTimestamps.length
+            );
+            await Promise.all(
+              beacons.map(async (beacon, index) => {
+                await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+              })
+            );
             const bidAmount = 10000;
             const updateId = testUtils.generateRandomBytes32();
-            const metadataHash = hre.ethers.utils.solidityKeccak256(
-              ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
-              [
-                (await hre.ethers.provider.getNetwork()).chainId,
-                dapiServer.address,
-                roles.mockOevProxy.address,
-                roles.searcher.address,
-                bidAmount,
-                updateId,
-                3,
-                3,
-              ]
+            // Randomly omit one of the signatures for the Beacon value to be read from the chain
+            const omitSignatureAtIndex = Math.floor(Math.random() * beacons.length);
+            const signatures = await Promise.all(
+              beacons.map(async (beacon, index) => {
+                if (index === omitSignatureAtIndex) {
+                  return '0x';
+                } else {
+                  return await testUtils.signOevData(
+                    dapiServer,
+                    roles.mockOevProxy.address,
+                    roles.searcher.address,
+                    bidAmount,
+                    updateId,
+                    beacons.length - 1,
+                    beacons.length,
+                    beacon.airnode.wallet,
+                    beacon.templateId,
+                    beaconTimestamps[index],
+                    encodeData(beaconValues[index])
+                  );
+                }
+              })
             );
-            const signature0 = await airnodeWallet.signMessage(
-              hre.ethers.utils.arrayify(
-                hre.ethers.utils.keccak256(
-                  hre.ethers.utils.solidityPack(
-                    ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                    [metadataHash, beaconSetTemplateIds[0], timestamp, data0]
-                  )
-                )
-              )
-            );
-            const data1 = encodeData(456);
-            const signature1 = await airnodeWallet.signMessage(
-              hre.ethers.utils.arrayify(
-                hre.ethers.utils.keccak256(
-                  hre.ethers.utils.solidityPack(
-                    ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                    [metadataHash, beaconSetTemplateIds[1], timestamp, data1]
-                  )
-                )
-              )
-            );
-            const data2 = encodeData(789);
-            const signature2 = await airnodeWallet.signMessage(
-              hre.ethers.utils.arrayify(
-                hre.ethers.utils.keccak256(
-                  hre.ethers.utils.solidityPack(
-                    ['bytes32', 'bytes32', 'uint256', 'bytes'],
-                    [metadataHash, beaconSetTemplateIds[2], timestamp, data2]
-                  )
-                )
-              )
-            );
+            // Omit the data if the signature is omitted
+            const signedData = signatures.map((signature, index) => {
+              if (signature === '0x') {
+                return encodeSignedData(
+                  beacons[index].airnode.wallet.address,
+                  beacons[index].templateId,
+                  0,
+                  '0x',
+                  signature
+                );
+              } else {
+                return encodeSignedData(
+                  beacons[index].airnode.wallet.address,
+                  beacons[index].templateId,
+                  beaconTimestamps[index],
+                  encodeData(beaconValues[index]),
+                  signature
+                );
+              }
+            });
             await dapiServer
               .connect(roles.searcher)
               .updateOevProxyDataFeedWithSignedData(
                 roles.mockOevProxy.address,
                 updateId,
-                3,
-                [
-                  hre.ethers.utils.defaultAbiCoder.encode(
-                    ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                    [airnodeAddress, beaconSetTemplateIds[0], timestamp, data0, signature0]
-                  ),
-                  hre.ethers.utils.defaultAbiCoder.encode(
-                    ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                    [airnodeAddress, beaconSetTemplateIds[1], timestamp, data1, signature1]
-                  ),
-                  hre.ethers.utils.defaultAbiCoder.encode(
-                    ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-                    [airnodeAddress, beaconSetTemplateIds[2], timestamp, data2, signature2]
-                  ),
-                ],
+                beacons.length - 1,
+                signedData,
                 { value: bidAmount }
               );
-            const beaconSet = await dapiServer
+            const dapiName = ethers.utils.formatBytes32String('My dAPI');
+            const dapiNameHash = ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
+            await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSet.beaconSetId);
+            const dapiAfter = await dapiServer
               .connect(roles.mockOevProxy)
               .readDataFeedWithDapiNameHashAsOevProxy(dapiNameHash);
-            expect(beaconSet.value).to.equal(456);
-            expect(beaconSet.timestamp).to.equal(timestamp);
+            expect(dapiAfter.value).to.equal(beaconSetValue);
+            expect(dapiAfter.timestamp).to.equal(beaconSetTimestamp);
           });
         });
         context('Base data feed is more up to date', function () {
           it('reads base data feed', async function () {
-            const dapiName = hre.ethers.utils.formatBytes32String('My beacon');
-            const dapiNameHash = hre.ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
-            await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSetId);
-            const timestamp = (await testUtils.getCurrentTimestamp(hre.ethers.provider)) + 1;
-            await setBeaconSet(
-              airnodeAddress,
-              beaconSetTemplateIds,
-              [123, 456, 789],
-              [timestamp, timestamp, timestamp]
-            );
-            const beaconSet = await dapiServer
+            const { roles, dapiServer, beacons, beaconSet } = await deploy();
+            const currentTimestamp = await helpers.time.latest();
+            const beaconSetValue = Math.floor(Math.random() * 200 - 100);
+            const beaconSetTimestamp = Math.floor(currentTimestamp - Math.random() * 5 * 60);
+            await updateBeaconSet(roles, dapiServer, beacons, beaconSetValue, beaconSetTimestamp);
+            const dapiName = ethers.utils.formatBytes32String('My dAPI');
+            const dapiNameHash = ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
+            await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSet.beaconSetId);
+            const dapiAfter = await dapiServer
               .connect(roles.mockOevProxy)
               .readDataFeedWithDapiNameHashAsOevProxy(dapiNameHash);
-            expect(beaconSet.value).to.equal(456);
-            expect(beaconSet.timestamp).to.equal(timestamp);
+            expect(dapiAfter.value).to.equal(beaconSetValue);
+            expect(dapiAfter.timestamp).to.equal(beaconSetTimestamp);
           });
         });
       });
       context('Data feed is not initialized', function () {
         it('reverts', async function () {
-          const dapiName = hre.ethers.utils.formatBytes32String('My beacon');
-          const dapiNameHash = hre.ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
-          await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSetId);
+          const { roles, dapiServer, beaconSet } = await deploy();
+          const dapiName = ethers.utils.formatBytes32String('My dAPI');
+          const dapiNameHash = ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
+          await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSet.beaconSetId);
           await expect(
             dapiServer.connect(roles.mockOevProxy).readDataFeedWithDapiNameHashAsOevProxy(dapiNameHash)
           ).to.be.revertedWith('Data feed not initialized');
@@ -6135,8 +6425,9 @@ describe('DapiServer', function () {
     });
     context('dAPI name not set', function () {
       it('reverts', async function () {
-        const dapiName = hre.ethers.utils.formatBytes32String('My beacon');
-        const dapiNameHash = hre.ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
+        const { roles, dapiServer } = await deploy();
+        const dapiName = ethers.utils.formatBytes32String('My dAPI');
+        const dapiNameHash = ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
         await expect(
           dapiServer.connect(roles.mockOevProxy).readDataFeedWithDapiNameHashAsOevProxy(dapiNameHash)
         ).to.be.revertedWith('dAPI name not set');

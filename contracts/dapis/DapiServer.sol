@@ -378,6 +378,10 @@ contract DapiServer is
                 this.fulfillPspBeaconUpdate.selector
             )
         );
+        require(
+            subscriptionIdToHash[subscriptionId] == bytes32(0),
+            "Subscription already registered"
+        );
         subscriptionIdToHash[subscriptionId] = keccak256(
             abi.encodePacked(airnode, relayer, sponsor)
         );
