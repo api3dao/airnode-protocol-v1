@@ -10,7 +10,11 @@ interface IAccessControlRegistry is
     IExpiringMetaTxForwarder,
     ISelfMulticall
 {
-    event InitializedManager(bytes32 indexed rootRole, address indexed manager);
+    event InitializedManager(
+        bytes32 indexed rootRole,
+        address indexed manager,
+        address sender
+    );
 
     event InitializedRole(
         bytes32 indexed role,
