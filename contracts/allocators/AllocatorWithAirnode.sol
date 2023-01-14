@@ -68,10 +68,7 @@ contract AllocatorWithAirnode is
     function deriveAdminRole(
         address airnode
     ) public view override returns (bytes32 adminRole) {
-        adminRole = _deriveRole(
-            _deriveRootRole(airnode),
-            adminRoleDescriptionHash
-        );
+        adminRole = _deriveAdminRole(airnode);
     }
 
     /// @notice Derives the slot setter role for the specific Airnode address
@@ -81,7 +78,7 @@ contract AllocatorWithAirnode is
         address airnode
     ) public view override returns (bytes32 slotSetterRole) {
         slotSetterRole = _deriveRole(
-            deriveAdminRole(airnode),
+            _deriveAdminRole(airnode),
             SLOT_SETTER_ROLE_DESCRIPTION_HASH
         );
     }
