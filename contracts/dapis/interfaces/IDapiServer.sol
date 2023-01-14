@@ -7,7 +7,7 @@ import "../../protocol/interfaces/IAirnodeRequester.sol";
 interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
     event SetRrpBeaconUpdatePermissionStatus(
         address indexed sponsor,
-        address indexed rrpBeaconUpdateRequester,
+        address indexed requester,
         bool status
     );
 
