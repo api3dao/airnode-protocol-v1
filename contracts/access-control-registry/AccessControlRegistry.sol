@@ -40,7 +40,7 @@ contract AccessControlRegistry is
         bytes32 rootRole = _deriveRootRole(manager);
         if (!hasRole(rootRole, manager)) {
             _grantRole(rootRole, manager);
-            emit InitializedManager(rootRole, manager);
+            emit InitializedManager(rootRole, manager, _msgSender());
         }
     }
 
