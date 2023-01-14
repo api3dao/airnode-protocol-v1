@@ -13,21 +13,21 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
 
     event RequestedRrpBeaconUpdate(
         bytes32 indexed beaconId,
-        address indexed sponsor,
-        address indexed requester,
-        bytes32 requestId,
         address airnode,
-        bytes32 templateId
+        bytes32 templateId,
+        address sponsor,
+        bytes32 requestId,
+        address requester
     );
 
     event RequestedRelayedRrpBeaconUpdate(
         bytes32 indexed beaconId,
-        address indexed sponsor,
-        address indexed requester,
-        bytes32 requestId,
         address airnode,
+        bytes32 templateId,
         address relayer,
-        bytes32 templateId
+        address sponsor,
+        bytes32 requestId,
+        address requester
     );
 
     event UpdatedBeaconWithRrp(
@@ -38,15 +38,13 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
     );
 
     event RegisteredBeaconUpdateSubscription(
-        bytes32 indexed subscriptionId,
+        bytes32 indexed beaconId,
+        bytes32 subscriptionId,
         address airnode,
         bytes32 templateId,
-        bytes parameters,
         bytes conditions,
         address relayer,
-        address sponsor,
-        address requester,
-        bytes4 fulfillFunctionId
+        address sponsor
     );
 
     event UpdatedBeaconWithPsp(

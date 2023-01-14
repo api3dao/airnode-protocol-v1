@@ -189,11 +189,11 @@ contract DapiServer is
         requestIdToBeaconId[requestId] = beaconId;
         emit RequestedRrpBeaconUpdate(
             beaconId,
-            sponsor,
-            msg.sender,
-            requestId,
             airnode,
-            templateId
+            templateId,
+            sponsor,
+            requestId,
+            msg.sender
         );
     }
 
@@ -228,11 +228,11 @@ contract DapiServer is
         requestIdToBeaconId[requestId] = beaconId;
         emit RequestedRrpBeaconUpdate(
             beaconId,
-            sponsor,
-            msg.sender,
-            requestId,
             airnode,
-            templateId
+            templateId,
+            sponsor,
+            requestId,
+            msg.sender
         );
     }
 
@@ -265,12 +265,12 @@ contract DapiServer is
         requestIdToBeaconId[requestId] = beaconId;
         emit RequestedRelayedRrpBeaconUpdate(
             beaconId,
-            sponsor,
-            msg.sender,
-            requestId,
             airnode,
+            templateId,
             relayer,
-            templateId
+            sponsor,
+            requestId,
+            msg.sender
         );
     }
 
@@ -308,12 +308,12 @@ contract DapiServer is
         requestIdToBeaconId[requestId] = beaconId;
         emit RequestedRelayedRrpBeaconUpdate(
             beaconId,
-            sponsor,
-            msg.sender,
-            requestId,
             airnode,
+            templateId,
             relayer,
-            templateId
+            sponsor,
+            requestId,
+            msg.sender
         );
     }
 

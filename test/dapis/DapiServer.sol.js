@@ -424,11 +424,11 @@ describe('DapiServer', function () {
           .to.emit(dapiServer, 'RequestedRrpBeaconUpdate')
           .withArgs(
             beacon.beaconId,
-            roles.sponsor.address,
+            beacon.airnode.wallet.address,
+            beacon.templateId,
             roles.sponsor.address,
             requestId,
-            beacon.airnode.wallet.address,
-            beacon.templateId
+            roles.sponsor.address
           );
       });
     });
@@ -462,11 +462,11 @@ describe('DapiServer', function () {
           .to.emit(dapiServer, 'RequestedRrpBeaconUpdate')
           .withArgs(
             beacon.beaconId,
-            roles.sponsor.address,
-            roles.updateRequester.address,
-            requestId,
             beacon.airnode.wallet.address,
-            beacon.templateId
+            beacon.templateId,
+            roles.sponsor.address,
+            requestId,
+            roles.updateRequester.address
           );
       });
     });
@@ -520,11 +520,11 @@ describe('DapiServer', function () {
           .to.emit(dapiServer, 'RequestedRrpBeaconUpdate')
           .withArgs(
             beacon.beaconId,
-            roles.sponsor.address,
+            beacon.airnode.wallet.address,
+            beacon.templateId,
             roles.sponsor.address,
             requestId,
-            beacon.airnode.wallet.address,
-            beacon.templateId
+            roles.sponsor.address
           );
       });
     });
@@ -564,11 +564,11 @@ describe('DapiServer', function () {
           .to.emit(dapiServer, 'RequestedRrpBeaconUpdate')
           .withArgs(
             beacon.beaconId,
-            roles.sponsor.address,
-            roles.updateRequester.address,
-            requestId,
             beacon.airnode.wallet.address,
-            beacon.templateId
+            beacon.templateId,
+            roles.sponsor.address,
+            requestId,
+            roles.updateRequester.address
           );
       });
     });
@@ -628,12 +628,12 @@ describe('DapiServer', function () {
           .to.emit(dapiServer, 'RequestedRelayedRrpBeaconUpdate')
           .withArgs(
             beacon.beaconId,
-            roles.sponsor.address,
+            beacon.airnode.wallet.address,
+            beacon.templateId,
+            beacon.relayer.wallet.address,
             roles.sponsor.address,
             requestId,
-            beacon.airnode.wallet.address,
-            beacon.relayer.wallet.address,
-            beacon.templateId
+            roles.sponsor.address
           );
       });
     });
@@ -674,12 +674,12 @@ describe('DapiServer', function () {
           .to.emit(dapiServer, 'RequestedRelayedRrpBeaconUpdate')
           .withArgs(
             beacon.beaconId,
-            roles.sponsor.address,
-            roles.updateRequester.address,
-            requestId,
             beacon.airnode.wallet.address,
+            beacon.templateId,
             beacon.relayer.wallet.address,
-            beacon.templateId
+            roles.sponsor.address,
+            requestId,
+            roles.updateRequester.address
           );
       });
     });
@@ -741,12 +741,12 @@ describe('DapiServer', function () {
           .to.emit(dapiServer, 'RequestedRelayedRrpBeaconUpdate')
           .withArgs(
             beacon.beaconId,
-            roles.sponsor.address,
+            beacon.airnode.wallet.address,
+            beacon.templateId,
+            beacon.relayer.wallet.address,
             roles.sponsor.address,
             requestId,
-            beacon.airnode.wallet.address,
-            beacon.relayer.wallet.address,
-            beacon.templateId
+            roles.sponsor.address
           );
       });
     });
@@ -789,12 +789,12 @@ describe('DapiServer', function () {
           .to.emit(dapiServer, 'RequestedRelayedRrpBeaconUpdate')
           .withArgs(
             beacon.beaconId,
-            roles.sponsor.address,
-            roles.updateRequester.address,
-            requestId,
             beacon.airnode.wallet.address,
+            beacon.templateId,
             beacon.relayer.wallet.address,
-            beacon.templateId
+            roles.sponsor.address,
+            requestId,
+            roles.updateRequester.address
           );
       });
     });
