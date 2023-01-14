@@ -170,8 +170,8 @@ describe('RequesterAuthorizerWithManager', function () {
               .withArgs(
                 roles.airnode.address,
                 roles.requester.address,
-                roles.authorizationExpirationExtender.address,
-                expirationTimestamp
+                expirationTimestamp,
+                roles.authorizationExpirationExtender.address
               );
             const authorizationStatusAfter =
               await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
@@ -225,7 +225,7 @@ describe('RequesterAuthorizerWithManager', function () {
               })
           )
             .to.emit(requesterAuthorizerWithManager, 'ExtendedAuthorizationExpiration')
-            .withArgs(roles.airnode.address, roles.requester.address, roles.manager.address, expirationTimestamp);
+            .withArgs(roles.airnode.address, roles.requester.address, expirationTimestamp, roles.manager.address);
           const authorizationStatusAfter = await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
             roles.airnode.address,
             roles.requester.address
@@ -297,7 +297,7 @@ describe('RequesterAuthorizerWithManager', function () {
 
           await expect(accessControlRegistry.connect(roles.randomPerson).execute(value, signature))
             .to.emit(requesterAuthorizerWithManager, 'ExtendedAuthorizationExpiration')
-            .withArgs(roles.airnode.address, roles.requester.address, roles.manager.address, expirationTimestamp);
+            .withArgs(roles.airnode.address, roles.requester.address, expirationTimestamp, roles.manager.address);
 
           const authorizationStatusAfter = await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
             roles.airnode.address,
@@ -391,8 +391,8 @@ describe('RequesterAuthorizerWithManager', function () {
             .withArgs(
               roles.airnode.address,
               roles.requester.address,
-              roles.authorizationExpirationSetter.address,
-              expirationTimestamp
+              expirationTimestamp,
+              roles.authorizationExpirationSetter.address
             );
           const authorizationStatusBefore =
             await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
@@ -407,7 +407,7 @@ describe('RequesterAuthorizerWithManager', function () {
               .setAuthorizationExpiration(roles.airnode.address, roles.requester.address, 0)
           )
             .to.emit(requesterAuthorizerWithManager, 'SetAuthorizationExpiration')
-            .withArgs(roles.airnode.address, roles.requester.address, roles.authorizationExpirationSetter.address, 0);
+            .withArgs(roles.airnode.address, roles.requester.address, 0, roles.authorizationExpirationSetter.address);
           const authorizationStatusAfter = await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
             roles.airnode.address,
             roles.requester.address
@@ -439,7 +439,7 @@ describe('RequesterAuthorizerWithManager', function () {
             })
         )
           .to.emit(requesterAuthorizerWithManager, 'SetAuthorizationExpiration')
-          .withArgs(roles.airnode.address, roles.requester.address, roles.manager.address, expirationTimestamp);
+          .withArgs(roles.airnode.address, roles.requester.address, expirationTimestamp, roles.manager.address);
         const authorizationStatusBefore = await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
           roles.airnode.address,
           roles.requester.address
@@ -452,7 +452,7 @@ describe('RequesterAuthorizerWithManager', function () {
             .setAuthorizationExpiration(roles.airnode.address, roles.requester.address, 0, { gasLimit: 1000000 })
         )
           .to.emit(requesterAuthorizerWithManager, 'SetAuthorizationExpiration')
-          .withArgs(roles.airnode.address, roles.requester.address, roles.manager.address, 0);
+          .withArgs(roles.airnode.address, roles.requester.address, 0, roles.manager.address);
         const authorizationStatusAfter = await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
           roles.airnode.address,
           roles.requester.address
@@ -502,7 +502,7 @@ describe('RequesterAuthorizerWithManager', function () {
               .setIndefiniteAuthorizationStatus(roles.airnode.address, roles.requester.address, true)
           )
             .to.emit(requesterAuthorizerWithManager, 'SetIndefiniteAuthorizationStatus')
-            .withArgs(roles.airnode.address, roles.requester.address, roles.indefiniteAuthorizer.address, true, 1);
+            .withArgs(roles.airnode.address, roles.requester.address, true, 1, roles.indefiniteAuthorizer.address);
           const authorizationStatusAfterStep1 =
             await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
               roles.airnode.address,
@@ -524,7 +524,7 @@ describe('RequesterAuthorizerWithManager', function () {
               .setIndefiniteAuthorizationStatus(roles.airnode.address, roles.requester.address, true)
           )
             .to.emit(requesterAuthorizerWithManager, 'SetIndefiniteAuthorizationStatus')
-            .withArgs(roles.airnode.address, roles.requester.address, roles.indefiniteAuthorizer.address, true, 1);
+            .withArgs(roles.airnode.address, roles.requester.address, true, 1, roles.indefiniteAuthorizer.address);
           const authorizationStatusAfterStep2 =
             await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
               roles.airnode.address,
@@ -546,7 +546,7 @@ describe('RequesterAuthorizerWithManager', function () {
               .setIndefiniteAuthorizationStatus(roles.airnode.address, roles.requester.address, false)
           )
             .to.emit(requesterAuthorizerWithManager, 'SetIndefiniteAuthorizationStatus')
-            .withArgs(roles.airnode.address, roles.requester.address, roles.indefiniteAuthorizer.address, false, 0);
+            .withArgs(roles.airnode.address, roles.requester.address, false, 0, roles.indefiniteAuthorizer.address);
           const authorizationStatusAfterStep3 =
             await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
               roles.airnode.address,
@@ -568,7 +568,7 @@ describe('RequesterAuthorizerWithManager', function () {
               .setIndefiniteAuthorizationStatus(roles.airnode.address, roles.requester.address, false)
           )
             .to.emit(requesterAuthorizerWithManager, 'SetIndefiniteAuthorizationStatus')
-            .withArgs(roles.airnode.address, roles.requester.address, roles.indefiniteAuthorizer.address, false, 0);
+            .withArgs(roles.airnode.address, roles.requester.address, false, 0, roles.indefiniteAuthorizer.address);
           const authorizationStatusAfterStep4 =
             await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
               roles.airnode.address,
@@ -614,7 +614,7 @@ describe('RequesterAuthorizerWithManager', function () {
             })
         )
           .to.emit(requesterAuthorizerWithManager, 'SetIndefiniteAuthorizationStatus')
-          .withArgs(roles.airnode.address, roles.requester.address, roles.manager.address, true, 1);
+          .withArgs(roles.airnode.address, roles.requester.address, true, 1, roles.manager.address);
         const authorizationStatusAfterStep1 =
           await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
             roles.airnode.address,
@@ -638,7 +638,7 @@ describe('RequesterAuthorizerWithManager', function () {
             })
         )
           .to.emit(requesterAuthorizerWithManager, 'SetIndefiniteAuthorizationStatus')
-          .withArgs(roles.airnode.address, roles.requester.address, roles.manager.address, true, 1);
+          .withArgs(roles.airnode.address, roles.requester.address, true, 1, roles.manager.address);
         const authorizationStatusAfterStep2 =
           await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
             roles.airnode.address,
@@ -662,7 +662,7 @@ describe('RequesterAuthorizerWithManager', function () {
             })
         )
           .to.emit(requesterAuthorizerWithManager, 'SetIndefiniteAuthorizationStatus')
-          .withArgs(roles.airnode.address, roles.requester.address, roles.manager.address, false, 0);
+          .withArgs(roles.airnode.address, roles.requester.address, false, 0, roles.manager.address);
         const authorizationStatusAfterStep3 =
           await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
             roles.airnode.address,
@@ -686,7 +686,7 @@ describe('RequesterAuthorizerWithManager', function () {
             })
         )
           .to.emit(requesterAuthorizerWithManager, 'SetIndefiniteAuthorizationStatus')
-          .withArgs(roles.airnode.address, roles.requester.address, roles.manager.address, false, 0);
+          .withArgs(roles.airnode.address, roles.requester.address, false, 0, roles.manager.address);
         const authorizationStatusAfterStep4 =
           await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(
             roles.airnode.address,
@@ -763,8 +763,8 @@ describe('RequesterAuthorizerWithManager', function () {
                     roles.airnode.address,
                     roles.requester.address,
                     roles.indefiniteAuthorizer.address,
-                    roles.randomPerson.address,
-                    0
+                    0,
+                    roles.randomPerson.address
                   );
                 const authorizationStatus =
                   await requesterAuthorizerWithManager.airnodeToRequesterToAuthorizationStatus(

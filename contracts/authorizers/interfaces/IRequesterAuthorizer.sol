@@ -5,31 +5,31 @@ interface IRequesterAuthorizer {
     event ExtendedAuthorizationExpiration(
         address indexed airnode,
         address indexed requester,
-        address indexed sender,
-        uint32 expirationTimestamp
+        uint32 expirationTimestamp,
+        address sender
     );
 
     event SetAuthorizationExpiration(
         address indexed airnode,
         address indexed requester,
-        address indexed sender,
-        uint32 expirationTimestamp
+        uint32 expirationTimestamp,
+        address sender
     );
 
     event SetIndefiniteAuthorizationStatus(
         address indexed airnode,
         address indexed requester,
-        address indexed sender,
         bool status,
-        uint224 indefiniteAuthorizationCount
+        uint224 indefiniteAuthorizationCount,
+        address sender
     );
 
     event RevokedIndefiniteAuthorizationStatus(
         address indexed airnode,
         address indexed requester,
-        address indexed setter,
-        address sender,
-        uint224 indefiniteAuthorizationCount
+        address setter,
+        uint224 indefiniteAuthorizationCount,
+        address sender
     );
 
     function extendAuthorizerExpiration(

@@ -78,8 +78,8 @@ abstract contract RequesterAuthorizer is IRequesterAuthorizer {
         emit ExtendedAuthorizationExpiration(
             airnode,
             requester,
-            _msgSender(),
-            expirationTimestamp
+            expirationTimestamp,
+            _msgSender()
         );
     }
 
@@ -102,8 +102,8 @@ abstract contract RequesterAuthorizer is IRequesterAuthorizer {
         emit SetAuthorizationExpiration(
             airnode,
             requester,
-            _msgSender(),
-            expirationTimestamp
+            expirationTimestamp,
+            _msgSender()
         );
     }
 
@@ -155,9 +155,9 @@ abstract contract RequesterAuthorizer is IRequesterAuthorizer {
         emit SetIndefiniteAuthorizationStatus(
             airnode,
             requester,
-            _msgSender(),
             status,
-            indefiniteAuthorizationCount
+            indefiniteAuthorizationCount,
+            _msgSender()
         );
     }
 
@@ -195,8 +195,8 @@ abstract contract RequesterAuthorizer is IRequesterAuthorizer {
                 airnode,
                 requester,
                 setter,
-                _msgSender(),
-                indefiniteAuthorizationCount
+                indefiniteAuthorizationCount,
+                _msgSender()
             );
         }
     }
