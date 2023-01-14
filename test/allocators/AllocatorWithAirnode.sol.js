@@ -80,7 +80,13 @@ describe('AllocatorWithAirnode', function () {
                 .setSlot(roles.airnode.address, slotIndex, subscriptionId, expirationTimestamp)
             )
               .to.emit(allocatorWithAirnode, 'SetSlot')
-              .withArgs(roles.airnode.address, slotIndex, subscriptionId, expirationTimestamp);
+              .withArgs(
+                roles.airnode.address,
+                slotIndex,
+                subscriptionId,
+                expirationTimestamp,
+                roles.slotSetter.address
+              );
             const slot = await allocatorWithAirnode.airnodeToSlotIndexToSlot(roles.airnode.address, slotIndex);
             expect(slot.subscriptionId).to.equal(subscriptionId);
             expect(slot.setter).to.equal(roles.slotSetter.address);
@@ -107,7 +113,13 @@ describe('AllocatorWithAirnode', function () {
                   .setSlot(roles.airnode.address, slotIndex, subscriptionId, expirationTimestamp)
               )
                 .to.emit(allocatorWithAirnode, 'SetSlot')
-                .withArgs(roles.airnode.address, slotIndex, subscriptionId, expirationTimestamp);
+                .withArgs(
+                  roles.airnode.address,
+                  slotIndex,
+                  subscriptionId,
+                  expirationTimestamp,
+                  roles.slotSetter.address
+                );
               const slot = await allocatorWithAirnode.airnodeToSlotIndexToSlot(roles.airnode.address, slotIndex);
               expect(slot.subscriptionId).to.equal(subscriptionId);
               expect(slot.setter).to.equal(roles.slotSetter.address);
@@ -138,7 +150,13 @@ describe('AllocatorWithAirnode', function () {
                     .setSlot(roles.airnode.address, slotIndex, subscriptionId, expirationTimestamp)
                 )
                   .to.emit(allocatorWithAirnode, 'SetSlot')
-                  .withArgs(roles.airnode.address, slotIndex, subscriptionId, expirationTimestamp);
+                  .withArgs(
+                    roles.airnode.address,
+                    slotIndex,
+                    subscriptionId,
+                    expirationTimestamp,
+                    roles.slotSetter.address
+                  );
                 const slot = await allocatorWithAirnode.airnodeToSlotIndexToSlot(roles.airnode.address, slotIndex);
                 expect(slot.subscriptionId).to.equal(subscriptionId);
                 expect(slot.setter).to.equal(roles.slotSetter.address);
@@ -170,7 +188,13 @@ describe('AllocatorWithAirnode', function () {
                       .setSlot(roles.airnode.address, slotIndex, subscriptionId, expirationTimestamp)
                   )
                     .to.emit(allocatorWithAirnode, 'SetSlot')
-                    .withArgs(roles.airnode.address, slotIndex, subscriptionId, expirationTimestamp);
+                    .withArgs(
+                      roles.airnode.address,
+                      slotIndex,
+                      subscriptionId,
+                      expirationTimestamp,
+                      roles.slotSetter.address
+                    );
                   const slot = await allocatorWithAirnode.airnodeToSlotIndexToSlot(roles.airnode.address, slotIndex);
                   expect(slot.subscriptionId).to.equal(subscriptionId);
                   expect(slot.setter).to.equal(roles.slotSetter.address);
@@ -230,7 +254,7 @@ describe('AllocatorWithAirnode', function () {
                 .setSlot(roles.airnode.address, slotIndex, subscriptionId, expirationTimestamp)
             )
               .to.emit(allocatorWithAirnode, 'SetSlot')
-              .withArgs(roles.airnode.address, slotIndex, subscriptionId, expirationTimestamp);
+              .withArgs(roles.airnode.address, slotIndex, subscriptionId, expirationTimestamp, roles.airnode.address);
             const slot = await allocatorWithAirnode.airnodeToSlotIndexToSlot(roles.airnode.address, slotIndex);
             expect(slot.subscriptionId).to.equal(subscriptionId);
             expect(slot.setter).to.equal(roles.airnode.address);
@@ -257,7 +281,7 @@ describe('AllocatorWithAirnode', function () {
                   .setSlot(roles.airnode.address, slotIndex, subscriptionId, expirationTimestamp)
               )
                 .to.emit(allocatorWithAirnode, 'SetSlot')
-                .withArgs(roles.airnode.address, slotIndex, subscriptionId, expirationTimestamp);
+                .withArgs(roles.airnode.address, slotIndex, subscriptionId, expirationTimestamp, roles.airnode.address);
               const slot = await allocatorWithAirnode.airnodeToSlotIndexToSlot(roles.airnode.address, slotIndex);
               expect(slot.subscriptionId).to.equal(subscriptionId);
               expect(slot.setter).to.equal(roles.airnode.address);
@@ -288,7 +312,13 @@ describe('AllocatorWithAirnode', function () {
                     .setSlot(roles.airnode.address, slotIndex, subscriptionId, expirationTimestamp)
                 )
                   .to.emit(allocatorWithAirnode, 'SetSlot')
-                  .withArgs(roles.airnode.address, slotIndex, subscriptionId, expirationTimestamp);
+                  .withArgs(
+                    roles.airnode.address,
+                    slotIndex,
+                    subscriptionId,
+                    expirationTimestamp,
+                    roles.airnode.address
+                  );
                 const slot = await allocatorWithAirnode.airnodeToSlotIndexToSlot(roles.airnode.address, slotIndex);
                 expect(slot.subscriptionId).to.equal(subscriptionId);
                 expect(slot.setter).to.equal(roles.airnode.address);
@@ -320,7 +350,13 @@ describe('AllocatorWithAirnode', function () {
                       .setSlot(roles.airnode.address, slotIndex, subscriptionId, expirationTimestamp)
                   )
                     .to.emit(allocatorWithAirnode, 'SetSlot')
-                    .withArgs(roles.airnode.address, slotIndex, subscriptionId, expirationTimestamp);
+                    .withArgs(
+                      roles.airnode.address,
+                      slotIndex,
+                      subscriptionId,
+                      expirationTimestamp,
+                      roles.airnode.address
+                    );
                   const slot = await allocatorWithAirnode.airnodeToSlotIndexToSlot(roles.airnode.address, slotIndex);
                   expect(slot.subscriptionId).to.equal(subscriptionId);
                   expect(slot.setter).to.equal(roles.airnode.address);
@@ -388,7 +424,7 @@ describe('AllocatorWithAirnode', function () {
             .setSlot(roles.airnode.address, slotIndex, subscriptionId, expirationTimestamp);
           await expect(allocatorWithAirnode.connect(roles.slotSetter).resetSlot(roles.airnode.address, slotIndex))
             .to.emit(allocatorWithAirnode, 'ResetSlot')
-            .withArgs(roles.airnode.address, slotIndex);
+            .withArgs(roles.airnode.address, slotIndex, roles.slotSetter.address);
           const slot = await allocatorWithAirnode.airnodeToSlotIndexToSlot(roles.airnode.address, slotIndex);
           expect(slot.subscriptionId).to.equal(ethers.constants.HashZero);
           expect(slot.setter).to.equal(ethers.constants.AddressZero);
@@ -407,7 +443,7 @@ describe('AllocatorWithAirnode', function () {
             await helpers.time.setNextBlockTimestamp(firstSlotSetExpiresAt);
             await expect(allocatorWithAirnode.connect(roles.randomPerson).resetSlot(roles.airnode.address, slotIndex))
               .to.emit(allocatorWithAirnode, 'ResetSlot')
-              .withArgs(roles.airnode.address, slotIndex);
+              .withArgs(roles.airnode.address, slotIndex, roles.randomPerson.address);
             const slot = await allocatorWithAirnode.airnodeToSlotIndexToSlot(roles.airnode.address, slotIndex);
             expect(slot.subscriptionId).to.equal(ethers.constants.HashZero);
             expect(slot.setter).to.equal(ethers.constants.AddressZero);
@@ -434,7 +470,7 @@ describe('AllocatorWithAirnode', function () {
                 .revokeRole(airnodeSlotSetterRole, roles.slotSetter.address);
               await expect(allocatorWithAirnode.connect(roles.randomPerson).resetSlot(roles.airnode.address, slotIndex))
                 .to.emit(allocatorWithAirnode, 'ResetSlot')
-                .withArgs(roles.airnode.address, slotIndex);
+                .withArgs(roles.airnode.address, slotIndex, roles.randomPerson.address);
               const slot = await allocatorWithAirnode.airnodeToSlotIndexToSlot(roles.airnode.address, slotIndex);
               expect(slot.subscriptionId).to.equal(ethers.constants.HashZero);
               expect(slot.setter).to.equal(ethers.constants.AddressZero);
