@@ -106,9 +106,9 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
     );
 
     event SetDapiName(
+        bytes32 indexed dataFeedId,
         bytes32 indexed dapiName,
-        bytes32 dataFeedId,
-        address indexed sender
+        address sender
     );
 
     function setRrpBeaconUpdatePermissionStatus(

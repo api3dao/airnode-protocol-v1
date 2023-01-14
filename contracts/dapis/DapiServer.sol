@@ -925,7 +925,7 @@ contract DapiServer is
         dapiNameHashToDataFeedId[
             keccak256(abi.encodePacked(dapiName))
         ] = dataFeedId;
-        emit SetDapiName(dapiName, dataFeedId, msg.sender);
+        emit SetDapiName(dataFeedId, dapiName, msg.sender);
     }
 
     /// @notice Returns the data feed ID the dAPI name is set to

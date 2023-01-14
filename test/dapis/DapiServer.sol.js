@@ -5994,7 +5994,7 @@ describe('DapiServer', function () {
             expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(ethers.constants.HashZero);
             await expect(dapiServer.connect(roles.manager).setDapiName(dapiName, beaconSet.beaconSetId))
               .to.emit(dapiServer, 'SetDapiName')
-              .withArgs(dapiName, beaconSet.beaconSetId, roles.manager.address);
+              .withArgs(beaconSet.beaconSetId, dapiName, roles.manager.address);
             expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(beaconSet.beaconSetId);
           });
         });
@@ -6005,7 +6005,7 @@ describe('DapiServer', function () {
             expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(ethers.constants.HashZero);
             await expect(dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSet.beaconSetId))
               .to.emit(dapiServer, 'SetDapiName')
-              .withArgs(dapiName, beaconSet.beaconSetId, roles.dapiNameSetter.address);
+              .withArgs(beaconSet.beaconSetId, dapiName, roles.dapiNameSetter.address);
             expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(beaconSet.beaconSetId);
           });
         });
@@ -6027,7 +6027,7 @@ describe('DapiServer', function () {
             await dapiServer.connect(roles.manager).setDapiName(dapiName, beaconSet.beaconSetId);
             await expect(dapiServer.connect(roles.manager).setDapiName(dapiName, ethers.constants.HashZero))
               .to.emit(dapiServer, 'SetDapiName')
-              .withArgs(dapiName, ethers.constants.HashZero, roles.manager.address);
+              .withArgs(ethers.constants.HashZero, dapiName, roles.manager.address);
             expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(ethers.constants.HashZero);
             // Check if we can still set the dAPI name
             await dapiServer.connect(roles.manager).setDapiName(dapiName, beaconSet.beaconSetId);
@@ -6041,7 +6041,7 @@ describe('DapiServer', function () {
             await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSet.beaconSetId);
             await expect(dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, ethers.constants.HashZero))
               .to.emit(dapiServer, 'SetDapiName')
-              .withArgs(dapiName, ethers.constants.HashZero, roles.dapiNameSetter.address);
+              .withArgs(ethers.constants.HashZero, dapiName, roles.dapiNameSetter.address);
             expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(ethers.constants.HashZero);
             // Check if we can still set the dAPI name
             await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSet.beaconSetId);
