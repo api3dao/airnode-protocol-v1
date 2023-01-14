@@ -42,7 +42,7 @@ abstract contract Allocator is IAllocator {
             bytes32(0)
         ) {
             _resetSlot(airnode, slotIndex);
-            emit ResetSlot(airnode, slotIndex);
+            emit ResetSlot(airnode, slotIndex, _msgSender());
         }
     }
 
@@ -76,7 +76,13 @@ abstract contract Allocator is IAllocator {
             setter: _msgSender(),
             expirationTimestamp: expirationTimestamp
         });
-        emit SetSlot(airnode, slotIndex, subscriptionId, expirationTimestamp);
+        emit SetSlot(
+            airnode,
+            slotIndex,
+            subscriptionId,
+            expirationTimestamp,
+            _msgSender()
+        );
     }
 
     /// @notice Called privately to reset a slot

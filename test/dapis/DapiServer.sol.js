@@ -424,11 +424,11 @@ describe('DapiServer', function () {
           .to.emit(dapiServer, 'RequestedRrpBeaconUpdate')
           .withArgs(
             beacon.beaconId,
-            roles.sponsor.address,
+            beacon.airnode.wallet.address,
+            beacon.templateId,
             roles.sponsor.address,
             requestId,
-            beacon.airnode.wallet.address,
-            beacon.templateId
+            roles.sponsor.address
           );
       });
     });
@@ -462,11 +462,11 @@ describe('DapiServer', function () {
           .to.emit(dapiServer, 'RequestedRrpBeaconUpdate')
           .withArgs(
             beacon.beaconId,
-            roles.sponsor.address,
-            roles.updateRequester.address,
-            requestId,
             beacon.airnode.wallet.address,
-            beacon.templateId
+            beacon.templateId,
+            roles.sponsor.address,
+            requestId,
+            roles.updateRequester.address
           );
       });
     });
@@ -520,11 +520,11 @@ describe('DapiServer', function () {
           .to.emit(dapiServer, 'RequestedRrpBeaconUpdate')
           .withArgs(
             beacon.beaconId,
-            roles.sponsor.address,
+            beacon.airnode.wallet.address,
+            beacon.templateId,
             roles.sponsor.address,
             requestId,
-            beacon.airnode.wallet.address,
-            beacon.templateId
+            roles.sponsor.address
           );
       });
     });
@@ -564,11 +564,11 @@ describe('DapiServer', function () {
           .to.emit(dapiServer, 'RequestedRrpBeaconUpdate')
           .withArgs(
             beacon.beaconId,
-            roles.sponsor.address,
-            roles.updateRequester.address,
-            requestId,
             beacon.airnode.wallet.address,
-            beacon.templateId
+            beacon.templateId,
+            roles.sponsor.address,
+            requestId,
+            roles.updateRequester.address
           );
       });
     });
@@ -628,12 +628,12 @@ describe('DapiServer', function () {
           .to.emit(dapiServer, 'RequestedRelayedRrpBeaconUpdate')
           .withArgs(
             beacon.beaconId,
-            roles.sponsor.address,
+            beacon.airnode.wallet.address,
+            beacon.templateId,
+            beacon.relayer.wallet.address,
             roles.sponsor.address,
             requestId,
-            beacon.airnode.wallet.address,
-            beacon.relayer.wallet.address,
-            beacon.templateId
+            roles.sponsor.address
           );
       });
     });
@@ -674,12 +674,12 @@ describe('DapiServer', function () {
           .to.emit(dapiServer, 'RequestedRelayedRrpBeaconUpdate')
           .withArgs(
             beacon.beaconId,
-            roles.sponsor.address,
-            roles.updateRequester.address,
-            requestId,
             beacon.airnode.wallet.address,
+            beacon.templateId,
             beacon.relayer.wallet.address,
-            beacon.templateId
+            roles.sponsor.address,
+            requestId,
+            roles.updateRequester.address
           );
       });
     });
@@ -741,12 +741,12 @@ describe('DapiServer', function () {
           .to.emit(dapiServer, 'RequestedRelayedRrpBeaconUpdate')
           .withArgs(
             beacon.beaconId,
-            roles.sponsor.address,
+            beacon.airnode.wallet.address,
+            beacon.templateId,
+            beacon.relayer.wallet.address,
             roles.sponsor.address,
             requestId,
-            beacon.airnode.wallet.address,
-            beacon.relayer.wallet.address,
-            beacon.templateId
+            roles.sponsor.address
           );
       });
     });
@@ -789,12 +789,12 @@ describe('DapiServer', function () {
           .to.emit(dapiServer, 'RequestedRelayedRrpBeaconUpdate')
           .withArgs(
             beacon.beaconId,
-            roles.sponsor.address,
-            roles.updateRequester.address,
-            requestId,
             beacon.airnode.wallet.address,
+            beacon.templateId,
             beacon.relayer.wallet.address,
-            beacon.templateId
+            roles.sponsor.address,
+            requestId,
+            roles.updateRequester.address
           );
       });
     });
@@ -1410,15 +1410,13 @@ describe('DapiServer', function () {
             )
               .to.emit(dapiServer, 'RegisteredBeaconUpdateSubscription')
               .withArgs(
+                beacon.beaconId,
                 beacon.beaconUpdateSubscriptionId,
                 beacon.airnode.wallet.address,
                 beacon.templateId,
-                '0x',
                 beacon.beaconUpdateSubscriptionConditions,
                 beacon.airnode.wallet.address,
-                roles.sponsor.address,
-                dapiServer.address,
-                dapiServer.interface.getSighash('fulfillPspBeaconUpdate')
+                roles.sponsor.address
               );
             expect(await dapiServer.subscriptionIdToBeaconId(beacon.beaconUpdateSubscriptionId)).to.equal(
               beacon.beaconId
@@ -5887,7 +5885,7 @@ describe('DapiServer', function () {
               );
               await expect(dapiServer.connect(roles.randomPerson).withdraw(oevProxy.address))
                 .to.emit(dapiServer, 'Withdrew')
-                .withArgs(oevProxy.address, bidAmount);
+                .withArgs(oevProxy.address, roles.oevBeneficiary.address, bidAmount);
               const oevBeneficiaryBalanceAfterWithdrawal = await ethers.provider.getBalance(
                 roles.oevBeneficiary.address
               );
@@ -5996,7 +5994,7 @@ describe('DapiServer', function () {
             expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(ethers.constants.HashZero);
             await expect(dapiServer.connect(roles.manager).setDapiName(dapiName, beaconSet.beaconSetId))
               .to.emit(dapiServer, 'SetDapiName')
-              .withArgs(dapiName, beaconSet.beaconSetId, roles.manager.address);
+              .withArgs(beaconSet.beaconSetId, dapiName, roles.manager.address);
             expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(beaconSet.beaconSetId);
           });
         });
@@ -6007,7 +6005,7 @@ describe('DapiServer', function () {
             expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(ethers.constants.HashZero);
             await expect(dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSet.beaconSetId))
               .to.emit(dapiServer, 'SetDapiName')
-              .withArgs(dapiName, beaconSet.beaconSetId, roles.dapiNameSetter.address);
+              .withArgs(beaconSet.beaconSetId, dapiName, roles.dapiNameSetter.address);
             expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(beaconSet.beaconSetId);
           });
         });
@@ -6029,7 +6027,7 @@ describe('DapiServer', function () {
             await dapiServer.connect(roles.manager).setDapiName(dapiName, beaconSet.beaconSetId);
             await expect(dapiServer.connect(roles.manager).setDapiName(dapiName, ethers.constants.HashZero))
               .to.emit(dapiServer, 'SetDapiName')
-              .withArgs(dapiName, ethers.constants.HashZero, roles.manager.address);
+              .withArgs(ethers.constants.HashZero, dapiName, roles.manager.address);
             expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(ethers.constants.HashZero);
             // Check if we can still set the dAPI name
             await dapiServer.connect(roles.manager).setDapiName(dapiName, beaconSet.beaconSetId);
@@ -6043,7 +6041,7 @@ describe('DapiServer', function () {
             await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSet.beaconSetId);
             await expect(dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, ethers.constants.HashZero))
               .to.emit(dapiServer, 'SetDapiName')
-              .withArgs(dapiName, ethers.constants.HashZero, roles.dapiNameSetter.address);
+              .withArgs(ethers.constants.HashZero, dapiName, roles.dapiNameSetter.address);
             expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(ethers.constants.HashZero);
             // Check if we can still set the dAPI name
             await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSet.beaconSetId);

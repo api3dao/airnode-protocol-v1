@@ -127,7 +127,7 @@ contract DapiServer is
     {
         dapiNameSetterRole = _deriveRole(
             _deriveAdminRole(manager),
-            keccak256(abi.encodePacked(DAPI_NAME_SETTER_ROLE_DESCRIPTION))
+            DAPI_NAME_SETTER_ROLE_DESCRIPTION
         );
     }
 
@@ -189,11 +189,11 @@ contract DapiServer is
         requestIdToBeaconId[requestId] = beaconId;
         emit RequestedRrpBeaconUpdate(
             beaconId,
-            sponsor,
-            msg.sender,
-            requestId,
             airnode,
-            templateId
+            templateId,
+            sponsor,
+            requestId,
+            msg.sender
         );
     }
 
@@ -228,11 +228,11 @@ contract DapiServer is
         requestIdToBeaconId[requestId] = beaconId;
         emit RequestedRrpBeaconUpdate(
             beaconId,
-            sponsor,
-            msg.sender,
-            requestId,
             airnode,
-            templateId
+            templateId,
+            sponsor,
+            requestId,
+            msg.sender
         );
     }
 
@@ -265,12 +265,12 @@ contract DapiServer is
         requestIdToBeaconId[requestId] = beaconId;
         emit RequestedRelayedRrpBeaconUpdate(
             beaconId,
-            sponsor,
-            msg.sender,
-            requestId,
             airnode,
+            templateId,
             relayer,
-            templateId
+            sponsor,
+            requestId,
+            msg.sender
         );
     }
 
@@ -308,12 +308,12 @@ contract DapiServer is
         requestIdToBeaconId[requestId] = beaconId;
         emit RequestedRelayedRrpBeaconUpdate(
             beaconId,
-            sponsor,
-            msg.sender,
-            requestId,
             airnode,
+            templateId,
             relayer,
-            templateId
+            sponsor,
+            requestId,
+            msg.sender
         );
     }
 
@@ -385,20 +385,16 @@ contract DapiServer is
         subscriptionIdToHash[subscriptionId] = keccak256(
             abi.encodePacked(airnode, relayer, sponsor)
         );
-        subscriptionIdToBeaconId[subscriptionId] = deriveBeaconId(
-            airnode,
-            templateId
-        );
+        bytes32 beaconId = deriveBeaconId(airnode, templateId);
+        subscriptionIdToBeaconId[subscriptionId] = beaconId;
         emit RegisteredBeaconUpdateSubscription(
+            beaconId,
             subscriptionId,
             airnode,
             templateId,
-            "",
             conditions,
             relayer,
-            sponsor,
-            address(this),
-            this.fulfillPspBeaconUpdate.selector
+            sponsor
         );
     }
 
@@ -900,7 +896,7 @@ contract DapiServer is
         uint256 balance = oevProxyToBalance[oevProxy];
         require(balance != 0, "OEV proxy balance zero");
         oevProxyToBalance[oevProxy] = 0;
-        emit Withdrew(oevProxy, balance);
+        emit Withdrew(oevProxy, oevBeneficiary, balance);
         // solhint-disable-next-line avoid-low-level-calls
         (bool success, ) = oevBeneficiary.call{value: balance}("");
         require(success, "Withdrawal reverted");
@@ -929,7 +925,7 @@ contract DapiServer is
         dapiNameHashToDataFeedId[
             keccak256(abi.encodePacked(dapiName))
         ] = dataFeedId;
-        emit SetDapiName(dapiName, dataFeedId, msg.sender);
+        emit SetDapiName(dataFeedId, dapiName, msg.sender);
     }
 
     /// @notice Returns the data feed ID the dAPI name is set to

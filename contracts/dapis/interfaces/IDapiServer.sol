@@ -7,27 +7,27 @@ import "../../protocol/interfaces/IAirnodeRequester.sol";
 interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
     event SetRrpBeaconUpdatePermissionStatus(
         address indexed sponsor,
-        address indexed rrpBeaconUpdateRequester,
+        address indexed requester,
         bool status
     );
 
     event RequestedRrpBeaconUpdate(
         bytes32 indexed beaconId,
-        address indexed sponsor,
-        address indexed requester,
-        bytes32 requestId,
         address airnode,
-        bytes32 templateId
+        bytes32 templateId,
+        address sponsor,
+        bytes32 requestId,
+        address requester
     );
 
     event RequestedRelayedRrpBeaconUpdate(
         bytes32 indexed beaconId,
-        address indexed sponsor,
-        address indexed requester,
-        bytes32 requestId,
         address airnode,
+        bytes32 templateId,
         address relayer,
-        bytes32 templateId
+        address sponsor,
+        bytes32 requestId,
+        address requester
     );
 
     event UpdatedBeaconWithRrp(
@@ -38,15 +38,13 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
     );
 
     event RegisteredBeaconUpdateSubscription(
-        bytes32 indexed subscriptionId,
+        bytes32 indexed beaconId,
+        bytes32 subscriptionId,
         address airnode,
         bytes32 templateId,
-        bytes parameters,
         bytes conditions,
         address relayer,
-        address sponsor,
-        address requester,
-        bytes4 fulfillFunctionId
+        address sponsor
     );
 
     event UpdatedBeaconWithPsp(
@@ -101,12 +99,16 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
         uint32 timestamp
     );
 
-    event Withdrew(address indexed oevProxy, uint256 amount);
+    event Withdrew(
+        address indexed oevProxy,
+        address oevBeneficiary,
+        uint256 amount
+    );
 
     event SetDapiName(
+        bytes32 indexed dataFeedId,
         bytes32 indexed dapiName,
-        bytes32 dataFeedId,
-        address indexed sender
+        address sender
     );
 
     function setRrpBeaconUpdatePermissionStatus(

@@ -17,14 +17,14 @@ interface IProxyFactory {
     event DeployedDataFeedProxyWithOev(
         address indexed proxyAddress,
         bytes32 indexed dataFeedId,
-        address indexed oevBeneficiary,
+        address oevBeneficiary,
         bytes metadata
     );
 
     event DeployedDapiProxyWithOev(
         address indexed proxyAddress,
         bytes32 indexed dapiName,
-        address indexed oevBeneficiary,
+        address oevBeneficiary,
         bytes metadata
     );
 

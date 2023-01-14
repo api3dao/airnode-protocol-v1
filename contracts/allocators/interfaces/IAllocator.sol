@@ -4,12 +4,17 @@ pragma solidity ^0.8.0;
 interface IAllocator {
     event SetSlot(
         address indexed airnode,
-        uint256 slotIndex,
+        uint256 indexed slotIndex,
         bytes32 subscriptionId,
-        uint32 expirationTimestamp
+        uint32 expirationTimestamp,
+        address sender
     );
 
-    event ResetSlot(address indexed airnode, uint256 slotIndex);
+    event ResetSlot(
+        address indexed airnode,
+        uint256 indexed slotIndex,
+        address sender
+    );
 
     function setSlot(
         address airnode,
