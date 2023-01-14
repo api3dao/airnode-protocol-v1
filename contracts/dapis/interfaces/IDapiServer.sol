@@ -99,7 +99,11 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
         uint32 timestamp
     );
 
-    event Withdrew(address indexed oevProxy, uint256 amount);
+    event Withdrew(
+        address indexed oevProxy,
+        address oevBeneficiary,
+        uint256 amount
+    );
 
     event SetDapiName(
         bytes32 indexed dapiName,

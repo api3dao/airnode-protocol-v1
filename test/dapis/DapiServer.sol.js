@@ -5885,7 +5885,7 @@ describe('DapiServer', function () {
               );
               await expect(dapiServer.connect(roles.randomPerson).withdraw(oevProxy.address))
                 .to.emit(dapiServer, 'Withdrew')
-                .withArgs(oevProxy.address, bidAmount);
+                .withArgs(oevProxy.address, roles.oevBeneficiary.address, bidAmount);
               const oevBeneficiaryBalanceAfterWithdrawal = await ethers.provider.getBalance(
                 roles.oevBeneficiary.address
               );

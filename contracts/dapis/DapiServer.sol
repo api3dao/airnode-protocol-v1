@@ -896,7 +896,7 @@ contract DapiServer is
         uint256 balance = oevProxyToBalance[oevProxy];
         require(balance != 0, "OEV proxy balance zero");
         oevProxyToBalance[oevProxy] = 0;
-        emit Withdrew(oevProxy, balance);
+        emit Withdrew(oevProxy, oevBeneficiary, balance);
         // solhint-disable-next-line avoid-low-level-calls
         (bool success, ) = oevBeneficiary.call{value: balance}("");
         require(success, "Withdrawal reverted");
