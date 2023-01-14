@@ -96,4 +96,156 @@ module.exports = {
     };
   },
   PROTOCOL_IDS,
+  deriveRequestId: async (
+    airnodeProtocol,
+    airnodeRequesterAddress,
+    airnodeAddress,
+    endpointOrTemplateId,
+    requestParameters,
+    sponsorAddress,
+    fulfillFunctionId
+  ) => {
+    return ethers.utils.solidityKeccak256(
+      ['uint256', 'address', 'address', 'uint256', 'address', 'bytes32', 'bytes', 'address', 'bytes4'],
+      [
+        (await airnodeProtocol.provider.getNetwork()).chainId,
+        airnodeProtocol.address,
+        airnodeRequesterAddress,
+        (await airnodeProtocol.requesterToRequestCount(airnodeRequesterAddress)).add(1),
+        airnodeAddress,
+        endpointOrTemplateId,
+        requestParameters,
+        sponsorAddress,
+        fulfillFunctionId,
+      ]
+    );
+  },
+  deriveRelayedRequestId: async (
+    airnodeProtocol,
+    airnodeRequesterAddress,
+    airnodeAddress,
+    endpointOrTemplateId,
+    requestParameters,
+    relayerAddress,
+    sponsorAddress,
+    fulfillFunctionId
+  ) => {
+    return ethers.utils.solidityKeccak256(
+      ['uint256', 'address', 'address', 'uint256', 'address', 'bytes32', 'bytes', 'address', 'address', 'bytes4'],
+      [
+        (await airnodeProtocol.provider.getNetwork()).chainId,
+        airnodeProtocol.address,
+        airnodeRequesterAddress,
+        (await airnodeProtocol.requesterToRequestCount(airnodeRequesterAddress)).add(1),
+        airnodeAddress,
+        endpointOrTemplateId,
+        requestParameters,
+        relayerAddress,
+        sponsorAddress,
+        fulfillFunctionId,
+      ]
+    );
+  },
+  signRrpFulfillment: async (airnode, requestId, timestamp, airnodeSponsorWalletAddress) => {
+    return await airnode.signMessage(
+      ethers.utils.arrayify(
+        ethers.utils.solidityKeccak256(
+          ['bytes32', 'uint256', 'address'],
+          [requestId, timestamp, airnodeSponsorWalletAddress]
+        )
+      )
+    );
+  },
+  signRrpRelayedFulfillment: async (airnode, requestId, timestamp, relayerSponsorWalletAddress, fulfillData) => {
+    return await airnode.signMessage(
+      ethers.utils.arrayify(
+        ethers.utils.solidityKeccak256(
+          ['bytes32', 'uint256', 'address', 'bytes'],
+          [requestId, timestamp, relayerSponsorWalletAddress, fulfillData]
+        )
+      )
+    );
+  },
+  signRrpRelayedFailure: async (relayer, requestId, timestamp, relayerSponsorWalletAddress) => {
+    return await relayer.signMessage(
+      ethers.utils.arrayify(
+        ethers.utils.solidityKeccak256(
+          ['bytes32', 'uint256', 'address'],
+          [requestId, timestamp, relayerSponsorWalletAddress]
+        )
+      )
+    );
+  },
+  signPspFulfillment: async (airnode, subscriptionId, timestamp, airnodeSponsorWalletAddress) => {
+    return await airnode.signMessage(
+      ethers.utils.arrayify(
+        ethers.utils.solidityKeccak256(
+          ['bytes32', 'uint256', 'address'],
+          [subscriptionId, timestamp, airnodeSponsorWalletAddress]
+        )
+      )
+    );
+  },
+  signPspRelayedFulfillment: async (airnode, subscriptionId, timestamp, relayerSponsorWalletAddress, fulfillData) => {
+    return await airnode.signMessage(
+      ethers.utils.arrayify(
+        ethers.utils.solidityKeccak256(
+          ['bytes32', 'uint256', 'address', 'bytes'],
+          [subscriptionId, timestamp, relayerSponsorWalletAddress, fulfillData]
+        )
+      )
+    );
+  },
+  signData: async (airnode, templateId, timestamp, data) => {
+    return await airnode.signMessage(
+      ethers.utils.arrayify(
+        ethers.utils.solidityKeccak256(['bytes32', 'uint256', 'bytes'], [templateId, timestamp, data])
+      )
+    );
+  },
+  domainSignData: async (airnode, dapiServer, templateId, timestamp, data) => {
+    return await airnode.signMessage(
+      ethers.utils.arrayify(
+        ethers.utils.solidityKeccak256(
+          ['uint256', 'address', 'bytes32', 'uint256', 'bytes'],
+          [(await dapiServer.provider.getNetwork()).chainId, dapiServer.address, templateId, timestamp, data]
+        )
+      )
+    );
+  },
+  signOevData: async (
+    dapiServer,
+    oevProxyAddress,
+    searcherAddress,
+    bidAmount,
+    updateId,
+    signatureCount,
+    beaconCount,
+    airnode,
+    templateId,
+    timestamp,
+    data
+  ) => {
+    const metadataHash = ethers.utils.solidityKeccak256(
+      ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
+      [
+        (await dapiServer.provider.getNetwork()).chainId,
+        dapiServer.address,
+        oevProxyAddress,
+        searcherAddress,
+        bidAmount,
+        updateId,
+        signatureCount,
+        beaconCount,
+      ]
+    );
+    return await airnode.signMessage(
+      ethers.utils.arrayify(
+        ethers.utils.solidityKeccak256(
+          ['bytes32', 'bytes32', 'uint256', 'bytes'],
+          [metadataHash, templateId, timestamp, data]
+        )
+      )
+    );
+  },
 };

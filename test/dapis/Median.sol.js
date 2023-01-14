@@ -1,21 +1,24 @@
-const hre = require('hardhat');
+const { ethers } = require('hardhat');
+const helpers = require('@nomicfoundation/hardhat-network-helpers');
 const { expect } = require('chai');
 
 describe('Median', function () {
-  let median;
-
-  beforeEach(async () => {
-    const accounts = await hre.ethers.getSigners();
+  async function deploy() {
+    const accounts = await ethers.getSigners();
     const roles = {
       deployer: accounts[0],
     };
-    const mockInPlaceMedianFactory = await hre.ethers.getContractFactory('MockMedian', roles.deployer);
-    median = await mockInPlaceMedianFactory.deploy();
-  });
+    const mockMedianFactory = await ethers.getContractFactory('MockMedian', roles.deployer);
+    const median = await mockMedianFactory.deploy();
+    return {
+      median,
+    };
+  }
 
   describe('median', function () {
     context('Array length is 1-21', function () {
       it('computes median of randomly shuffled arrays', async function () {
+        const { median } = await helpers.loadFixture(deploy);
         for (let arrayLength = 1; arrayLength <= 21; arrayLength++) {
           for (let iterationCount = 0; iterationCount <= 10; iterationCount++) {
             const array = Array.from(Array(arrayLength), (_, i) => i - Math.floor(arrayLength / 2));
@@ -42,7 +45,8 @@ describe('Median', function () {
   describe('average', function () {
     context('x and y are largest positive numbers', function () {
       it('computes average without overflowing', async function () {
-        const x = hre.ethers.BigNumber.from(2).pow(255).sub(1);
+        const { median } = await helpers.loadFixture(deploy);
+        const x = ethers.BigNumber.from(2).pow(255).sub(1);
         const y = x;
         const computedAverage = await median.exposedAverage(x, y);
         const actualAverage = x;
@@ -51,7 +55,8 @@ describe('Median', function () {
     });
     context('x and y are smallest negative numbers', function () {
       it('computes average without undeflowing', async function () {
-        const x = hre.ethers.BigNumber.from(-2).pow(255);
+        const { median } = await helpers.loadFixture(deploy);
+        const x = ethers.BigNumber.from(-2).pow(255);
         const y = x;
         const computedAverage = await median.exposedAverage(x, y);
         const actualAverage = x;
@@ -60,6 +65,7 @@ describe('Median', function () {
     });
     context('With various combinations of x and y', function () {
       it('computes average', async function () {
+        const { median } = await helpers.loadFixture(deploy);
         for (let x = -2; x <= 2; x++) {
           for (let y = -2; y <= 2; y++) {
             const computedAverage = await median.exposedAverage(x, y);

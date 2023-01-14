@@ -5,8 +5,8 @@ import "./DapiProxy.sol";
 import "./interfaces/IOevProxy.sol";
 
 /// @title An immutable proxy contract that is used to read a specific dAPI of
-/// a specific DapiServer contract, execute OEV updates and let the beneficiary
-/// withdraw the accumulated proceeds
+/// a specific DapiServer contract and inform DapiServer about the beneficiary
+/// of the respective OEV proceeds
 /// @dev See DapiProxy.sol for comments about usage
 contract DapiProxyWithOev is DapiProxy, IOevProxy {
     /// @notice OEV beneficiary address

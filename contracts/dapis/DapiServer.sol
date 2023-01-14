@@ -17,14 +17,16 @@ import "./proxies/interfaces/IOevProxy.sol";
 /// asset price data feed. Beacons can also be seen as one-Airnode data feeds
 /// that can be used individually or combined to build Beacon sets. dAPIs are
 /// an abstraction layer over Beacons and Beacon sets.
+/// In addition, this contract allows winners of OEV auctions to pay their bids
+/// to update the specific data feed.
 /// @dev DapiServer is a PSP requester contract. Unlike RRP, which is
 /// implemented as a central contract, PSP implementation is built into the
 /// requester for optimization. Accordingly, the checks that are not required
 /// are omitted. Some examples:
 /// - While executing a PSP Beacon update, the condition is not verified
-/// because Beacon updates where the condition returns `false` (i.e., the
+/// because Beacon updates where the condition returns `false` (e.g., the
 /// on-chain value is already close to the actual value) are not harmful, and
-/// are even desirable.
+/// are even desirable ("any update is a good update").
 /// - PSP Beacon set update subscription IDs are not verified, as the
 /// Airnode/relayer cannot be made to "misreport a Beacon set update" by
 /// spoofing a subscription ID.
@@ -75,13 +77,17 @@ contract DapiServer is
     mapping(bytes32 => DataFeed) public override dataFeeds;
 
     /// @notice Data feed with ID specific to the OEV proxy
+    /// @dev This implies that an update as a result of an OEV auction only
+    /// affects contracts that read through the respective proxy that the
+    /// auction was being held for
     mapping(address => mapping(bytes32 => DataFeed))
         public
         override oevProxyToIdToDataFeed;
 
-    /// @notice Data feed ID mapped to the dAPI name hash
+    /// @notice dAPI name hash mapped to the data feed ID
     mapping(bytes32 => bytes32) public override dapiNameHashToDataFeedId;
 
+    /// @notice Accumulated OEV auction proceeds for the specific proxy
     mapping(address => uint256) public override oevProxyToBalance;
 
     mapping(bytes32 => bytes32) private requestIdToBeaconId;
@@ -323,8 +329,15 @@ contract DapiServer is
     ) external override onlyAirnodeProtocol onlyValidTimestamp(timestamp) {
         bytes32 beaconId = requestIdToBeaconId[requestId];
         delete requestIdToBeaconId[requestId];
-        int256 decodedData = processBeaconUpdate(beaconId, timestamp, data);
-        emit UpdatedBeaconWithRrp(beaconId, requestId, decodedData, timestamp);
+        int224 decodedData = processBeaconUpdate(beaconId, timestamp, data);
+        // Timestamp validity is already checked by `onlyValidTimestamp`, which
+        // means it will be small enough to be typecast into `uint32`
+        emit UpdatedBeaconWithRrp(
+            beaconId,
+            requestId,
+            decodedData,
+            uint32(timestamp)
+        );
     }
 
     ///                     ~~~PSP Beacon updates~~~
@@ -365,6 +378,10 @@ contract DapiServer is
                 this.fulfillPspBeaconUpdate.selector
             )
         );
+        require(
+            subscriptionIdToHash[subscriptionId] == bytes32(0),
+            "Subscription already registered"
+        );
         subscriptionIdToHash[subscriptionId] = keccak256(
             abi.encodePacked(airnode, relayer, sponsor)
         );
@@ -391,8 +408,8 @@ contract DapiServer is
     /// of a Subscription
     /// @param subscriptionId Subscription ID
     /// @param data Fulfillment data (an `int256` encoded in contract ABI)
-    /// @param conditionParameters Subscription condition parameters (a
-    /// `uint256` encoded in contract ABI)
+    /// @param conditionParameters Subscription condition parameters. This
+    /// includes multiple ABI-encoded values, see `checkUpdateCondition()`.
     /// @return If the Beacon update subscription should be fulfilled
     function conditionPspBeaconUpdate(
         bytes32 subscriptionId,
@@ -468,11 +485,13 @@ contract DapiServer is
         bytes32 beaconId = subscriptionIdToBeaconId[subscriptionId];
         // Beacon ID is guaranteed to not be zero because the subscription is
         // registered
-        int256 decodedData = processBeaconUpdate(beaconId, timestamp, data);
+        int224 decodedData = processBeaconUpdate(beaconId, timestamp, data);
+        // Timestamp validity is already checked by `onlyValidTimestamp`, which
+        // means it will be small enough to be typecast into `uint32`
         emit UpdatedBeaconWithPsp(
             beaconId,
             subscriptionId,
-            int224(decodedData),
+            decodedData,
             uint32(timestamp)
         );
     }
@@ -480,9 +499,9 @@ contract DapiServer is
     ///                     ~~~PSP Beacon set updates~~~
 
     /// @notice Updates the Beacon set using the current values of its Beacons
-    /// @dev This function still works if some of the IDs in `beaconIds` belong
-    /// to Beacon sets rather than Beacons. However, this is not the intended
-    /// use.
+    /// @dev As an oddity, this function still works if some of the IDs in
+    /// `beaconIds` belong to Beacon sets rather than Beacons. This can be used
+    /// to implement hierarchical Beacon sets.
     /// @param beaconIds Beacon IDs
     /// @return beaconSetId Beacon set ID
     function updateBeaconSetWithBeacons(
@@ -509,15 +528,15 @@ contract DapiServer is
 
     /// @notice Returns if the respective Beacon set needs to be updated based
     /// on the condition parameters
-    /// @dev The template ID used in the respective Subscription is expected to
-    /// be zero, which means the `parameters` field of the Subscription will be
-    /// forwarded to this function as `data`. This field should be the Beacon
-    /// ID array encoded in contract ABI.
+    /// @dev `endpointOrTemplateId` in the respective Subscription is expected
+    /// to be zero, which means the `parameters` field of the Subscription will
+    /// be forwarded to this function as `data`. This field should be the
+    /// Beacon ID array encoded in contract ABI.
     /// @param subscriptionId Subscription ID
     /// @param data Fulfillment data (array of Beacon IDs, i.e., `bytes32[]`
     /// encoded in contract ABI)
-    /// @param conditionParameters Subscription condition parameters (a
-    /// `uint256` encoded in contract ABI)
+    /// @param conditionParameters Subscription condition parameters. This
+    /// includes multiple ABI-encoded values, see `checkUpdateCondition()`.
     /// @return If the Beacon set update subscription should be fulfilled
     function conditionPspBeaconSetUpdate(
         bytes32 subscriptionId, // solhint-disable-line no-unused-vars
@@ -543,10 +562,10 @@ contract DapiServer is
 
     /// @notice Called by the Airnode/relayer using the sponsor wallet to
     /// fulfill the Beacon set update subscription
-    /// @dev Similar to `conditionPspBeaconSetUpdate()`, if `templateId` of the
-    /// Subscription is zero, its `parameters` field will be forwarded to
-    /// `data` here, which is expect to be contract ABI-encoded array of Beacon
-    /// IDs.
+    /// @dev Similar to `conditionPspBeaconSetUpdate()`, if
+    /// `endpointOrTemplateId` of the Subscription is zero, its `parameters`
+    /// field will be forwarded to `data` here, which is expect to be contract
+    /// ABI-encoded array of Beacon IDs.
     /// It does not make sense for this subscription to be relayed, as there is
     /// no external data being delivered. Nevertheless, this is allowed for the
     /// lack of a reason to prevent it.
@@ -579,12 +598,15 @@ contract DapiServer is
         );
     }
 
-    ///                     ~~~Signed data Beacon set updates~~~
+    ///                     ~~~Signed data feed updates~~~
 
     /// @notice Updates a data feed using data signed by the respective
     /// Airnodes without requiring a request or subscription. The Beacons for
     /// which the fulfillment data and signature is omitted will be read from
     /// storage.
+    /// @dev The signed data here is intentionally very general for practical
+    /// reasons. It is less demanding on the signer to have data signed once
+    /// and use that everywhere.
     /// @param signedData Array of contract ABI-encoded Airnode address,
     /// template ID, timestamp and fulfillment data that is signed by the
     /// respective Airnode
@@ -641,22 +663,22 @@ contract DapiServer is
         } else if (beaconCount == 1) {
             (
                 bytes32 beaconId,
-                int224 beaconValue,
-                uint32 beaconTimestamp
+                int224 updatedValue,
+                uint32 updatedTimestamp
             ) = decodeSignedData(signedData[0]);
-            require(beaconTimestamp != 0, "Missing data");
+            require(updatedTimestamp != 0, "Missing data");
             require(
-                beaconTimestamp > dataFeeds[beaconId].timestamp,
+                updatedTimestamp > dataFeeds[beaconId].timestamp,
                 "Does not update timestamp"
             );
             dataFeeds[beaconId] = DataFeed({
-                value: beaconValue,
-                timestamp: beaconTimestamp
+                value: updatedValue,
+                timestamp: updatedTimestamp
             });
             emit UpdatedBeaconWithSignedData(
                 beaconId,
-                beaconValue,
-                beaconTimestamp
+                updatedValue,
+                updatedTimestamp
             );
         } else {
             revert("Specified no Beacons");
@@ -667,6 +689,10 @@ contract DapiServer is
     /// Airnodes without requiring a request or subscription. The Beacons for
     /// which the fulfillment data and signature is omitted will be read from
     /// storage.
+    /// @dev This signed data here is specific to this contract, which is to be
+    /// used when the signer does not want to provide the more general
+    /// signature. EIP712 may feel relevant here, but we avoided it for the
+    /// sake of consistency among signed data implementations and clarity.
     /// @param signedData Array of contract ABI-encoded Airnode address,
     /// template ID, timestamp and fulfillment data that is signed by the
     /// respective Airnode for this specific contract
@@ -722,22 +748,22 @@ contract DapiServer is
         } else if (beaconCount == 1) {
             (
                 bytes32 beaconId,
-                int224 beaconValue,
-                uint32 beaconTimestamp
+                int224 updatedValue,
+                uint32 updatedTimestamp
             ) = decodeDomainSignedData(signedData[0]);
-            require(beaconTimestamp != 0, "Missing data");
+            require(updatedTimestamp != 0, "Missing data");
             require(
-                beaconTimestamp > dataFeeds[beaconId].timestamp,
+                updatedTimestamp > dataFeeds[beaconId].timestamp,
                 "Does not update timestamp"
             );
             dataFeeds[beaconId] = DataFeed({
-                value: beaconValue,
-                timestamp: beaconTimestamp
+                value: updatedValue,
+                timestamp: updatedTimestamp
             });
             emit UpdatedBeaconWithDomainSignedData(
                 beaconId,
-                beaconValue,
-                beaconTimestamp
+                updatedValue,
+                updatedTimestamp
             );
         } else {
             revert("Specified no Beacons");
@@ -750,7 +776,10 @@ contract DapiServer is
     /// by the respective Airnodes for the specific bid. The Beacons for which
     /// the fulfillment data and signature is omitted will be read from
     /// storage.
-    /// @param oevProxy OEV proxy that reads the Beacon set
+    /// @dev Even though data for Beacons are signed individually, the caller
+    /// is only allowed to use the signatures as a bundle. They cannot omit
+    /// individual signatures or mix-and-match among bundles.
+    /// @param oevProxy OEV proxy that reads the data feed
     /// @param updateId Update ID
     /// @param signatureCount Number of signatures in `signedData`
     /// @param signedData Array of ABI-encoded Airnode address, template ID,
@@ -832,26 +861,26 @@ contract DapiServer is
         } else if (beaconCount == 1) {
             (
                 bytes32 beaconId,
-                int224 beaconValue,
-                uint32 beaconTimestamp
+                int224 updatedValue,
+                uint32 updatedTimestamp
             ) = decodeOevSignedData(metadataHash, signedData[0]);
-            require(beaconTimestamp != 0, "Missing data");
+            require(updatedTimestamp != 0, "Missing data");
             require(
-                beaconTimestamp >
+                updatedTimestamp >
                     oevProxyToIdToDataFeed[oevProxy][beaconId].timestamp,
                 "Does not update timestamp"
             );
             oevProxyToIdToDataFeed[oevProxy][beaconId] = DataFeed({
-                value: beaconValue,
-                timestamp: beaconTimestamp
+                value: updatedValue,
+                timestamp: updatedTimestamp
             });
             oevProxyToBalance[oevProxy] += msg.value;
             emit UpdatedOevProxyBeaconWithSignedData(
                 beaconId,
                 oevProxy,
                 updateId,
-                beaconValue,
-                beaconTimestamp
+                updatedValue,
+                updatedTimestamp
             );
         } else {
             revert("Specified no Beacons");
@@ -860,6 +889,10 @@ contract DapiServer is
 
     /// @notice Withdraws the balance of the OEV proxy to the respective
     /// beneficiary account
+    /// @dev This does not require the caller to be the beneficiary because we
+    /// expect that in most cases, the OEV beneficiary will be a contract that
+    /// will not be able to make arbitrary calls. Our choice can be worked
+    /// around by implementing a beneficiary proxy.
     /// @param oevProxy OEV proxy
     function withdraw(address oevProxy) external override {
         address oevBeneficiary = IOevProxy(oevProxy).oevBeneficiary();
@@ -1030,7 +1063,7 @@ contract DapiServer is
         bytes32 beaconId,
         uint256 timestamp,
         bytes calldata data
-    ) private returns (int256 updatedBeaconValue) {
+    ) private returns (int224 updatedBeaconValue) {
         updatedBeaconValue = decodeFulfillmentData(data);
         require(
             timestamp > dataFeeds[beaconId].timestamp,
@@ -1039,7 +1072,7 @@ contract DapiServer is
         // Timestamp validity is already checked by `onlyValidTimestamp`, which
         // means it will be small enough to be typecast into `uint32`
         dataFeeds[beaconId] = DataFeed({
-            value: int224(updatedBeaconValue),
+            value: updatedBeaconValue,
             timestamp: uint32(timestamp)
         });
     }
@@ -1063,9 +1096,9 @@ contract DapiServer is
     /// @param dataFeedId Data feed ID
     /// @param updatedValue Value the data feed will be updated with
     /// @param updatedTimestamp Timestamp the data feed will be updated with
-    /// @param conditionParameters Condition parameters (two `uint256`s encoded
-    /// in contract ABI)
-    /// @return If update should be executed
+    /// @param conditionParameters Subscription condition parameters. This
+    /// includes multiple ABI-encoded values, see `checkUpdateCondition()`.
+    /// @return If the update should be executed
     function checkUpdateCondition(
         bytes32 dataFeedId,
         int224 updatedValue,

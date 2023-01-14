@@ -14,7 +14,7 @@ describe('AirnodeProtocol', function () {
     fulfillFunctionId,
     airnodeSponsorWalletAddress
   ) {
-    const requestId = await deriveRequestId(
+    const requestId = await testUtils.deriveRequestId(
       airnodeProtocol,
       airnodeRequester.address,
       airnode.address,
@@ -31,7 +31,7 @@ describe('AirnodeProtocol', function () {
       fulfillFunctionId
     );
     const timestamp = await helpers.time.latest();
-    const signature = await signFulfillment(airnode, requestId, timestamp, airnodeSponsorWalletAddress);
+    const signature = await testUtils.signRrpFulfillment(airnode, requestId, timestamp, airnodeSponsorWalletAddress);
     return { requestId, timestamp, signature };
   }
 
@@ -47,7 +47,7 @@ describe('AirnodeProtocol', function () {
     relayerSponsorWalletAddress,
     fulfillData
   ) {
-    const requestId = await deriveRelayedRequestId(
+    const requestId = await testUtils.deriveRelayedRequestId(
       airnodeProtocol,
       airnodeRequester.address,
       airnode.address,
@@ -66,100 +66,20 @@ describe('AirnodeProtocol', function () {
       fulfillFunctionId
     );
     const timestamp = await helpers.time.latest();
-    const signature = await signRelayedFulfillment(
+    const signature = await testUtils.signRrpRelayedFulfillment(
       airnode,
       requestId,
       timestamp,
       relayerSponsorWalletAddress,
       fulfillData
     );
-    const failSignature = await signRelayedFailure(relayer, requestId, timestamp, relayerSponsorWalletAddress);
+    const failSignature = await testUtils.signRrpRelayedFailure(
+      relayer,
+      requestId,
+      timestamp,
+      relayerSponsorWalletAddress
+    );
     return { requestId, timestamp, signature, failSignature };
-  }
-
-  async function deriveRequestId(
-    airnodeProtocol,
-    airnodeRequesterAddress,
-    airnodeAddress,
-    endpointOrTemplateId,
-    requestParameters,
-    sponsorAddress,
-    fulfillFunctionId
-  ) {
-    return ethers.utils.solidityKeccak256(
-      ['uint256', 'address', 'address', 'uint256', 'address', 'bytes32', 'bytes', 'address', 'bytes4'],
-      [
-        (await airnodeProtocol.provider.getNetwork()).chainId,
-        airnodeProtocol.address,
-        airnodeRequesterAddress,
-        (await airnodeProtocol.requesterToRequestCount(airnodeRequesterAddress)).add(1),
-        airnodeAddress,
-        endpointOrTemplateId,
-        requestParameters,
-        sponsorAddress,
-        fulfillFunctionId,
-      ]
-    );
-  }
-
-  async function deriveRelayedRequestId(
-    airnodeProtocol,
-    airnodeRequesterAddress,
-    airnodeAddress,
-    endpointOrTemplateId,
-    requestParameters,
-    relayerAddress,
-    sponsorAddress,
-    fulfillFunctionId
-  ) {
-    return ethers.utils.solidityKeccak256(
-      ['uint256', 'address', 'address', 'uint256', 'address', 'bytes32', 'bytes', 'address', 'address', 'bytes4'],
-      [
-        (await airnodeProtocol.provider.getNetwork()).chainId,
-        airnodeProtocol.address,
-        airnodeRequesterAddress,
-        (await airnodeProtocol.requesterToRequestCount(airnodeRequesterAddress)).add(1),
-        airnodeAddress,
-        endpointOrTemplateId,
-        requestParameters,
-        relayerAddress,
-        sponsorAddress,
-        fulfillFunctionId,
-      ]
-    );
-  }
-
-  async function signFulfillment(airnode, requestId, timestamp, airnodeSponsorWalletAddress) {
-    return await airnode.signMessage(
-      ethers.utils.arrayify(
-        ethers.utils.solidityKeccak256(
-          ['bytes32', 'uint256', 'address'],
-          [requestId, timestamp, airnodeSponsorWalletAddress]
-        )
-      )
-    );
-  }
-
-  async function signRelayedFulfillment(airnode, requestId, timestamp, relayerSponsorWalletAddress, fulfillData) {
-    return await airnode.signMessage(
-      ethers.utils.arrayify(
-        ethers.utils.solidityKeccak256(
-          ['bytes32', 'uint256', 'address', 'bytes'],
-          [requestId, timestamp, relayerSponsorWalletAddress, fulfillData]
-        )
-      )
-    );
-  }
-
-  async function signRelayedFailure(relayer, requestId, timestamp, relayerSponsorWalletAddress) {
-    return await relayer.signMessage(
-      ethers.utils.arrayify(
-        ethers.utils.solidityKeccak256(
-          ['bytes32', 'uint256', 'address'],
-          [requestId, timestamp, relayerSponsorWalletAddress]
-        )
-      )
-    );
   }
 
   async function deploy() {
@@ -266,7 +186,7 @@ describe('AirnodeProtocol', function () {
               it('makes request', async function () {
                 const { roles, airnodeProtocol, airnodeRequester, templateId, requestParameters, fulfillFunctionId } =
                   await helpers.loadFixture(deploy);
-                const requestId = await deriveRequestId(
+                const requestId = await testUtils.deriveRequestId(
                   airnodeProtocol,
                   airnodeRequester.address,
                   roles.airnode.address,
@@ -634,7 +554,7 @@ describe('AirnodeProtocol', function () {
         it('reverts', async function () {
           const { roles, airnodeProtocol, airnodeRequester, fulfillFunctionId, fulfillData, request } =
             await helpers.loadFixture(deploy);
-          const differentSignature = await signFulfillment(
+          const differentSignature = await testUtils.signRrpFulfillment(
             roles.airnode,
             testUtils.generateRandomBytes32(),
             request.timestamp,
@@ -795,7 +715,7 @@ describe('AirnodeProtocol', function () {
         it('reverts', async function () {
           const { roles, airnodeProtocol, airnodeRequester, fulfillFunctionId, errorMessage, request } =
             await helpers.loadFixture(deploy);
-          const differentSignature = await signFulfillment(
+          const differentSignature = await testUtils.signRrpFulfillment(
             roles.airnode,
             testUtils.generateRandomBytes32(),
             request.timestamp,
@@ -923,7 +843,7 @@ describe('AirnodeProtocol', function () {
                 it('makes relayed request', async function () {
                   const { roles, airnodeProtocol, airnodeRequester, templateId, requestParameters, fulfillFunctionId } =
                     await helpers.loadFixture(deploy);
-                  const requestId = await deriveRelayedRequestId(
+                  const requestId = await testUtils.deriveRelayedRequestId(
                     airnodeProtocol,
                     airnodeRequester.address,
                     roles.airnode.address,
@@ -1358,7 +1278,7 @@ describe('AirnodeProtocol', function () {
         it('reverts', async function () {
           const { roles, airnodeProtocol, airnodeRequester, fulfillFunctionId, fulfillData, relayedRequest } =
             await helpers.loadFixture(deploy);
-          const differentSignature = await signRelayedFulfillment(
+          const differentSignature = await testUtils.signRrpRelayedFulfillment(
             roles.airnode,
             testUtils.generateRandomBytes32(),
             relayedRequest.timestamp,
@@ -1559,7 +1479,7 @@ describe('AirnodeProtocol', function () {
         it('reverts', async function () {
           const { roles, airnodeProtocol, airnodeRequester, fulfillFunctionId, errorMessage, relayedRequest } =
             await helpers.loadFixture(deploy);
-          const differentSignature = await signRelayedFailure(
+          const differentSignature = await testUtils.signRrpRelayedFailure(
             roles.relayer,
             testUtils.generateRandomBytes32(),
             relayedRequest.timestamp,

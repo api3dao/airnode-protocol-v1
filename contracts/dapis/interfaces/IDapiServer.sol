@@ -33,8 +33,8 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
     event UpdatedBeaconWithRrp(
         bytes32 indexed beaconId,
         bytes32 requestId,
-        int256 value,
-        uint256 timestamp
+        int224 value,
+        uint32 timestamp
     );
 
     event RegisteredBeaconUpdateSubscription(
@@ -58,13 +58,13 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
 
     event UpdatedBeaconWithSignedData(
         bytes32 indexed beaconId,
-        int256 value,
-        uint256 timestamp
+        int224 value,
+        uint32 timestamp
     );
     event UpdatedBeaconWithDomainSignedData(
         bytes32 indexed beaconId,
-        int256 value,
-        uint256 timestamp
+        int224 value,
+        uint32 timestamp
     );
 
     event UpdatedBeaconSetWithBeacons(
@@ -89,16 +89,16 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
         bytes32 indexed beaconId,
         address indexed proxy,
         bytes32 indexed updateId,
-        int256 value,
-        uint256 timestamp
+        int224 value,
+        uint32 timestamp
     );
 
     event UpdatedOevProxyBeaconSetWithSignedData(
         bytes32 indexed beaconSetId,
         address indexed proxy,
         bytes32 indexed updateId,
-        int256 value,
-        uint256 timestamp
+        int224 value,
+        uint32 timestamp
     );
 
     event Withdrew(address indexed oevProxy, uint256 amount);
