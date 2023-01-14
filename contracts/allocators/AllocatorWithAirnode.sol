@@ -14,6 +14,9 @@ contract AllocatorWithAirnode is
     Allocator,
     IAllocatorWithAirnode
 {
+    bytes32 private constant SLOT_SETTER_ROLE_DESCRIPTION_HASH =
+        keccak256(abi.encodePacked(SLOT_SETTER_ROLE_DESCRIPTION));
+
     /// @param _accessControlRegistry AccessControlRegistry contract address
     /// @param _adminRoleDescription Admin role description
     constructor(

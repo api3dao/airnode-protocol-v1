@@ -26,9 +26,6 @@ abstract contract Allocator is IAllocator {
         public
         override airnodeToSlotIndexToSlot;
 
-    bytes32 internal constant SLOT_SETTER_ROLE_DESCRIPTION_HASH =
-        keccak256(abi.encodePacked(SLOT_SETTER_ROLE_DESCRIPTION));
-
     /// @notice Resets the slot
     /// @dev This will revert if the slot has been set before, and the sender
     /// is not the setter of the slot, and the slot has not expired and the
