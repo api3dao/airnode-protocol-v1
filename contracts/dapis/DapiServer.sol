@@ -127,7 +127,7 @@ contract DapiServer is
     {
         dapiNameSetterRole = _deriveRole(
             _deriveAdminRole(manager),
-            keccak256(abi.encodePacked(DAPI_NAME_SETTER_ROLE_DESCRIPTION))
+            DAPI_NAME_SETTER_ROLE_DESCRIPTION
         );
     }
 
