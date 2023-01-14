@@ -40,15 +40,23 @@ contract RequesterAuthorizerWithManager is
     {
         authorizationExpirationExtenderRole = _deriveRole(
             adminRole,
-            AUTHORIZATION_EXPIRATION_EXTENDER_ROLE_DESCRIPTION_HASH
+            keccak256(
+                abi.encodePacked(
+                    AUTHORIZATION_EXPIRATION_EXTENDER_ROLE_DESCRIPTION
+                )
+            )
         );
         authorizationExpirationSetterRole = _deriveRole(
             adminRole,
-            AUTHORIZATION_EXPIRATION_SETTER_ROLE_DESCRIPTION_HASH
+            keccak256(
+                abi.encodePacked(
+                    AUTHORIZATION_EXPIRATION_SETTER_ROLE_DESCRIPTION
+                )
+            )
         );
         indefiniteAuthorizerRole = _deriveRole(
             adminRole,
-            INDEFINITE_AUTHORIZER_ROLE_DESCRIPTION_HASH
+            keccak256(abi.encodePacked(INDEFINITE_AUTHORIZER_ROLE_DESCRIPTION))
         );
     }
 

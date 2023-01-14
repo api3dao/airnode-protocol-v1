@@ -31,21 +31,6 @@ abstract contract RequesterAuthorizer is IRequesterAuthorizer {
     string public constant override INDEFINITE_AUTHORIZER_ROLE_DESCRIPTION =
         "Indefinite authorizer";
 
-    bytes32
-        internal constant AUTHORIZATION_EXPIRATION_EXTENDER_ROLE_DESCRIPTION_HASH =
-        keccak256(
-            abi.encodePacked(AUTHORIZATION_EXPIRATION_EXTENDER_ROLE_DESCRIPTION)
-        );
-
-    bytes32
-        internal constant AUTHORIZATION_EXPIRATION_SETTER_ROLE_DESCRIPTION_HASH =
-        keccak256(
-            abi.encodePacked(AUTHORIZATION_EXPIRATION_SETTER_ROLE_DESCRIPTION)
-        );
-
-    bytes32 internal constant INDEFINITE_AUTHORIZER_ROLE_DESCRIPTION_HASH =
-        keccak256(abi.encodePacked(INDEFINITE_AUTHORIZER_ROLE_DESCRIPTION));
-
     mapping(address => mapping(address => AuthorizationStatus))
         public
         override airnodeToRequesterToAuthorizationStatus;

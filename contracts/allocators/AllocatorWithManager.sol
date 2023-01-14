@@ -34,7 +34,7 @@ contract AllocatorWithManager is
     {
         slotSetterRole = _deriveRole(
             adminRole,
-            SLOT_SETTER_ROLE_DESCRIPTION_HASH
+            keccak256(abi.encodePacked(SLOT_SETTER_ROLE_DESCRIPTION))
         );
     }
 

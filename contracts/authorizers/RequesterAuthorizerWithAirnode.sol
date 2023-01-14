@@ -14,6 +14,21 @@ contract RequesterAuthorizerWithAirnode is
     RequesterAuthorizer,
     IRequesterAuthorizerWithAirnode
 {
+    bytes32
+        private constant AUTHORIZATION_EXPIRATION_EXTENDER_ROLE_DESCRIPTION_HASH =
+        keccak256(
+            abi.encodePacked(AUTHORIZATION_EXPIRATION_EXTENDER_ROLE_DESCRIPTION)
+        );
+
+    bytes32
+        private constant AUTHORIZATION_EXPIRATION_SETTER_ROLE_DESCRIPTION_HASH =
+        keccak256(
+            abi.encodePacked(AUTHORIZATION_EXPIRATION_SETTER_ROLE_DESCRIPTION)
+        );
+
+    bytes32 private constant INDEFINITE_AUTHORIZER_ROLE_DESCRIPTION_HASH =
+        keccak256(abi.encodePacked(INDEFINITE_AUTHORIZER_ROLE_DESCRIPTION));
+
     /// @param _accessControlRegistry AccessControlRegistry contract address
     /// @param _adminRoleDescription Admin role description
     constructor(
