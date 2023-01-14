@@ -385,20 +385,16 @@ contract DapiServer is
         subscriptionIdToHash[subscriptionId] = keccak256(
             abi.encodePacked(airnode, relayer, sponsor)
         );
-        subscriptionIdToBeaconId[subscriptionId] = deriveBeaconId(
-            airnode,
-            templateId
-        );
+        bytes32 beaconId = deriveBeaconId(airnode, templateId);
+        subscriptionIdToBeaconId[subscriptionId] = beaconId;
         emit RegisteredBeaconUpdateSubscription(
+            beaconId,
             subscriptionId,
             airnode,
             templateId,
-            "",
             conditions,
             relayer,
-            sponsor,
-            address(this),
-            this.fulfillPspBeaconUpdate.selector
+            sponsor
         );
     }
 

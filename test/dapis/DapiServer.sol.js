@@ -1410,15 +1410,13 @@ describe('DapiServer', function () {
             )
               .to.emit(dapiServer, 'RegisteredBeaconUpdateSubscription')
               .withArgs(
+                beacon.beaconId,
                 beacon.beaconUpdateSubscriptionId,
                 beacon.airnode.wallet.address,
                 beacon.templateId,
-                '0x',
                 beacon.beaconUpdateSubscriptionConditions,
                 beacon.airnode.wallet.address,
-                roles.sponsor.address,
-                dapiServer.address,
-                dapiServer.interface.getSighash('fulfillPspBeaconUpdate')
+                roles.sponsor.address
               );
             expect(await dapiServer.subscriptionIdToBeaconId(beacon.beaconUpdateSubscriptionId)).to.equal(
               beacon.beaconId
