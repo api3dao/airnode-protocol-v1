@@ -1,0 +1,106 @@
+{
+  "arbitrum": {
+    "multisig": "0x6adD2B0D2bA7A4075d75c3E1801214c53e407418",
+    "manager": "0x7fc103Cc17EB1764c14F8A1ac4745445cea62A46"
+  },
+  "arbitrum-testnet": {
+    "multisig": "0x55D72F0eb10e85D390B20DA57aa3122312647c0d",
+    "manager": "0x2ab9f26E18B64848cd349582ca3B55c2d06f507d"
+  },
+  "avalanche": {
+    "multisig": "0xC3E76D8829259f2A34541746de2F8A0509Dc1987",
+    "manager": "0x88dAA2b3a5EC5609DBEf336818E7bafdfED6c535"
+  },
+  "avalanche-testnet": {
+    "multisig": "0x33E6C2f5Fa6aA18254927F55b0C5b5B975Ec1358",
+    "manager": "0xC3E76D8829259f2A34541746de2F8A0509Dc1987"
+  },
+  "bsc": {
+    "multisig": "0x4923968942E8aae4656ae4913874EB7312e0F7c7",
+    "manager": "0x7f5AF7a37a33898544717AAa6c35c111dCe95b28"
+  },
+  "bsc-testnet": {
+    "multisig": "0xd8eC2c4158a0Cb65Dd42E2d1C1da8EA11975Ba22",
+    "manager": "0x8984152339F9D35742BB878D0eaD9EF9fd6469d3"
+  },
+  "fantom": {
+    "multisig": "0x8984152339F9D35742BB878D0eaD9EF9fd6469d3",
+    "manager": "0x33E6C2f5Fa6aA18254927F55b0C5b5B975Ec1358"
+  },
+  "fantom-testnet": {
+    "multisig": "0x88dAA2b3a5EC5609DBEf336818E7bafdfED6c535",
+    "manager": "0xCC5005Bd08b8882c9A132C0067E7D3f79796C251"
+  },
+  "gnosis": {
+    "multisig": "0xd8eC2c4158a0Cb65Dd42E2d1C1da8EA11975Ba22",
+    "manager": "0x8984152339F9D35742BB878D0eaD9EF9fd6469d3"
+  },
+  "gnosis-testnet": {
+    "multisig": "0x6adD2B0D2bA7A4075d75c3E1801214c53e407418",
+    "manager": "0x7fc103Cc17EB1764c14F8A1ac4745445cea62A46"
+  },
+  "goerli": {
+    "multisig": "0x5bD69cEe3bf372d331CDCbAb0C1e2202645e4dB4",
+    "manager": "0xD667952eb1beb931C94272908B50cB544DD54e97"
+  },
+  "mainnet": {
+    "multisig": "0x33E6C2f5Fa6aA18254927F55b0C5b5B975Ec1358",
+    "manager": "0xC3E76D8829259f2A34541746de2F8A0509Dc1987"
+  },
+  "metis": {
+    "multisig": "0x33E6C2f5Fa6aA18254927F55b0C5b5B975Ec1358",
+    "manager": "0xC3E76D8829259f2A34541746de2F8A0509Dc1987"
+  },
+  "metis-testnet": {
+    "multisig": "0x33E6C2f5Fa6aA18254927F55b0C5b5B975Ec1358",
+    "manager": "0xC3E76D8829259f2A34541746de2F8A0509Dc1987"
+  },
+  "milkomeda": {
+    "multisig": "0x6adD2B0D2bA7A4075d75c3E1801214c53e407418",
+    "manager": "0x7fc103Cc17EB1764c14F8A1ac4745445cea62A46"
+  },
+  "milkomeda-testnet": {
+    "multisig": "0xd8eC2c4158a0Cb65Dd42E2d1C1da8EA11975Ba22",
+    "manager": "0x8984152339F9D35742BB878D0eaD9EF9fd6469d3"
+  },
+  "moonbeam": {
+    "multisig": "0xd8eC2c4158a0Cb65Dd42E2d1C1da8EA11975Ba22",
+    "manager": "0x8984152339F9D35742BB878D0eaD9EF9fd6469d3"
+  },
+  "moonbeam-testnet": {
+    "multisig": "0xd8eC2c4158a0Cb65Dd42E2d1C1da8EA11975Ba22",
+    "manager": "0x8984152339F9D35742BB878D0eaD9EF9fd6469d3"
+  },
+  "moonriver": {
+    "multisig": "0xCC5005Bd08b8882c9A132C0067E7D3f79796C251",
+    "manager": "0x7E1B9dC5f85c6EB7bBdF053352E784F3da7a6507"
+  },
+  "optimism": {
+    "multisig": "0x8F3A2508C45a58d4fBAd5Ce564899659626D41B6",
+    "manager": "0x67308748E81E5898566A115D93E6D234dD9aB361"
+  },
+  "optimism-testnet": {
+    "multisig": "0x55D72F0eb10e85D390B20DA57aa3122312647c0d",
+    "manager": "0x2ab9f26E18B64848cd349582ca3B55c2d06f507d"
+  },
+  "polygon": {
+    "multisig": "0x4923968942E8aae4656ae4913874EB7312e0F7c7",
+    "manager": "0x7f5AF7a37a33898544717AAa6c35c111dCe95b28"
+  },
+  "polygon-testnet": {
+    "multisig": "0x50f8f227DEbA0028607a37B615A4EbBbF0E5b42E",
+    "manager": "0x8B0A67D060C86919Ae76Ca3FA69c68Ff98E85c3c"
+  },
+  "rsk": {
+    "multisig": "0x4923968942E8aae4656ae4913874EB7312e0F7c7",
+    "manager": "0x7f5AF7a37a33898544717AAa6c35c111dCe95b28"
+  },
+  "rsk-testnet": {
+    "multisig": "0xd8eC2c4158a0Cb65Dd42E2d1C1da8EA11975Ba22",
+    "manager": "0x8984152339F9D35742BB878D0eaD9EF9fd6469d3"
+  },
+  "sepolia": {
+    "multisig": "0x55Cf1079a115029a879ec3A11Ba5D453272eb61D",
+    "manager": "0x1DCE40DC2AfA7131C4838c8BFf635ae9d198d1cE"
+  }
+}
