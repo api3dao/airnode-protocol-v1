@@ -194,7 +194,7 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
         bytes calldata signature
     ) external;
 
-    function updateDataFeedWithSignedData(bytes[] calldata signedData) external;
+    function updateDataFeedWithSignedData(bytes calldata signedData) external;
 
     function updateOevProxyDataFeedWithSignedData(
         address oevProxy,

@@ -43,7 +43,7 @@ describe('DataFeedProxy', function () {
       ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
       [roles.airnode.address, templateId, beaconTimestamp, data, signature]
     );
-    await dapiServer.updateDataFeedWithSignedData([signedData]);
+    await dapiServer.updateDataFeedWithSignedData(signedData);
 
     const dataFeedProxyFactory = await ethers.getContractFactory('DataFeedProxy', roles.deployer);
     const dataFeedProxy = await dataFeedProxyFactory.deploy(dapiServer.address, beaconId);

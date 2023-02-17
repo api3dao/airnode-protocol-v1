@@ -607,78 +607,27 @@ contract DapiServer is
     /// template ID, timestamp and fulfillment data that is signed by the
     /// respective Airnode
     function updateDataFeedWithSignedData(
-        bytes[] calldata signedData
+        bytes calldata signedData
     ) external override {
-        uint256 beaconCount = signedData.length;
-        if (beaconCount > 1) {
-            bytes32[] memory beaconIds = new bytes32[](beaconCount);
-            int256[] memory values = new int256[](beaconCount);
-            uint256 accumulatedTimestamp = 0;
-            for (uint256 ind = 0; ind < beaconCount; ) {
-                (
-                    bytes32 beaconId,
-                    int224 beaconValue,
-                    uint32 beaconTimestamp
-                ) = decodeSignedData(signedData[ind]);
-                beaconIds[ind] = beaconId;
-                if (beaconTimestamp != 0) {
-                    values[ind] = beaconValue;
-                    // Will not overflow assuming less than 2^224 Beacons
-                    unchecked {
-                        accumulatedTimestamp += beaconTimestamp;
-                    }
-                } else {
-                    DataFeed storage beacon = dataFeeds[beaconId];
-                    values[ind] = beacon.value;
-                    unchecked {
-                        accumulatedTimestamp += beacon.timestamp;
-                    }
-                }
-                unchecked {
-                    ind++;
-                }
-            }
-            bytes32 beaconSetId = deriveBeaconSetId(beaconIds);
-            uint32 updatedTimestamp = uint32(
-                accumulatedTimestamp / beaconCount
-            );
-            require(
-                updatedTimestamp > dataFeeds[beaconSetId].timestamp,
-                "Does not update timestamp"
-            );
-            int224 updatedValue = int224(median(values));
-            dataFeeds[beaconSetId] = DataFeed({
-                value: updatedValue,
-                timestamp: updatedTimestamp
-            });
-            emit UpdatedBeaconSetWithSignedData(
-                beaconSetId,
-                updatedValue,
-                updatedTimestamp
-            );
-        } else if (beaconCount == 1) {
-            (
-                bytes32 beaconId,
-                int224 updatedValue,
-                uint32 updatedTimestamp
-            ) = decodeSignedData(signedData[0]);
-            require(updatedTimestamp != 0, "Missing data");
-            require(
-                updatedTimestamp > dataFeeds[beaconId].timestamp,
-                "Does not update timestamp"
-            );
-            dataFeeds[beaconId] = DataFeed({
-                value: updatedValue,
-                timestamp: updatedTimestamp
-            });
-            emit UpdatedBeaconWithSignedData(
-                beaconId,
-                updatedValue,
-                updatedTimestamp
-            );
-        } else {
-            revert("Specified no Beacons");
-        }
+        (
+            bytes32 beaconId,
+            int224 updatedValue,
+            uint32 updatedTimestamp
+        ) = decodeSignedData(signedData);
+        require(updatedTimestamp != 0, "Missing data");
+        require(
+            updatedTimestamp > dataFeeds[beaconId].timestamp,
+            "Does not update timestamp"
+        );
+        dataFeeds[beaconId] = DataFeed({
+            value: updatedValue,
+            timestamp: updatedTimestamp
+        });
+        emit UpdatedBeaconWithSignedData(
+            beaconId,
+            updatedValue,
+            updatedTimestamp
+        );
     }
 
     ///                     ~~~OEV~~~
