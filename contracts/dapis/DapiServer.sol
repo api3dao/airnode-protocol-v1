@@ -596,25 +596,36 @@ contract DapiServer is
 
     ///                     ~~~Signed data feed updates~~~
 
-    /// @notice Updates a data feed using data signed by the respective
-    /// Airnodes without requiring a request or subscription. The Beacons for
-    /// which the fulfillment data and signature is omitted will be read from
-    /// storage.
+    /// @notice Updates a Beacon using data signed by the Airnode without
+    /// requiring a request or subscription
     /// @dev The signed data here is intentionally very general for practical
     /// reasons. It is less demanding on the signer to have data signed once
     /// and use that everywhere.
-    /// @param signedData Array of contract ABI-encoded Airnode address,
-    /// template ID, timestamp and fulfillment data that is signed by the
-    /// respective Airnode
-    function updateDataFeedWithSignedData(
-        bytes calldata signedData
-    ) external override {
-        (
-            bytes32 beaconId,
-            int224 updatedValue,
-            uint32 updatedTimestamp
-        ) = decodeSignedData(signedData);
-        require(updatedTimestamp != 0, "Missing data");
+    /// @param airnode Airnode address
+    /// @param templateId Template ID
+    /// @param timestamp Signature timestamp
+    /// @param data Update data (an `int256` encoded in contract ABI)
+    /// @param signature Template ID, timestamp and the update data signed by
+    /// the Airnode
+    /// @return beaconId Updated Beacon ID
+    function updateBeaconWithSignedData(
+        address airnode,
+        bytes32 templateId,
+        uint256 timestamp,
+        bytes calldata data,
+        bytes calldata signature
+    ) external override returns (bytes32 beaconId) {
+        require(
+            (
+                keccak256(abi.encodePacked(templateId, timestamp, data))
+                    .toEthSignedMessageHash()
+            ).recover(signature) == airnode,
+            "Signature mismatch"
+        );
+        require(timestampIsValid(timestamp), "Timestamp not valid");
+        uint32 updatedTimestamp = uint32(timestamp);
+        int224 updatedValue = decodeFulfillmentData(data);
+        beaconId = deriveBeaconId(airnode, templateId);
         require(
             updatedTimestamp > dataFeeds[beaconId].timestamp,
             "Does not update timestamp"
@@ -1026,44 +1037,6 @@ contract DapiServer is
         updateInPercentage =
             (absoluteDelta * HUNDRED_PERCENT) /
             absoluteInitialValue;
-    }
-
-    /// @notice Decodes data signed to update a Beacon by the respective
-    /// Airnode
-    /// @param signedData Contract ABI-encoded Airnode address, template ID,
-    /// timestamp and fulfillment data that is signed by the respective Airnode
-    /// @return beaconId Beacon ID
-    /// @return beaconValue Beacon value
-    /// @return beaconTimestamp Beacon timestamp
-    function decodeSignedData(
-        bytes calldata signedData
-    )
-        private
-        view
-        returns (bytes32 beaconId, int224 beaconValue, uint32 beaconTimestamp)
-    {
-        (
-            address airnode,
-            bytes32 templateId,
-            uint256 timestamp,
-            bytes memory data,
-            bytes memory signature
-        ) = abi.decode(signedData, (address, bytes32, uint256, bytes, bytes));
-        beaconId = deriveBeaconId(airnode, templateId);
-        if (signature.length == 0) {
-            require(data.length == 0, "Missing signature");
-        } else {
-            require(
-                (
-                    keccak256(abi.encodePacked(templateId, timestamp, data))
-                        .toEthSignedMessageHash()
-                ).recover(signature) == airnode,
-                "Signature mismatch"
-            );
-            beaconValue = decodeFulfillmentData(data);
-            require(timestampIsValid(timestamp), "Timestamp not valid");
-            beaconTimestamp = uint32(timestamp);
-        }
     }
 
     /// @notice Decodes data signed by the respective Airnode for the specific

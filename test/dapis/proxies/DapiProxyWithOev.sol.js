@@ -49,11 +49,7 @@ describe('DapiProxyWithOev', function () {
     const beaconTimestamp = await helpers.time.latest();
     const data = ethers.utils.defaultAbiCoder.encode(['int256'], [beaconValue]);
     const signature = await testUtils.signData(roles.airnode, templateId, beaconTimestamp, data);
-    const signedData = ethers.utils.defaultAbiCoder.encode(
-      ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-      [roles.airnode.address, templateId, beaconTimestamp, data, signature]
-    );
-    await dapiServer.updateDataFeedWithSignedData(signedData);
+    await dapiServer.updateBeaconWithSignedData(roles.airnode.address, templateId, beaconTimestamp, data, signature);
 
     return {
       roles,

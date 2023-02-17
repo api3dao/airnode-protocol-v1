@@ -25,9 +25,7 @@ describe('DapiServer', function () {
     const signature = await testUtils.signData(beacon.airnode.wallet, beacon.templateId, timestamp, data);
     await dapiServer
       .connect(roles.randomPerson)
-      .updateDataFeedWithSignedData(
-        encodeSignedData(beacon.airnode.wallet.address, beacon.templateId, timestamp, data, signature)
-      );
+      .updateBeaconWithSignedData(beacon.airnode.wallet.address, beacon.templateId, timestamp, data, signature);
     return timestamp;
   }
 
@@ -43,8 +41,13 @@ describe('DapiServer', function () {
     );
     const updateBeaconsCalldata = signatures.map((signature, index) => {
       const beacon = beacons[index];
-      const signedData = encodeSignedData(beacon.airnode.wallet.address, beacon.templateId, timestamp, data, signature);
-      return dapiServer.interface.encodeFunctionData('updateDataFeedWithSignedData', [signedData]);
+      return dapiServer.interface.encodeFunctionData('updateBeaconWithSignedData', [
+        beacon.airnode.wallet.address,
+        beacon.templateId,
+        timestamp,
+        data,
+        signature,
+      ]);
     });
     const beaconIds = beacons.map((beacon) => {
       return beacon.beaconId;
@@ -2875,236 +2878,212 @@ describe('DapiServer', function () {
     });
   });
 
-  describe('updateDataFeedWithSignedData', function () {
-    context('Signed data is decodable', function () {
-      context('Signature length is not zero', function () {
-        context('Signature is valid', function () {
-          context('Fulfillment data length is correct', function () {
-            context('Decoded fulfillment data can be typecasted into int224', function () {
-              context('Timestamp is valid', function () {
-                context('Updates timestamp', function () {
-                  it('updates Beacon with signed data', async function () {
-                    const { roles, dapiServer, beacons } = await deploy();
-                    const beacon = beacons[0];
-                    const beaconValue = Math.floor(Math.random() * 200 - 100);
-                    const beaconTimestamp = await helpers.time.latest();
-                    const signature = await testUtils.signData(
-                      beacon.airnode.wallet,
-                      beacon.templateId,
-                      beaconTimestamp,
-                      encodeData(beaconValue)
-                    );
-                    const signedData = await encodeSignedData(
+  describe('updateBeaconWithSignedData', function () {
+    context('Signature is valid', function () {
+      context('Timestamp is valid', function () {
+        context('Fulfillment data length is correct', function () {
+          context('Decoded fulfillment data can be typecasted into int224', function () {
+            context('Updates timestamp', function () {
+              it('updates Beacon with signed data', async function () {
+                const { roles, dapiServer, beacons } = await deploy();
+                const beacon = beacons[0];
+                const beaconValue = Math.floor(Math.random() * 200 - 100);
+                const beaconTimestamp = await helpers.time.latest();
+                const signature = await testUtils.signData(
+                  beacon.airnode.wallet,
+                  beacon.templateId,
+                  beaconTimestamp,
+                  encodeData(beaconValue)
+                );
+                const beaconBefore = await dapiServer.dataFeeds(beacon.beaconId);
+                expect(beaconBefore.value).to.equal(0);
+                expect(beaconBefore.timestamp).to.equal(0);
+                await expect(
+                  dapiServer
+                    .connect(roles.randomPerson)
+                    .updateBeaconWithSignedData(
                       beacon.airnode.wallet.address,
                       beacon.templateId,
                       beaconTimestamp,
                       encodeData(beaconValue),
                       signature
-                    );
-                    const beaconBefore = await dapiServer.dataFeeds(beacon.beaconId);
-                    expect(beaconBefore.value).to.equal(0);
-                    expect(beaconBefore.timestamp).to.equal(0);
-                    await expect(dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData(signedData))
-                      .to.emit(dapiServer, 'UpdatedBeaconWithSignedData')
-                      .withArgs(beacon.beaconId, beaconValue, beaconTimestamp);
-                    const beaconAfter = await dapiServer.dataFeeds(beacon.beaconId);
-                    expect(beaconAfter.value).to.equal(beaconValue);
-                    expect(beaconAfter.timestamp).to.equal(beaconTimestamp);
-                  });
-                });
-                context('Does not update timestamp', function () {
-                  it('reverts', async function () {
-                    const { roles, dapiServer, beacons } = await deploy();
-                    const beacon = beacons[0];
-                    const beaconValue = Math.floor(Math.random() * 200 - 100);
-                    const beaconTimestamp = await helpers.time.latest();
-                    const signature = await testUtils.signData(
-                      beacon.airnode.wallet,
-                      beacon.templateId,
-                      beaconTimestamp,
-                      encodeData(beaconValue)
-                    );
-                    const signedData = await encodeSignedData(
-                      beacon.airnode.wallet.address,
-                      beacon.templateId,
-                      beaconTimestamp,
-                      encodeData(beaconValue),
-                      signature
-                    );
-                    await dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData(signedData);
-                    await expect(
-                      dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData(signedData)
-                    ).to.be.revertedWith('Does not update timestamp');
-                  });
-                });
-              });
-              context('Timestamp is not valid', function () {
-                it('reverts', async function () {
-                  const { roles, dapiServer, beacons } = await deploy();
-                  const beacon = beacons[0];
-                  const beaconValue = Math.floor(Math.random() * 200 - 100);
-                  const nextTimestamp = (await helpers.time.latest()) + 1;
-                  await helpers.time.setNextBlockTimestamp(nextTimestamp);
-                  const beaconTimestampTooLate = nextTimestamp - 60 * 60;
-                  const signatureTooLate = await testUtils.signData(
-                    beacon.airnode.wallet,
-                    beacon.templateId,
-                    beaconTimestampTooLate,
-                    encodeData(beaconValue)
-                  );
-                  const signedDataTooLate = await encodeSignedData(
-                    beacon.airnode.wallet.address,
-                    beacon.templateId,
-                    beaconTimestampTooLate,
-                    encodeData(beaconValue),
-                    signatureTooLate
-                  );
-                  await expect(
-                    dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData(signedDataTooLate)
-                  ).to.be.revertedWith('Timestamp not valid');
-                  const beaconTimestampFromFuture = nextTimestamp + 15 * 60 + 1;
-                  const signatureFromFuture = await testUtils.signData(
-                    beacon.airnode.wallet,
-                    beacon.templateId,
-                    beaconTimestampFromFuture,
-                    encodeData(beaconValue)
-                  );
-                  const signedDataFromFuture = await encodeSignedData(
-                    beacon.airnode.wallet.address,
-                    beacon.templateId,
-                    beaconTimestampFromFuture,
-                    encodeData(beaconValue),
-                    signatureFromFuture
-                  );
-                  await expect(
-                    dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData(signedDataFromFuture)
-                  ).to.be.revertedWith('Timestamp not valid');
-                });
+                    )
+                )
+                  .to.emit(dapiServer, 'UpdatedBeaconWithSignedData')
+                  .withArgs(beacon.beaconId, beaconValue, beaconTimestamp);
+                const beaconAfter = await dapiServer.dataFeeds(beacon.beaconId);
+                expect(beaconAfter.value).to.equal(beaconValue);
+                expect(beaconAfter.timestamp).to.equal(beaconTimestamp);
               });
             });
-            context('Decoded fulfillment data cannot be typecasted into int224', function () {
+            context('Does not update timestamp', function () {
               it('reverts', async function () {
                 const { roles, dapiServer, beacons } = await deploy();
                 const beacon = beacons[0];
-                const beaconValueWithOverflow = ethers.BigNumber.from(2).pow(223);
+                const beaconValue = Math.floor(Math.random() * 200 - 100);
                 const beaconTimestamp = await helpers.time.latest();
-                const signatureWithOverflow = await testUtils.signData(
+                const signature = await testUtils.signData(
                   beacon.airnode.wallet,
                   beacon.templateId,
                   beaconTimestamp,
-                  encodeData(beaconValueWithOverflow)
+                  encodeData(beaconValue)
                 );
-                const signedDataWithOverflow = await encodeSignedData(
-                  beacon.airnode.wallet.address,
-                  beacon.templateId,
-                  beaconTimestamp,
-                  encodeData(beaconValueWithOverflow),
-                  signatureWithOverflow
-                );
+                await dapiServer
+                  .connect(roles.randomPerson)
+                  .updateBeaconWithSignedData(
+                    beacon.airnode.wallet.address,
+                    beacon.templateId,
+                    beaconTimestamp,
+                    encodeData(beaconValue),
+                    signature
+                  );
                 await expect(
-                  dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData(signedDataWithOverflow)
-                ).to.be.revertedWith('Value typecasting error');
-                const beaconValueWithUnderflow = ethers.BigNumber.from(-2).pow(223).sub(1);
-                const signatureWithUnderflow = await testUtils.signData(
-                  beacon.airnode.wallet,
-                  beacon.templateId,
-                  beaconTimestamp,
-                  encodeData(beaconValueWithUnderflow)
-                );
-                const signedDataWithUnderflow = await encodeSignedData(
-                  beacon.airnode.wallet.address,
-                  beacon.templateId,
-                  beaconTimestamp,
-                  encodeData(beaconValueWithUnderflow),
-                  signatureWithUnderflow
-                );
-                await expect(
-                  dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData(signedDataWithUnderflow)
-                ).to.be.revertedWith('Value typecasting error');
+                  dapiServer
+                    .connect(roles.randomPerson)
+                    .updateBeaconWithSignedData(
+                      beacon.airnode.wallet.address,
+                      beacon.templateId,
+                      beaconTimestamp,
+                      encodeData(beaconValue),
+                      signature
+                    )
+                ).to.be.revertedWith('Does not update timestamp');
               });
             });
           });
-          context('Fulfillment data length is not correct', function () {
+          context('Decoded fulfillment data cannot be typecasted into int224', function () {
             it('reverts', async function () {
               const { roles, dapiServer, beacons } = await deploy();
               const beacon = beacons[0];
-              const beaconValue = Math.floor(Math.random() * 200 - 100);
+              const beaconValueWithOverflow = ethers.BigNumber.from(2).pow(223);
               const beaconTimestamp = await helpers.time.latest();
-              const signature = await testUtils.signData(
+              const signatureWithOverflow = await testUtils.signData(
                 beacon.airnode.wallet,
                 beacon.templateId,
                 beaconTimestamp,
-                encodeData(beaconValue) + '00'
-              );
-              const signedData = await encodeSignedData(
-                beacon.airnode.wallet.address,
-                beacon.templateId,
-                beaconTimestamp,
-                encodeData(beaconValue) + '00',
-                signature
+                encodeData(beaconValueWithOverflow)
               );
               await expect(
-                dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData(signedData)
-              ).to.be.revertedWith('Data length not correct');
+                dapiServer
+                  .connect(roles.randomPerson)
+                  .updateBeaconWithSignedData(
+                    beacon.airnode.wallet.address,
+                    beacon.templateId,
+                    beaconTimestamp,
+                    encodeData(beaconValueWithOverflow),
+                    signatureWithOverflow
+                  )
+              ).to.be.revertedWith('Value typecasting error');
+              const beaconValueWithUnderflow = ethers.BigNumber.from(-2).pow(223).sub(1);
+              const signatureWithUnderflow = await testUtils.signData(
+                beacon.airnode.wallet,
+                beacon.templateId,
+                beaconTimestamp,
+                encodeData(beaconValueWithUnderflow)
+              );
+              await expect(
+                dapiServer
+                  .connect(roles.randomPerson)
+                  .updateBeaconWithSignedData(
+                    beacon.airnode.wallet.address,
+                    beacon.templateId,
+                    beaconTimestamp,
+                    encodeData(beaconValueWithUnderflow),
+                    signatureWithUnderflow
+                  )
+              ).to.be.revertedWith('Value typecasting error');
             });
           });
         });
-        context('Signature is not valid', function () {
+        context('Fulfillment data length is not correct', function () {
           it('reverts', async function () {
             const { roles, dapiServer, beacons } = await deploy();
             const beacon = beacons[0];
             const beaconValue = Math.floor(Math.random() * 200 - 100);
             const beaconTimestamp = await helpers.time.latest();
-            const signedData = await encodeSignedData(
+            const signature = await testUtils.signData(
+              beacon.airnode.wallet,
+              beacon.templateId,
+              beaconTimestamp,
+              encodeData(beaconValue) + '00'
+            );
+            await expect(
+              dapiServer
+                .connect(roles.randomPerson)
+                .updateBeaconWithSignedData(
+                  beacon.airnode.wallet.address,
+                  beacon.templateId,
+                  beaconTimestamp,
+                  encodeData(beaconValue) + '00',
+                  signature
+                )
+            ).to.be.revertedWith('Data length not correct');
+          });
+        });
+      });
+      context('Timestamp is not valid', function () {
+        it('reverts', async function () {
+          const { roles, dapiServer, beacons } = await deploy();
+          const beacon = beacons[0];
+          const beaconValue = Math.floor(Math.random() * 200 - 100);
+          const nextTimestamp = (await helpers.time.latest()) + 1;
+          await helpers.time.setNextBlockTimestamp(nextTimestamp);
+          const beaconTimestampTooLate = nextTimestamp - 60 * 60;
+          const signatureTooLate = await testUtils.signData(
+            beacon.airnode.wallet,
+            beacon.templateId,
+            beaconTimestampTooLate,
+            encodeData(beaconValue)
+          );
+          await expect(
+            dapiServer
+              .connect(roles.randomPerson)
+              .updateBeaconWithSignedData(
+                beacon.airnode.wallet.address,
+                beacon.templateId,
+                beaconTimestampTooLate,
+                encodeData(beaconValue),
+                signatureTooLate
+              )
+          ).to.be.revertedWith('Timestamp not valid');
+          const beaconTimestampFromFuture = nextTimestamp + 15 * 60 + 1;
+          const signatureFromFuture = await testUtils.signData(
+            beacon.airnode.wallet,
+            beacon.templateId,
+            beaconTimestampFromFuture,
+            encodeData(beaconValue)
+          );
+          await expect(
+            dapiServer
+              .connect(roles.randomPerson)
+              .updateBeaconWithSignedData(
+                beacon.airnode.wallet.address,
+                beacon.templateId,
+                beaconTimestampFromFuture,
+                encodeData(beaconValue),
+                signatureFromFuture
+              )
+          ).to.be.revertedWith('Timestamp not valid');
+        });
+      });
+    });
+    context('Signature is not valid', function () {
+      it('reverts', async function () {
+        const { roles, dapiServer, beacons } = await deploy();
+        const beacon = beacons[0];
+        const beaconValue = Math.floor(Math.random() * 200 - 100);
+        const beaconTimestamp = await helpers.time.latest();
+        await expect(
+          dapiServer
+            .connect(roles.randomPerson)
+            .updateBeaconWithSignedData(
               beacon.airnode.wallet.address,
               beacon.templateId,
               beaconTimestamp,
               encodeData(beaconValue),
               '0x12345678'
-            );
-            await expect(
-              dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData(signedData)
-            ).to.be.revertedWith('ECDSA: invalid signature length');
-          });
-        });
-      });
-      context('Signature length is zero', function () {
-        context('Data length is not zero', function () {
-          it('reverts', async function () {
-            const { roles, dapiServer, beacons } = await deploy();
-            const beacon = beacons[0];
-            const beaconValue = Math.floor(Math.random() * 200 - 100);
-            const beaconTimestamp = await helpers.time.latest();
-            const signedData = await encodeSignedData(
-              beacon.airnode.wallet.address,
-              beacon.templateId,
-              beaconTimestamp,
-              encodeData(beaconValue),
-              '0x'
-            );
-            await expect(
-              dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData(signedData)
-            ).to.be.revertedWith('Missing signature');
-          });
-        });
-        context('Data length is zero', function () {
-          it('reverts', async function () {
-            const { roles, dapiServer, beacons } = await deploy();
-            const beacon = beacons[0];
-            const signedData = await encodeSignedData(beacon.airnode.wallet.address, beacon.templateId, 0, '0x', '0x');
-            await expect(
-              dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData(signedData)
-            ).to.be.revertedWith('Missing data');
-          });
-        });
-      });
-    });
-    context('Signed data is not decodable', function () {
-      it('reverts', async function () {
-        const { roles, dapiServer } = await deploy();
-        await expect(
-          dapiServer.connect(roles.randomPerson).updateDataFeedWithSignedData('0x12345678')
-        ).to.be.revertedWithoutReason;
+            )
+        ).to.be.revertedWith('ECDSA: invalid signature length');
       });
     });
   });

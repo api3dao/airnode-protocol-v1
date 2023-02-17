@@ -177,7 +177,13 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
         bytes calldata signature
     ) external;
 
-    function updateDataFeedWithSignedData(bytes calldata signedData) external;
+    function updateBeaconWithSignedData(
+        address airnode,
+        bytes32 templateId,
+        uint256 timestamp,
+        bytes calldata data,
+        bytes calldata signature
+    ) external returns (bytes32 beaconId);
 
     function updateOevProxyDataFeedWithSignedData(
         address oevProxy,
