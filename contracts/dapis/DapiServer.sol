@@ -1066,52 +1066,6 @@ contract DapiServer is
         }
     }
 
-    /// @notice Decodes data domain-signed to update a Beacon by the respective
-    /// Airnode
-    /// @param signedData ABI-encoded Airnode address, template ID, timestamp
-    /// and fulfillment data that is signed by the respective Airnode for this
-    /// specific contract
-    /// @return beaconId Beacon ID
-    /// @return beaconValue Beacon value
-    /// @return beaconTimestamp Beacon timestamp
-    function decodeDomainSignedData(
-        bytes calldata signedData
-    )
-        private
-        view
-        returns (bytes32 beaconId, int224 beaconValue, uint32 beaconTimestamp)
-    {
-        (
-            address airnode,
-            bytes32 templateId,
-            uint256 timestamp,
-            bytes memory data,
-            bytes memory signature
-        ) = abi.decode(signedData, (address, bytes32, uint256, bytes, bytes));
-        beaconId = deriveBeaconId(airnode, templateId);
-        if (signature.length == 0) {
-            require(data.length == 0, "Missing signature");
-        } else {
-            require(
-                (
-                    keccak256(
-                        abi.encodePacked(
-                            block.chainid,
-                            address(this),
-                            templateId,
-                            timestamp,
-                            data
-                        )
-                    ).toEthSignedMessageHash()
-                ).recover(signature) == airnode,
-                "Signature mismatch"
-            );
-            beaconValue = decodeFulfillmentData(data);
-            require(timestampIsValid(timestamp), "Timestamp not valid");
-            beaconTimestamp = uint32(timestamp);
-        }
-    }
-
     /// @notice Decodes data signed by the respective Airnode for the specific
     /// bid to update the Beacon that a OEV proxy reads
     /// @param metadataHash Hash of the metadata of the bid that won the OEV
