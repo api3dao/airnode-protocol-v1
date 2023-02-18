@@ -876,32 +876,6 @@ contract DapiServer is
         require(timestamp > 0, "Data feed not initialized");
     }
 
-    /// @notice Called privately to aggregate the Beacons and return the result
-    /// @dev Tha aggregation of Beacons may have a different value than the
-    /// respective Beacon set, e.g., because the Beacon set has been updated
-    /// using signed data
-    /// @param beaconIds Beacon IDs
-    /// @return value Aggregation value
-    /// @return timestamp Aggregation timestamp
-    function aggregateBeacons(
-        bytes32[] memory beaconIds
-    ) private view returns (int224 value, uint32 timestamp) {
-        uint256 beaconCount = beaconIds.length;
-        require(beaconCount > 1, "Specified less than two Beacons");
-        int256[] memory values = new int256[](beaconCount);
-        int256[] memory timestamps = new int256[](beaconCount);
-        for (uint256 ind = 0; ind < beaconCount; ) {
-            DataFeed storage dataFeed = dataFeeds[beaconIds[ind]];
-            values[ind] = dataFeed.value;
-            timestamps[ind] = int256(uint256(dataFeed.timestamp));
-            unchecked {
-                ind++;
-            }
-        }
-        value = int224(median(values));
-        timestamp = uint32(uint256(median(timestamps)));
-    }
-
     /// @notice Derives the Beacon ID from the Airnode address and template ID
     /// @param airnode Airnode address
     /// @param templateId Template ID
@@ -994,6 +968,32 @@ contract DapiServer is
                 (heartbeatInterval != 0 &&
                     dataFeed.timestamp + heartbeatInterval <= updatedTimestamp);
         }
+    }
+
+    /// @notice Called privately to aggregate the Beacons and return the result
+    /// @dev Tha aggregation of Beacons may have a different value than the
+    /// respective Beacon set, e.g., because the Beacon set has been updated
+    /// using signed data
+    /// @param beaconIds Beacon IDs
+    /// @return value Aggregation value
+    /// @return timestamp Aggregation timestamp
+    function aggregateBeacons(
+        bytes32[] memory beaconIds
+    ) private view returns (int224 value, uint32 timestamp) {
+        uint256 beaconCount = beaconIds.length;
+        require(beaconCount > 1, "Specified less than two Beacons");
+        int256[] memory values = new int256[](beaconCount);
+        int256[] memory timestamps = new int256[](beaconCount);
+        for (uint256 ind = 0; ind < beaconCount; ) {
+            DataFeed storage dataFeed = dataFeeds[beaconIds[ind]];
+            values[ind] = dataFeed.value;
+            timestamps[ind] = int256(uint256(dataFeed.timestamp));
+            unchecked {
+                ind++;
+            }
+        }
+        value = int224(median(values));
+        timestamp = uint32(uint256(median(timestamps)));
     }
 
     /// @notice Called privately to calculate the update magnitude in
