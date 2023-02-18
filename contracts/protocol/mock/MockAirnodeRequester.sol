@@ -85,4 +85,18 @@ contract MockAirnodeRequester is AirnodeRequester {
     ) external view onlyAirnodeProtocol onlyValidTimestamp(timestamp) {
         while (true) {}
     }
+
+    /// @notice Overriden to reject signatures that have been signed 1 hour
+    /// before or after `block.timestamp`
+    /// @dev The validation scheme implemented here is an arbitrary example. Do
+    /// not treat it as a recommendation. Refer to AirnodeRequester for more
+    /// information.
+    /// @param timestamp Timestamp used in the signature
+    function timestampIsValid(
+        uint256 timestamp
+    ) internal view virtual override returns (bool) {
+        return
+            timestamp + 1 hours > block.timestamp &&
+            timestamp < block.timestamp + 1 hours;
+    }
 }

@@ -1080,8 +1080,22 @@ contract DapiServer is
                 "Signature mismatch"
             );
             beaconValue = decodeFulfillmentData(data);
-            require(timestampIsValid(timestamp), "Timestamp not valid");
+            require(
+                timestamp != 0 && timestampIsValid(timestamp),
+                "Timestamp not valid"
+            );
             beaconTimestamp = uint32(timestamp);
         }
+    }
+
+    /// @notice Overriden to prevent a Beacon from being updated by an
+    /// unreasonably large timestamp, which would block all following updates
+    /// @dev The timestamp is allowed to be up to 1 hour later than
+    /// `block.timestamp` to tolerate chain clock drift
+    /// @param timestamp Timestamp used in the signature
+    function timestampIsValid(
+        uint256 timestamp
+    ) internal view virtual override returns (bool) {
+        return timestamp < block.timestamp + 1 hours;
     }
 }
