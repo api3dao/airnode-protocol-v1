@@ -329,13 +329,13 @@ contract DapiServer is
     ) external override onlyAirnodeProtocol onlyValidTimestamp(timestamp) {
         bytes32 beaconId = requestIdToBeaconId[requestId];
         delete requestIdToBeaconId[requestId];
-        int224 decodedData = processBeaconUpdate(beaconId, timestamp, data);
+        int224 updatedValue = processBeaconUpdate(beaconId, timestamp, data);
         // Timestamp validity is already checked by `onlyValidTimestamp`, which
         // means it will be small enough to be typecast into `uint32`
         emit UpdatedBeaconWithRrp(
             beaconId,
             requestId,
-            decodedData,
+            updatedValue,
             uint32(timestamp)
         );
     }
@@ -481,13 +481,13 @@ contract DapiServer is
         bytes32 beaconId = subscriptionIdToBeaconId[subscriptionId];
         // Beacon ID is guaranteed to not be zero because the subscription is
         // registered
-        int224 decodedData = processBeaconUpdate(beaconId, timestamp, data);
+        int224 updatedValue = processBeaconUpdate(beaconId, timestamp, data);
         // Timestamp validity is already checked by `onlyValidTimestamp`, which
         // means it will be small enough to be typecast into `uint32`
         emit UpdatedBeaconWithPsp(
             beaconId,
             subscriptionId,
-            decodedData,
+            updatedValue,
             uint32(timestamp)
         );
     }
