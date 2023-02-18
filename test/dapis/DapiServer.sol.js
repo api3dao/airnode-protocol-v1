@@ -2386,7 +2386,7 @@ describe('DapiServer', function () {
 
   describe('updateBeaconSetWithBeacons', function () {
     context('Did not specify less than two Beacons', function () {
-      context('Updated value updates timestamp', function () {
+      context('Beacons update Beacon set timestamp', function () {
         it('updates Beacon set', async function () {
           const { roles, dapiServer, beacons, beaconSet } = await deploy();
           // Populate the Beacons
@@ -2414,14 +2414,47 @@ describe('DapiServer', function () {
           expect(beaconSetAfter.timestamp).to.equal(beaconSetTimestamp);
         });
       });
-      context('Updated value does not update timestamp', function () {
-        it('reverts', async function () {
-          const { roles, dapiServer, beacons, beaconSet } = await deploy();
-          // Update Beacon set with recent timestamp
-          await updateBeaconSet(roles, dapiServer, beacons, 123);
-          await expect(
-            dapiServer.connect(roles.randomPerson).updateBeaconSetWithBeacons(beaconSet.beaconIds)
-          ).to.be.revertedWith('Does not update timestamp');
+      context('Beacons do not update Beacon set timestamp', function () {
+        context('Beacons update Beacon set value', function () {
+          it('updates Beacon set', async function () {
+            const { roles, dapiServer, beacons, beaconSet } = await deploy();
+            // Populate the Beacons
+            const beaconValues = [100, 80, 120];
+            const currentTimestamp = await helpers.time.latest();
+            const beaconTimestamps = [currentTimestamp, currentTimestamp, currentTimestamp];
+            await Promise.all(
+              beacons.map(async (beacon, index) => {
+                await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+              })
+            );
+            const beaconIds = beacons.map((beacon) => {
+              return beacon.beaconId;
+            });
+            await dapiServer.updateBeaconSetWithBeacons(beaconIds);
+            await updateBeacon(roles, dapiServer, beacons[0], 110, currentTimestamp + 10);
+            const beaconSetBefore = await dapiServer.dataFeeds(beaconSet.beaconSetId);
+            expect(beaconSetBefore.value).to.equal(100);
+            expect(beaconSetBefore.timestamp).to.equal(currentTimestamp);
+            expect(
+              await dapiServer.connect(roles.randomPerson).callStatic.updateBeaconSetWithBeacons(beaconSet.beaconIds)
+            ).to.equal(beaconSet.beaconSetId);
+            await expect(dapiServer.connect(roles.randomPerson).updateBeaconSetWithBeacons(beaconSet.beaconIds))
+              .to.emit(dapiServer, 'UpdatedBeaconSetWithBeacons')
+              .withArgs(beaconSet.beaconSetId, 110, currentTimestamp);
+            const beaconSetAfter = await dapiServer.dataFeeds(beaconSet.beaconSetId);
+            expect(beaconSetAfter.value).to.equal(110);
+            expect(beaconSetAfter.timestamp).to.equal(currentTimestamp);
+          });
+        });
+        context('Beacons do not update Beacon set value', function () {
+          it('reverts', async function () {
+            const { roles, dapiServer, beacons, beaconSet } = await deploy();
+            // Update Beacon set with recent timestamp
+            await updateBeaconSet(roles, dapiServer, beacons, 123);
+            await expect(
+              dapiServer.connect(roles.randomPerson).updateBeaconSetWithBeacons(beaconSet.beaconIds)
+            ).to.be.revertedWith('Does not update Beacon set');
+          });
         });
       });
     });

@@ -507,10 +507,13 @@ contract DapiServer is
             beaconIds
         );
         beaconSetId = deriveBeaconSetId(beaconIds);
-        require(
-            updatedTimestamp > dataFeeds[beaconSetId].timestamp,
-            "Does not update timestamp"
-        );
+        DataFeed storage beaconSet = dataFeeds[beaconSetId];
+        if (beaconSet.timestamp == updatedTimestamp) {
+            require(
+                beaconSet.value != updatedValue,
+                "Does not update Beacon set"
+            );
+        }
         dataFeeds[beaconSetId] = DataFeed({
             value: updatedValue,
             timestamp: updatedTimestamp
