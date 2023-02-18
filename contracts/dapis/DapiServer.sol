@@ -876,7 +876,7 @@ contract DapiServer is
         require(timestamp > 0, "Data feed not initialized");
     }
 
-    /// @notice Aggregates the Beacons and returns the result
+    /// @notice Called privately to aggregate the Beacons and return the result
     /// @dev Tha aggregation of Beacons may have a different value than the
     /// respective Beacon set, e.g., because the Beacon set has been updated
     /// using signed data
@@ -885,7 +885,7 @@ contract DapiServer is
     /// @return timestamp Aggregation timestamp
     function aggregateBeacons(
         bytes32[] memory beaconIds
-    ) public view override returns (int224 value, uint32 timestamp) {
+    ) private view returns (int224 value, uint32 timestamp) {
         uint256 beaconCount = beaconIds.length;
         require(beaconCount > 1, "Specified less than two Beacons");
         int256[] memory values = new int256[](beaconCount);

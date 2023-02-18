@@ -216,10 +216,6 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
         bytes32 dapiNameHash
     ) external view returns (int224 value, uint32 timestamp);
 
-    function aggregateBeacons(
-        bytes32[] memory beaconIds
-    ) external view returns (int224 value, uint32 timestamp);
-
     // solhint-disable-next-line func-name-mixedcase
     function DAPI_NAME_SETTER_ROLE_DESCRIPTION()
         external
