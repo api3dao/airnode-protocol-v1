@@ -2399,11 +2399,7 @@ describe('DapiServer', function () {
             })
           );
           const beaconSetValue = median(beaconValues);
-          const beaconSetTimestamp = Math.floor(
-            beaconTimestamps.reduce((sum, beaconTimestamp) => {
-              return sum + beaconTimestamp;
-            }, 0) / beaconTimestamps.length
-          );
+          const beaconSetTimestamp = median(beaconTimestamps);
           const beaconSetBefore = await dapiServer.dataFeeds(beaconSet.beaconSetId);
           expect(beaconSetBefore.value).to.equal(0);
           expect(beaconSetBefore.timestamp).to.equal(0);
@@ -2739,11 +2735,7 @@ describe('DapiServer', function () {
             })
           );
           const beaconSetValue = median(beaconValues);
-          const beaconSetTimestamp = Math.floor(
-            beaconTimestamps.reduce((sum, beaconTimestamp) => {
-              return sum + beaconTimestamp;
-            }, 0) / beaconTimestamps.length
-          );
+          const beaconSetTimestamp = median(beaconTimestamps);
           const data = ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSet.beaconIds]);
           const timestamp = await helpers.time.latest();
           const signature = testUtils.signPspFulfillment(
@@ -2791,11 +2783,7 @@ describe('DapiServer', function () {
             })
           );
           const beaconSetValue = median(beaconValues);
-          const beaconSetTimestamp = Math.floor(
-            beaconTimestamps.reduce((sum, beaconTimestamp) => {
-              return sum + beaconTimestamp;
-            }, 0) / beaconTimestamps.length
-          );
+          const beaconSetTimestamp = median(beaconTimestamps);
           const beaconSetUpdateSubscriptionId = await deriveUpdateSubscriptionId(
             dapiServer,
             beacons[0].airnode.wallet.address,

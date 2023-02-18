@@ -891,17 +891,17 @@ contract DapiServer is
         uint256 beaconCount = beaconIds.length;
         require(beaconCount > 1, "Specified less than two Beacons");
         int256[] memory values = new int256[](beaconCount);
-        uint256 accumulatedTimestamp = 0;
+        int256[] memory timestamps = new int256[](beaconCount);
         for (uint256 ind = 0; ind < beaconCount; ) {
             DataFeed storage dataFeed = dataFeeds[beaconIds[ind]];
             values[ind] = dataFeed.value;
+            timestamps[ind] = int256(uint256(dataFeed.timestamp));
             unchecked {
-                accumulatedTimestamp += dataFeed.timestamp;
                 ind++;
             }
         }
         value = int224(median(values));
-        timestamp = uint32(accumulatedTimestamp / beaconCount);
+        timestamp = uint32(uint256(median(timestamps)));
     }
 
     /// @notice Derives the Beacon ID from the Airnode address and template ID
