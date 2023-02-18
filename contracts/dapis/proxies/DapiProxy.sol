@@ -5,6 +5,10 @@ import "./interfaces/IDapiProxy.sol";
 
 /// @title An immutable proxy contract that is used to read a specific dAPI of
 /// a specific DapiServer contract
+/// @notice In an effort to reduce the bytecode of this contract, its
+/// constructor arguments are validated by ProxyFactory, rather than
+/// internally. If you intend to deploy this contract without using
+/// ProxyFactory, you are recommended to implement an equivalent validation.
 /// @dev The proxy contracts are generalized to support most types of numerical
 /// data feeds. This means that the user of this proxy is expected to validate
 /// the read values according to the specific use-case. For example, `value` is

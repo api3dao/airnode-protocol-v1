@@ -7,6 +7,10 @@ import "./interfaces/IOevProxy.sol";
 /// @title An immutable proxy contract that is used to read a specific dAPI of
 /// a specific DapiServer contract and inform DapiServer about the beneficiary
 /// of the respective OEV proceeds
+/// @notice In an effort to reduce the bytecode of this contract, its
+/// constructor arguments are validated by ProxyFactory, rather than
+/// internally. If you intend to deploy this contract without using
+/// ProxyFactory, you are recommended to implement an equivalent validation.
 /// @dev See DapiProxy.sol for comments about usage
 contract DapiProxyWithOev is DapiProxy, IOevProxy {
     /// @notice OEV beneficiary address

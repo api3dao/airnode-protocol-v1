@@ -5,6 +5,10 @@ import "./interfaces/IDataFeedProxy.sol";
 
 /// @title An immutable proxy contract that is used to read a specific data
 /// feed (Beacon or Beacon set) of a specific DapiServer contract
+/// @notice In an effort to reduce the bytecode of this contract, its
+/// constructor arguments are validated by ProxyFactory, rather than
+/// internally. If you intend to deploy this contract without using
+/// ProxyFactory, you are recommended to implement an equivalent validation.
 /// @dev See DapiProxy.sol for comments about usage
 contract DataFeedProxy is IDataFeedProxy {
     /// @notice DapiServer address
