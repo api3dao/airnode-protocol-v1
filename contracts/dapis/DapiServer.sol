@@ -614,7 +614,12 @@ contract DapiServer is
         uint256 timestamp,
         bytes calldata data,
         bytes calldata signature
-    ) external override returns (bytes32 beaconId) {
+    )
+        external
+        override
+        onlyValidTimestamp(timestamp)
+        returns (bytes32 beaconId)
+    {
         require(
             (
                 keccak256(abi.encodePacked(templateId, timestamp, data))
@@ -622,22 +627,12 @@ contract DapiServer is
             ).recover(signature) == airnode,
             "Signature mismatch"
         );
-        require(timestampIsValid(timestamp), "Timestamp not valid");
-        uint32 updatedTimestamp = uint32(timestamp);
-        int224 updatedValue = decodeFulfillmentData(data);
         beaconId = deriveBeaconId(airnode, templateId);
-        require(
-            updatedTimestamp > dataFeeds[beaconId].timestamp,
-            "Does not update timestamp"
-        );
-        dataFeeds[beaconId] = DataFeed({
-            value: updatedValue,
-            timestamp: updatedTimestamp
-        });
+        int224 updatedValue = processBeaconUpdate(beaconId, timestamp, data);
         emit UpdatedBeaconWithSignedData(
             beaconId,
             updatedValue,
-            updatedTimestamp
+            uint32(timestamp)
         );
     }
 
