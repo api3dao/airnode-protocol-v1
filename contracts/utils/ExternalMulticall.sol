@@ -1,14 +1,25 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity ^0.8.0;
 
 import "./interfaces/IExternalMulticall.sol";
 
 /// @title Contract that enables calls to external contracts to be batched
-/// @notice This contract can be used to batch static calls or to interact with
-/// trusted contracts. Implements two ways of batching, one requires none of
-/// the calls to revert and the other tolerates individual calls reverting.
-/// @dev Refer to MakerDAO's Multicall.sol for a similar implementation
-contract ExternalMulticall is IExternalMulticall {
+/// @notice This contract can be used for two use-cases: (1) In its current
+/// state, it can be used to batch static calls to contracts that do not care
+/// about who the sender is, (2) after extending it, to interact with trusted
+/// contracts (see below for details). It implements two ways of batching, one
+/// requires none of the calls to revert and the other tolerates individual
+/// calls reverting.
+/// @dev As mentioned above, this contract can be used to interact with trusted
+/// contracts. Such interactions can leave this contract in a privileged
+/// position (e.g., with a non-zero balance of an ERC20 token), which can be
+/// abused by an attacker afterwards. In addition, attackers can frontrun
+/// interactions to have the following interaction result in an unintended
+/// outcome. A general solution to these attacks is overriding both multicall
+/// functions behind an access control mechanism, such as an `onlyOwner`
+/// modifier.
+/// Refer to MakerDAO's Multicall.sol for a similar implementation.
+abstract contract ExternalMulticall is IExternalMulticall {
     /// @notice Batches calls to external contracts and reverts if at
     /// least one of the batched calls reverts
     /// @param targets Array of target addresses of batched calls
@@ -17,7 +28,7 @@ contract ExternalMulticall is IExternalMulticall {
     function externalMulticall(
         address[] calldata targets,
         bytes[] calldata data
-    ) external override returns (bytes[] memory returndata) {
+    ) public virtual override returns (bytes[] memory returndata) {
         uint256 callCount = targets.length;
         require(callCount == data.length, "Parameter length mismatch");
         returndata = new bytes[](callCount);
@@ -61,7 +72,8 @@ contract ExternalMulticall is IExternalMulticall {
         address[] calldata targets,
         bytes[] calldata data
     )
-        external
+        public
+        virtual
         override
         returns (bool[] memory successes, bytes[] memory returndata)
     {

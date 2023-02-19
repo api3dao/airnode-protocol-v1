@@ -9,7 +9,7 @@ describe('ExternalMulticall', function () {
     const roles = {
       deployer: accounts[0],
     };
-    const ExternalMulticallFactory = await ethers.getContractFactory('ExternalMulticall', roles.deployer);
+    const ExternalMulticallFactory = await ethers.getContractFactory('MockExternalMulticall', roles.deployer);
     const externalMulticall = await ExternalMulticallFactory.deploy();
     const MockMulticallTargetFactory = await ethers.getContractFactory('MockMulticallTarget', roles.deployer);
     const multicallTarget = await MockMulticallTargetFactory.deploy();
