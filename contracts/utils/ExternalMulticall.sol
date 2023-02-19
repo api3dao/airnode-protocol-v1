@@ -20,8 +20,8 @@ import "./interfaces/IExternalMulticall.sol";
 /// modifier.
 /// Refer to MakerDAO's Multicall.sol for a similar implementation.
 abstract contract ExternalMulticall is IExternalMulticall {
-    /// @notice Batches calls to external contracts and reverts if at
-    /// least one of the batched calls reverts
+    /// @notice Batches calls to external contracts and reverts as soon as one
+    /// of the batched calls reverts
     /// @param targets Array of target addresses of batched calls
     /// @param data Array of calldata of batched calls
     /// @return returndata Array of returndata of batched calls
