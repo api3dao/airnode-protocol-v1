@@ -35,7 +35,13 @@ contract Quickselect {
         uint256 arrayLength = array.length;
         assert(arrayLength > 1);
         unchecked {
-            return quickselect(array, 0, arrayLength - 1, k, true);
+            (indK, indKPlusOne) = quickselect(
+                array,
+                0,
+                arrayLength - 1,
+                k,
+                true
+            );
         }
     }
 
