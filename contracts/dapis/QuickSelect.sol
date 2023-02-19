@@ -86,7 +86,8 @@ contract Quickselect {
             unchecked {
                 i = indKPlusOne + 1;
             }
-            for (; i < array.length; ) {
+            uint256 arrayLength = array.length;
+            for (; i < arrayLength; ) {
                 if (array[i] < array[indKPlusOne]) {
                     indKPlusOne = i;
                 }
