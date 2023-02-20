@@ -5,9 +5,9 @@ import "./interfaces/IStorageUtils.sol";
 
 /// @title Contract that stores template and subscription details on chain
 /// @notice The Airnode protocol does not depend on the template or
-/// subscription details being announced or stored on-chain. Airnode can be
-/// informed about these in other ways, e.g., the details are hardcoded in the
-/// Airnode configuration file.
+/// subscription details being stored on-chain. Airnode can be informed about
+/// these in other ways, e.g., the details are hardcoded in the Airnode
+/// configuration file.
 contract StorageUtils is IStorageUtils {
     struct Template {
         bytes32 endpointId;

@@ -65,9 +65,8 @@ users. Some mock contracts use custom errors, which is why they specify version 
   "data feeds"). Finally, _dAPIs_ are names that are attached to Beacons or Beacon sets, which can be seen as
   API3-managed data feeds. `DapiServer` uses RRP and PSP to update data feeds, which makes this contract a very good
   example of how the Airnode protocol can be used. In addition, `DapiServer` allows data signed by the respective
-  Airnodes to update data feeds, which can be delivered outside of the protocol. This is especially useful for Beacon
-  set updates, which the Airnode protocol is not suitable for because it is designed to have the Airnode interact with
-  the chain directly. Finally, a special version of these signed data updates are used to capture
+  Airnodes to update Beacons, which can be delivered outside of the protocol. Finally, a special version of these signed
+  data updates are used to capture
   [oracle extractable value (OEV)](https://medium.com/api3/oracle-extractable-value-oev-13c1b6d53c5b).
 
 - `utils/`: As the name suggests, utility contracts that the other contracts may require. Multicall contracts are aimed
@@ -113,10 +112,10 @@ relay, or requiring to interact with other oracle nodes through a blockchain or 
 unacceptable for the trust-minimized solution, as this introduces additional points of failure.
 
 An example of this can be seen in `DapiServer`, where Beacon sets are updated by collecting signed data from Airnodes
-and calling `updateDataFeedWithSignedData()` by a centralized agent. In the event that this service stops, Airnodes can
-update their respective Beacons by calling `fulfillPspBeaconUpdate()` if they have PSP subscriptions, or they can use
-`updateDataFeedWithSignedData()` only with their own signed data to update their respective Beacon (as
-[byog](https://byog.io/) does), after which the Beacon set can be updated by anyone by calling
+and calling `updateBeaconWithSignedData()` and `updateBeaconSetWithBeacons()` by a centralized agent. In the event that
+this service stops, Airnodes can update their respective Beacons by calling `fulfillPspBeaconUpdate()` if they have PSP
+subscriptions, or they can use `updateDataFeedWithSignedData()` only with their own signed data to update their
+respective Beacon (as [byog](https://byog.io/) does), after which the Beacon set can be updated by anyone by calling
 `updateBeaconSetWithBeacons()` or through a PSP subscription that will call `fulfillPspBeaconSetUpdate()` based on
 deviation conditions. The latter method of doing things is not expected to be used, yet it existing as a failsafe makes
 the former method acceptable.

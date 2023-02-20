@@ -401,7 +401,10 @@ contract DapiServer is
     /// @notice Returns if the respective Beacon needs to be updated based on
     /// the fulfillment data and the condition parameters
     /// @dev `conditionParameters` are specified within the `conditions` field
-    /// of a Subscription
+    /// of a Subscription.
+    /// Even if this function returns `true`, the respective Subscription
+    /// fulfillment will fail if the Beacon is updated with a larger timestamp
+    /// in the meantime.
     /// @param subscriptionId Subscription ID
     /// @param data Fulfillment data (an `int256` encoded in contract ABI)
     /// @param conditionParameters Subscription condition parameters. This
@@ -414,9 +417,6 @@ contract DapiServer is
     ) external view override returns (bool) {
         bytes32 beaconId = subscriptionIdToBeaconId[subscriptionId];
         require(beaconId != bytes32(0), "Subscription not registered");
-        // Assuming that the update value will be signed after this condition
-        // returns true, the update timestamp will be larger than
-        // `block.timestamp`, which will still satisfy the update condition.
         return
             checkUpdateCondition(
                 beaconId,
@@ -429,7 +429,8 @@ contract DapiServer is
     /// @notice Called by the Airnode/relayer using the sponsor wallet to
     /// fulfill the Beacon update subscription
     /// @dev There is no need to verify that `conditionPspBeaconUpdate()`
-    /// returns `true` because any Beacon update is a good Beacon update
+    /// returns `true` because any Beacon update is a good Beacon update as
+    /// long as it increases the timestamp
     /// @param subscriptionId Subscription ID
     /// @param airnode Airnode address
     /// @param relayer Relayer address
@@ -531,6 +532,9 @@ contract DapiServer is
     /// to be zero, which means the `parameters` field of the Subscription will
     /// be forwarded to this function as `data`. This field should be the
     /// Beacon ID array encoded in contract ABI.
+    /// Even if this function returns `true`, the respective Subscription
+    /// fulfillment will fail if will not update the Beacon set value or
+    /// timestamp.
     /// @param subscriptionId Subscription ID
     /// @param data Fulfillment data (array of Beacon IDs, i.e., `bytes32[]`
     /// encoded in contract ABI)
@@ -971,9 +975,6 @@ contract DapiServer is
     }
 
     /// @notice Called privately to aggregate the Beacons and return the result
-    /// @dev Tha aggregation of Beacons may have a different value than the
-    /// respective Beacon set, e.g., because the Beacon set has been updated
-    /// using signed data
     /// @param beaconIds Beacon IDs
     /// @return value Aggregation value
     /// @return timestamp Aggregation timestamp
