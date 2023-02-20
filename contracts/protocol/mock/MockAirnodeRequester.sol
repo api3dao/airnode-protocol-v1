@@ -52,36 +52,30 @@ contract MockAirnodeRequester is AirnodeRequester {
 
     /// @notice A method to be called back by the respective method at
     /// AirnodeRrp.sol for testing fulfillment failure
-    /// @param requestId Request ID
-    /// @param data Data returned by the Airnode
     function fulfillRequestAlwaysReverts(
-        bytes32 requestId, // solhint-disable-line no-unused-vars
+        bytes32,
         uint256 timestamp,
-        bytes calldata data // solhint-disable-line no-unused-vars
+        bytes calldata
     ) external view onlyAirnodeProtocol onlyValidTimestamp(timestamp) {
         revert("Always reverts");
     }
 
     /// @notice A method to be called back by the respective method at
     /// AirnodeRrp.sol for testing fulfillment failure
-    /// @param requestId Request ID
-    /// @param data Data returned by the Airnode
     function fulfillRequestAlwaysRevertsWithNoString(
-        bytes32 requestId, // solhint-disable-line no-unused-vars
+        bytes32,
         uint256 timestamp,
-        bytes calldata data // solhint-disable-line no-unused-vars
+        bytes calldata
     ) external view onlyAirnodeProtocol onlyValidTimestamp(timestamp) {
         revert(); // solhint-disable-line reason-string
     }
 
     /// @notice A method to be called back by the respective method at
     /// AirnodeRrp.sol for testing fulfillment running out of gas
-    /// @param requestId Request ID
-    /// @param data Data returned by the Airnode
     function fulfillRequestAlwaysRunsOutOfGas(
-        bytes32 requestId, // solhint-disable-line no-unused-vars
+        bytes32,
         uint256 timestamp,
-        bytes calldata data // solhint-disable-line no-unused-vars
+        bytes calldata
     ) external view onlyAirnodeProtocol onlyValidTimestamp(timestamp) {
         while (true) {}
     }
