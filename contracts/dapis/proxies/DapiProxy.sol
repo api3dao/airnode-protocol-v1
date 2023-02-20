@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "./interfaces/IDapiProxy.sol";
+import "../interfaces/IDapiServer.sol";
 
 /// @title An immutable proxy contract that is used to read a specific dAPI of
 /// a specific DapiServer contract
