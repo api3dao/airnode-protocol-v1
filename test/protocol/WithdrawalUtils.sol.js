@@ -266,7 +266,7 @@ describe('WithdrawalUtils', function () {
 
           const nextTimestamp2 = (await helpers.time.latest()) + 1;
           await helpers.time.setNextBlockTimestamp(nextTimestamp2);
-          const timestampFromFuture = nextTimestamp + 15 * 60 + 1;
+          const timestampFromFuture = nextTimestamp + 60 * 60 + 1;
           const signatureFromFuture = await roles.airnode.signMessage(
             ethers.utils.arrayify(
               ethers.utils.solidityKeccak256(

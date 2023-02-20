@@ -89,7 +89,7 @@ contract WithdrawalUtils is IWithdrawalUtils {
         unchecked {
             require(
                 timestamp + 1 hours > block.timestamp &&
-                    timestamp < block.timestamp + 15 minutes,
+                    timestamp < block.timestamp + 1 hours,
                 "Timestamp not valid"
             );
         }
