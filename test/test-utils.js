@@ -199,36 +199,31 @@ module.exports = {
   signOevData: async (
     dapiServer,
     oevProxyAddress,
+    dataFeedId,
+    updateId,
+    timestamp,
+    data,
     searcherAddress,
     bidAmount,
-    updateId,
-    signatureCount,
-    beaconCount,
     airnode,
-    templateId,
-    timestamp,
-    data
+    templateId
   ) => {
-    const metadataHash = ethers.utils.solidityKeccak256(
-      ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
+    const oevUpdateHash = ethers.utils.solidityKeccak256(
+      ['uint256', 'address', 'address', 'bytes32', 'bytes32', 'uint256', 'bytes', 'address', 'uint256'],
       [
         (await dapiServer.provider.getNetwork()).chainId,
         dapiServer.address,
         oevProxyAddress,
+        dataFeedId,
+        updateId,
+        timestamp,
+        data,
         searcherAddress,
         bidAmount,
-        updateId,
-        signatureCount,
-        beaconCount,
       ]
     );
     return await airnode.signMessage(
-      ethers.utils.arrayify(
-        ethers.utils.solidityKeccak256(
-          ['bytes32', 'bytes32', 'uint256', 'bytes'],
-          [metadataHash, templateId, timestamp, data]
-        )
-      )
+      ethers.utils.arrayify(ethers.utils.solidityKeccak256(['bytes32', 'bytes32'], [oevUpdateHash, templateId]))
     );
   },
 };
