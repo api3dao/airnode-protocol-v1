@@ -49,13 +49,6 @@ module.exports = {
       `m/44'/60'/0'/${deriveWalletPathFromSponsorAddress(sponsorAddress, protocolId)}`
     ).connect(ethers.provider);
   },
-  deriveSponsorshipId: (scheme, parameters) => {
-    if (scheme === 'Requester') {
-      return ethers.utils.keccak256(ethers.utils.solidityPack(['uint256', 'address'], [1, parameters.requester]));
-    } else {
-      throw new Error('Invalid sponsorship scheme');
-    }
-  },
   getCurrentTimestamp: async (provider) => {
     return (await provider.getBlock()).timestamp;
   },
@@ -200,16 +193,6 @@ module.exports = {
     return await airnode.signMessage(
       ethers.utils.arrayify(
         ethers.utils.solidityKeccak256(['bytes32', 'uint256', 'bytes'], [templateId, timestamp, data])
-      )
-    );
-  },
-  domainSignData: async (airnode, dapiServer, templateId, timestamp, data) => {
-    return await airnode.signMessage(
-      ethers.utils.arrayify(
-        ethers.utils.solidityKeccak256(
-          ['uint256', 'address', 'bytes32', 'uint256', 'bytes'],
-          [(await dapiServer.provider.getNetwork()).chainId, dapiServer.address, templateId, timestamp, data]
-        )
       )
     );
   },
