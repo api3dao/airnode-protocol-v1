@@ -535,13 +535,14 @@ contract DapiServer is
     /// Even if this function returns `true`, the respective Subscription
     /// fulfillment will fail if will not update the Beacon set value or
     /// timestamp.
+    /// @param // subscriptionId Subscription ID
     /// @param data Fulfillment data (array of Beacon IDs, i.e., `bytes32[]`
     /// encoded in contract ABI)
     /// @param conditionParameters Subscription condition parameters. This
     /// includes multiple ABI-encoded values, see `checkUpdateCondition()`.
     /// @return If the Beacon set update subscription should be fulfilled
     function conditionPspBeaconSetUpdate(
-        bytes32,
+        bytes32 /* subscriptionId */,
         bytes calldata data,
         bytes calldata conditionParameters
     ) external view override returns (bool) {
@@ -575,15 +576,23 @@ contract DapiServer is
     /// a standard implementation of Airnode is being used, these can be
     /// expected to be correct. Either way, the assumption is that it does not
     /// matter for the purposes of a Beacon set update subscription.
+    /// @param // subscriptionId Subscription ID
+    /// @param // airnode Airnode address
+    /// @param // relayer Relayer address
+    /// @param // sponsor Sponsor address
+    /// @param // timestamp Timestamp used in the signature
     /// @param data Fulfillment data (an `int256` encoded in contract ABI)
+    /// @param // signature Subscription ID, timestamp, sponsor wallet address
+    /// (and fulfillment data if the relayer is not the Airnode) signed by the
+    /// Airnode wallet
     function fulfillPspBeaconSetUpdate(
-        bytes32,
-        address,
-        address,
-        address,
-        uint256,
+        bytes32 /* subscriptionId */,
+        address /* airnode */,
+        address /* relayer */,
+        address /* sponsor */,
+        uint256 /* timestamp */,
         bytes calldata data,
-        bytes calldata
+        bytes calldata /* signature */
     ) external override {
         require(
             keccak256(data) ==
@@ -1064,6 +1073,8 @@ contract DapiServer is
     function timestampIsValid(
         uint256 timestamp
     ) internal view virtual override returns (bool) {
-        return timestamp < block.timestamp + 1 hours;
+        unchecked {
+            return timestamp < block.timestamp + 1 hours;
+        }
     }
 }

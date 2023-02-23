@@ -12,12 +12,12 @@ import "./interfaces/IExternalMulticall.sol";
 /// calls reverting.
 /// @dev As mentioned above, this contract can be used to interact with trusted
 /// contracts. Such interactions can leave this contract in a privileged
-/// position (e.g., with a non-zero balance of an ERC20 token), which can be
-/// abused by an attacker afterwards. In addition, attackers can frontrun
-/// interactions to have the following interaction result in an unintended
-/// outcome. A general solution to these attacks is overriding both multicall
-/// functions behind an access control mechanism, such as an `onlyOwner`
-/// modifier.
+/// position (e.g., ExternalMulticall may be left with a non-zero balance of an
+/// ERC20 token as a result of a transaction sent to it), which can be abused
+/// by an attacker afterwards. In addition, attackers can frontrun interactions
+/// to have the following interaction result in an unintended outcome. A
+/// general solution to these attacks is overriding both multicall functions
+/// behind an access control mechanism, such as an `onlyOwner` modifier.
 /// Refer to MakerDAO's Multicall.sol for a similar implementation.
 abstract contract ExternalMulticall is IExternalMulticall {
     /// @notice Batches calls to external contracts and reverts as soon as one
