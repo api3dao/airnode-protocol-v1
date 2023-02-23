@@ -640,12 +640,13 @@ contract DapiServer is
     /// aggregation signed by the absolute majority of the respective Airnodes
     /// for the specific bid
     /// @dev For when the data feed being updated is a Beacon set, an absolute
-    /// majority of Airnodes must sign the resulting value and timestamp. While
-    /// doing so, Airnodes should refer to data signed by the respective
-    /// Airnodes. The absolute majority of this signed data should have similar
-    /// timestamps and values (e.g., within 2 minutes and 1% deviation).
-    /// Freshness should not be required, as OEV proxy data feeds cannot be
-    /// updated using older timestamps.
+    /// majority of the Airnodes that power the respective Beacons must sign
+    /// the aggregated value and timestamp. While doing so, the Airnodes should
+    /// refer to data signed to update an absolute majority of the respective
+    /// Beacons. The Airnodes should require the data to be fresh enough (e.g.,
+    /// at most 2 minutes-old), and tightly distributed around the resulting
+    /// aggregation (e.g., within 1% deviation), and reject to provide an OEV
+    /// proxy data feed update signature if these are not satisfied.
     /// @param oevProxy OEV proxy that reads the data feed
     /// @param dataFeedId Data feed ID
     /// @param updateId Update ID
