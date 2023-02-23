@@ -1097,6 +1097,8 @@ contract DapiServer is
     function timestampIsValid(
         uint256 timestamp
     ) internal view virtual override returns (bool) {
-        return timestamp < block.timestamp + 1 hours;
+        unchecked {
+            return timestamp < block.timestamp + 1 hours;
+        }
     }
 }

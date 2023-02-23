@@ -7,7 +7,7 @@ import "./interfaces/ISelfMulticall.sol";
 /// @notice Implements two ways of batching, one requires none of the calls to
 /// revert and the other tolerates individual calls reverting
 /// @dev This implementation uses delegatecall for individual function calls.
-/// Since delegatecall is a message call, it can only be made functions that
+/// Since delegatecall is a message call, it can only be made to functions that
 /// are externally visible. This means that a contract cannot multicall its own
 /// functions that use internal/private visibility modifiers.
 /// Refer to OpenZeppelin's Multicall.sol for a similar implementation.
