@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import "../OevDapiServer.sol";
+import "../Api3ServerV1.sol";
 import "../BeaconUpdatesWithRrp.sol";
 import "../DataFeedUpdatesWithPsp.sol";
-import "../BeaconUpdatesWithSignedData.sol";
 
 contract DataFeedServerFull is
-    OevDapiServer,
+    Api3ServerV1,
     BeaconUpdatesWithRrp,
-    DataFeedUpdatesWithPsp,
-    BeaconUpdatesWithSignedData
+    DataFeedUpdatesWithPsp
 {
     constructor(
         address _accessControlRegistry,
@@ -18,7 +16,7 @@ contract DataFeedServerFull is
         address _manager,
         address _airnodeProtocol
     )
-        OevDapiServer(_accessControlRegistry, _adminRoleDescription, _manager)
+        Api3ServerV1(_accessControlRegistry, _adminRoleDescription, _manager)
         BeaconUpdatesWithRrp(_airnodeProtocol)
     {}
 }

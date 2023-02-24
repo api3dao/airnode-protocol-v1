@@ -19,12 +19,4 @@ interface IDataFeedServer is IExtendedSelfMulticall {
     function updateBeaconSetWithBeacons(
         bytes32[] memory beaconIds
     ) external returns (bytes32 beaconSetId);
-
-    function readDataFeedWithId(
-        bytes32 dataFeedId
-    ) external view returns (int224 value, uint32 timestamp);
-
-    function dataFeeds(
-        bytes32 dataFeedId
-    ) external view returns (int224 value, uint32 timestamp);
 }

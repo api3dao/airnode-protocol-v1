@@ -9,4 +9,29 @@ interface IApi3ServerV1 is
     IOevDapiServer,
     IBeaconUpdatesWithSignedData,
     IBeaconSetUpdatesWithPsp
-{}
+{
+    function readDataFeedWithId(
+        bytes32 dataFeedId
+    ) external view returns (int224 value, uint32 timestamp);
+
+    function readDataFeedWithDapiNameHash(
+        bytes32 dapiNameHash
+    ) external view returns (int224 value, uint32 timestamp);
+
+    function readDataFeedWithIdAsOevProxy(
+        bytes32 dataFeedId
+    ) external view returns (int224 value, uint32 timestamp);
+
+    function readDataFeedWithDapiNameHashAsOevProxy(
+        bytes32 dapiNameHash
+    ) external view returns (int224 value, uint32 timestamp);
+
+    function dataFeeds(
+        bytes32 dataFeedId
+    ) external view returns (int224 value, uint32 timestamp);
+
+    function oevProxyToIdToDataFeed(
+        address proxy,
+        bytes32 dataFeedId
+    ) external view returns (int224 value, uint32 timestamp);
+}

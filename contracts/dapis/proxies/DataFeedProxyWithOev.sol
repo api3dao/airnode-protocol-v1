@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 import "./DataFeedProxy.sol";
-import "../interfaces/IOevDataFeedServer.sol";
 import "./interfaces/IOevProxy.sol";
 
 /// @title An immutable proxy contract that is used to read a specific data
@@ -38,7 +37,7 @@ contract DataFeedProxyWithOev is DataFeedProxy, IOevProxy {
         override
         returns (int224 value, uint32 timestamp)
     {
-        (value, timestamp) = IOevDataFeedServer(dapiServer)
+        (value, timestamp) = IApi3ServerV1(dapiServer)
             .readDataFeedWithIdAsOevProxy(dataFeedId);
     }
 }

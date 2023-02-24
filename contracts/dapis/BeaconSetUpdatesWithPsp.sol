@@ -120,7 +120,7 @@ contract BeaconSetUpdatesWithPsp is DataFeedServer, IBeaconSetUpdatesWithPsp {
             int224 deviationReference,
             uint256 heartbeatInterval
         ) = abi.decode(conditionParameters, (uint256, int224, uint256));
-        DataFeed storage dataFeed = dataFeeds[dataFeedId];
+        DataFeed storage dataFeed = _dataFeeds[dataFeedId];
         unchecked {
             return
                 (dataFeed.timestamp == 0 && updatedTimestamp != 0) ||

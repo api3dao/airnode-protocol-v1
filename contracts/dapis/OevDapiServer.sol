@@ -20,15 +20,15 @@ contract OevDapiServer is OevDataFeedServer, DapiServer, IOevDapiServer {
     /// @param dapiNameHash dAPI name hash
     /// @return value Data feed value
     /// @return timestamp Data feed timestamp
-    function readDataFeedWithDapiNameHashAsOevProxy(
+    function _readDataFeedWithDapiNameHashAsOevProxy(
         bytes32 dapiNameHash
-    ) external view override returns (int224 value, uint32 timestamp) {
+    ) internal view returns (int224 value, uint32 timestamp) {
         bytes32 dataFeedId = dapiNameHashToDataFeedId[dapiNameHash];
         require(dataFeedId != bytes32(0), "dAPI name not set");
-        DataFeed storage oevDataFeed = oevProxyToIdToDataFeed[msg.sender][
+        DataFeed storage oevDataFeed = _oevProxyToIdToDataFeed[msg.sender][
             dataFeedId
         ];
-        DataFeed storage dataFeed = dataFeeds[dataFeedId];
+        DataFeed storage dataFeed = _dataFeeds[dataFeedId];
         if (oevDataFeed.timestamp > dataFeed.timestamp) {
             (value, timestamp) = (oevDataFeed.value, oevDataFeed.timestamp);
         } else {

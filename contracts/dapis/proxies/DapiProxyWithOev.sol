@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 import "./DapiProxy.sol";
-import "../interfaces/IOevDapiServer.sol";
 import "./interfaces/IOevProxy.sol";
 
 /// @title An immutable proxy contract that is used to read a specific dAPI of
@@ -38,7 +37,7 @@ contract DapiProxyWithOev is DapiProxy, IOevProxy {
         override
         returns (int224 value, uint32 timestamp)
     {
-        (value, timestamp) = IOevDapiServer(dapiServer)
+        (value, timestamp) = IApi3ServerV1(dapiServer)
             .readDataFeedWithDapiNameHashAsOevProxy(dapiNameHash);
     }
 }

@@ -24,7 +24,7 @@ contract DataFeedServer is ExtendedSelfMulticall, Median, IDataFeedServer {
     }
 
     /// @notice Data feed with ID
-    mapping(bytes32 => DataFeed) public override dataFeeds;
+    mapping(bytes32 => DataFeed) internal _dataFeeds;
 
     /// @dev Reverts if the timestamp is from more than 1 hour in the future
     modifier onlyValidTimestamp(uint256 timestamp) virtual {
@@ -50,14 +50,14 @@ contract DataFeedServer is ExtendedSelfMulticall, Median, IDataFeedServer {
             beaconIds
         );
         beaconSetId = deriveBeaconSetId(beaconIds);
-        DataFeed storage beaconSet = dataFeeds[beaconSetId];
+        DataFeed storage beaconSet = _dataFeeds[beaconSetId];
         if (beaconSet.timestamp == updatedTimestamp) {
             require(
                 beaconSet.value != updatedValue,
                 "Does not update Beacon set"
             );
         }
-        dataFeeds[beaconSetId] = DataFeed({
+        _dataFeeds[beaconSetId] = DataFeed({
             value: updatedValue,
             timestamp: updatedTimestamp
         });
@@ -72,10 +72,10 @@ contract DataFeedServer is ExtendedSelfMulticall, Median, IDataFeedServer {
     /// @param dataFeedId Data feed ID
     /// @return value Data feed value
     /// @return timestamp Data feed timestamp
-    function readDataFeedWithId(
+    function _readDataFeedWithId(
         bytes32 dataFeedId
-    ) external view override returns (int224 value, uint32 timestamp) {
-        DataFeed storage dataFeed = dataFeeds[dataFeedId];
+    ) internal view returns (int224 value, uint32 timestamp) {
+        DataFeed storage dataFeed = _dataFeeds[dataFeedId];
         (value, timestamp) = (dataFeed.value, dataFeed.timestamp);
         require(timestamp > 0, "Data feed not initialized");
     }
@@ -117,10 +117,10 @@ contract DataFeedServer is ExtendedSelfMulticall, Median, IDataFeedServer {
     {
         updatedBeaconValue = decodeFulfillmentData(data);
         require(
-            timestamp > dataFeeds[beaconId].timestamp,
+            timestamp > _dataFeeds[beaconId].timestamp,
             "Does not update timestamp"
         );
-        dataFeeds[beaconId] = DataFeed({
+        _dataFeeds[beaconId] = DataFeed({
             value: updatedBeaconValue,
             timestamp: uint32(timestamp)
         });
@@ -153,7 +153,7 @@ contract DataFeedServer is ExtendedSelfMulticall, Median, IDataFeedServer {
         int256[] memory values = new int256[](beaconCount);
         int256[] memory timestamps = new int256[](beaconCount);
         for (uint256 ind = 0; ind < beaconCount; ) {
-            DataFeed storage dataFeed = dataFeeds[beaconIds[ind]];
+            DataFeed storage dataFeed = _dataFeeds[beaconIds[ind]];
             values[ind] = dataFeed.value;
             timestamps[ind] = int256(uint256(dataFeed.timestamp));
             unchecked {

@@ -27,4 +27,59 @@ contract Api3ServerV1 is
         string memory _adminRoleDescription,
         address _manager
     ) OevDapiServer(_accessControlRegistry, _adminRoleDescription, _manager) {}
+
+    /// @notice Reads the data feed with ID
+    /// @param dataFeedId Data feed ID
+    /// @return value Data feed value
+    /// @return timestamp Data feed timestamp
+    function readDataFeedWithId(
+        bytes32 dataFeedId
+    ) external view override returns (int224 value, uint32 timestamp) {
+        return _readDataFeedWithId(dataFeedId);
+    }
+
+    /// @notice Reads the data feed with dAPI name hash
+    /// @param dapiNameHash dAPI name hash
+    /// @return value Data feed value
+    /// @return timestamp Data feed timestamp
+    function readDataFeedWithDapiNameHash(
+        bytes32 dapiNameHash
+    ) external view override returns (int224 value, uint32 timestamp) {
+        return _readDataFeedWithDapiNameHash(dapiNameHash);
+    }
+
+    /// @notice Reads the data feed as the OEV proxy with ID
+    /// @param dataFeedId Data feed ID
+    /// @return value Data feed value
+    /// @return timestamp Data feed timestamp
+    function readDataFeedWithIdAsOevProxy(
+        bytes32 dataFeedId
+    ) external view override returns (int224 value, uint32 timestamp) {
+        return _readDataFeedWithIdAsOevProxy(dataFeedId);
+    }
+
+    /// @notice Reads the data feed as the OEV proxy with dAPI name hash
+    /// @param dapiNameHash dAPI name hash
+    /// @return value Data feed value
+    /// @return timestamp Data feed timestamp
+    function readDataFeedWithDapiNameHashAsOevProxy(
+        bytes32 dapiNameHash
+    ) external view override returns (int224 value, uint32 timestamp) {
+        return _readDataFeedWithDapiNameHashAsOevProxy(dapiNameHash);
+    }
+
+    function dataFeeds(
+        bytes32 dataFeedId
+    ) external view override returns (int224 value, uint32 timestamp) {
+        DataFeed storage dataFeed = _dataFeeds[dataFeedId];
+        (value, timestamp) = (dataFeed.value, dataFeed.timestamp);
+    }
+
+    function oevProxyToIdToDataFeed(
+        address proxy,
+        bytes32 dataFeedId
+    ) external view override returns (int224 value, uint32 timestamp) {
+        DataFeed storage dataFeed = _oevProxyToIdToDataFeed[proxy][dataFeedId];
+        (value, timestamp) = (dataFeed.value, dataFeed.timestamp);
+    }
 }

@@ -87,12 +87,12 @@ contract DapiServer is
     /// @param dapiNameHash dAPI name hash
     /// @return value Data feed value
     /// @return timestamp Data feed timestamp
-    function readDataFeedWithDapiNameHash(
+    function _readDataFeedWithDapiNameHash(
         bytes32 dapiNameHash
-    ) external view override returns (int224 value, uint32 timestamp) {
+    ) internal view returns (int224 value, uint32 timestamp) {
         bytes32 dataFeedId = dapiNameHashToDataFeedId[dapiNameHash];
         require(dataFeedId != bytes32(0), "dAPI name not set");
-        DataFeed storage dataFeed = dataFeeds[dataFeedId];
+        DataFeed storage dataFeed = _dataFeeds[dataFeedId];
         (value, timestamp) = (dataFeed.value, dataFeed.timestamp);
         require(timestamp > 0, "Data feed not initialized");
     }

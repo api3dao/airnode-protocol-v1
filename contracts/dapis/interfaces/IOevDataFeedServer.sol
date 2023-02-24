@@ -37,15 +37,6 @@ interface IOevDataFeedServer is IDataFeedServer {
 
     function withdraw(address oevProxy) external;
 
-    function readDataFeedWithIdAsOevProxy(
-        bytes32 dataFeedId
-    ) external view returns (int224 value, uint32 timestamp);
-
-    function oevProxyToIdToDataFeed(
-        address proxy,
-        bytes32 dataFeedId
-    ) external view returns (int224 value, uint32 timestamp);
-
     function oevProxyToBalance(
         address oevProxy
     ) external view returns (uint256 balance);

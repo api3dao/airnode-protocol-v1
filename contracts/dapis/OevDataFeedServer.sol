@@ -18,8 +18,7 @@ contract OevDataFeedServer is DataFeedServer, IOevDataFeedServer {
     /// affects contracts that read through the respective proxy that the
     /// auction was being held for
     mapping(address => mapping(bytes32 => DataFeed))
-        public
-        override oevProxyToIdToDataFeed;
+        internal _oevProxyToIdToDataFeed;
 
     /// @notice Accumulated OEV auction proceeds for the specific proxy
     mapping(address => uint256) public override oevProxyToBalance;
@@ -52,7 +51,7 @@ contract OevDataFeedServer is DataFeedServer, IOevDataFeedServer {
         bytes[] calldata packedOevUpdateSignatures
     ) external payable override onlyValidTimestamp(timestamp) {
         require(
-            timestamp > oevProxyToIdToDataFeed[oevProxy][dataFeedId].timestamp,
+            timestamp > _oevProxyToIdToDataFeed[oevProxy][dataFeedId].timestamp,
             "Does not update timestamp"
         );
         bytes32 oevUpdateHash = keccak256(
@@ -131,7 +130,7 @@ contract OevDataFeedServer is DataFeedServer, IOevDataFeedServer {
         } else {
             revert("Did not specify any Beacons");
         }
-        oevProxyToIdToDataFeed[oevProxy][dataFeedId] = DataFeed({
+        _oevProxyToIdToDataFeed[oevProxy][dataFeedId] = DataFeed({
             value: updatedValue,
             timestamp: updatedTimestamp
         });
@@ -161,13 +160,13 @@ contract OevDataFeedServer is DataFeedServer, IOevDataFeedServer {
     /// @param dataFeedId Data feed ID
     /// @return value Data feed value
     /// @return timestamp Data feed timestamp
-    function readDataFeedWithIdAsOevProxy(
+    function _readDataFeedWithIdAsOevProxy(
         bytes32 dataFeedId
-    ) external view override returns (int224 value, uint32 timestamp) {
-        DataFeed storage oevDataFeed = oevProxyToIdToDataFeed[msg.sender][
+    ) internal view returns (int224 value, uint32 timestamp) {
+        DataFeed storage oevDataFeed = _oevProxyToIdToDataFeed[msg.sender][
             dataFeedId
         ];
-        DataFeed storage dataFeed = dataFeeds[dataFeedId];
+        DataFeed storage dataFeed = _dataFeeds[dataFeedId];
         if (oevDataFeed.timestamp > dataFeed.timestamp) {
             (value, timestamp) = (oevDataFeed.value, oevDataFeed.timestamp);
         } else {

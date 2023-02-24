@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "./interfaces/IDapiProxy.sol";
-import "../interfaces/IDapiServer.sol";
+import "../interfaces/IApi3ServerV1.sol";
 
 /// @title An immutable proxy contract that is used to read a specific dAPI of
 /// a specific DapiServer contract
@@ -48,7 +48,7 @@ contract DapiProxy is IDapiProxy {
         override
         returns (int224 value, uint32 timestamp)
     {
-        (value, timestamp) = IDapiServer(dapiServer)
+        (value, timestamp) = IApi3ServerV1(dapiServer)
             .readDataFeedWithDapiNameHash(dapiNameHash);
     }
 }
