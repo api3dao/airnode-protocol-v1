@@ -329,13 +329,13 @@ contract DapiServer is
     ) external override onlyAirnodeProtocol onlyValidTimestamp(timestamp) {
         bytes32 beaconId = requestIdToBeaconId[requestId];
         delete requestIdToBeaconId[requestId];
-        int224 decodedData = processBeaconUpdate(beaconId, timestamp, data);
+        int224 updatedValue = processBeaconUpdate(beaconId, timestamp, data);
         // Timestamp validity is already checked by `onlyValidTimestamp`, which
         // means it will be small enough to be typecast into `uint32`
         emit UpdatedBeaconWithRrp(
             beaconId,
             requestId,
-            decodedData,
+            updatedValue,
             uint32(timestamp)
         );
     }
@@ -481,13 +481,13 @@ contract DapiServer is
         bytes32 beaconId = subscriptionIdToBeaconId[subscriptionId];
         // Beacon ID is guaranteed to not be zero because the subscription is
         // registered
-        int224 decodedData = processBeaconUpdate(beaconId, timestamp, data);
+        int224 updatedValue = processBeaconUpdate(beaconId, timestamp, data);
         // Timestamp validity is already checked by `onlyValidTimestamp`, which
         // means it will be small enough to be typecast into `uint32`
         emit UpdatedBeaconWithPsp(
             beaconId,
             subscriptionId,
-            decodedData,
+            updatedValue,
             uint32(timestamp)
         );
     }
@@ -507,10 +507,13 @@ contract DapiServer is
             beaconIds
         );
         beaconSetId = deriveBeaconSetId(beaconIds);
-        require(
-            updatedTimestamp > dataFeeds[beaconSetId].timestamp,
-            "Does not update timestamp"
-        );
+        DataFeed storage beaconSet = dataFeeds[beaconSetId];
+        if (beaconSet.timestamp == updatedTimestamp) {
+            require(
+                beaconSet.value != updatedValue,
+                "Does not update Beacon set"
+            );
+        }
         dataFeeds[beaconSetId] = DataFeed({
             value: updatedValue,
             timestamp: updatedTimestamp
@@ -614,7 +617,12 @@ contract DapiServer is
         uint256 timestamp,
         bytes calldata data,
         bytes calldata signature
-    ) external override returns (bytes32 beaconId) {
+    )
+        external
+        override
+        onlyValidTimestamp(timestamp)
+        returns (bytes32 beaconId)
+    {
         require(
             (
                 keccak256(abi.encodePacked(templateId, timestamp, data))
@@ -622,22 +630,12 @@ contract DapiServer is
             ).recover(signature) == airnode,
             "Signature mismatch"
         );
-        require(timestampIsValid(timestamp), "Timestamp not valid");
-        uint32 updatedTimestamp = uint32(timestamp);
-        int224 updatedValue = decodeFulfillmentData(data);
         beaconId = deriveBeaconId(airnode, templateId);
-        require(
-            updatedTimestamp > dataFeeds[beaconId].timestamp,
-            "Does not update timestamp"
-        );
-        dataFeeds[beaconId] = DataFeed({
-            value: updatedValue,
-            timestamp: updatedTimestamp
-        });
+        int224 updatedValue = processBeaconUpdate(beaconId, timestamp, data);
         emit UpdatedBeaconWithSignedData(
             beaconId,
             updatedValue,
-            updatedTimestamp
+            uint32(timestamp)
         );
     }
 
@@ -891,17 +889,17 @@ contract DapiServer is
         uint256 beaconCount = beaconIds.length;
         require(beaconCount > 1, "Specified less than two Beacons");
         int256[] memory values = new int256[](beaconCount);
-        uint256 accumulatedTimestamp = 0;
+        int256[] memory timestamps = new int256[](beaconCount);
         for (uint256 ind = 0; ind < beaconCount; ) {
             DataFeed storage dataFeed = dataFeeds[beaconIds[ind]];
             values[ind] = dataFeed.value;
+            timestamps[ind] = int256(uint256(dataFeed.timestamp));
             unchecked {
-                accumulatedTimestamp += dataFeed.timestamp;
                 ind++;
             }
         }
         value = int224(median(values));
-        timestamp = uint32(accumulatedTimestamp / beaconCount);
+        timestamp = uint32(uint256(median(timestamps)));
     }
 
     /// @notice Derives the Beacon ID from the Airnode address and template ID

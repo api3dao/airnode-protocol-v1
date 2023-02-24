@@ -2386,7 +2386,7 @@ describe('DapiServer', function () {
 
   describe('updateBeaconSetWithBeacons', function () {
     context('Did not specify less than two Beacons', function () {
-      context('Updated value updates timestamp', function () {
+      context('Beacons update Beacon set timestamp', function () {
         it('updates Beacon set', async function () {
           const { roles, dapiServer, beacons, beaconSet } = await deploy();
           // Populate the Beacons
@@ -2399,11 +2399,7 @@ describe('DapiServer', function () {
             })
           );
           const beaconSetValue = median(beaconValues);
-          const beaconSetTimestamp = Math.floor(
-            beaconTimestamps.reduce((sum, beaconTimestamp) => {
-              return sum + beaconTimestamp;
-            }, 0) / beaconTimestamps.length
-          );
+          const beaconSetTimestamp = median(beaconTimestamps);
           const beaconSetBefore = await dapiServer.dataFeeds(beaconSet.beaconSetId);
           expect(beaconSetBefore.value).to.equal(0);
           expect(beaconSetBefore.timestamp).to.equal(0);
@@ -2418,14 +2414,47 @@ describe('DapiServer', function () {
           expect(beaconSetAfter.timestamp).to.equal(beaconSetTimestamp);
         });
       });
-      context('Updated value does not update timestamp', function () {
-        it('reverts', async function () {
-          const { roles, dapiServer, beacons, beaconSet } = await deploy();
-          // Update Beacon set with recent timestamp
-          await updateBeaconSet(roles, dapiServer, beacons, 123);
-          await expect(
-            dapiServer.connect(roles.randomPerson).updateBeaconSetWithBeacons(beaconSet.beaconIds)
-          ).to.be.revertedWith('Does not update timestamp');
+      context('Beacons do not update Beacon set timestamp', function () {
+        context('Beacons update Beacon set value', function () {
+          it('updates Beacon set', async function () {
+            const { roles, dapiServer, beacons, beaconSet } = await deploy();
+            // Populate the Beacons
+            const beaconValues = [100, 80, 120];
+            const currentTimestamp = await helpers.time.latest();
+            const beaconTimestamps = [currentTimestamp, currentTimestamp, currentTimestamp];
+            await Promise.all(
+              beacons.map(async (beacon, index) => {
+                await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+              })
+            );
+            const beaconIds = beacons.map((beacon) => {
+              return beacon.beaconId;
+            });
+            await dapiServer.updateBeaconSetWithBeacons(beaconIds);
+            await updateBeacon(roles, dapiServer, beacons[0], 110, currentTimestamp + 10);
+            const beaconSetBefore = await dapiServer.dataFeeds(beaconSet.beaconSetId);
+            expect(beaconSetBefore.value).to.equal(100);
+            expect(beaconSetBefore.timestamp).to.equal(currentTimestamp);
+            expect(
+              await dapiServer.connect(roles.randomPerson).callStatic.updateBeaconSetWithBeacons(beaconSet.beaconIds)
+            ).to.equal(beaconSet.beaconSetId);
+            await expect(dapiServer.connect(roles.randomPerson).updateBeaconSetWithBeacons(beaconSet.beaconIds))
+              .to.emit(dapiServer, 'UpdatedBeaconSetWithBeacons')
+              .withArgs(beaconSet.beaconSetId, 110, currentTimestamp);
+            const beaconSetAfter = await dapiServer.dataFeeds(beaconSet.beaconSetId);
+            expect(beaconSetAfter.value).to.equal(110);
+            expect(beaconSetAfter.timestamp).to.equal(currentTimestamp);
+          });
+        });
+        context('Beacons do not update Beacon set value', function () {
+          it('reverts', async function () {
+            const { roles, dapiServer, beacons, beaconSet } = await deploy();
+            // Update Beacon set with recent timestamp
+            await updateBeaconSet(roles, dapiServer, beacons, 123);
+            await expect(
+              dapiServer.connect(roles.randomPerson).updateBeaconSetWithBeacons(beaconSet.beaconIds)
+            ).to.be.revertedWith('Does not update Beacon set');
+          });
         });
       });
     });
@@ -2739,11 +2768,7 @@ describe('DapiServer', function () {
             })
           );
           const beaconSetValue = median(beaconValues);
-          const beaconSetTimestamp = Math.floor(
-            beaconTimestamps.reduce((sum, beaconTimestamp) => {
-              return sum + beaconTimestamp;
-            }, 0) / beaconTimestamps.length
-          );
+          const beaconSetTimestamp = median(beaconTimestamps);
           const data = ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSet.beaconIds]);
           const timestamp = await helpers.time.latest();
           const signature = testUtils.signPspFulfillment(
@@ -2791,11 +2816,7 @@ describe('DapiServer', function () {
             })
           );
           const beaconSetValue = median(beaconValues);
-          const beaconSetTimestamp = Math.floor(
-            beaconTimestamps.reduce((sum, beaconTimestamp) => {
-              return sum + beaconTimestamp;
-            }, 0) / beaconTimestamps.length
-          );
+          const beaconSetTimestamp = median(beaconTimestamps);
           const beaconSetUpdateSubscriptionId = await deriveUpdateSubscriptionId(
             dapiServer,
             beacons[0].airnode.wallet.address,
@@ -2879,8 +2900,8 @@ describe('DapiServer', function () {
   });
 
   describe('updateBeaconWithSignedData', function () {
-    context('Signature is valid', function () {
-      context('Timestamp is valid', function () {
+    context('Timestamp is valid', function () {
+      context('Signature is valid', function () {
         context('Fulfillment data length is correct', function () {
           context('Decoded fulfillment data can be typecasted into int224', function () {
             context('Updates timestamp', function () {
@@ -3021,69 +3042,69 @@ describe('DapiServer', function () {
           });
         });
       });
-      context('Timestamp is not valid', function () {
+      context('Signature is not valid', function () {
         it('reverts', async function () {
           const { roles, dapiServer, beacons } = await deploy();
           const beacon = beacons[0];
           const beaconValue = Math.floor(Math.random() * 200 - 100);
-          const nextTimestamp = (await helpers.time.latest()) + 1;
-          await helpers.time.setNextBlockTimestamp(nextTimestamp);
-          const beaconTimestampTooLate = nextTimestamp - 60 * 60;
-          const signatureTooLate = await testUtils.signData(
-            beacon.airnode.wallet,
-            beacon.templateId,
-            beaconTimestampTooLate,
-            encodeData(beaconValue)
-          );
+          const beaconTimestamp = await helpers.time.latest();
           await expect(
             dapiServer
               .connect(roles.randomPerson)
               .updateBeaconWithSignedData(
                 beacon.airnode.wallet.address,
                 beacon.templateId,
-                beaconTimestampTooLate,
+                beaconTimestamp,
                 encodeData(beaconValue),
-                signatureTooLate
+                '0x12345678'
               )
-          ).to.be.revertedWith('Timestamp not valid');
-          const beaconTimestampFromFuture = nextTimestamp + 15 * 60 + 1;
-          const signatureFromFuture = await testUtils.signData(
-            beacon.airnode.wallet,
-            beacon.templateId,
-            beaconTimestampFromFuture,
-            encodeData(beaconValue)
-          );
-          await expect(
-            dapiServer
-              .connect(roles.randomPerson)
-              .updateBeaconWithSignedData(
-                beacon.airnode.wallet.address,
-                beacon.templateId,
-                beaconTimestampFromFuture,
-                encodeData(beaconValue),
-                signatureFromFuture
-              )
-          ).to.be.revertedWith('Timestamp not valid');
+          ).to.be.revertedWith('ECDSA: invalid signature length');
         });
       });
     });
-    context('Signature is not valid', function () {
+    context('Timestamp is not valid', function () {
       it('reverts', async function () {
         const { roles, dapiServer, beacons } = await deploy();
         const beacon = beacons[0];
         const beaconValue = Math.floor(Math.random() * 200 - 100);
-        const beaconTimestamp = await helpers.time.latest();
+        const nextTimestamp = (await helpers.time.latest()) + 1;
+        await helpers.time.setNextBlockTimestamp(nextTimestamp);
+        const beaconTimestampTooLate = nextTimestamp - 60 * 60;
+        const signatureTooLate = await testUtils.signData(
+          beacon.airnode.wallet,
+          beacon.templateId,
+          beaconTimestampTooLate,
+          encodeData(beaconValue)
+        );
         await expect(
           dapiServer
             .connect(roles.randomPerson)
             .updateBeaconWithSignedData(
               beacon.airnode.wallet.address,
               beacon.templateId,
-              beaconTimestamp,
+              beaconTimestampTooLate,
               encodeData(beaconValue),
-              '0x12345678'
+              signatureTooLate
             )
-        ).to.be.revertedWith('ECDSA: invalid signature length');
+        ).to.be.revertedWith('Timestamp not valid');
+        const beaconTimestampFromFuture = nextTimestamp + 15 * 60 + 1;
+        const signatureFromFuture = await testUtils.signData(
+          beacon.airnode.wallet,
+          beacon.templateId,
+          beaconTimestampFromFuture,
+          encodeData(beaconValue)
+        );
+        await expect(
+          dapiServer
+            .connect(roles.randomPerson)
+            .updateBeaconWithSignedData(
+              beacon.airnode.wallet.address,
+              beacon.templateId,
+              beaconTimestampFromFuture,
+              encodeData(beaconValue),
+              signatureFromFuture
+            )
+        ).to.be.revertedWith('Timestamp not valid');
       });
     });
   });
