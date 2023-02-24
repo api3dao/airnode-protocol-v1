@@ -45,7 +45,7 @@ contract BeaconSetUpdatesWithPsp is DataFeedServer, IBeaconSetUpdatesWithPsp {
         bytes32 /* subscriptionId */,
         bytes calldata data,
         bytes calldata conditionParameters
-    ) external view override returns (bool) {
+    ) public view virtual override returns (bool) {
         bytes32[] memory beaconIds = abi.decode(data, (bytes32[]));
         require(
             keccak256(abi.encode(beaconIds)) == keccak256(data),

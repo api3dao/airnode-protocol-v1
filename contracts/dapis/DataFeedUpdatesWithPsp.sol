@@ -98,7 +98,7 @@ contract DataFeedUpdatesWithPsp is
         bytes32 subscriptionId,
         bytes calldata data,
         bytes calldata conditionParameters
-    ) external view override returns (bool) {
+    ) public view virtual override returns (bool) {
         bytes32 beaconId = subscriptionIdToBeaconId[subscriptionId];
         require(beaconId != bytes32(0), "Subscription not registered");
         return
