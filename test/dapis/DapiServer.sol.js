@@ -1266,8 +1266,8 @@ describe('DapiServer', function () {
           });
         });
       });
-      context('Timestamp is older than 1 hour', function () {
-        it('does not update Beacon', async function () {
+      context('Timestamp is more than 1 hour from the future', function () {
+        it('reverts', async function () {
           const { roles, airnodeProtocol, dapiServer, beacons } = await deploy();
           const beacon = beacons[0];
           const requestId = await testUtils.deriveRequestId(
@@ -1288,7 +1288,7 @@ describe('DapiServer', function () {
             );
           const decodedData = 123;
           const data = encodeData(decodedData);
-          const timestamp = (await helpers.time.latest()) - 60 * 60;
+          const timestamp = (await helpers.time.latest()) + 60 * 60 + 1;
           const signature = testUtils.signRrpFulfillment(
             beacon.airnode.wallet,
             requestId,
@@ -1328,7 +1328,7 @@ describe('DapiServer', function () {
           expect(beaconAfter.timestamp).to.equal(0);
         });
       });
-      context('Timestamp is more than 15 minutes from the future', function () {
+      context('Timestamp is zero', function () {
         it('reverts', async function () {
           const { roles, airnodeProtocol, dapiServer, beacons } = await deploy();
           const beacon = beacons[0];
@@ -1350,7 +1350,7 @@ describe('DapiServer', function () {
             );
           const decodedData = 123;
           const data = encodeData(decodedData);
-          const timestamp = (await helpers.time.latest()) + 15 * 60 + 1;
+          const timestamp = 0;
           const signature = testUtils.signRrpFulfillment(
             beacon.airnode.wallet,
             requestId,
@@ -1370,7 +1370,7 @@ describe('DapiServer', function () {
               { gasLimit: 500000 }
             );
           expect(staticCallResult.callSuccess).to.equal(false);
-          expect(testUtils.decodeRevertString(staticCallResult.callData)).to.equal('Timestamp not valid');
+          expect(testUtils.decodeRevertString(staticCallResult.callData)).to.equal('Does not update timestamp');
           await expect(
             airnodeProtocol
               .connect(beacon.airnode.rrpSponsorWallet)
@@ -2312,7 +2312,7 @@ describe('DapiServer', function () {
         });
       });
     });
-    context('Timestamp is not valid', function () {
+    context('Timestamp is more than 1 hour from the future', function () {
       it('reverts', async function () {
         const { roles, dapiServer, beacons } = await deploy();
         const beacon = beacons[0];
@@ -2338,11 +2338,11 @@ describe('DapiServer', function () {
         const data = encodeData(decodedData);
         const nextTimestamp = (await helpers.time.latest()) + 1;
         await helpers.time.setNextBlockTimestamp(nextTimestamp);
-        const timestampTooOld = nextTimestamp - 60 * 60;
-        const signatureWithTimestampTooOld = testUtils.signPspFulfillment(
+        const timestamp = nextTimestamp + 60 * 60 + 1;
+        const signature = testUtils.signPspFulfillment(
           beacon.airnode.wallet,
           subscriptionId,
-          timestampTooOld,
+          timestamp,
           beacon.airnode.pspSponsorWallet.address
         );
         await expect(
@@ -2353,17 +2353,45 @@ describe('DapiServer', function () {
               beacon.airnode.wallet.address,
               beacon.airnode.wallet.address,
               roles.sponsor.address,
-              timestampTooOld,
+              timestamp,
               data,
-              signatureWithTimestampTooOld,
+              signature,
               { gasLimit: 500000 }
             )
         ).to.be.revertedWith('Timestamp not valid');
-        const timestampFromFuture = nextTimestamp + 15 * 60 + 1;
-        const signatureWithTimestampFromFuture = testUtils.signPspFulfillment(
+      });
+    });
+    context('Timestamp is zero', function () {
+      it('reverts', async function () {
+        const { roles, dapiServer, beacons } = await deploy();
+        const beacon = beacons[0];
+        const subscriptionId = await dapiServer
+          .connect(roles.randomPerson)
+          .callStatic.registerBeaconUpdateSubscription(
+            beacon.airnode.wallet.address,
+            beacon.templateId,
+            beacon.beaconUpdateSubscriptionConditions,
+            beacon.airnode.wallet.address,
+            roles.sponsor.address
+          );
+        await dapiServer
+          .connect(roles.randomPerson)
+          .registerBeaconUpdateSubscription(
+            beacon.airnode.wallet.address,
+            beacon.templateId,
+            beacon.beaconUpdateSubscriptionConditions,
+            beacon.airnode.wallet.address,
+            roles.sponsor.address
+          );
+        const decodedData = 123;
+        const data = encodeData(decodedData);
+        const nextTimestamp = (await helpers.time.latest()) + 1;
+        await helpers.time.setNextBlockTimestamp(nextTimestamp);
+        const timestamp = 0;
+        const signature = testUtils.signPspFulfillment(
           beacon.airnode.wallet,
           subscriptionId,
-          timestampFromFuture,
+          timestamp,
           beacon.airnode.pspSponsorWallet.address
         );
         await expect(
@@ -2374,12 +2402,12 @@ describe('DapiServer', function () {
               beacon.airnode.wallet.address,
               beacon.airnode.wallet.address,
               roles.sponsor.address,
-              timestampFromFuture,
+              timestamp,
               data,
-              signatureWithTimestampFromFuture,
+              signature,
               { gasLimit: 500000 }
             )
-        ).to.be.revertedWith('Timestamp not valid');
+        ).to.be.revertedWith('Does not update timestamp');
       });
     });
   });
@@ -3062,18 +3090,18 @@ describe('DapiServer', function () {
         });
       });
     });
-    context('Timestamp is not valid', function () {
+    context('Timestamp is more than 1 hour from the future', function () {
       it('reverts', async function () {
         const { roles, dapiServer, beacons } = await deploy();
         const beacon = beacons[0];
         const beaconValue = Math.floor(Math.random() * 200 - 100);
         const nextTimestamp = (await helpers.time.latest()) + 1;
         await helpers.time.setNextBlockTimestamp(nextTimestamp);
-        const beaconTimestampTooLate = nextTimestamp - 60 * 60;
-        const signatureTooLate = await testUtils.signData(
+        const beaconTimestamp = nextTimestamp + 60 * 60 + 1;
+        const signature = await testUtils.signData(
           beacon.airnode.wallet,
           beacon.templateId,
-          beaconTimestampTooLate,
+          beaconTimestamp,
           encodeData(beaconValue)
         );
         await expect(
@@ -3082,16 +3110,25 @@ describe('DapiServer', function () {
             .updateBeaconWithSignedData(
               beacon.airnode.wallet.address,
               beacon.templateId,
-              beaconTimestampTooLate,
+              beaconTimestamp,
               encodeData(beaconValue),
-              signatureTooLate
+              signature
             )
         ).to.be.revertedWith('Timestamp not valid');
-        const beaconTimestampFromFuture = nextTimestamp + 15 * 60 + 1;
-        const signatureFromFuture = await testUtils.signData(
+      });
+    });
+    context('Timestamp is zero', function () {
+      it('reverts', async function () {
+        const { roles, dapiServer, beacons } = await deploy();
+        const beacon = beacons[0];
+        const beaconValue = Math.floor(Math.random() * 200 - 100);
+        const nextTimestamp = (await helpers.time.latest()) + 1;
+        await helpers.time.setNextBlockTimestamp(nextTimestamp);
+        const beaconTimestamp = 0;
+        const signature = await testUtils.signData(
           beacon.airnode.wallet,
           beacon.templateId,
-          beaconTimestampFromFuture,
+          beaconTimestamp,
           encodeData(beaconValue)
         );
         await expect(
@@ -3100,11 +3137,11 @@ describe('DapiServer', function () {
             .updateBeaconWithSignedData(
               beacon.airnode.wallet.address,
               beacon.templateId,
-              beaconTimestampFromFuture,
+              beaconTimestamp,
               encodeData(beaconValue),
-              signatureFromFuture
+              signature
             )
-        ).to.be.revertedWith('Timestamp not valid');
+        ).to.be.revertedWith('Does not update timestamp');
       });
     });
   });
@@ -3447,7 +3484,7 @@ describe('DapiServer', function () {
                     });
                   });
                 });
-                context('Not all timestamps are not valid', function () {
+                context('Not all timestamps are valid', function () {
                   it('reverts', async function () {
                     const { roles, dapiServer, oevProxy, beacons } = await deploy();
                     // Populate the Beacons
@@ -4053,35 +4090,7 @@ describe('DapiServer', function () {
                     const updateId = testUtils.generateRandomBytes32();
                     const nextTimestamp = (await helpers.time.latest()) + 1;
                     await helpers.time.setNextBlockTimestamp(nextTimestamp);
-                    const beaconTimestampTooLate = nextTimestamp - 60 * 60;
-                    const signatureTooLate = await testUtils.signOevData(
-                      dapiServer,
-                      oevProxy.address,
-                      roles.searcher.address,
-                      bidAmount,
-                      updateId,
-                      1,
-                      1,
-                      beacon.airnode.wallet,
-                      beacon.templateId,
-                      beaconTimestampTooLate,
-                      encodeData(beaconValue)
-                    );
-                    const signedDataTooLate = await encodeSignedData(
-                      beacon.airnode.wallet.address,
-                      beacon.templateId,
-                      beaconTimestampTooLate,
-                      encodeData(beaconValue),
-                      signatureTooLate
-                    );
-                    await expect(
-                      dapiServer
-                        .connect(roles.searcher)
-                        .updateOevProxyDataFeedWithSignedData(oevProxy.address, updateId, 1, [signedDataTooLate], {
-                          value: bidAmount,
-                        })
-                    ).to.be.revertedWith('Timestamp not valid');
-                    const beaconTimestampFromFuture = nextTimestamp + 15 * 60 + 1;
+                    const beaconTimestampFromFuture = nextTimestamp + 60 * 60 + 1;
                     const signatureFromFuture = await testUtils.signOevData(
                       dapiServer,
                       oevProxy.address,

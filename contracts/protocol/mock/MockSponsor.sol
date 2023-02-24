@@ -19,4 +19,10 @@ contract MockSponsor is AirnodeRequester {
     function claimBalance() external {
         IAirnodeProtocol(airnodeProtocol).claimBalance();
     }
+
+    function timestampIsValid(
+        uint256
+    ) internal view virtual override returns (bool) {
+        return true;
+    }
 }
