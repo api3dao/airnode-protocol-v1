@@ -596,174 +596,49 @@ contract DapiServer is
 
     ///                     ~~~Signed data feed updates~~~
 
-    /// @notice Updates a data feed using data signed by the respective
-    /// Airnodes without requiring a request or subscription. The Beacons for
-    /// which the fulfillment data and signature is omitted will be read from
-    /// storage.
+    /// @notice Updates a Beacon using data signed by the Airnode without
+    /// requiring a request or subscription
     /// @dev The signed data here is intentionally very general for practical
     /// reasons. It is less demanding on the signer to have data signed once
     /// and use that everywhere.
-    /// @param signedData Array of contract ABI-encoded Airnode address,
-    /// template ID, timestamp and fulfillment data that is signed by the
-    /// respective Airnode
-    function updateDataFeedWithSignedData(
-        bytes[] calldata signedData
-    ) external override {
-        uint256 beaconCount = signedData.length;
-        if (beaconCount > 1) {
-            bytes32[] memory beaconIds = new bytes32[](beaconCount);
-            int256[] memory values = new int256[](beaconCount);
-            uint256 accumulatedTimestamp = 0;
-            for (uint256 ind = 0; ind < beaconCount; ) {
-                (
-                    bytes32 beaconId,
-                    int224 beaconValue,
-                    uint32 beaconTimestamp
-                ) = decodeSignedData(signedData[ind]);
-                beaconIds[ind] = beaconId;
-                if (beaconTimestamp != 0) {
-                    values[ind] = beaconValue;
-                    // Will not overflow assuming less than 2^224 Beacons
-                    unchecked {
-                        accumulatedTimestamp += beaconTimestamp;
-                    }
-                } else {
-                    DataFeed storage beacon = dataFeeds[beaconId];
-                    values[ind] = beacon.value;
-                    unchecked {
-                        accumulatedTimestamp += beacon.timestamp;
-                    }
-                }
-                unchecked {
-                    ind++;
-                }
-            }
-            bytes32 beaconSetId = deriveBeaconSetId(beaconIds);
-            uint32 updatedTimestamp = uint32(
-                accumulatedTimestamp / beaconCount
-            );
-            require(
-                updatedTimestamp > dataFeeds[beaconSetId].timestamp,
-                "Does not update timestamp"
-            );
-            int224 updatedValue = int224(median(values));
-            dataFeeds[beaconSetId] = DataFeed({
-                value: updatedValue,
-                timestamp: updatedTimestamp
-            });
-            emit UpdatedBeaconSetWithSignedData(
-                beaconSetId,
-                updatedValue,
-                updatedTimestamp
-            );
-        } else if (beaconCount == 1) {
+    /// @param airnode Airnode address
+    /// @param templateId Template ID
+    /// @param timestamp Signature timestamp
+    /// @param data Update data (an `int256` encoded in contract ABI)
+    /// @param signature Template ID, timestamp and the update data signed by
+    /// the Airnode
+    /// @return beaconId Updated Beacon ID
+    function updateBeaconWithSignedData(
+        address airnode,
+        bytes32 templateId,
+        uint256 timestamp,
+        bytes calldata data,
+        bytes calldata signature
+    ) external override returns (bytes32 beaconId) {
+        require(
             (
-                bytes32 beaconId,
-                int224 updatedValue,
-                uint32 updatedTimestamp
-            ) = decodeSignedData(signedData[0]);
-            require(updatedTimestamp != 0, "Missing data");
-            require(
-                updatedTimestamp > dataFeeds[beaconId].timestamp,
-                "Does not update timestamp"
-            );
-            dataFeeds[beaconId] = DataFeed({
-                value: updatedValue,
-                timestamp: updatedTimestamp
-            });
-            emit UpdatedBeaconWithSignedData(
-                beaconId,
-                updatedValue,
-                updatedTimestamp
-            );
-        } else {
-            revert("Specified no Beacons");
-        }
-    }
-
-    /// @notice Updates a data feed using data domain-signed by the respective
-    /// Airnodes without requiring a request or subscription. The Beacons for
-    /// which the fulfillment data and signature is omitted will be read from
-    /// storage.
-    /// @dev This signed data here is specific to this contract, which is to be
-    /// used when the signer does not want to provide the more general
-    /// signature. EIP712 may feel relevant here, but we avoided it for the
-    /// sake of consistency among signed data implementations and clarity.
-    /// @param signedData Array of contract ABI-encoded Airnode address,
-    /// template ID, timestamp and fulfillment data that is signed by the
-    /// respective Airnode for this specific contract
-    function updateDataFeedWithDomainSignedData(
-        bytes[] calldata signedData
-    ) external override {
-        uint256 beaconCount = signedData.length;
-        if (beaconCount > 1) {
-            bytes32[] memory beaconIds = new bytes32[](beaconCount);
-            int256[] memory values = new int256[](beaconCount);
-            uint256 accumulatedTimestamp = 0;
-            for (uint256 ind = 0; ind < beaconCount; ) {
-                (
-                    bytes32 beaconId,
-                    int224 beaconValue,
-                    uint32 beaconTimestamp
-                ) = decodeDomainSignedData(signedData[ind]);
-                beaconIds[ind] = beaconId;
-                if (beaconTimestamp != 0) {
-                    values[ind] = beaconValue;
-                    unchecked {
-                        accumulatedTimestamp += beaconTimestamp;
-                    }
-                } else {
-                    DataFeed storage beacon = dataFeeds[beaconId];
-                    values[ind] = beacon.value;
-                    unchecked {
-                        accumulatedTimestamp += beacon.timestamp;
-                    }
-                }
-                unchecked {
-                    ind++;
-                }
-            }
-            bytes32 beaconSetId = deriveBeaconSetId(beaconIds);
-            uint32 updatedTimestamp = uint32(
-                accumulatedTimestamp / beaconCount
-            );
-            require(
-                updatedTimestamp > dataFeeds[beaconSetId].timestamp,
-                "Does not update timestamp"
-            );
-            int224 updatedValue = int224(median(values));
-            dataFeeds[beaconSetId] = DataFeed({
-                value: updatedValue,
-                timestamp: updatedTimestamp
-            });
-            emit UpdatedBeaconSetWithDomainSignedData(
-                beaconSetId,
-                updatedValue,
-                updatedTimestamp
-            );
-        } else if (beaconCount == 1) {
-            (
-                bytes32 beaconId,
-                int224 updatedValue,
-                uint32 updatedTimestamp
-            ) = decodeDomainSignedData(signedData[0]);
-            require(updatedTimestamp != 0, "Missing data");
-            require(
-                updatedTimestamp > dataFeeds[beaconId].timestamp,
-                "Does not update timestamp"
-            );
-            dataFeeds[beaconId] = DataFeed({
-                value: updatedValue,
-                timestamp: updatedTimestamp
-            });
-            emit UpdatedBeaconWithDomainSignedData(
-                beaconId,
-                updatedValue,
-                updatedTimestamp
-            );
-        } else {
-            revert("Specified no Beacons");
-        }
+                keccak256(abi.encodePacked(templateId, timestamp, data))
+                    .toEthSignedMessageHash()
+            ).recover(signature) == airnode,
+            "Signature mismatch"
+        );
+        require(timestampIsValid(timestamp), "Timestamp not valid");
+        uint32 updatedTimestamp = uint32(timestamp);
+        int224 updatedValue = decodeFulfillmentData(data);
+        beaconId = deriveBeaconId(airnode, templateId);
+        require(
+            updatedTimestamp > dataFeeds[beaconId].timestamp,
+            "Does not update timestamp"
+        );
+        dataFeeds[beaconId] = DataFeed({
+            value: updatedValue,
+            timestamp: updatedTimestamp
+        });
+        emit UpdatedBeaconWithSignedData(
+            beaconId,
+            updatedValue,
+            updatedTimestamp
+        );
     }
 
     ///                     ~~~OEV~~~
@@ -1162,90 +1037,6 @@ contract DapiServer is
         updateInPercentage =
             (absoluteDelta * HUNDRED_PERCENT) /
             absoluteInitialValue;
-    }
-
-    /// @notice Decodes data signed to update a Beacon by the respective
-    /// Airnode
-    /// @param signedData Contract ABI-encoded Airnode address, template ID,
-    /// timestamp and fulfillment data that is signed by the respective Airnode
-    /// @return beaconId Beacon ID
-    /// @return beaconValue Beacon value
-    /// @return beaconTimestamp Beacon timestamp
-    function decodeSignedData(
-        bytes calldata signedData
-    )
-        private
-        view
-        returns (bytes32 beaconId, int224 beaconValue, uint32 beaconTimestamp)
-    {
-        (
-            address airnode,
-            bytes32 templateId,
-            uint256 timestamp,
-            bytes memory data,
-            bytes memory signature
-        ) = abi.decode(signedData, (address, bytes32, uint256, bytes, bytes));
-        beaconId = deriveBeaconId(airnode, templateId);
-        if (signature.length == 0) {
-            require(data.length == 0, "Missing signature");
-        } else {
-            require(
-                (
-                    keccak256(abi.encodePacked(templateId, timestamp, data))
-                        .toEthSignedMessageHash()
-                ).recover(signature) == airnode,
-                "Signature mismatch"
-            );
-            beaconValue = decodeFulfillmentData(data);
-            require(timestampIsValid(timestamp), "Timestamp not valid");
-            beaconTimestamp = uint32(timestamp);
-        }
-    }
-
-    /// @notice Decodes data domain-signed to update a Beacon by the respective
-    /// Airnode
-    /// @param signedData ABI-encoded Airnode address, template ID, timestamp
-    /// and fulfillment data that is signed by the respective Airnode for this
-    /// specific contract
-    /// @return beaconId Beacon ID
-    /// @return beaconValue Beacon value
-    /// @return beaconTimestamp Beacon timestamp
-    function decodeDomainSignedData(
-        bytes calldata signedData
-    )
-        private
-        view
-        returns (bytes32 beaconId, int224 beaconValue, uint32 beaconTimestamp)
-    {
-        (
-            address airnode,
-            bytes32 templateId,
-            uint256 timestamp,
-            bytes memory data,
-            bytes memory signature
-        ) = abi.decode(signedData, (address, bytes32, uint256, bytes, bytes));
-        beaconId = deriveBeaconId(airnode, templateId);
-        if (signature.length == 0) {
-            require(data.length == 0, "Missing signature");
-        } else {
-            require(
-                (
-                    keccak256(
-                        abi.encodePacked(
-                            block.chainid,
-                            address(this),
-                            templateId,
-                            timestamp,
-                            data
-                        )
-                    ).toEthSignedMessageHash()
-                ).recover(signature) == airnode,
-                "Signature mismatch"
-            );
-            beaconValue = decodeFulfillmentData(data);
-            require(timestampIsValid(timestamp), "Timestamp not valid");
-            beaconTimestamp = uint32(timestamp);
-        }
     }
 
     /// @notice Decodes data signed by the respective Airnode for the specific

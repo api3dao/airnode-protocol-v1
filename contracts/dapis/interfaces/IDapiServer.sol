@@ -59,26 +59,9 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
         int224 value,
         uint32 timestamp
     );
-    event UpdatedBeaconWithDomainSignedData(
-        bytes32 indexed beaconId,
-        int224 value,
-        uint32 timestamp
-    );
 
     event UpdatedBeaconSetWithBeacons(
         bytes32 indexed beaconSetId,
-        int224 value,
-        uint32 timestamp
-    );
-
-    event UpdatedBeaconSetWithSignedData(
-        bytes32 indexed beaconSetId,
-        int224 value,
-        uint32 timestamp
-    );
-
-    event UpdatedBeaconSetWithDomainSignedData(
-        bytes32 indexed dapiId,
         int224 value,
         uint32 timestamp
     );
@@ -194,11 +177,13 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
         bytes calldata signature
     ) external;
 
-    function updateDataFeedWithSignedData(bytes[] calldata signedData) external;
-
-    function updateDataFeedWithDomainSignedData(
-        bytes[] calldata signedData
-    ) external;
+    function updateBeaconWithSignedData(
+        address airnode,
+        bytes32 templateId,
+        uint256 timestamp,
+        bytes calldata data,
+        bytes calldata signature
+    ) external returns (bytes32 beaconId);
 
     function updateOevProxyDataFeedWithSignedData(
         address oevProxy,
