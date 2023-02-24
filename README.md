@@ -60,14 +60,15 @@ users. Some mock contracts use custom errors, which is why they specify version 
   to refer to specific `Authorizer` contracts. These contracts implement custom rules regarding which requests and
   subscriptions should be served, which likely involve monetization.
 
-- `dapis/`: The `DapiServer` contract implements _Beacons_, which are single-Airnode data feeds. Beacons can be combined
-  to create _Beacon sets_, which are asynchronously aggregated Beacons (we refer to both Beacons and Beacon sets as
-  "data feeds"). Finally, _dAPIs_ are names that are attached to Beacons or Beacon sets, which can be seen as
-  API3-managed data feeds. `DapiServer` uses RRP and PSP to update data feeds, which makes this contract a very good
-  example of how the Airnode protocol can be used. In addition, `DapiServer` allows data signed by the respective
-  Airnodes to update Beacons, which can be delivered outside of the protocol. Finally, a special version of these signed
-  data updates are used to capture
-  [oracle extractable value (OEV)](https://medium.com/api3/oracle-extractable-value-oev-13c1b6d53c5b).
+- `dapis/`: The `DataFeedServer` contract implements _Beacons_, which are single-Airnode data feeds. Beacons can be
+  combined to create _Beacon sets_, which are asynchronously aggregated Beacons (we refer to both Beacons and Beacon
+  sets as "data feeds"). _dAPIs_, implemented by `DapiServer`, are names that are attached to Beacons or Beacon sets,
+  which can be seen as managed data feeds. `BeaconUpdatesWithRrp` and `DataFeedUpdatesWithPsp` uses RRP and PSP to
+  update data feeds respectively, which makes them a very good example of how the Airnode protocol can be used. In
+  addition, `BeaconUpdatesWithSignedData` allows data signed by the respective Airnodes to update Beacons, which can be
+  delivered outside of the protocol. Finally, a special version of these signed data updates are used to capture
+  [oracle extractable value (OEV)](https://medium.com/api3/oracle-extractable-value-oev-13c1b6d53c5b) in
+  `OevDataFeedServer`.
 
 - `utils/`: As the name suggests, utility contracts that the other contracts may require. Multicall contracts are aimed
   to minimize Airnode RPC calls and improve UX for non-protocol contracts. `OwnableCallForwarder` enables the role trees
@@ -185,7 +186,7 @@ In addition to
 [service coverage](https://github.com/api3dao/api3-whitepaper/blob/3f4a2e3a19b45bd1a6c26f7b6ab21861fc0373ef/api3-whitepaper.tex#L727),
 we expect the main data feed monetization model to be based on OEV (see Figure 1 in the
 [litepaper](https://raw.githubusercontent.com/api3dao/oev-litepaper/main/oev-litepaper.pdf)). To implement this in the
-most optimized way, we built it into `DapiServer`, yet data feed users can opt out of it if they wish to.
+most optimized way, we built it into `Api3ServerV1`, yet data feed users can opt out of it if they wish to.
 
 ### Data feed proxies
 
