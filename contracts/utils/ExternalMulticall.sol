@@ -75,6 +75,11 @@ contract ExternalMulticall is IExternalMulticall {
                 (successes[ind], returndata[ind]) = targets[ind].call(
                     data[ind]
                 );
+            } else {
+                returndata[ind] = abi.encodeWithSignature(
+                    "Error(string)",
+                    "Multicall target not contract"
+                );
             }
             unchecked {
                 ind++;

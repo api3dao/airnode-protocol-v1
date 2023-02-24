@@ -205,7 +205,7 @@ describe('ExternalMulticall', function () {
           const { successes, returndata } = await externalMulticall.callStatic.tryExternalMulticall(targets, data);
           expect(successes).to.deep.equal([true, false, true]);
           expect(ethers.utils.defaultAbiCoder.decode(['int256'], returndata[0])[0]).to.equal(-1);
-          expect(returndata[1]).to.equal('0x');
+          expect(testUtils.decodeRevertString(returndata[1])).to.equal('Multicall target not contract');
           expect(ethers.utils.defaultAbiCoder.decode(['int256'], returndata[2])[0]).to.equal(-3);
           await expect(externalMulticall.tryExternalMulticall(targets, data)).to.not.be.reverted;
           expect(await multicallTarget.argumentHistory()).to.deep.equal([1, 3]);
