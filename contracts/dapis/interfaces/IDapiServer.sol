@@ -187,9 +187,11 @@ interface IDapiServer is IExtendedSelfMulticall, IAirnodeRequester {
 
     function updateOevProxyDataFeedWithSignedData(
         address oevProxy,
+        bytes32 dataFeedId,
         bytes32 updateId,
-        uint256 signatureCount,
-        bytes[] calldata signedData
+        uint256 timestamp,
+        bytes calldata data,
+        bytes[] calldata packedOevUpdateSignatures
     ) external payable;
 
     function withdraw(address oevProxy) external;

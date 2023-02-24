@@ -645,119 +645,118 @@ contract DapiServer is
 
     ///                     ~~~OEV~~~
 
-    /// @notice Updates a data feed that the OEV proxy reads using data signed
-    /// by the respective Airnodes for the specific bid. The Beacons for which
-    /// the fulfillment data and signature is omitted will be read from
-    /// storage.
-    /// @dev Even though data for Beacons are signed individually, the caller
-    /// is only allowed to use the signatures as a bundle. They cannot omit
-    /// individual signatures or mix-and-match among bundles.
+    /// @notice Updates a data feed that the OEV proxy reads using the
+    /// aggregation signed by the absolute majority of the respective Airnodes
+    /// for the specific bid
+    /// @dev For when the data feed being updated is a Beacon set, an absolute
+    /// majority of the Airnodes that power the respective Beacons must sign
+    /// the aggregated value and timestamp. While doing so, the Airnodes should
+    /// refer to data signed to update an absolute majority of the respective
+    /// Beacons. The Airnodes should require the data to be fresh enough (e.g.,
+    /// at most 2 minutes-old), and tightly distributed around the resulting
+    /// aggregation (e.g., within 1% deviation), and reject to provide an OEV
+    /// proxy data feed update signature if these are not satisfied.
     /// @param oevProxy OEV proxy that reads the data feed
+    /// @param dataFeedId Data feed ID
     /// @param updateId Update ID
-    /// @param signatureCount Number of signatures in `signedData`
-    /// @param signedData Array of ABI-encoded Airnode address, template ID,
-    /// timestamp, fulfillment data and bid metadata that is signed by the
-    /// respective Airnode for the specific bid
+    /// @param timestamp Signature timestamp
+    /// @param data Update data (an `int256` encoded in contract ABI)
+    /// @param packedOevUpdateSignatures Packed OEV update signatures, which
+    /// include the Airnode address, template ID and these signed with the OEV
+    /// update hash
     function updateOevProxyDataFeedWithSignedData(
         address oevProxy,
+        bytes32 dataFeedId,
         bytes32 updateId,
-        uint256 signatureCount,
-        bytes[] calldata signedData
-    ) external payable override {
-        uint256 beaconCount = signedData.length;
-        bytes32 metadataHash = keccak256(
+        uint256 timestamp,
+        bytes calldata data,
+        bytes[] calldata packedOevUpdateSignatures
+    ) external payable override onlyValidTimestamp(timestamp) {
+        require(
+            timestamp > oevProxyToIdToDataFeed[oevProxy][dataFeedId].timestamp,
+            "Does not update timestamp"
+        );
+        bytes32 oevUpdateHash = keccak256(
             abi.encodePacked(
                 block.chainid,
                 address(this),
-                address(oevProxy),
-                msg.sender,
-                msg.value,
+                oevProxy,
+                dataFeedId,
                 updateId,
-                signatureCount,
-                beaconCount
+                timestamp,
+                data,
+                msg.sender,
+                msg.value
             )
         );
+        int224 updatedValue = decodeFulfillmentData(data);
+        uint32 updatedTimestamp = uint32(timestamp);
+        uint256 beaconCount = packedOevUpdateSignatures.length;
         if (beaconCount > 1) {
             bytes32[] memory beaconIds = new bytes32[](beaconCount);
-            int256[] memory values = new int256[](beaconCount);
-            uint256 accumulatedTimestamp = 0;
+            uint256 validSignatureCount;
             for (uint256 ind = 0; ind < beaconCount; ) {
+                bool signatureIsNotOmitted;
                 (
-                    bytes32 beaconId,
-                    int224 beaconValue,
-                    uint32 beaconTimestamp
-                ) = decodeOevSignedData(metadataHash, signedData[ind]);
-                beaconIds[ind] = beaconId;
-                if (beaconTimestamp != 0) {
-                    values[ind] = beaconValue;
+                    signatureIsNotOmitted,
+                    beaconIds[ind]
+                ) = unpackAndValidateOevUpdateSignature(
+                    oevUpdateHash,
+                    packedOevUpdateSignatures[ind]
+                );
+                if (signatureIsNotOmitted) {
                     unchecked {
-                        accumulatedTimestamp += beaconTimestamp;
-                    }
-                    require(signatureCount != 0, "More signatures than stated");
-                    unchecked {
-                        signatureCount--;
-                    }
-                } else {
-                    DataFeed storage beacon = dataFeeds[beaconId];
-                    values[ind] = beacon.value;
-                    unchecked {
-                        accumulatedTimestamp += beacon.timestamp;
+                        validSignatureCount++;
                     }
                 }
                 unchecked {
                     ind++;
                 }
             }
-            require(signatureCount == 0, "Less signatures than stated");
-            bytes32 beaconSetId = deriveBeaconSetId(beaconIds);
-            uint32 updatedTimestamp = uint32(
-                accumulatedTimestamp / beaconCount
+            // "Greater than or equal to" is not enough because full control
+            // of aggregation requires an absolute majority
+            require(
+                validSignatureCount > beaconCount / 2,
+                "Not enough signatures"
             );
             require(
-                updatedTimestamp >
-                    oevProxyToIdToDataFeed[oevProxy][beaconSetId].timestamp,
-                "Does not update timestamp"
+                dataFeedId == deriveBeaconSetId(beaconIds),
+                "Beacon set ID mismatch"
             );
-            int224 updatedValue = int224(median(values));
-            oevProxyToIdToDataFeed[oevProxy][beaconSetId] = DataFeed({
-                value: updatedValue,
-                timestamp: updatedTimestamp
-            });
-            oevProxyToBalance[oevProxy] += msg.value;
             emit UpdatedOevProxyBeaconSetWithSignedData(
-                beaconSetId,
+                dataFeedId,
                 oevProxy,
                 updateId,
                 updatedValue,
                 updatedTimestamp
             );
         } else if (beaconCount == 1) {
-            (
-                bytes32 beaconId,
-                int224 updatedValue,
-                uint32 updatedTimestamp
-            ) = decodeOevSignedData(metadataHash, signedData[0]);
-            require(updatedTimestamp != 0, "Missing data");
-            require(
-                updatedTimestamp >
-                    oevProxyToIdToDataFeed[oevProxy][beaconId].timestamp,
-                "Does not update timestamp"
-            );
-            oevProxyToIdToDataFeed[oevProxy][beaconId] = DataFeed({
-                value: updatedValue,
-                timestamp: updatedTimestamp
-            });
-            oevProxyToBalance[oevProxy] += msg.value;
+            {
+                (
+                    bool signatureIsNotOmitted,
+                    bytes32 beaconId
+                ) = unpackAndValidateOevUpdateSignature(
+                        oevUpdateHash,
+                        packedOevUpdateSignatures[0]
+                    );
+                require(signatureIsNotOmitted, "Missing signature");
+                require(dataFeedId == beaconId, "Beacon ID mismatch");
+            }
             emit UpdatedOevProxyBeaconWithSignedData(
-                beaconId,
+                dataFeedId,
                 oevProxy,
                 updateId,
                 updatedValue,
                 updatedTimestamp
             );
         } else {
-            revert("Specified no Beacons");
+            revert("Did not specify any Beacons");
         }
+        oevProxyToIdToDataFeed[oevProxy][dataFeedId] = DataFeed({
+            value: updatedValue,
+            timestamp: updatedTimestamp
+        });
+        oevProxyToBalance[oevProxy] += msg.value;
     }
 
     /// @notice Withdraws the balance of the OEV proxy to the respective
@@ -1038,54 +1037,31 @@ contract DapiServer is
             absoluteInitialValue;
     }
 
-    /// @notice Decodes data signed by the respective Airnode for the specific
-    /// bid to update the Beacon that a OEV proxy reads
-    /// @param metadataHash Hash of the metadata of the bid that won the OEV
-    /// auction
-    /// @param signedData ABI-encoded Airnode address, template ID, timestamp,
-    /// fulfillment data and bid metadata that is signed by the respective
-    /// Airnode for the specific bid
+    /// @notice Called privately to unpack and validate the OEV update
+    /// signature
+    /// @param oevUpdateHash OEV update hash
+    /// @param packedOevUpdateSignature Packed OEV update signature, which
+    /// includes the Airnode address, template ID and these signed with the OEV
+    /// update hash
+    /// @return signatureIsNotOmitted If the signature is omitted in
+    /// `packedOevUpdateSignature`
     /// @return beaconId Beacon ID
-    /// @return beaconValue Beacon value
-    /// @return beaconTimestamp Beacon timestamp
-    function decodeOevSignedData(
-        bytes32 metadataHash,
-        bytes calldata signedData
-    )
-        private
-        view
-        returns (bytes32 beaconId, int224 beaconValue, uint32 beaconTimestamp)
-    {
-        (
-            address airnode,
-            bytes32 templateId,
-            uint256 timestamp,
-            bytes memory data,
-            bytes memory signature
-        ) = abi.decode(signedData, (address, bytes32, uint256, bytes, bytes));
+    function unpackAndValidateOevUpdateSignature(
+        bytes32 oevUpdateHash,
+        bytes calldata packedOevUpdateSignature
+    ) private pure returns (bool signatureIsNotOmitted, bytes32 beaconId) {
+        (address airnode, bytes32 templateId, bytes memory signature) = abi
+            .decode(packedOevUpdateSignature, (address, bytes32, bytes));
         beaconId = deriveBeaconId(airnode, templateId);
-        if (signature.length == 0) {
-            require(data.length == 0, "Missing signature");
-        } else {
+        if (signature.length != 0) {
             require(
                 (
-                    keccak256(
-                        abi.encodePacked(
-                            metadataHash,
-                            templateId,
-                            timestamp,
-                            data
-                        )
-                    ).toEthSignedMessageHash()
+                    keccak256(abi.encodePacked(oevUpdateHash, templateId))
+                        .toEthSignedMessageHash()
                 ).recover(signature) == airnode,
                 "Signature mismatch"
             );
-            beaconValue = decodeFulfillmentData(data);
-            require(
-                timestamp != 0 && timestampIsValid(timestamp),
-                "Timestamp not valid"
-            );
-            beaconTimestamp = uint32(timestamp);
+            signatureIsNotOmitted = true;
         }
     }
 
