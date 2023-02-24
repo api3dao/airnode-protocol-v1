@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "./interfaces/IDataFeedProxy.sol";
+import "../interfaces/IDapiServer.sol";
 
 /// @title An immutable proxy contract that is used to read a specific data
 /// feed (Beacon or Beacon set) of a specific DapiServer contract

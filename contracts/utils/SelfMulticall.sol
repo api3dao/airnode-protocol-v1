@@ -12,8 +12,8 @@ import "./interfaces/ISelfMulticall.sol";
 /// functions that use internal/private visibility modifiers.
 /// Refer to OpenZeppelin's Multicall.sol for a similar implementation.
 contract SelfMulticall is ISelfMulticall {
-    /// @notice Batches calls to the inheriting contract and reverts if at
-    /// least one of the batched calls reverts
+    /// @notice Batches calls to the inheriting contract and reverts as soon as
+    /// one of the batched calls reverts
     /// @param data Array of calldata of batched calls
     /// @return returndata Array of returndata of batched calls
     function multicall(

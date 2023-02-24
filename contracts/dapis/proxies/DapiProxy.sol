@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "./interfaces/IDapiProxy.sol";
+import "../interfaces/IDapiServer.sol";
 
 /// @title An immutable proxy contract that is used to read a specific dAPI of
 /// a specific DapiServer contract
@@ -18,7 +19,7 @@ import "./interfaces/IDapiProxy.sol";
 /// In the case that the data feed is from a single source, `timestamp` is the
 /// system time of the Airnode when it signed the data. In the case that the
 /// data feed is from multiple sources, `timestamp` is the median of system
-/// times of the respective Airnodes when they signed the data. There are two
+/// times of the Airnodes when they signed the respective data. There are two
 /// points to consider while using `timestamp` in your contract logic: (1) It
 /// is based on the system time of the Airnodes, and not the block timestamp.
 /// This may be relevant when either of them drifts. (2) `timestamp` is an
