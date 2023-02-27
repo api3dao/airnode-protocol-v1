@@ -10,7 +10,7 @@ import "./interfaces/IApi3ServerV1.sol";
 /// @notice Api3ServerV1 serves data feeds in the form of Beacons, Beacon sets,
 /// dAPIs, with optional OEV support for all of these.
 /// The base Beacons are only updateable using signed data, and the Beacon sets
-/// are updateable based on the Beacons, optionally using PSP. OEV proxy.
+/// are updateable based on the Beacons, optionally using PSP. OEV proxy
 /// Beacons and Beacon sets are updateable using OEV-signed data.
 /// Api3ServerV1 does not support Beacons to be updated using RRP or PSP.
 contract Api3ServerV1 is
