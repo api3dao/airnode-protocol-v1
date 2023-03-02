@@ -37,7 +37,7 @@ contract DapiProxyWithOev is DapiProxy, IOevProxy {
         override
         returns (int224 value, uint32 timestamp)
     {
-        (value, timestamp) = IDapiServer(dapiServer)
+        (value, timestamp) = IApi3ServerV1(dapiServer)
             .readDataFeedWithDapiNameHashAsOevProxy(dapiNameHash);
     }
 }

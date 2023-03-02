@@ -3,7 +3,7 @@ const helpers = require('@nomicfoundation/hardhat-network-helpers');
 const { expect } = require('chai');
 const testUtils = require('../test-utils');
 
-describe('DapiServer', function () {
+describe('DataFeedServerFull', function () {
   const HUNDRED_PERCENT = 1e8;
 
   function encodeData(decodedData) {
@@ -17,19 +17,19 @@ describe('DapiServer', function () {
     );
   }
 
-  async function updateBeacon(roles, dapiServer, beacon, decodedData, timestamp) {
+  async function updateBeacon(roles, dataFeedServerFull, beacon, decodedData, timestamp) {
     if (!timestamp) {
       timestamp = await helpers.time.latest();
     }
     const data = encodeData(decodedData);
     const signature = await testUtils.signData(beacon.airnode.wallet, beacon.templateId, timestamp, data);
-    await dapiServer
+    await dataFeedServerFull
       .connect(roles.randomPerson)
       .updateBeaconWithSignedData(beacon.airnode.wallet.address, beacon.templateId, timestamp, data, signature);
     return timestamp;
   }
 
-  async function updateBeaconSet(roles, dapiServer, beacons, decodedData, timestamp) {
+  async function updateBeaconSet(roles, dataFeedServerFull, beacons, decodedData, timestamp) {
     if (!timestamp) {
       timestamp = await helpers.time.latest();
     }
@@ -41,7 +41,7 @@ describe('DapiServer', function () {
     );
     const updateBeaconsCalldata = signatures.map((signature, index) => {
       const beacon = beacons[index];
-      return dapiServer.interface.encodeFunctionData('updateBeaconWithSignedData', [
+      return dataFeedServerFull.interface.encodeFunctionData('updateBeaconWithSignedData', [
         beacon.airnode.wallet.address,
         beacon.templateId,
         timestamp,
@@ -54,9 +54,9 @@ describe('DapiServer', function () {
     });
     const updateBeaconSetCalldata = [
       ...updateBeaconsCalldata,
-      dapiServer.interface.encodeFunctionData('updateBeaconSetWithBeacons', [beaconIds]),
+      dataFeedServerFull.interface.encodeFunctionData('updateBeaconSetWithBeacons', [beaconIds]),
     ];
-    await dapiServer.connect(roles.randomPerson).multicall(updateBeaconSetCalldata);
+    await dataFeedServerFull.connect(roles.randomPerson).multicall(updateBeaconSetCalldata);
   }
 
   function encodeUpdateSubscriptionConditionParameters(
@@ -71,7 +71,7 @@ describe('DapiServer', function () {
   }
 
   async function encodeUpdateSubscriptionConditions(
-    dapiServer,
+    dataFeedServerFull,
     conditionFunctionId,
     updateSubscriptionConditionParameters
   ) {
@@ -81,9 +81,9 @@ describe('DapiServer', function () {
       [
         ethers.utils.formatBytes32String('1uabB'),
         ethers.utils.formatBytes32String('_conditionChainId'),
-        (await dapiServer.provider.getNetwork()).chainId,
+        (await dataFeedServerFull.provider.getNetwork()).chainId,
         ethers.utils.formatBytes32String('_conditionAddress'),
-        dapiServer.address,
+        dataFeedServerFull.address,
         ethers.utils.formatBytes32String('_conditionFunctionId'),
         ethers.utils.defaultAbiCoder.encode(['bytes4'], [conditionFunctionId]),
         ethers.utils.formatBytes32String('_conditionParameters'),
@@ -93,7 +93,7 @@ describe('DapiServer', function () {
   }
 
   async function deriveUpdateSubscriptionId(
-    dapiServer,
+    dataFeedServerFull,
     airnodeAddress,
     templateId,
     updateSubscriptionConditions,
@@ -109,14 +109,14 @@ describe('DapiServer', function () {
       ethers.utils.defaultAbiCoder.encode(
         ['uint256', 'address', 'bytes32', 'bytes', 'bytes', 'address', 'address', 'address', 'bytes4'],
         [
-          (await dapiServer.provider.getNetwork()).chainId,
+          (await dataFeedServerFull.provider.getNetwork()).chainId,
           airnodeAddress,
           templateId,
           parameters,
           updateSubscriptionConditions,
           relayerAddress,
           sponsorAddress,
-          dapiServer.address,
+          dataFeedServerFull.address,
           fulfillFunctionId,
         ]
       )
@@ -152,26 +152,26 @@ describe('DapiServer', function () {
       randomPerson: accounts[9],
     };
 
-    const dapiServerAdminRoleDescription = 'DapiServer admin';
+    const dataFeedServerFullAdminRoleDescription = 'DataFeedServerFull admin';
     const dapiNameSetterRoleDescription = 'dAPI name setter';
     const accessControlRegistryFactory = await ethers.getContractFactory('AccessControlRegistry', roles.deployer);
     const accessControlRegistry = await accessControlRegistryFactory.deploy();
     const airnodeProtocolFactory = await ethers.getContractFactory('AirnodeProtocol', roles.deployer);
     const airnodeProtocol = await airnodeProtocolFactory.deploy();
-    const dapiServerFactory = await ethers.getContractFactory('DapiServer', roles.deployer);
-    const dapiServer = await dapiServerFactory.deploy(
+    const dataFeedServerFullFactory = await ethers.getContractFactory('DataFeedServerFull', roles.deployer);
+    const dataFeedServerFull = await dataFeedServerFullFactory.deploy(
       accessControlRegistry.address,
-      dapiServerAdminRoleDescription,
+      dataFeedServerFullAdminRoleDescription,
       roles.manager.address,
       airnodeProtocol.address
     );
 
     const managerRootRole = testUtils.deriveRootRole(roles.manager.address);
-    const adminRole = testUtils.deriveRole(managerRootRole, dapiServerAdminRoleDescription);
+    const adminRole = testUtils.deriveRole(managerRootRole, dataFeedServerFullAdminRoleDescription);
     const dapiNameSetterRole = testUtils.deriveRole(adminRole, dapiNameSetterRoleDescription);
     await accessControlRegistry
       .connect(roles.manager)
-      .initializeRoleAndGrantToSender(managerRootRole, dapiServerAdminRoleDescription);
+      .initializeRoleAndGrantToSender(managerRootRole, dataFeedServerFullAdminRoleDescription);
     await accessControlRegistry
       .connect(roles.manager)
       .initializeRoleAndGrantToSender(adminRole, dapiNameSetterRoleDescription);
@@ -179,7 +179,9 @@ describe('DapiServer', function () {
     await accessControlRegistry.connect(roles.manager).renounceRole(dapiNameSetterRole, roles.manager.address);
     await accessControlRegistry.connect(roles.manager).renounceRole(adminRole, roles.manager.address);
 
-    await dapiServer.connect(roles.sponsor).setRrpBeaconUpdatePermissionStatus(roles.updateRequester.address, true);
+    await dataFeedServerFull
+      .connect(roles.sponsor)
+      .setRrpBeaconUpdatePermissionStatus(roles.updateRequester.address, true);
 
     // Specify Beacons
     const beacons = [];
@@ -246,18 +248,18 @@ describe('DapiServer', function () {
         24 * 60 * 60
       );
       const beaconUpdateSubscriptionConditions = await encodeUpdateSubscriptionConditions(
-        dapiServer,
-        dapiServer.interface.getSighash('conditionPspBeaconUpdate'),
+        dataFeedServerFull,
+        dataFeedServerFull.interface.getSighash('conditionPspBeaconUpdate'),
         beaconUpdateSubscriptionConditionParameters
       );
       const beaconUpdateSubscriptionId = await deriveUpdateSubscriptionId(
-        dapiServer,
+        dataFeedServerFull,
         airnode.wallet.address,
         templateId,
         beaconUpdateSubscriptionConditions,
         airnode.wallet.address,
         roles.sponsor.address,
-        dapiServer.interface.getSighash('fulfillPspBeaconUpdate')
+        dataFeedServerFull.interface.getSighash('fulfillPspBeaconUpdate')
       );
       beacons.push({
         airnode,
@@ -282,18 +284,18 @@ describe('DapiServer', function () {
       2 * 24 * 60 * 60
     );
     const beaconSetUpdateSubscriptionConditions = await encodeUpdateSubscriptionConditions(
-      dapiServer,
-      dapiServer.interface.getSighash('conditionPspBeaconSetUpdate'),
+      dataFeedServerFull,
+      dataFeedServerFull.interface.getSighash('conditionPspBeaconSetUpdate'),
       beaconSetUpdateSubscriptionConditionParameters
     );
     const beaconSetUpdateSubscriptionId = await deriveUpdateSubscriptionId(
-      dapiServer,
+      dataFeedServerFull,
       beacons[0].airnode.wallet.address,
       ethers.constants.HashZero,
       beaconSetUpdateSubscriptionConditions,
       beacons[0].airnode.wallet.address,
       roles.sponsor.address,
-      dapiServer.interface.getSighash('fulfillPspBeaconSetUpdate'),
+      dataFeedServerFull.interface.getSighash('fulfillPspBeaconSetUpdate'),
       ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconIds])
     );
     const beaconSet = {
@@ -306,7 +308,7 @@ describe('DapiServer', function () {
 
     const dataFeedProxyWithOevFactory = await ethers.getContractFactory('DataFeedProxyWithOev', roles.deployer);
     const oevProxy = await dataFeedProxyWithOevFactory.deploy(
-      dapiServer.address,
+      dataFeedServerFull.address,
       beacons[0].beaconId,
       roles.oevBeneficiary.address
     );
@@ -315,9 +317,9 @@ describe('DapiServer', function () {
       roles,
       accessControlRegistry,
       airnodeProtocol,
-      dapiServer,
+      dataFeedServerFull,
       oevProxy,
-      dapiServerAdminRoleDescription,
+      dataFeedServerFullAdminRoleDescription,
       dapiNameSetterRole,
       beacons,
       beaconSet,
@@ -331,27 +333,29 @@ describe('DapiServer', function () {
           roles,
           accessControlRegistry,
           airnodeProtocol,
-          dapiServer,
-          dapiServerAdminRoleDescription,
+          dataFeedServerFull,
+          dataFeedServerFullAdminRoleDescription,
           dapiNameSetterRole,
         } = await helpers.loadFixture(deploy);
-        expect(await dapiServer.DAPI_NAME_SETTER_ROLE_DESCRIPTION()).to.equal('dAPI name setter');
-        expect(await dapiServer.HUNDRED_PERCENT()).to.equal(HUNDRED_PERCENT);
-        expect(await dapiServer.accessControlRegistry()).to.equal(accessControlRegistry.address);
-        expect(await dapiServer.adminRoleDescription()).to.equal(dapiServerAdminRoleDescription);
-        expect(await dapiServer.manager()).to.equal(roles.manager.address);
-        expect(await dapiServer.airnodeProtocol()).to.equal(airnodeProtocol.address);
-        expect(await dapiServer.dapiNameSetterRole()).to.equal(dapiNameSetterRole);
+        expect(await dataFeedServerFull.DAPI_NAME_SETTER_ROLE_DESCRIPTION()).to.equal('dAPI name setter');
+        expect(await dataFeedServerFull.HUNDRED_PERCENT()).to.equal(HUNDRED_PERCENT);
+        expect(await dataFeedServerFull.accessControlRegistry()).to.equal(accessControlRegistry.address);
+        expect(await dataFeedServerFull.adminRoleDescription()).to.equal(dataFeedServerFullAdminRoleDescription);
+        expect(await dataFeedServerFull.manager()).to.equal(roles.manager.address);
+        expect(await dataFeedServerFull.airnodeProtocol()).to.equal(airnodeProtocol.address);
+        expect(await dataFeedServerFull.dapiNameSetterRole()).to.equal(dapiNameSetterRole);
       });
     });
     context('AirnodeProtocol address is zero', function () {
       it('reverts', async function () {
-        const { roles, accessControlRegistry, dapiServerAdminRoleDescription } = await helpers.loadFixture(deploy);
-        const dapiServerFactory = await ethers.getContractFactory('DapiServer', roles.deployer);
+        const { roles, accessControlRegistry, dataFeedServerFullAdminRoleDescription } = await helpers.loadFixture(
+          deploy
+        );
+        const dataFeedServerFullFactory = await ethers.getContractFactory('DataFeedServerFull', roles.deployer);
         await expect(
-          dapiServerFactory.deploy(
+          dataFeedServerFullFactory.deploy(
             accessControlRegistry.address,
-            dapiServerAdminRoleDescription,
+            dataFeedServerFullAdminRoleDescription,
             roles.manager.address,
             ethers.constants.AddressZero
           )
@@ -363,31 +367,33 @@ describe('DapiServer', function () {
   describe('setRrpBeaconUpdatePermissionStatus', function () {
     context('Update requester is not zero address', function () {
       it('sets RRP-based beacon update permission status', async function () {
-        const { roles, dapiServer } = await helpers.loadFixture(deploy);
+        const { roles, dataFeedServerFull } = await helpers.loadFixture(deploy);
         expect(
-          await dapiServer.sponsorToRrpBeaconUpdateRequesterToPermissionStatus(
+          await dataFeedServerFull.sponsorToRrpBeaconUpdateRequesterToPermissionStatus(
             roles.sponsor.address,
             roles.randomPerson.address
           )
         ).to.equal(false);
         await expect(
-          dapiServer.connect(roles.sponsor).setRrpBeaconUpdatePermissionStatus(roles.randomPerson.address, true)
+          dataFeedServerFull.connect(roles.sponsor).setRrpBeaconUpdatePermissionStatus(roles.randomPerson.address, true)
         )
-          .to.emit(dapiServer, 'SetRrpBeaconUpdatePermissionStatus')
+          .to.emit(dataFeedServerFull, 'SetRrpBeaconUpdatePermissionStatus')
           .withArgs(roles.sponsor.address, roles.randomPerson.address, true);
         expect(
-          await dapiServer.sponsorToRrpBeaconUpdateRequesterToPermissionStatus(
+          await dataFeedServerFull.sponsorToRrpBeaconUpdateRequesterToPermissionStatus(
             roles.sponsor.address,
             roles.randomPerson.address
           )
         ).to.equal(true);
         await expect(
-          dapiServer.connect(roles.sponsor).setRrpBeaconUpdatePermissionStatus(roles.randomPerson.address, false)
+          dataFeedServerFull
+            .connect(roles.sponsor)
+            .setRrpBeaconUpdatePermissionStatus(roles.randomPerson.address, false)
         )
-          .to.emit(dapiServer, 'SetRrpBeaconUpdatePermissionStatus')
+          .to.emit(dataFeedServerFull, 'SetRrpBeaconUpdatePermissionStatus')
           .withArgs(roles.sponsor.address, roles.randomPerson.address, false);
         expect(
-          await dapiServer.sponsorToRrpBeaconUpdateRequesterToPermissionStatus(
+          await dataFeedServerFull.sponsorToRrpBeaconUpdateRequesterToPermissionStatus(
             roles.sponsor.address,
             roles.randomPerson.address
           )
@@ -396,9 +402,11 @@ describe('DapiServer', function () {
     });
     context('Update requester is zero address', function () {
       it('reverts', async function () {
-        const { roles, dapiServer } = await helpers.loadFixture(deploy);
+        const { roles, dataFeedServerFull } = await helpers.loadFixture(deploy);
         await expect(
-          dapiServer.connect(roles.sponsor).setRrpBeaconUpdatePermissionStatus(ethers.constants.AddressZero, false)
+          dataFeedServerFull
+            .connect(roles.sponsor)
+            .setRrpBeaconUpdatePermissionStatus(ethers.constants.AddressZero, false)
         ).to.be.revertedWith('Update requester zero');
       });
     });
@@ -407,19 +415,19 @@ describe('DapiServer', function () {
   describe('requestRrpBeaconUpdateWithTemplate', function () {
     context('Request updater is the sponsor', function () {
       it('requests RRP Beacon update', async function () {
-        const { roles, airnodeProtocol, dapiServer, beacons } = await helpers.loadFixture(deploy);
+        const { roles, airnodeProtocol, dataFeedServerFull, beacons } = await helpers.loadFixture(deploy);
         const beacon = beacons[0];
         const requestId = await testUtils.deriveRequestId(
           airnodeProtocol,
-          dapiServer.address,
+          dataFeedServerFull.address,
           beacon.airnode.wallet.address,
           beacon.templateId,
           '0x',
           roles.sponsor.address,
-          dapiServer.interface.getSighash('fulfillRrpBeaconUpdate')
+          dataFeedServerFull.interface.getSighash('fulfillRrpBeaconUpdate')
         );
         expect(
-          await dapiServer
+          await dataFeedServerFull
             .connect(roles.sponsor)
             .callStatic.requestRrpBeaconUpdateWithTemplate(
               beacon.airnode.wallet.address,
@@ -428,11 +436,11 @@ describe('DapiServer', function () {
             )
         ).to.equal(requestId);
         await expect(
-          dapiServer
+          dataFeedServerFull
             .connect(roles.sponsor)
             .requestRrpBeaconUpdateWithTemplate(beacon.airnode.wallet.address, beacon.templateId, roles.sponsor.address)
         )
-          .to.emit(dapiServer, 'RequestedRrpBeaconUpdate')
+          .to.emit(dataFeedServerFull, 'RequestedRrpBeaconUpdate')
           .withArgs(
             beacon.beaconId,
             beacon.airnode.wallet.address,
@@ -445,19 +453,19 @@ describe('DapiServer', function () {
     });
     context('Request updater is permitted', function () {
       it('requests RRP Beacon update', async function () {
-        const { roles, airnodeProtocol, dapiServer, beacons } = await helpers.loadFixture(deploy);
+        const { roles, airnodeProtocol, dataFeedServerFull, beacons } = await helpers.loadFixture(deploy);
         const beacon = beacons[0];
         const requestId = await testUtils.deriveRequestId(
           airnodeProtocol,
-          dapiServer.address,
+          dataFeedServerFull.address,
           beacon.airnode.wallet.address,
           beacon.templateId,
           '0x',
           roles.sponsor.address,
-          dapiServer.interface.getSighash('fulfillRrpBeaconUpdate')
+          dataFeedServerFull.interface.getSighash('fulfillRrpBeaconUpdate')
         );
         expect(
-          await dapiServer
+          await dataFeedServerFull
             .connect(roles.updateRequester)
             .callStatic.requestRrpBeaconUpdateWithTemplate(
               beacon.airnode.wallet.address,
@@ -466,11 +474,11 @@ describe('DapiServer', function () {
             )
         ).to.equal(requestId);
         await expect(
-          dapiServer
+          dataFeedServerFull
             .connect(roles.updateRequester)
             .requestRrpBeaconUpdateWithTemplate(beacon.airnode.wallet.address, beacon.templateId, roles.sponsor.address)
         )
-          .to.emit(dapiServer, 'RequestedRrpBeaconUpdate')
+          .to.emit(dataFeedServerFull, 'RequestedRrpBeaconUpdate')
           .withArgs(
             beacon.beaconId,
             beacon.airnode.wallet.address,
@@ -483,10 +491,10 @@ describe('DapiServer', function () {
     });
     context('Request updater is not permitted', function () {
       it('reverts', async function () {
-        const { roles, dapiServer, beacons } = await helpers.loadFixture(deploy);
+        const { roles, dataFeedServerFull, beacons } = await helpers.loadFixture(deploy);
         const beacon = beacons[0];
         await expect(
-          dapiServer
+          dataFeedServerFull
             .connect(roles.randomPerson)
             .requestRrpBeaconUpdateWithTemplate(beacon.airnode.wallet.address, beacon.templateId, roles.sponsor.address)
         ).to.be.revertedWith('Sender not permitted');
@@ -497,19 +505,19 @@ describe('DapiServer', function () {
   describe('requestRrpBeaconUpdateWithEndpoint', function () {
     context('Request updater is the sponsor', function () {
       it('requests RRP Beacon update', async function () {
-        const { roles, airnodeProtocol, dapiServer, beacons } = await helpers.loadFixture(deploy);
+        const { roles, airnodeProtocol, dataFeedServerFull, beacons } = await helpers.loadFixture(deploy);
         const beacon = beacons[0];
         const requestId = await testUtils.deriveRequestId(
           airnodeProtocol,
-          dapiServer.address,
+          dataFeedServerFull.address,
           beacon.airnode.wallet.address,
           beacon.endpointId,
           beacon.templateParameters,
           roles.sponsor.address,
-          dapiServer.interface.getSighash('fulfillRrpBeaconUpdate')
+          dataFeedServerFull.interface.getSighash('fulfillRrpBeaconUpdate')
         );
         expect(
-          await dapiServer
+          await dataFeedServerFull
             .connect(roles.sponsor)
             .callStatic.requestRrpBeaconUpdateWithEndpoint(
               beacon.airnode.wallet.address,
@@ -519,7 +527,7 @@ describe('DapiServer', function () {
             )
         ).to.equal(requestId);
         await expect(
-          dapiServer
+          dataFeedServerFull
             .connect(roles.sponsor)
             .requestRrpBeaconUpdateWithEndpoint(
               beacon.airnode.wallet.address,
@@ -528,7 +536,7 @@ describe('DapiServer', function () {
               roles.sponsor.address
             )
         )
-          .to.emit(dapiServer, 'RequestedRrpBeaconUpdate')
+          .to.emit(dataFeedServerFull, 'RequestedRrpBeaconUpdate')
           .withArgs(
             beacon.beaconId,
             beacon.airnode.wallet.address,
@@ -541,19 +549,19 @@ describe('DapiServer', function () {
     });
     context('Request updater is permitted', function () {
       it('requests RRP Beacon update', async function () {
-        const { roles, airnodeProtocol, dapiServer, beacons } = await helpers.loadFixture(deploy);
+        const { roles, airnodeProtocol, dataFeedServerFull, beacons } = await helpers.loadFixture(deploy);
         const beacon = beacons[0];
         const requestId = await testUtils.deriveRequestId(
           airnodeProtocol,
-          dapiServer.address,
+          dataFeedServerFull.address,
           beacon.airnode.wallet.address,
           beacon.endpointId,
           beacon.templateParameters,
           roles.sponsor.address,
-          dapiServer.interface.getSighash('fulfillRrpBeaconUpdate')
+          dataFeedServerFull.interface.getSighash('fulfillRrpBeaconUpdate')
         );
         expect(
-          await dapiServer
+          await dataFeedServerFull
             .connect(roles.updateRequester)
             .callStatic.requestRrpBeaconUpdateWithEndpoint(
               beacon.airnode.wallet.address,
@@ -563,7 +571,7 @@ describe('DapiServer', function () {
             )
         ).to.equal(requestId);
         await expect(
-          dapiServer
+          dataFeedServerFull
             .connect(roles.updateRequester)
             .requestRrpBeaconUpdateWithEndpoint(
               beacon.airnode.wallet.address,
@@ -572,7 +580,7 @@ describe('DapiServer', function () {
               roles.sponsor.address
             )
         )
-          .to.emit(dapiServer, 'RequestedRrpBeaconUpdate')
+          .to.emit(dataFeedServerFull, 'RequestedRrpBeaconUpdate')
           .withArgs(
             beacon.beaconId,
             beacon.airnode.wallet.address,
@@ -585,10 +593,10 @@ describe('DapiServer', function () {
     });
     context('Request updater is not permitted', function () {
       it('reverts', async function () {
-        const { roles, dapiServer, beacons } = await helpers.loadFixture(deploy);
+        const { roles, dataFeedServerFull, beacons } = await helpers.loadFixture(deploy);
         const beacon = beacons[0];
         await expect(
-          dapiServer
+          dataFeedServerFull
             .connect(roles.randomPerson)
             .requestRrpBeaconUpdateWithEndpoint(
               beacon.airnode.wallet.address,
@@ -604,20 +612,20 @@ describe('DapiServer', function () {
   describe('requestRelayedRrpBeaconUpdateWithTemplate', function () {
     context('Request updater is the sponsor', function () {
       it('requests RRP Beacon update', async function () {
-        const { roles, airnodeProtocol, dapiServer, beacons } = await helpers.loadFixture(deploy);
+        const { roles, airnodeProtocol, dataFeedServerFull, beacons } = await helpers.loadFixture(deploy);
         const beacon = beacons[0];
         const requestId = await testUtils.deriveRelayedRequestId(
           airnodeProtocol,
-          dapiServer.address,
+          dataFeedServerFull.address,
           beacon.airnode.wallet.address,
           beacon.templateId,
           '0x',
           beacon.relayer.wallet.address,
           roles.sponsor.address,
-          dapiServer.interface.getSighash('fulfillRrpBeaconUpdate')
+          dataFeedServerFull.interface.getSighash('fulfillRrpBeaconUpdate')
         );
         expect(
-          await dapiServer
+          await dataFeedServerFull
             .connect(roles.sponsor)
             .callStatic.requestRelayedRrpBeaconUpdateWithTemplate(
               beacon.airnode.wallet.address,
@@ -627,7 +635,7 @@ describe('DapiServer', function () {
             )
         ).to.equal(requestId);
         await expect(
-          dapiServer
+          dataFeedServerFull
             .connect(roles.sponsor)
             .requestRelayedRrpBeaconUpdateWithTemplate(
               beacon.airnode.wallet.address,
@@ -636,7 +644,7 @@ describe('DapiServer', function () {
               roles.sponsor.address
             )
         )
-          .to.emit(dapiServer, 'RequestedRelayedRrpBeaconUpdate')
+          .to.emit(dataFeedServerFull, 'RequestedRelayedRrpBeaconUpdate')
           .withArgs(
             beacon.beaconId,
             beacon.airnode.wallet.address,
@@ -650,20 +658,20 @@ describe('DapiServer', function () {
     });
     context('Request updater is permitted', function () {
       it('requests RRP Beacon update', async function () {
-        const { roles, airnodeProtocol, dapiServer, beacons } = await helpers.loadFixture(deploy);
+        const { roles, airnodeProtocol, dataFeedServerFull, beacons } = await helpers.loadFixture(deploy);
         const beacon = beacons[0];
         const requestId = await testUtils.deriveRelayedRequestId(
           airnodeProtocol,
-          dapiServer.address,
+          dataFeedServerFull.address,
           beacon.airnode.wallet.address,
           beacon.templateId,
           '0x',
           beacon.relayer.wallet.address,
           roles.sponsor.address,
-          dapiServer.interface.getSighash('fulfillRrpBeaconUpdate')
+          dataFeedServerFull.interface.getSighash('fulfillRrpBeaconUpdate')
         );
         expect(
-          await dapiServer
+          await dataFeedServerFull
             .connect(roles.updateRequester)
             .callStatic.requestRelayedRrpBeaconUpdateWithTemplate(
               beacon.airnode.wallet.address,
@@ -673,7 +681,7 @@ describe('DapiServer', function () {
             )
         ).to.equal(requestId);
         await expect(
-          dapiServer
+          dataFeedServerFull
             .connect(roles.updateRequester)
             .requestRelayedRrpBeaconUpdateWithTemplate(
               beacon.airnode.wallet.address,
@@ -682,7 +690,7 @@ describe('DapiServer', function () {
               roles.sponsor.address
             )
         )
-          .to.emit(dapiServer, 'RequestedRelayedRrpBeaconUpdate')
+          .to.emit(dataFeedServerFull, 'RequestedRelayedRrpBeaconUpdate')
           .withArgs(
             beacon.beaconId,
             beacon.airnode.wallet.address,
@@ -696,10 +704,10 @@ describe('DapiServer', function () {
     });
     context('Request updater is not permitted', function () {
       it('reverts', async function () {
-        const { roles, dapiServer, beacons } = await helpers.loadFixture(deploy);
+        const { roles, dataFeedServerFull, beacons } = await helpers.loadFixture(deploy);
         const beacon = beacons[0];
         await expect(
-          dapiServer
+          dataFeedServerFull
             .connect(roles.randomPerson)
             .requestRelayedRrpBeaconUpdateWithTemplate(
               beacon.airnode.wallet.address,
@@ -715,20 +723,20 @@ describe('DapiServer', function () {
   describe('requestRelayedRrpBeaconUpdateWithEndpoint', function () {
     context('Request updater is the sponsor', function () {
       it('requests RRP Beacon update', async function () {
-        const { roles, airnodeProtocol, dapiServer, beacons } = await helpers.loadFixture(deploy);
+        const { roles, airnodeProtocol, dataFeedServerFull, beacons } = await helpers.loadFixture(deploy);
         const beacon = beacons[0];
         const requestId = await testUtils.deriveRelayedRequestId(
           airnodeProtocol,
-          dapiServer.address,
+          dataFeedServerFull.address,
           beacon.airnode.wallet.address,
           beacon.endpointId,
           beacon.templateParameters,
           beacon.relayer.wallet.address,
           roles.sponsor.address,
-          dapiServer.interface.getSighash('fulfillRrpBeaconUpdate')
+          dataFeedServerFull.interface.getSighash('fulfillRrpBeaconUpdate')
         );
         expect(
-          await dapiServer
+          await dataFeedServerFull
             .connect(roles.sponsor)
             .callStatic.requestRelayedRrpBeaconUpdateWithEndpoint(
               beacon.airnode.wallet.address,
@@ -739,7 +747,7 @@ describe('DapiServer', function () {
             )
         ).to.equal(requestId);
         await expect(
-          dapiServer
+          dataFeedServerFull
             .connect(roles.sponsor)
             .requestRelayedRrpBeaconUpdateWithEndpoint(
               beacon.airnode.wallet.address,
@@ -749,7 +757,7 @@ describe('DapiServer', function () {
               roles.sponsor.address
             )
         )
-          .to.emit(dapiServer, 'RequestedRelayedRrpBeaconUpdate')
+          .to.emit(dataFeedServerFull, 'RequestedRelayedRrpBeaconUpdate')
           .withArgs(
             beacon.beaconId,
             beacon.airnode.wallet.address,
@@ -763,20 +771,20 @@ describe('DapiServer', function () {
     });
     context('Request updater is permitted', function () {
       it('requests RRP Beacon update', async function () {
-        const { roles, airnodeProtocol, dapiServer, beacons } = await helpers.loadFixture(deploy);
+        const { roles, airnodeProtocol, dataFeedServerFull, beacons } = await helpers.loadFixture(deploy);
         const beacon = beacons[0];
         const requestId = await testUtils.deriveRelayedRequestId(
           airnodeProtocol,
-          dapiServer.address,
+          dataFeedServerFull.address,
           beacon.airnode.wallet.address,
           beacon.endpointId,
           beacon.templateParameters,
           beacon.relayer.wallet.address,
           roles.sponsor.address,
-          dapiServer.interface.getSighash('fulfillRrpBeaconUpdate')
+          dataFeedServerFull.interface.getSighash('fulfillRrpBeaconUpdate')
         );
         expect(
-          await dapiServer
+          await dataFeedServerFull
             .connect(roles.updateRequester)
             .callStatic.requestRelayedRrpBeaconUpdateWithEndpoint(
               beacon.airnode.wallet.address,
@@ -787,7 +795,7 @@ describe('DapiServer', function () {
             )
         ).to.equal(requestId);
         await expect(
-          dapiServer
+          dataFeedServerFull
             .connect(roles.updateRequester)
             .requestRelayedRrpBeaconUpdateWithEndpoint(
               beacon.airnode.wallet.address,
@@ -797,7 +805,7 @@ describe('DapiServer', function () {
               roles.sponsor.address
             )
         )
-          .to.emit(dapiServer, 'RequestedRelayedRrpBeaconUpdate')
+          .to.emit(dataFeedServerFull, 'RequestedRelayedRrpBeaconUpdate')
           .withArgs(
             beacon.beaconId,
             beacon.airnode.wallet.address,
@@ -811,10 +819,10 @@ describe('DapiServer', function () {
     });
     context('Request updater is not permitted', function () {
       it('reverts', async function () {
-        const { roles, dapiServer, beacons } = await helpers.loadFixture(deploy);
+        const { roles, dataFeedServerFull, beacons } = await helpers.loadFixture(deploy);
         const beacon = beacons[0];
         await expect(
-          dapiServer
+          dataFeedServerFull
             .connect(roles.randomPerson)
             .requestRelayedRrpBeaconUpdateWithEndpoint(
               beacon.airnode.wallet.address,
@@ -836,25 +844,25 @@ describe('DapiServer', function () {
             context('Data is fresher than Beacon', function () {
               context('Request is regular', function () {
                 it('updates Beacon', async function () {
-                  const { roles, airnodeProtocol, dapiServer, beacons } = await deploy();
+                  const { roles, airnodeProtocol, dataFeedServerFull, beacons } = await deploy();
                   const beacon = beacons[0];
                   const requestId = await testUtils.deriveRequestId(
                     airnodeProtocol,
-                    dapiServer.address,
+                    dataFeedServerFull.address,
                     beacon.airnode.wallet.address,
                     beacon.templateId,
                     '0x',
                     roles.sponsor.address,
-                    dapiServer.interface.getSighash('fulfillRrpBeaconUpdate')
+                    dataFeedServerFull.interface.getSighash('fulfillRrpBeaconUpdate')
                   );
-                  await dapiServer
+                  await dataFeedServerFull
                     .connect(roles.sponsor)
                     .requestRrpBeaconUpdateWithTemplate(
                       beacon.airnode.wallet.address,
                       beacon.templateId,
                       roles.sponsor.address
                     );
-                  const beaconBefore = await dapiServer.dataFeeds(beacon.beaconId);
+                  const beaconBefore = await dataFeedServerFull.dataFeeds(beacon.beaconId);
                   expect(beaconBefore.value).to.equal(0);
                   expect(beaconBefore.timestamp).to.equal(0);
                   const decodedData = 123;
@@ -872,36 +880,36 @@ describe('DapiServer', function () {
                       .fulfillRequest(
                         requestId,
                         beacon.airnode.wallet.address,
-                        dapiServer.address,
-                        dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
+                        dataFeedServerFull.address,
+                        dataFeedServerFull.interface.getSighash('fulfillRrpBeaconUpdate'),
                         timestamp,
                         data,
                         signature,
                         { gasLimit: 500000 }
                       )
                   )
-                    .to.emit(dapiServer, 'UpdatedBeaconWithRrp')
+                    .to.emit(dataFeedServerFull, 'UpdatedBeaconWithRrp')
                     .withArgs(beacon.beaconId, requestId, decodedData, timestamp);
-                  const beaconAfter = await dapiServer.dataFeeds(beacon.beaconId);
+                  const beaconAfter = await dataFeedServerFull.dataFeeds(beacon.beaconId);
                   expect(beaconAfter.value).to.equal(decodedData);
                   expect(beaconAfter.timestamp).to.equal(timestamp);
                 });
               });
               context('Request is relayed', function () {
                 it('updates Beacon', async function () {
-                  const { roles, airnodeProtocol, dapiServer, beacons } = await helpers.loadFixture(deploy);
+                  const { roles, airnodeProtocol, dataFeedServerFull, beacons } = await helpers.loadFixture(deploy);
                   const beacon = beacons[0];
                   const requestId = await testUtils.deriveRelayedRequestId(
                     airnodeProtocol,
-                    dapiServer.address,
+                    dataFeedServerFull.address,
                     beacon.airnode.wallet.address,
                     beacon.templateId,
                     '0x',
                     beacon.relayer.wallet.address,
                     roles.sponsor.address,
-                    dapiServer.interface.getSighash('fulfillRrpBeaconUpdate')
+                    dataFeedServerFull.interface.getSighash('fulfillRrpBeaconUpdate')
                   );
-                  await dapiServer
+                  await dataFeedServerFull
                     .connect(roles.sponsor)
                     .requestRelayedRrpBeaconUpdateWithTemplate(
                       beacon.airnode.wallet.address,
@@ -909,7 +917,7 @@ describe('DapiServer', function () {
                       beacon.relayer.wallet.address,
                       roles.sponsor.address
                     );
-                  const beaconBefore = await dapiServer.dataFeeds(beacon.beaconId);
+                  const beaconBefore = await dataFeedServerFull.dataFeeds(beacon.beaconId);
                   expect(beaconBefore.value).to.equal(0);
                   expect(beaconBefore.timestamp).to.equal(0);
                   const decodedData = 123;
@@ -928,18 +936,18 @@ describe('DapiServer', function () {
                       .fulfillRequestRelayed(
                         requestId,
                         beacon.airnode.wallet.address,
-                        dapiServer.address,
+                        dataFeedServerFull.address,
                         beacon.relayer.wallet.address,
-                        dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
+                        dataFeedServerFull.interface.getSighash('fulfillRrpBeaconUpdate'),
                         timestamp,
                         data,
                         signature,
                         { gasLimit: 500000 }
                       )
                   )
-                    .to.emit(dapiServer, 'UpdatedBeaconWithRrp')
+                    .to.emit(dataFeedServerFull, 'UpdatedBeaconWithRrp')
                     .withArgs(beacon.beaconId, requestId, decodedData, timestamp);
-                  const beaconAfter = await dapiServer.dataFeeds(beacon.beaconId);
+                  const beaconAfter = await dataFeedServerFull.dataFeeds(beacon.beaconId);
                   expect(beaconAfter.value).to.equal(decodedData);
                   expect(beaconAfter.timestamp).to.equal(timestamp);
                 });
@@ -947,25 +955,25 @@ describe('DapiServer', function () {
             });
             context('Data is not fresher than Beacon', function () {
               it('does not update Beacon', async function () {
-                const { roles, airnodeProtocol, dapiServer, beacons } = await deploy();
+                const { roles, airnodeProtocol, dataFeedServerFull, beacons } = await deploy();
                 const beacon = beacons[0];
                 const requestId = await testUtils.deriveRequestId(
                   airnodeProtocol,
-                  dapiServer.address,
+                  dataFeedServerFull.address,
                   beacon.airnode.wallet.address,
                   beacon.templateId,
                   '0x',
                   roles.sponsor.address,
-                  dapiServer.interface.getSighash('fulfillRrpBeaconUpdate')
+                  dataFeedServerFull.interface.getSighash('fulfillRrpBeaconUpdate')
                 );
-                await dapiServer
+                await dataFeedServerFull
                   .connect(roles.sponsor)
                   .requestRrpBeaconUpdateWithTemplate(
                     beacon.airnode.wallet.address,
                     beacon.templateId,
                     roles.sponsor.address
                   );
-                const beaconBefore = await dapiServer.dataFeeds(beacon.beaconId);
+                const beaconBefore = await dataFeedServerFull.dataFeeds(beacon.beaconId);
                 expect(beaconBefore.value).to.equal(0);
                 expect(beaconBefore.timestamp).to.equal(0);
                 const decodedData = 123;
@@ -978,14 +986,14 @@ describe('DapiServer', function () {
                   beacon.airnode.rrpSponsorWallet.address
                 );
                 const updatedDecodedData = 456;
-                const updatedTimestamp = await updateBeacon(roles, dapiServer, beacon, updatedDecodedData);
+                const updatedTimestamp = await updateBeacon(roles, dataFeedServerFull, beacon, updatedDecodedData);
                 const staticCallResult = await airnodeProtocol
                   .connect(beacon.airnode.rrpSponsorWallet)
                   .callStatic.fulfillRequest(
                     requestId,
                     beacon.airnode.wallet.address,
-                    dapiServer.address,
-                    dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
+                    dataFeedServerFull.address,
+                    dataFeedServerFull.interface.getSighash('fulfillRrpBeaconUpdate'),
                     timestamp,
                     data,
                     signature,
@@ -999,15 +1007,15 @@ describe('DapiServer', function () {
                     .fulfillRequest(
                       requestId,
                       beacon.airnode.wallet.address,
-                      dapiServer.address,
-                      dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
+                      dataFeedServerFull.address,
+                      dataFeedServerFull.interface.getSighash('fulfillRrpBeaconUpdate'),
                       timestamp,
                       data,
                       signature,
                       { gasLimit: 500000 }
                     )
-                ).to.not.emit(dapiServer, 'UpdatedBeaconWithRrp');
-                const beaconAfter = await dapiServer.dataFeeds(beacon.beaconId);
+                ).to.not.emit(dataFeedServerFull, 'UpdatedBeaconWithRrp');
+                const beaconAfter = await dataFeedServerFull.dataFeeds(beacon.beaconId);
                 expect(beaconAfter.value).to.equal(updatedDecodedData);
                 expect(beaconAfter.timestamp).to.equal(updatedTimestamp);
               });
@@ -1016,18 +1024,18 @@ describe('DapiServer', function () {
           context('Data is not typecast successfully', function () {
             context('Data larger than maximum int224', function () {
               it('does not update Beacon', async function () {
-                const { roles, airnodeProtocol, dapiServer, beacons } = await deploy();
+                const { roles, airnodeProtocol, dataFeedServerFull, beacons } = await deploy();
                 const beacon = beacons[0];
                 const requestId = await testUtils.deriveRequestId(
                   airnodeProtocol,
-                  dapiServer.address,
+                  dataFeedServerFull.address,
                   beacon.airnode.wallet.address,
                   beacon.templateId,
                   '0x',
                   roles.sponsor.address,
-                  dapiServer.interface.getSighash('fulfillRrpBeaconUpdate')
+                  dataFeedServerFull.interface.getSighash('fulfillRrpBeaconUpdate')
                 );
-                await dapiServer
+                await dataFeedServerFull
                   .connect(roles.sponsor)
                   .requestRrpBeaconUpdateWithTemplate(
                     beacon.airnode.wallet.address,
@@ -1048,8 +1056,8 @@ describe('DapiServer', function () {
                   .callStatic.fulfillRequest(
                     requestId,
                     beacon.airnode.wallet.address,
-                    dapiServer.address,
-                    dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
+                    dataFeedServerFull.address,
+                    dataFeedServerFull.interface.getSighash('fulfillRrpBeaconUpdate'),
                     timestamp,
                     data,
                     signature,
@@ -1063,33 +1071,33 @@ describe('DapiServer', function () {
                     .fulfillRequest(
                       requestId,
                       beacon.airnode.wallet.address,
-                      dapiServer.address,
-                      dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
+                      dataFeedServerFull.address,
+                      dataFeedServerFull.interface.getSighash('fulfillRrpBeaconUpdate'),
                       timestamp,
                       data,
                       signature,
                       { gasLimit: 500000 }
                     )
-                ).to.not.emit(dapiServer, 'UpdatedBeaconWithRrp');
-                const beaconAfter = await dapiServer.dataFeeds(beacon.beaconId);
+                ).to.not.emit(dataFeedServerFull, 'UpdatedBeaconWithRrp');
+                const beaconAfter = await dataFeedServerFull.dataFeeds(beacon.beaconId);
                 expect(beaconAfter.value).to.equal(0);
                 expect(beaconAfter.timestamp).to.equal(0);
               });
             });
             context('Data smaller than minimum int224', function () {
               it('does not update Beacon', async function () {
-                const { roles, airnodeProtocol, dapiServer, beacons } = await deploy();
+                const { roles, airnodeProtocol, dataFeedServerFull, beacons } = await deploy();
                 const beacon = beacons[0];
                 const requestId = await testUtils.deriveRequestId(
                   airnodeProtocol,
-                  dapiServer.address,
+                  dataFeedServerFull.address,
                   beacon.airnode.wallet.address,
                   beacon.templateId,
                   '0x',
                   roles.sponsor.address,
-                  dapiServer.interface.getSighash('fulfillRrpBeaconUpdate')
+                  dataFeedServerFull.interface.getSighash('fulfillRrpBeaconUpdate')
                 );
-                await dapiServer
+                await dataFeedServerFull
                   .connect(roles.sponsor)
                   .requestRrpBeaconUpdateWithTemplate(
                     beacon.airnode.wallet.address,
@@ -1110,8 +1118,8 @@ describe('DapiServer', function () {
                   .callStatic.fulfillRequest(
                     requestId,
                     beacon.airnode.wallet.address,
-                    dapiServer.address,
-                    dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
+                    dataFeedServerFull.address,
+                    dataFeedServerFull.interface.getSighash('fulfillRrpBeaconUpdate'),
                     timestamp,
                     data,
                     signature,
@@ -1125,15 +1133,15 @@ describe('DapiServer', function () {
                     .fulfillRequest(
                       requestId,
                       beacon.airnode.wallet.address,
-                      dapiServer.address,
-                      dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
+                      dataFeedServerFull.address,
+                      dataFeedServerFull.interface.getSighash('fulfillRrpBeaconUpdate'),
                       timestamp,
                       data,
                       signature,
                       { gasLimit: 500000 }
                     )
-                ).to.not.emit(dapiServer, 'UpdatedBeaconWithRrp');
-                const beaconAfter = await dapiServer.dataFeeds(beacon.beaconId);
+                ).to.not.emit(dataFeedServerFull, 'UpdatedBeaconWithRrp');
+                const beaconAfter = await dataFeedServerFull.dataFeeds(beacon.beaconId);
                 expect(beaconAfter.value).to.equal(0);
                 expect(beaconAfter.timestamp).to.equal(0);
               });
@@ -1142,18 +1150,18 @@ describe('DapiServer', function () {
         });
         context('Encoded data length is too long', function () {
           it('does not update Beacon', async function () {
-            const { roles, airnodeProtocol, dapiServer, beacons } = await deploy();
+            const { roles, airnodeProtocol, dataFeedServerFull, beacons } = await deploy();
             const beacon = beacons[0];
             const requestId = await testUtils.deriveRequestId(
               airnodeProtocol,
-              dapiServer.address,
+              dataFeedServerFull.address,
               beacon.airnode.wallet.address,
               beacon.templateId,
               '0x',
               roles.sponsor.address,
-              dapiServer.interface.getSighash('fulfillRrpBeaconUpdate')
+              dataFeedServerFull.interface.getSighash('fulfillRrpBeaconUpdate')
             );
-            await dapiServer
+            await dataFeedServerFull
               .connect(roles.sponsor)
               .requestRrpBeaconUpdateWithTemplate(
                 beacon.airnode.wallet.address,
@@ -1174,8 +1182,8 @@ describe('DapiServer', function () {
               .callStatic.fulfillRequest(
                 requestId,
                 beacon.airnode.wallet.address,
-                dapiServer.address,
-                dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
+                dataFeedServerFull.address,
+                dataFeedServerFull.interface.getSighash('fulfillRrpBeaconUpdate'),
                 timestamp,
                 data,
                 signature,
@@ -1189,33 +1197,33 @@ describe('DapiServer', function () {
                 .fulfillRequest(
                   requestId,
                   beacon.airnode.wallet.address,
-                  dapiServer.address,
-                  dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
+                  dataFeedServerFull.address,
+                  dataFeedServerFull.interface.getSighash('fulfillRrpBeaconUpdate'),
                   timestamp,
                   data,
                   signature,
                   { gasLimit: 500000 }
                 )
-            ).to.not.emit(dapiServer, 'UpdatedBeaconWithRrp');
-            const beaconAfter = await dapiServer.dataFeeds(beacon.beaconId);
+            ).to.not.emit(dataFeedServerFull, 'UpdatedBeaconWithRrp');
+            const beaconAfter = await dataFeedServerFull.dataFeeds(beacon.beaconId);
             expect(beaconAfter.value).to.equal(0);
             expect(beaconAfter.timestamp).to.equal(0);
           });
         });
         context('Encoded data length is too short', function () {
           it('reverts', async function () {
-            const { roles, airnodeProtocol, dapiServer, beacons } = await deploy();
+            const { roles, airnodeProtocol, dataFeedServerFull, beacons } = await deploy();
             const beacon = beacons[0];
             const requestId = await testUtils.deriveRequestId(
               airnodeProtocol,
-              dapiServer.address,
+              dataFeedServerFull.address,
               beacon.airnode.wallet.address,
               beacon.templateId,
               '0x',
               roles.sponsor.address,
-              dapiServer.interface.getSighash('fulfillRrpBeaconUpdate')
+              dataFeedServerFull.interface.getSighash('fulfillRrpBeaconUpdate')
             );
-            await dapiServer
+            await dataFeedServerFull
               .connect(roles.sponsor)
               .requestRrpBeaconUpdateWithTemplate(
                 beacon.airnode.wallet.address,
@@ -1237,8 +1245,8 @@ describe('DapiServer', function () {
               .callStatic.fulfillRequest(
                 requestId,
                 beacon.airnode.wallet.address,
-                dapiServer.address,
-                dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
+                dataFeedServerFull.address,
+                dataFeedServerFull.interface.getSighash('fulfillRrpBeaconUpdate'),
                 timestamp,
                 data,
                 signature,
@@ -1252,15 +1260,15 @@ describe('DapiServer', function () {
                 .fulfillRequest(
                   requestId,
                   beacon.airnode.wallet.address,
-                  dapiServer.address,
-                  dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
+                  dataFeedServerFull.address,
+                  dataFeedServerFull.interface.getSighash('fulfillRrpBeaconUpdate'),
                   timestamp,
                   data,
                   signature,
                   { gasLimit: 500000 }
                 )
-            ).to.not.emit(dapiServer, 'UpdatedBeaconWithRrp');
-            const beaconAfter = await dapiServer.dataFeeds(beacon.beaconId);
+            ).to.not.emit(dataFeedServerFull, 'UpdatedBeaconWithRrp');
+            const beaconAfter = await dataFeedServerFull.dataFeeds(beacon.beaconId);
             expect(beaconAfter.value).to.equal(0);
             expect(beaconAfter.timestamp).to.equal(0);
           });
@@ -1268,18 +1276,18 @@ describe('DapiServer', function () {
       });
       context('Timestamp is more than 1 hour from the future', function () {
         it('reverts', async function () {
-          const { roles, airnodeProtocol, dapiServer, beacons } = await deploy();
+          const { roles, airnodeProtocol, dataFeedServerFull, beacons } = await deploy();
           const beacon = beacons[0];
           const requestId = await testUtils.deriveRequestId(
             airnodeProtocol,
-            dapiServer.address,
+            dataFeedServerFull.address,
             beacon.airnode.wallet.address,
             beacon.templateId,
             '0x',
             roles.sponsor.address,
-            dapiServer.interface.getSighash('fulfillRrpBeaconUpdate')
+            dataFeedServerFull.interface.getSighash('fulfillRrpBeaconUpdate')
           );
-          await dapiServer
+          await dataFeedServerFull
             .connect(roles.sponsor)
             .requestRrpBeaconUpdateWithTemplate(
               beacon.airnode.wallet.address,
@@ -1300,8 +1308,8 @@ describe('DapiServer', function () {
             .callStatic.fulfillRequest(
               requestId,
               beacon.airnode.wallet.address,
-              dapiServer.address,
-              dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
+              dataFeedServerFull.address,
+              dataFeedServerFull.interface.getSighash('fulfillRrpBeaconUpdate'),
               timestamp,
               data,
               signature,
@@ -1315,33 +1323,33 @@ describe('DapiServer', function () {
               .fulfillRequest(
                 requestId,
                 beacon.airnode.wallet.address,
-                dapiServer.address,
-                dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
+                dataFeedServerFull.address,
+                dataFeedServerFull.interface.getSighash('fulfillRrpBeaconUpdate'),
                 timestamp,
                 data,
                 signature,
                 { gasLimit: 500000 }
               )
-          ).to.not.emit(dapiServer, 'UpdatedBeaconWithRrp');
-          const beaconAfter = await dapiServer.dataFeeds(beacon.beaconId);
+          ).to.not.emit(dataFeedServerFull, 'UpdatedBeaconWithRrp');
+          const beaconAfter = await dataFeedServerFull.dataFeeds(beacon.beaconId);
           expect(beaconAfter.value).to.equal(0);
           expect(beaconAfter.timestamp).to.equal(0);
         });
       });
       context('Timestamp is zero', function () {
         it('reverts', async function () {
-          const { roles, airnodeProtocol, dapiServer, beacons } = await deploy();
+          const { roles, airnodeProtocol, dataFeedServerFull, beacons } = await deploy();
           const beacon = beacons[0];
           const requestId = await testUtils.deriveRequestId(
             airnodeProtocol,
-            dapiServer.address,
+            dataFeedServerFull.address,
             beacon.airnode.wallet.address,
             beacon.templateId,
             '0x',
             roles.sponsor.address,
-            dapiServer.interface.getSighash('fulfillRrpBeaconUpdate')
+            dataFeedServerFull.interface.getSighash('fulfillRrpBeaconUpdate')
           );
-          await dapiServer
+          await dataFeedServerFull
             .connect(roles.sponsor)
             .requestRrpBeaconUpdateWithTemplate(
               beacon.airnode.wallet.address,
@@ -1362,8 +1370,8 @@ describe('DapiServer', function () {
             .callStatic.fulfillRequest(
               requestId,
               beacon.airnode.wallet.address,
-              dapiServer.address,
-              dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
+              dataFeedServerFull.address,
+              dataFeedServerFull.interface.getSighash('fulfillRrpBeaconUpdate'),
               timestamp,
               data,
               signature,
@@ -1377,15 +1385,15 @@ describe('DapiServer', function () {
               .fulfillRequest(
                 requestId,
                 beacon.airnode.wallet.address,
-                dapiServer.address,
-                dapiServer.interface.getSighash('fulfillRrpBeaconUpdate'),
+                dataFeedServerFull.address,
+                dataFeedServerFull.interface.getSighash('fulfillRrpBeaconUpdate'),
                 timestamp,
                 data,
                 signature,
                 { gasLimit: 500000 }
               )
-          ).to.not.emit(dapiServer, 'UpdatedBeaconWithRrp');
-          const beaconAfter = await dapiServer.dataFeeds(beacon.beaconId);
+          ).to.not.emit(dataFeedServerFull, 'UpdatedBeaconWithRrp');
+          const beaconAfter = await dataFeedServerFull.dataFeeds(beacon.beaconId);
           expect(beaconAfter.value).to.equal(0);
           expect(beaconAfter.timestamp).to.equal(0);
         });
@@ -1393,9 +1401,9 @@ describe('DapiServer', function () {
     });
     context('Sender is not AirnodeProtocol', function () {
       it('reverts', async function () {
-        const { roles, dapiServer } = await deploy();
+        const { roles, dataFeedServerFull } = await deploy();
         await expect(
-          dapiServer.connect(roles.randomPerson).fulfillRrpBeaconUpdate(ethers.constants.HashZero, 0, '0x')
+          dataFeedServerFull.connect(roles.randomPerson).fulfillRrpBeaconUpdate(ethers.constants.HashZero, 0, '0x')
         ).to.be.revertedWith('Sender not Airnode protocol');
       });
     });
@@ -1406,10 +1414,10 @@ describe('DapiServer', function () {
       context('Sponsor address is not zero', function () {
         context('Subscription is not registered', function () {
           it('registers beacon update subscription', async function () {
-            const { roles, dapiServer, beacons } = await deploy();
+            const { roles, dataFeedServerFull, beacons } = await deploy();
             const beacon = beacons[0];
             await expect(
-              dapiServer
+              dataFeedServerFull
                 .connect(roles.randomPerson)
                 .registerBeaconUpdateSubscription(
                   beacon.airnode.wallet.address,
@@ -1419,7 +1427,7 @@ describe('DapiServer', function () {
                   roles.sponsor.address
                 )
             )
-              .to.emit(dapiServer, 'RegisteredBeaconUpdateSubscription')
+              .to.emit(dataFeedServerFull, 'RegisteredBeaconUpdateSubscription')
               .withArgs(
                 beacon.beaconId,
                 beacon.beaconUpdateSubscriptionId,
@@ -1429,16 +1437,16 @@ describe('DapiServer', function () {
                 beacon.airnode.wallet.address,
                 roles.sponsor.address
               );
-            expect(await dapiServer.subscriptionIdToBeaconId(beacon.beaconUpdateSubscriptionId)).to.equal(
+            expect(await dataFeedServerFull.subscriptionIdToBeaconId(beacon.beaconUpdateSubscriptionId)).to.equal(
               beacon.beaconId
             );
           });
         });
         context('Subscription is already registered', function () {
           it('reverts', async function () {
-            const { roles, dapiServer, beacons } = await deploy();
+            const { roles, dataFeedServerFull, beacons } = await deploy();
             const beacon = beacons[0];
-            await dapiServer
+            await dataFeedServerFull
               .connect(roles.randomPerson)
               .registerBeaconUpdateSubscription(
                 beacon.airnode.wallet.address,
@@ -1448,7 +1456,7 @@ describe('DapiServer', function () {
                 roles.sponsor.address
               );
             await expect(
-              dapiServer
+              dataFeedServerFull
                 .connect(roles.randomPerson)
                 .registerBeaconUpdateSubscription(
                   beacon.airnode.wallet.address,
@@ -1463,10 +1471,10 @@ describe('DapiServer', function () {
       });
       context('Sponsor address is zero', function () {
         it('reverts', async function () {
-          const { roles, dapiServer, beacons } = await deploy();
+          const { roles, dataFeedServerFull, beacons } = await deploy();
           const beacon = beacons[0];
           await expect(
-            dapiServer
+            dataFeedServerFull
               .connect(roles.randomPerson)
               .registerBeaconUpdateSubscription(
                 beacon.airnode.wallet.address,
@@ -1481,10 +1489,10 @@ describe('DapiServer', function () {
     });
     context('Relayer address is zero', function () {
       it('reverts', async function () {
-        const { roles, dapiServer, beacons } = await deploy();
+        const { roles, dataFeedServerFull, beacons } = await deploy();
         const beacon = beacons[0];
         await expect(
-          dapiServer
+          dataFeedServerFull
             .connect(roles.randomPerson)
             .registerBeaconUpdateSubscription(
               beacon.airnode.wallet.address,
@@ -1504,17 +1512,17 @@ describe('DapiServer', function () {
         context('Condition parameters length is correct', function () {
           context('Beacon timestamp is zero', function () {
             it('returns true', async function () {
-              const { roles, dapiServer, beacons } = await deploy();
+              const { roles, dataFeedServerFull, beacons } = await deploy();
               const beacon = beacons[0];
               // Even if the deviation and heartbeat interval are zero, since the Beacon timestamp
               // is zero, the condition will return true
               const beaconUpdateSubscriptionConditionParameters = encodeUpdateSubscriptionConditionParameters(0, 0, 0);
               const beaconUpdateSubscriptionConditions = await encodeUpdateSubscriptionConditions(
-                dapiServer,
-                dapiServer.interface.getSighash('conditionPspBeaconUpdate'),
+                dataFeedServerFull,
+                dataFeedServerFull.interface.getSighash('conditionPspBeaconUpdate'),
                 beaconUpdateSubscriptionConditionParameters
               );
-              const beaconUpdateSubscriptionId = await dapiServer
+              const beaconUpdateSubscriptionId = await dataFeedServerFull
                 .connect(roles.randomPerson)
                 .callStatic.registerBeaconUpdateSubscription(
                   beacon.airnode.wallet.address,
@@ -1523,7 +1531,7 @@ describe('DapiServer', function () {
                   beacon.airnode.wallet.address,
                   roles.sponsor.address
                 );
-              await dapiServer
+              await dataFeedServerFull
                 .connect(roles.randomPerson)
                 .registerBeaconUpdateSubscription(
                   beacon.airnode.wallet.address,
@@ -1534,7 +1542,7 @@ describe('DapiServer', function () {
                 );
               const data = encodeData(0);
               expect(
-                await dapiServer.callStatic.conditionPspBeaconUpdate(
+                await dataFeedServerFull.callStatic.conditionPspBeaconUpdate(
                   beaconUpdateSubscriptionId,
                   data,
                   beaconUpdateSubscriptionConditionParameters
@@ -1547,9 +1555,9 @@ describe('DapiServer', function () {
               context('Update is upwards', function () {
                 context('It has been at least heartbeat interval seconds since the last update', function () {
                   it('returns true', async function () {
-                    const { roles, dapiServer, beacons } = await deploy();
+                    const { roles, dataFeedServerFull, beacons } = await deploy();
                     const beacon = beacons[0];
-                    await dapiServer
+                    await dataFeedServerFull
                       .connect(roles.randomPerson)
                       .registerBeaconUpdateSubscription(
                         beacon.airnode.wallet.address,
@@ -1559,7 +1567,7 @@ describe('DapiServer', function () {
                         roles.sponsor.address
                       );
                     // Set the Beacon to 100 first
-                    const timestamp = await updateBeacon(roles, dapiServer, beacon, 100);
+                    const timestamp = await updateBeacon(roles, dataFeedServerFull, beacon, 100);
                     // beaconUpdateSubscriptionConditionParameters is 10%, -100 and 1 day
                     // 100 -> 120 satisfies the condition (note that deviation reference is -100)
                     const data = encodeData(120);
@@ -1567,7 +1575,7 @@ describe('DapiServer', function () {
                     await helpers.time.setNextBlockTimestamp(timestamp + 24 * 60 * 60);
                     await helpers.mine();
                     expect(
-                      await dapiServer.callStatic.conditionPspBeaconUpdate(
+                      await dataFeedServerFull.callStatic.conditionPspBeaconUpdate(
                         beacon.beaconUpdateSubscriptionId,
                         data,
                         beacon.beaconUpdateSubscriptionConditionParameters
@@ -1577,9 +1585,9 @@ describe('DapiServer', function () {
                 });
                 context('It has not been at least heartbeat interval seconds since the last update', function () {
                   it('returns true', async function () {
-                    const { roles, dapiServer, beacons } = await deploy();
+                    const { roles, dataFeedServerFull, beacons } = await deploy();
                     const beacon = beacons[0];
-                    await dapiServer
+                    await dataFeedServerFull
                       .connect(roles.randomPerson)
                       .registerBeaconUpdateSubscription(
                         beacon.airnode.wallet.address,
@@ -1589,12 +1597,12 @@ describe('DapiServer', function () {
                         roles.sponsor.address
                       );
                     // Set the Beacon to 100 first
-                    await updateBeacon(roles, dapiServer, beacon, 100);
+                    await updateBeacon(roles, dataFeedServerFull, beacon, 100);
                     // beaconUpdateSubscriptionConditionParameters is 10%, -100 and 1 day
                     // 100 -> 120 satisfies the condition (note that deviation reference is -100)
                     const data = encodeData(120);
                     expect(
-                      await dapiServer.callStatic.conditionPspBeaconUpdate(
+                      await dataFeedServerFull.callStatic.conditionPspBeaconUpdate(
                         beacon.beaconUpdateSubscriptionId,
                         data,
                         beacon.beaconUpdateSubscriptionConditionParameters
@@ -1606,9 +1614,9 @@ describe('DapiServer', function () {
               context('Update is downwards', function () {
                 context('It has been at least heartbeat interval seconds since the last update', function () {
                   it('returns true', async function () {
-                    const { roles, dapiServer, beacons } = await deploy();
+                    const { roles, dataFeedServerFull, beacons } = await deploy();
                     const beacon = beacons[0];
-                    await dapiServer
+                    await dataFeedServerFull
                       .connect(roles.randomPerson)
                       .registerBeaconUpdateSubscription(
                         beacon.airnode.wallet.address,
@@ -1618,7 +1626,7 @@ describe('DapiServer', function () {
                         roles.sponsor.address
                       );
                     // Set the Beacon to 100 first
-                    const timestamp = await updateBeacon(roles, dapiServer, beacon, 100);
+                    const timestamp = await updateBeacon(roles, dataFeedServerFull, beacon, 100);
                     // beaconUpdateSubscriptionConditionParameters is 10%, -100 and 1 day
                     // 100 -> 80 satisfies the condition (note that deviation reference is -100)
                     const data = encodeData(80);
@@ -1626,7 +1634,7 @@ describe('DapiServer', function () {
                     await helpers.time.setNextBlockTimestamp(timestamp + 24 * 60 * 60);
                     await helpers.mine();
                     expect(
-                      await dapiServer.callStatic.conditionPspBeaconUpdate(
+                      await dataFeedServerFull.callStatic.conditionPspBeaconUpdate(
                         beacon.beaconUpdateSubscriptionId,
                         data,
                         beacon.beaconUpdateSubscriptionConditionParameters
@@ -1636,9 +1644,9 @@ describe('DapiServer', function () {
                 });
                 context('It has not been at least heartbeat interval seconds since the last update', function () {
                   it('returns true', async function () {
-                    const { roles, dapiServer, beacons } = await deploy();
+                    const { roles, dataFeedServerFull, beacons } = await deploy();
                     const beacon = beacons[0];
-                    await dapiServer
+                    await dataFeedServerFull
                       .connect(roles.randomPerson)
                       .registerBeaconUpdateSubscription(
                         beacon.airnode.wallet.address,
@@ -1648,12 +1656,12 @@ describe('DapiServer', function () {
                         roles.sponsor.address
                       );
                     // Set the Beacon to 100 first
-                    await updateBeacon(roles, dapiServer, beacon, 100);
+                    await updateBeacon(roles, dataFeedServerFull, beacon, 100);
                     // beaconUpdateSubscriptionConditionParameters is 10%, -100 and 1 day
                     // 100 -> 80 satisfies the condition (note that deviation reference is -100)
                     const data = encodeData(80);
                     expect(
-                      await dapiServer.callStatic.conditionPspBeaconUpdate(
+                      await dataFeedServerFull.callStatic.conditionPspBeaconUpdate(
                         beacon.beaconUpdateSubscriptionId,
                         data,
                         beacon.beaconUpdateSubscriptionConditionParameters
@@ -1667,9 +1675,9 @@ describe('DapiServer', function () {
               context('Update is upwards', function () {
                 context('Initial value is deviation reference', function () {
                   it('returns true', async function () {
-                    const { roles, dapiServer, beacons } = await deploy();
+                    const { roles, dataFeedServerFull, beacons } = await deploy();
                     const beacon = beacons[0];
-                    await dapiServer
+                    await dataFeedServerFull
                       .connect(roles.randomPerson)
                       .registerBeaconUpdateSubscription(
                         beacon.airnode.wallet.address,
@@ -1679,12 +1687,12 @@ describe('DapiServer', function () {
                         roles.sponsor.address
                       );
                     // Set the Beacon to -100 first (deviation reference)
-                    await updateBeacon(roles, dapiServer, beacon, -100);
+                    await updateBeacon(roles, dataFeedServerFull, beacon, -100);
                     // beaconUpdateSubscriptionConditionParameters is 10%, -100 and 1 day
                     // Any value satisfies the condition
                     const data = encodeData(-99);
                     expect(
-                      await dapiServer.callStatic.conditionPspBeaconUpdate(
+                      await dataFeedServerFull.callStatic.conditionPspBeaconUpdate(
                         beacon.beaconUpdateSubscriptionId,
                         data,
                         beacon.beaconUpdateSubscriptionConditionParameters
@@ -1695,9 +1703,9 @@ describe('DapiServer', function () {
                 context('Initial value is not deviation reference', function () {
                   context('It has been at least heartbeat interval seconds since the last update', function () {
                     it('returns true', async function () {
-                      const { roles, dapiServer, beacons } = await deploy();
+                      const { roles, dataFeedServerFull, beacons } = await deploy();
                       const beacon = beacons[0];
-                      await dapiServer
+                      await dataFeedServerFull
                         .connect(roles.randomPerson)
                         .registerBeaconUpdateSubscription(
                           beacon.airnode.wallet.address,
@@ -1707,7 +1715,7 @@ describe('DapiServer', function () {
                           roles.sponsor.address
                         );
                       // Set the Beacon to 100 first
-                      const timestamp = await updateBeacon(roles, dapiServer, beacon, 100);
+                      const timestamp = await updateBeacon(roles, dataFeedServerFull, beacon, 100);
                       // beaconUpdateSubscriptionConditionParameters is 10%, -100 and 1 day
                       // 100 -> 120 satisfies the condition (note that deviation reference is -100)
                       const data = encodeData(119);
@@ -1715,7 +1723,7 @@ describe('DapiServer', function () {
                       await helpers.time.setNextBlockTimestamp(timestamp + 24 * 60 * 60);
                       await helpers.mine();
                       expect(
-                        await dapiServer.callStatic.conditionPspBeaconUpdate(
+                        await dataFeedServerFull.callStatic.conditionPspBeaconUpdate(
                           beacon.beaconUpdateSubscriptionId,
                           data,
                           beacon.beaconUpdateSubscriptionConditionParameters
@@ -1725,9 +1733,9 @@ describe('DapiServer', function () {
                   });
                   context('It has not been at least heartbeat interval seconds since the last update', function () {
                     it('returns false', async function () {
-                      const { roles, dapiServer, beacons } = await deploy();
+                      const { roles, dataFeedServerFull, beacons } = await deploy();
                       const beacon = beacons[0];
-                      await dapiServer
+                      await dataFeedServerFull
                         .connect(roles.randomPerson)
                         .registerBeaconUpdateSubscription(
                           beacon.airnode.wallet.address,
@@ -1737,12 +1745,12 @@ describe('DapiServer', function () {
                           roles.sponsor.address
                         );
                       // Set the Beacon to 100 first
-                      await updateBeacon(roles, dapiServer, beacon, 100);
+                      await updateBeacon(roles, dataFeedServerFull, beacon, 100);
                       // beaconUpdateSubscriptionConditionParameters is 10%, -100 and 1 day
                       // 100 -> 120 satisfies the condition (note that deviation reference is -100)
                       const data = encodeData(119);
                       expect(
-                        await dapiServer.callStatic.conditionPspBeaconUpdate(
+                        await dataFeedServerFull.callStatic.conditionPspBeaconUpdate(
                           beacon.beaconUpdateSubscriptionId,
                           data,
                           beacon.beaconUpdateSubscriptionConditionParameters
@@ -1755,9 +1763,9 @@ describe('DapiServer', function () {
               context('Update is downwards', function () {
                 context('Initial value is deviation reference', function () {
                   it('returns true', async function () {
-                    const { roles, dapiServer, beacons } = await deploy();
+                    const { roles, dataFeedServerFull, beacons } = await deploy();
                     const beacon = beacons[0];
-                    await dapiServer
+                    await dataFeedServerFull
                       .connect(roles.randomPerson)
                       .registerBeaconUpdateSubscription(
                         beacon.airnode.wallet.address,
@@ -1767,12 +1775,12 @@ describe('DapiServer', function () {
                         roles.sponsor.address
                       );
                     // Set the Beacon to -100 first (deviation reference)
-                    await updateBeacon(roles, dapiServer, beacon, -100);
+                    await updateBeacon(roles, dataFeedServerFull, beacon, -100);
                     // beaconUpdateSubscriptionConditionParameters is 10%, -100 and 1 day
                     // Any value satisfies the condition
                     const data = encodeData(-101);
                     expect(
-                      await dapiServer.callStatic.conditionPspBeaconUpdate(
+                      await dataFeedServerFull.callStatic.conditionPspBeaconUpdate(
                         beacon.beaconUpdateSubscriptionId,
                         data,
                         beacon.beaconUpdateSubscriptionConditionParameters
@@ -1783,9 +1791,9 @@ describe('DapiServer', function () {
                 context('Initial value is not deviation reference', function () {
                   context('It has been at least heartbeat interval seconds since the last update', function () {
                     it('returns true', async function () {
-                      const { roles, dapiServer, beacons } = await deploy();
+                      const { roles, dataFeedServerFull, beacons } = await deploy();
                       const beacon = beacons[0];
-                      await dapiServer
+                      await dataFeedServerFull
                         .connect(roles.randomPerson)
                         .registerBeaconUpdateSubscription(
                           beacon.airnode.wallet.address,
@@ -1795,7 +1803,7 @@ describe('DapiServer', function () {
                           roles.sponsor.address
                         );
                       // Set the Beacon to 100 first
-                      const timestamp = await updateBeacon(roles, dapiServer, beacon, 100);
+                      const timestamp = await updateBeacon(roles, dataFeedServerFull, beacon, 100);
                       // beaconUpdateSubscriptionConditionParameters is 10%, -100 and 1 day
                       // 100 -> 80 satisfies the condition (note that deviation reference is -100)
                       const data = encodeData(81);
@@ -1803,7 +1811,7 @@ describe('DapiServer', function () {
                       await helpers.time.setNextBlockTimestamp(timestamp + 24 * 60 * 60);
                       await helpers.mine();
                       expect(
-                        await dapiServer.callStatic.conditionPspBeaconUpdate(
+                        await dataFeedServerFull.callStatic.conditionPspBeaconUpdate(
                           beacon.beaconUpdateSubscriptionId,
                           data,
                           beacon.beaconUpdateSubscriptionConditionParameters
@@ -1813,9 +1821,9 @@ describe('DapiServer', function () {
                   });
                   context('It has not been at least heartbeat interval seconds since the last update', function () {
                     it('returns false', async function () {
-                      const { roles, dapiServer, beacons } = await deploy();
+                      const { roles, dataFeedServerFull, beacons } = await deploy();
                       const beacon = beacons[0];
-                      await dapiServer
+                      await dataFeedServerFull
                         .connect(roles.randomPerson)
                         .registerBeaconUpdateSubscription(
                           beacon.airnode.wallet.address,
@@ -1825,12 +1833,12 @@ describe('DapiServer', function () {
                           roles.sponsor.address
                         );
                       // Set the Beacon to 100 first
-                      await updateBeacon(roles, dapiServer, beacon, 100);
+                      await updateBeacon(roles, dataFeedServerFull, beacon, 100);
                       // beaconUpdateSubscriptionConditionParameters is 10%, -100 and 1 day
                       // 100 -> 80 satisfies the condition (note that deviation reference is -100)
                       const data = encodeData(81);
                       expect(
-                        await dapiServer.callStatic.conditionPspBeaconUpdate(
+                        await dataFeedServerFull.callStatic.conditionPspBeaconUpdate(
                           beacon.beaconUpdateSubscriptionId,
                           data,
                           beacon.beaconUpdateSubscriptionConditionParameters
@@ -1845,16 +1853,16 @@ describe('DapiServer', function () {
         });
         context('Condition parameters length is not correct', function () {
           it('reverts', async function () {
-            const { roles, dapiServer, beacons } = await deploy();
+            const { roles, dataFeedServerFull, beacons } = await deploy();
             const beacon = beacons[0];
 
             const longConditionParameters = beacon.beaconUpdateSubscriptionConditionParameters + '00';
             const longConditions = await encodeUpdateSubscriptionConditions(
-              dapiServer,
-              dapiServer.interface.getSighash('conditionPspBeaconUpdate'),
+              dataFeedServerFull,
+              dataFeedServerFull.interface.getSighash('conditionPspBeaconUpdate'),
               longConditionParameters
             );
-            const subscriptionIdWithLongConditionParameters = await dapiServer
+            const subscriptionIdWithLongConditionParameters = await dataFeedServerFull
               .connect(roles.randomPerson)
               .callStatic.registerBeaconUpdateSubscription(
                 beacon.airnode.wallet.address,
@@ -1863,7 +1871,7 @@ describe('DapiServer', function () {
                 beacon.airnode.wallet.address,
                 roles.sponsor.address
               );
-            await dapiServer
+            await dataFeedServerFull
               .connect(roles.randomPerson)
               .registerBeaconUpdateSubscription(
                 beacon.airnode.wallet.address,
@@ -1874,7 +1882,7 @@ describe('DapiServer', function () {
               );
             const data = encodeData(0);
             await expect(
-              dapiServer.callStatic.conditionPspBeaconUpdate(
+              dataFeedServerFull.callStatic.conditionPspBeaconUpdate(
                 subscriptionIdWithLongConditionParameters,
                 data,
                 longConditionParameters
@@ -1886,11 +1894,11 @@ describe('DapiServer', function () {
               beacon.beaconUpdateSubscriptionConditionParameters.length - 2
             );
             const shortConditions = await encodeUpdateSubscriptionConditions(
-              dapiServer,
-              dapiServer.interface.getSighash('conditionPspBeaconUpdate'),
+              dataFeedServerFull,
+              dataFeedServerFull.interface.getSighash('conditionPspBeaconUpdate'),
               shortConditionParameters
             );
-            const subscriptionIdWithShortConditionParameters = await dapiServer
+            const subscriptionIdWithShortConditionParameters = await dataFeedServerFull
               .connect(roles.randomPerson)
               .callStatic.registerBeaconUpdateSubscription(
                 beacon.airnode.wallet.address,
@@ -1899,7 +1907,7 @@ describe('DapiServer', function () {
                 beacon.airnode.wallet.address,
                 roles.sponsor.address
               );
-            await dapiServer
+            await dataFeedServerFull
               .connect(roles.randomPerson)
               .registerBeaconUpdateSubscription(
                 beacon.airnode.wallet.address,
@@ -1909,7 +1917,7 @@ describe('DapiServer', function () {
                 roles.sponsor.address
               );
             await expect(
-              dapiServer.callStatic.conditionPspBeaconUpdate(
+              dataFeedServerFull.callStatic.conditionPspBeaconUpdate(
                 subscriptionIdWithShortConditionParameters,
                 data,
                 shortConditionParameters
@@ -1920,9 +1928,9 @@ describe('DapiServer', function () {
       });
       context('Data length is not correct', function () {
         it('reverts', async function () {
-          const { roles, dapiServer, beacons } = await deploy();
+          const { roles, dataFeedServerFull, beacons } = await deploy();
           const beacon = beacons[0];
-          await dapiServer
+          await dataFeedServerFull
             .connect(roles.randomPerson)
             .registerBeaconUpdateSubscription(
               beacon.airnode.wallet.address,
@@ -1935,14 +1943,14 @@ describe('DapiServer', function () {
           const shortData = data.substring(0, data.length - 2);
           const longData = data + '00';
           await expect(
-            dapiServer.callStatic.conditionPspBeaconUpdate(
+            dataFeedServerFull.callStatic.conditionPspBeaconUpdate(
               beacon.beaconUpdateSubscriptionId,
               shortData,
               beacon.beaconUpdateSubscriptionConditionParameters
             )
           ).to.be.revertedWith('Data length not correct');
           await expect(
-            dapiServer.callStatic.conditionPspBeaconUpdate(
+            dataFeedServerFull.callStatic.conditionPspBeaconUpdate(
               beacon.beaconUpdateSubscriptionId,
               longData,
               beacon.beaconUpdateSubscriptionConditionParameters
@@ -1953,10 +1961,10 @@ describe('DapiServer', function () {
     });
     context('Subscription is not registered', function () {
       it('reverts', async function () {
-        const { dapiServer } = await deploy();
+        const { dataFeedServerFull } = await deploy();
         const data = encodeData(123);
         await expect(
-          dapiServer.callStatic.conditionPspBeaconUpdate(testUtils.generateRandomBytes32(), data, '0x')
+          dataFeedServerFull.callStatic.conditionPspBeaconUpdate(testUtils.generateRandomBytes32(), data, '0x')
         ).to.be.revertedWith('Subscription not registered');
       });
     });
@@ -1970,9 +1978,9 @@ describe('DapiServer', function () {
             context('Subscription is regular', function () {
               context('Signature is valid', function () {
                 it('updates Beacon', async function () {
-                  const { roles, dapiServer, beacons } = await deploy();
+                  const { roles, dataFeedServerFull, beacons } = await deploy();
                   const beacon = beacons[0];
-                  const subscriptionId = await dapiServer
+                  const subscriptionId = await dataFeedServerFull
                     .connect(roles.randomPerson)
                     .callStatic.registerBeaconUpdateSubscription(
                       beacon.airnode.wallet.address,
@@ -1981,7 +1989,7 @@ describe('DapiServer', function () {
                       beacon.airnode.wallet.address,
                       roles.sponsor.address
                     );
-                  await dapiServer
+                  await dataFeedServerFull
                     .connect(roles.randomPerson)
                     .registerBeaconUpdateSubscription(
                       beacon.airnode.wallet.address,
@@ -2000,7 +2008,7 @@ describe('DapiServer', function () {
                     beacon.airnode.pspSponsorWallet.address
                   );
                   await expect(
-                    dapiServer
+                    dataFeedServerFull
                       .connect(beacon.airnode.pspSponsorWallet)
                       .fulfillPspBeaconUpdate(
                         subscriptionId,
@@ -2013,18 +2021,18 @@ describe('DapiServer', function () {
                         { gasLimit: 500000 }
                       )
                   )
-                    .to.emit(dapiServer, 'UpdatedBeaconWithPsp')
+                    .to.emit(dataFeedServerFull, 'UpdatedBeaconWithPsp')
                     .withArgs(beacon.beaconId, subscriptionId, decodedData, timestamp);
-                  const beaconAfter = await dapiServer.dataFeeds(beacon.beaconId);
+                  const beaconAfter = await dataFeedServerFull.dataFeeds(beacon.beaconId);
                   expect(beaconAfter.value).to.equal(decodedData);
                   expect(beaconAfter.timestamp).to.equal(timestamp);
                 });
               });
               context('Signature is not valid', function () {
                 it('reverts', async function () {
-                  const { roles, dapiServer, beacons } = await deploy();
+                  const { roles, dataFeedServerFull, beacons } = await deploy();
                   const beacon = beacons[0];
-                  const subscriptionId = await dapiServer
+                  const subscriptionId = await dataFeedServerFull
                     .connect(roles.randomPerson)
                     .callStatic.registerBeaconUpdateSubscription(
                       beacon.airnode.wallet.address,
@@ -2033,7 +2041,7 @@ describe('DapiServer', function () {
                       beacon.airnode.wallet.address,
                       roles.sponsor.address
                     );
-                  await dapiServer
+                  await dataFeedServerFull
                     .connect(roles.randomPerson)
                     .registerBeaconUpdateSubscription(
                       beacon.airnode.wallet.address,
@@ -2046,7 +2054,7 @@ describe('DapiServer', function () {
                   const data = encodeData(decodedData);
                   const timestamp = await helpers.time.latest();
                   await expect(
-                    dapiServer
+                    dataFeedServerFull
                       .connect(beacon.airnode.pspSponsorWallet)
                       .fulfillPspBeaconUpdate(
                         subscriptionId,
@@ -2065,9 +2073,9 @@ describe('DapiServer', function () {
             context('Subscription is relayed', function () {
               context('Signature is valid', function () {
                 it('updates Beacon', async function () {
-                  const { roles, dapiServer, beacons } = await deploy();
+                  const { roles, dataFeedServerFull, beacons } = await deploy();
                   const beacon = beacons[0];
-                  const subscriptionId = await dapiServer
+                  const subscriptionId = await dataFeedServerFull
                     .connect(roles.randomPerson)
                     .callStatic.registerBeaconUpdateSubscription(
                       beacon.airnode.wallet.address,
@@ -2076,7 +2084,7 @@ describe('DapiServer', function () {
                       beacon.relayer.wallet.address,
                       roles.sponsor.address
                     );
-                  await dapiServer
+                  await dataFeedServerFull
                     .connect(roles.randomPerson)
                     .registerBeaconUpdateSubscription(
                       beacon.airnode.wallet.address,
@@ -2096,7 +2104,7 @@ describe('DapiServer', function () {
                     data
                   );
                   await expect(
-                    dapiServer
+                    dataFeedServerFull
                       .connect(beacon.relayer.pspRelayedSponsorWallet)
                       .fulfillPspBeaconUpdate(
                         subscriptionId,
@@ -2109,18 +2117,18 @@ describe('DapiServer', function () {
                         { gasLimit: 500000 }
                       )
                   )
-                    .to.emit(dapiServer, 'UpdatedBeaconWithPsp')
+                    .to.emit(dataFeedServerFull, 'UpdatedBeaconWithPsp')
                     .withArgs(beacon.beaconId, subscriptionId, decodedData, timestamp);
-                  const beaconAfter = await dapiServer.dataFeeds(beacon.beaconId);
+                  const beaconAfter = await dataFeedServerFull.dataFeeds(beacon.beaconId);
                   expect(beaconAfter.value).to.equal(decodedData);
                   expect(beaconAfter.timestamp).to.equal(timestamp);
                 });
               });
               context('Signature is not valid', function () {
                 it('reverts', async function () {
-                  const { roles, dapiServer, beacons } = await deploy();
+                  const { roles, dataFeedServerFull, beacons } = await deploy();
                   const beacon = beacons[0];
-                  const subscriptionId = await dapiServer
+                  const subscriptionId = await dataFeedServerFull
                     .connect(roles.randomPerson)
                     .callStatic.registerBeaconUpdateSubscription(
                       beacon.airnode.wallet.address,
@@ -2129,7 +2137,7 @@ describe('DapiServer', function () {
                       beacon.relayer.wallet.address,
                       roles.sponsor.address
                     );
-                  await dapiServer
+                  await dataFeedServerFull
                     .connect(roles.randomPerson)
                     .registerBeaconUpdateSubscription(
                       beacon.airnode.wallet.address,
@@ -2142,7 +2150,7 @@ describe('DapiServer', function () {
                   const data = encodeData(decodedData);
                   const timestamp = await helpers.time.latest();
                   await expect(
-                    dapiServer
+                    dataFeedServerFull
                       .connect(beacon.relayer.pspRelayedSponsorWallet)
                       .fulfillPspBeaconUpdate(
                         subscriptionId,
@@ -2161,9 +2169,9 @@ describe('DapiServer', function () {
           });
           context('Data is not fresher than Beacon', function () {
             it('reverts', async function () {
-              const { roles, dapiServer, beacons } = await deploy();
+              const { roles, dataFeedServerFull, beacons } = await deploy();
               const beacon = beacons[0];
-              const subscriptionId = await dapiServer
+              const subscriptionId = await dataFeedServerFull
                 .connect(roles.randomPerson)
                 .callStatic.registerBeaconUpdateSubscription(
                   beacon.airnode.wallet.address,
@@ -2172,7 +2180,7 @@ describe('DapiServer', function () {
                   beacon.airnode.wallet.address,
                   roles.sponsor.address
                 );
-              await dapiServer
+              await dataFeedServerFull
                 .connect(roles.randomPerson)
                 .registerBeaconUpdateSubscription(
                   beacon.airnode.wallet.address,
@@ -2191,9 +2199,9 @@ describe('DapiServer', function () {
                 beacon.airnode.pspSponsorWallet.address
               );
               const updatedDecodedData = 456;
-              await updateBeacon(roles, dapiServer, beacon, updatedDecodedData);
+              await updateBeacon(roles, dataFeedServerFull, beacon, updatedDecodedData);
               await expect(
-                dapiServer
+                dataFeedServerFull
                   .connect(beacon.airnode.pspSponsorWallet)
                   .fulfillPspBeaconUpdate(
                     subscriptionId,
@@ -2211,9 +2219,9 @@ describe('DapiServer', function () {
         });
         context('Data length is not correct', function () {
           it('reverts', async function () {
-            const { roles, dapiServer, beacons } = await deploy();
+            const { roles, dataFeedServerFull, beacons } = await deploy();
             const beacon = beacons[0];
-            const subscriptionId = await dapiServer
+            const subscriptionId = await dataFeedServerFull
               .connect(roles.randomPerson)
               .callStatic.registerBeaconUpdateSubscription(
                 beacon.airnode.wallet.address,
@@ -2222,7 +2230,7 @@ describe('DapiServer', function () {
                 beacon.airnode.wallet.address,
                 roles.sponsor.address
               );
-            await dapiServer
+            await dataFeedServerFull
               .connect(roles.randomPerson)
               .registerBeaconUpdateSubscription(
                 beacon.airnode.wallet.address,
@@ -2242,7 +2250,7 @@ describe('DapiServer', function () {
             );
             const longData = data + '00';
             await expect(
-              dapiServer
+              dataFeedServerFull
                 .connect(beacon.airnode.pspSponsorWallet)
                 .fulfillPspBeaconUpdate(
                   subscriptionId,
@@ -2257,7 +2265,7 @@ describe('DapiServer', function () {
             ).to.be.revertedWith('Data length not correct');
             const shortData = data.substring(0, data.length - 2);
             await expect(
-              dapiServer
+              dataFeedServerFull
                 .connect(beacon.airnode.pspSponsorWallet)
                 .fulfillPspBeaconUpdate(
                   subscriptionId,
@@ -2275,9 +2283,9 @@ describe('DapiServer', function () {
       });
       context('Subscription is not registered', function () {
         it('reverts', async function () {
-          const { roles, dapiServer, beacons } = await deploy();
+          const { roles, dataFeedServerFull, beacons } = await deploy();
           const beacon = beacons[0];
-          const subscriptionId = await dapiServer
+          const subscriptionId = await dataFeedServerFull
             .connect(roles.randomPerson)
             .callStatic.registerBeaconUpdateSubscription(
               beacon.airnode.wallet.address,
@@ -2296,7 +2304,7 @@ describe('DapiServer', function () {
             beacon.airnode.pspSponsorWallet.address
           );
           await expect(
-            dapiServer
+            dataFeedServerFull
               .connect(beacon.airnode.pspSponsorWallet)
               .fulfillPspBeaconUpdate(
                 subscriptionId,
@@ -2314,9 +2322,9 @@ describe('DapiServer', function () {
     });
     context('Timestamp is more than 1 hour from the future', function () {
       it('reverts', async function () {
-        const { roles, dapiServer, beacons } = await deploy();
+        const { roles, dataFeedServerFull, beacons } = await deploy();
         const beacon = beacons[0];
-        const subscriptionId = await dapiServer
+        const subscriptionId = await dataFeedServerFull
           .connect(roles.randomPerson)
           .callStatic.registerBeaconUpdateSubscription(
             beacon.airnode.wallet.address,
@@ -2325,7 +2333,7 @@ describe('DapiServer', function () {
             beacon.airnode.wallet.address,
             roles.sponsor.address
           );
-        await dapiServer
+        await dataFeedServerFull
           .connect(roles.randomPerson)
           .registerBeaconUpdateSubscription(
             beacon.airnode.wallet.address,
@@ -2346,7 +2354,7 @@ describe('DapiServer', function () {
           beacon.airnode.pspSponsorWallet.address
         );
         await expect(
-          dapiServer
+          dataFeedServerFull
             .connect(beacon.airnode.pspSponsorWallet)
             .fulfillPspBeaconUpdate(
               subscriptionId,
@@ -2363,9 +2371,9 @@ describe('DapiServer', function () {
     });
     context('Timestamp is zero', function () {
       it('reverts', async function () {
-        const { roles, dapiServer, beacons } = await deploy();
+        const { roles, dataFeedServerFull, beacons } = await deploy();
         const beacon = beacons[0];
-        const subscriptionId = await dapiServer
+        const subscriptionId = await dataFeedServerFull
           .connect(roles.randomPerson)
           .callStatic.registerBeaconUpdateSubscription(
             beacon.airnode.wallet.address,
@@ -2374,7 +2382,7 @@ describe('DapiServer', function () {
             beacon.airnode.wallet.address,
             roles.sponsor.address
           );
-        await dapiServer
+        await dataFeedServerFull
           .connect(roles.randomPerson)
           .registerBeaconUpdateSubscription(
             beacon.airnode.wallet.address,
@@ -2395,7 +2403,7 @@ describe('DapiServer', function () {
           beacon.airnode.pspSponsorWallet.address
         );
         await expect(
-          dapiServer
+          dataFeedServerFull
             .connect(beacon.airnode.pspSponsorWallet)
             .fulfillPspBeaconUpdate(
               subscriptionId,
@@ -2416,28 +2424,30 @@ describe('DapiServer', function () {
     context('Did not specify less than two Beacons', function () {
       context('Beacons update Beacon set timestamp', function () {
         it('updates Beacon set', async function () {
-          const { roles, dapiServer, beacons, beaconSet } = await deploy();
+          const { roles, dataFeedServerFull, beacons, beaconSet } = await deploy();
           // Populate the Beacons
           const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
           const currentTimestamp = await helpers.time.latest();
           const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
           await Promise.all(
             beacons.map(async (beacon, index) => {
-              await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+              await updateBeacon(roles, dataFeedServerFull, beacon, beaconValues[index], beaconTimestamps[index]);
             })
           );
           const beaconSetValue = median(beaconValues);
           const beaconSetTimestamp = median(beaconTimestamps);
-          const beaconSetBefore = await dapiServer.dataFeeds(beaconSet.beaconSetId);
+          const beaconSetBefore = await dataFeedServerFull.dataFeeds(beaconSet.beaconSetId);
           expect(beaconSetBefore.value).to.equal(0);
           expect(beaconSetBefore.timestamp).to.equal(0);
           expect(
-            await dapiServer.connect(roles.randomPerson).callStatic.updateBeaconSetWithBeacons(beaconSet.beaconIds)
+            await dataFeedServerFull
+              .connect(roles.randomPerson)
+              .callStatic.updateBeaconSetWithBeacons(beaconSet.beaconIds)
           ).to.equal(beaconSet.beaconSetId);
-          await expect(dapiServer.connect(roles.randomPerson).updateBeaconSetWithBeacons(beaconSet.beaconIds))
-            .to.emit(dapiServer, 'UpdatedBeaconSetWithBeacons')
+          await expect(dataFeedServerFull.connect(roles.randomPerson).updateBeaconSetWithBeacons(beaconSet.beaconIds))
+            .to.emit(dataFeedServerFull, 'UpdatedBeaconSetWithBeacons')
             .withArgs(beaconSet.beaconSetId, beaconSetValue, beaconSetTimestamp);
-          const beaconSetAfter = await dapiServer.dataFeeds(beaconSet.beaconSetId);
+          const beaconSetAfter = await dataFeedServerFull.dataFeeds(beaconSet.beaconSetId);
           expect(beaconSetAfter.value).to.equal(beaconSetValue);
           expect(beaconSetAfter.timestamp).to.equal(beaconSetTimestamp);
         });
@@ -2445,42 +2455,44 @@ describe('DapiServer', function () {
       context('Beacons do not update Beacon set timestamp', function () {
         context('Beacons update Beacon set value', function () {
           it('updates Beacon set', async function () {
-            const { roles, dapiServer, beacons, beaconSet } = await deploy();
+            const { roles, dataFeedServerFull, beacons, beaconSet } = await deploy();
             // Populate the Beacons
             const beaconValues = [100, 80, 120];
             const currentTimestamp = await helpers.time.latest();
             const beaconTimestamps = [currentTimestamp, currentTimestamp, currentTimestamp];
             await Promise.all(
               beacons.map(async (beacon, index) => {
-                await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+                await updateBeacon(roles, dataFeedServerFull, beacon, beaconValues[index], beaconTimestamps[index]);
               })
             );
             const beaconIds = beacons.map((beacon) => {
               return beacon.beaconId;
             });
-            await dapiServer.updateBeaconSetWithBeacons(beaconIds);
-            await updateBeacon(roles, dapiServer, beacons[0], 110, currentTimestamp + 10);
-            const beaconSetBefore = await dapiServer.dataFeeds(beaconSet.beaconSetId);
+            await dataFeedServerFull.updateBeaconSetWithBeacons(beaconIds);
+            await updateBeacon(roles, dataFeedServerFull, beacons[0], 110, currentTimestamp + 10);
+            const beaconSetBefore = await dataFeedServerFull.dataFeeds(beaconSet.beaconSetId);
             expect(beaconSetBefore.value).to.equal(100);
             expect(beaconSetBefore.timestamp).to.equal(currentTimestamp);
             expect(
-              await dapiServer.connect(roles.randomPerson).callStatic.updateBeaconSetWithBeacons(beaconSet.beaconIds)
+              await dataFeedServerFull
+                .connect(roles.randomPerson)
+                .callStatic.updateBeaconSetWithBeacons(beaconSet.beaconIds)
             ).to.equal(beaconSet.beaconSetId);
-            await expect(dapiServer.connect(roles.randomPerson).updateBeaconSetWithBeacons(beaconSet.beaconIds))
-              .to.emit(dapiServer, 'UpdatedBeaconSetWithBeacons')
+            await expect(dataFeedServerFull.connect(roles.randomPerson).updateBeaconSetWithBeacons(beaconSet.beaconIds))
+              .to.emit(dataFeedServerFull, 'UpdatedBeaconSetWithBeacons')
               .withArgs(beaconSet.beaconSetId, 110, currentTimestamp);
-            const beaconSetAfter = await dapiServer.dataFeeds(beaconSet.beaconSetId);
+            const beaconSetAfter = await dataFeedServerFull.dataFeeds(beaconSet.beaconSetId);
             expect(beaconSetAfter.value).to.equal(110);
             expect(beaconSetAfter.timestamp).to.equal(currentTimestamp);
           });
         });
         context('Beacons do not update Beacon set value', function () {
           it('reverts', async function () {
-            const { roles, dapiServer, beacons, beaconSet } = await deploy();
+            const { roles, dataFeedServerFull, beacons, beaconSet } = await deploy();
             // Update Beacon set with recent timestamp
-            await updateBeaconSet(roles, dapiServer, beacons, 123);
+            await updateBeaconSet(roles, dataFeedServerFull, beacons, 123);
             await expect(
-              dapiServer.connect(roles.randomPerson).updateBeaconSetWithBeacons(beaconSet.beaconIds)
+              dataFeedServerFull.connect(roles.randomPerson).updateBeaconSetWithBeacons(beaconSet.beaconIds)
             ).to.be.revertedWith('Does not update Beacon set');
           });
         });
@@ -2488,11 +2500,11 @@ describe('DapiServer', function () {
     });
     context('Specified less than two Beacons', function () {
       it('reverts', async function () {
-        const { roles, dapiServer, beacons } = await deploy();
+        const { roles, dataFeedServerFull, beacons } = await deploy();
         await expect(
-          dapiServer.connect(roles.randomPerson).updateBeaconSetWithBeacons([beacons[0].beaconId])
+          dataFeedServerFull.connect(roles.randomPerson).updateBeaconSetWithBeacons([beacons[0].beaconId])
         ).to.be.revertedWith('Specified less than two Beacons');
-        await expect(dapiServer.connect(roles.randomPerson).updateBeaconSetWithBeacons([])).to.be.revertedWith(
+        await expect(dataFeedServerFull.connect(roles.randomPerson).updateBeaconSetWithBeacons([])).to.be.revertedWith(
           'Specified less than two Beacons'
         );
       });
@@ -2505,20 +2517,20 @@ describe('DapiServer', function () {
         context('Beacon set timestamp is zero', function () {
           context('Update will set the Beacon set timestamp to a non-zero value', function () {
             it('returns true', async function () {
-              const { roles, dapiServer, beacons, beaconSet } = await deploy();
+              const { roles, dataFeedServerFull, beacons, beaconSet } = await deploy();
               // Populate the Beacons
               const beaconValues = beacons.map(() => 0);
               const currentTimestamp = await helpers.time.latest();
               const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
               await Promise.all(
                 beacons.map(async (beacon, index) => {
-                  await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+                  await updateBeacon(roles, dataFeedServerFull, beacon, beaconValues[index], beaconTimestamps[index]);
                 })
               );
               // Even if the Beacon values are zero, since their timestamps are not zero,
               // the condition will return true
               expect(
-                await dapiServer
+                await dataFeedServerFull
                   .connect(roles.randomPerson)
                   .callStatic.conditionPspBeaconSetUpdate(
                     beaconSet.beaconSetUpdateSubscriptionId,
@@ -2530,9 +2542,9 @@ describe('DapiServer', function () {
           });
           context('Update will not set the Beacon set timestamp to a non-zero value', function () {
             it('returns false', async function () {
-              const { roles, dapiServer, beaconSet } = await deploy();
+              const { roles, dataFeedServerFull, beaconSet } = await deploy();
               expect(
-                await dapiServer
+                await dataFeedServerFull
                   .connect(roles.randomPerson)
                   .callStatic.conditionPspBeaconSetUpdate(
                     beaconSet.beaconSetUpdateSubscriptionId,
@@ -2548,20 +2560,20 @@ describe('DapiServer', function () {
             context('Update is upwards', function () {
               context('It has been at least heartbeat interval seconds since the last update', function () {
                 it('returns true', async function () {
-                  const { roles, dapiServer, beacons, beaconSet } = await deploy();
+                  const { roles, dataFeedServerFull, beacons, beaconSet } = await deploy();
                   // Set the Beacon set to 100 first
-                  await updateBeaconSet(roles, dapiServer, beacons, 100);
+                  await updateBeaconSet(roles, dataFeedServerFull, beacons, 100);
                   // beaconSetUpdateSubscriptionConditionParameters is 5%, -100 and 2 days
                   // Fast forward to after the heartbeat interval
                   await helpers.time.increase(2 * 24 * 60 * 60);
                   // 100 -> 110 satisfies the condition (note that deviation reference is -100)
                   await Promise.all(
                     beacons.map(async (beacon) => {
-                      await updateBeacon(roles, dapiServer, beacon, 110);
+                      await updateBeacon(roles, dataFeedServerFull, beacon, 110);
                     })
                   );
                   expect(
-                    await dapiServer
+                    await dataFeedServerFull
                       .connect(roles.randomPerson)
                       .callStatic.conditionPspBeaconSetUpdate(
                         beaconSet.beaconSetUpdateSubscriptionId,
@@ -2573,18 +2585,18 @@ describe('DapiServer', function () {
               });
               context('It has not been at least heartbeat interval seconds since the last update', function () {
                 it('returns true', async function () {
-                  const { roles, dapiServer, beacons, beaconSet } = await deploy();
+                  const { roles, dataFeedServerFull, beacons, beaconSet } = await deploy();
                   // Set the Beacon set to 100 first
-                  await updateBeaconSet(roles, dapiServer, beacons, 100);
+                  await updateBeaconSet(roles, dataFeedServerFull, beacons, 100);
                   // beaconSetUpdateSubscriptionConditionParameters is 5%, -100 and 2 days
                   // 100 -> 110 satisfies the condition (note that deviation reference is -100)
                   await Promise.all(
                     beacons.map(async (beacon) => {
-                      await updateBeacon(roles, dapiServer, beacon, 110);
+                      await updateBeacon(roles, dataFeedServerFull, beacon, 110);
                     })
                   );
                   expect(
-                    await dapiServer
+                    await dataFeedServerFull
                       .connect(roles.randomPerson)
                       .callStatic.conditionPspBeaconSetUpdate(
                         beaconSet.beaconSetUpdateSubscriptionId,
@@ -2598,20 +2610,20 @@ describe('DapiServer', function () {
             context('Update is downwards', function () {
               context('It has been at least heartbeat interval seconds since the last update', function () {
                 it('returns true', async function () {
-                  const { roles, dapiServer, beacons, beaconSet } = await deploy();
+                  const { roles, dataFeedServerFull, beacons, beaconSet } = await deploy();
                   // Set the Beacon set to 100 first
-                  await updateBeaconSet(roles, dapiServer, beacons, 100);
+                  await updateBeaconSet(roles, dataFeedServerFull, beacons, 100);
                   // beaconSetUpdateSubscriptionConditionParameters is 5%, -100 and 2 days
                   // Fast forward to after the heartbeat interval
                   await helpers.time.increase(2 * 24 * 60 * 60);
                   // 100 -> 90 satisfies the condition (note that deviation reference is -100)
                   await Promise.all(
                     beacons.map(async (beacon) => {
-                      await updateBeacon(roles, dapiServer, beacon, 90);
+                      await updateBeacon(roles, dataFeedServerFull, beacon, 90);
                     })
                   );
                   expect(
-                    await dapiServer
+                    await dataFeedServerFull
                       .connect(roles.randomPerson)
                       .callStatic.conditionPspBeaconSetUpdate(
                         beaconSet.beaconSetUpdateSubscriptionId,
@@ -2623,18 +2635,18 @@ describe('DapiServer', function () {
               });
               context('It has not been at least heartbeat interval seconds since the last update', function () {
                 it('returns true', async function () {
-                  const { roles, dapiServer, beacons, beaconSet } = await deploy();
+                  const { roles, dataFeedServerFull, beacons, beaconSet } = await deploy();
                   // Set the Beacon set to 100 first
-                  await updateBeaconSet(roles, dapiServer, beacons, 100);
+                  await updateBeaconSet(roles, dataFeedServerFull, beacons, 100);
                   // beaconSetUpdateSubscriptionConditionParameters is 5%, -100 and 2 days
                   // 100 -> 90 satisfies the condition (note that deviation reference is -100)
                   await Promise.all(
                     beacons.map(async (beacon) => {
-                      await updateBeacon(roles, dapiServer, beacon, 90);
+                      await updateBeacon(roles, dataFeedServerFull, beacon, 90);
                     })
                   );
                   expect(
-                    await dapiServer
+                    await dataFeedServerFull
                       .connect(roles.randomPerson)
                       .callStatic.conditionPspBeaconSetUpdate(
                         beaconSet.beaconSetUpdateSubscriptionId,
@@ -2650,20 +2662,20 @@ describe('DapiServer', function () {
             context('Update is upwards', function () {
               context('It has been at least heartbeat interval seconds since the last update', function () {
                 it('returns true', async function () {
-                  const { roles, dapiServer, beacons, beaconSet } = await deploy();
+                  const { roles, dataFeedServerFull, beacons, beaconSet } = await deploy();
                   // Set the Beacon set to 100 first
-                  await updateBeaconSet(roles, dapiServer, beacons, 100);
+                  await updateBeaconSet(roles, dataFeedServerFull, beacons, 100);
                   // beaconSetUpdateSubscriptionConditionParameters is 5%, -100 and 2 days
                   // Fast forward to after the heartbeat interval
                   await helpers.time.increase(2 * 24 * 60 * 60);
                   // 100 -> 109 does not satisfy the condition (note that deviation reference is -100)
                   await Promise.all(
                     beacons.map(async (beacon) => {
-                      await updateBeacon(roles, dapiServer, beacon, 109);
+                      await updateBeacon(roles, dataFeedServerFull, beacon, 109);
                     })
                   );
                   expect(
-                    await dapiServer
+                    await dataFeedServerFull
                       .connect(roles.randomPerson)
                       .callStatic.conditionPspBeaconSetUpdate(
                         beaconSet.beaconSetUpdateSubscriptionId,
@@ -2675,18 +2687,18 @@ describe('DapiServer', function () {
               });
               context('It has not been at least heartbeat interval seconds since the last update', function () {
                 it('returns false', async function () {
-                  const { roles, dapiServer, beacons, beaconSet } = await deploy();
+                  const { roles, dataFeedServerFull, beacons, beaconSet } = await deploy();
                   // Set the Beacon set to 100 first
-                  await updateBeaconSet(roles, dapiServer, beacons, 100);
+                  await updateBeaconSet(roles, dataFeedServerFull, beacons, 100);
                   // beaconSetUpdateSubscriptionConditionParameters is 5%, -100 and 2 days
                   // 100 -> 109 does not satisfy the condition (note that deviation reference is -100)
                   await Promise.all(
                     beacons.map(async (beacon) => {
-                      await updateBeacon(roles, dapiServer, beacon, 109);
+                      await updateBeacon(roles, dataFeedServerFull, beacon, 109);
                     })
                   );
                   expect(
-                    await dapiServer
+                    await dataFeedServerFull
                       .connect(roles.randomPerson)
                       .callStatic.conditionPspBeaconSetUpdate(
                         beaconSet.beaconSetUpdateSubscriptionId,
@@ -2700,20 +2712,20 @@ describe('DapiServer', function () {
             context('Update is downwards', function () {
               context('It has been at least heartbeat interval seconds since the last update', function () {
                 it('returns true', async function () {
-                  const { roles, dapiServer, beacons, beaconSet } = await deploy();
+                  const { roles, dataFeedServerFull, beacons, beaconSet } = await deploy();
                   // Set the Beacon set to 100 first
-                  await updateBeaconSet(roles, dapiServer, beacons, 100);
+                  await updateBeaconSet(roles, dataFeedServerFull, beacons, 100);
                   // beaconSetUpdateSubscriptionConditionParameters is 5%, -100 and 2 days
                   // Fast forward to after the heartbeat interval
                   await helpers.time.increase(2 * 24 * 60 * 60);
                   // 100 -> 91 does not satisfy the condition (note that deviation reference is -100)
                   await Promise.all(
                     beacons.map(async (beacon) => {
-                      await updateBeacon(roles, dapiServer, beacon, 91);
+                      await updateBeacon(roles, dataFeedServerFull, beacon, 91);
                     })
                   );
                   expect(
-                    await dapiServer
+                    await dataFeedServerFull
                       .connect(roles.randomPerson)
                       .callStatic.conditionPspBeaconSetUpdate(
                         beaconSet.beaconSetUpdateSubscriptionId,
@@ -2725,18 +2737,18 @@ describe('DapiServer', function () {
               });
               context('It has not been at least heartbeat interval seconds since the last update', function () {
                 it('returns false', async function () {
-                  const { roles, dapiServer, beacons, beaconSet } = await deploy();
+                  const { roles, dataFeedServerFull, beacons, beaconSet } = await deploy();
                   // Set the Beacon set to 100 first
-                  await updateBeaconSet(roles, dapiServer, beacons, 100);
+                  await updateBeaconSet(roles, dataFeedServerFull, beacons, 100);
                   // beaconSetUpdateSubscriptionConditionParameters is 5%, -100 and 2 days
                   // 100 -> 91 does not satisfy the condition (note that deviation reference is -100)
                   await Promise.all(
                     beacons.map(async (beacon) => {
-                      await updateBeacon(roles, dapiServer, beacon, 91);
+                      await updateBeacon(roles, dataFeedServerFull, beacon, 91);
                     })
                   );
                   expect(
-                    await dapiServer
+                    await dataFeedServerFull
                       .connect(roles.randomPerson)
                       .callStatic.conditionPspBeaconSetUpdate(
                         beaconSet.beaconSetUpdateSubscriptionId,
@@ -2752,9 +2764,9 @@ describe('DapiServer', function () {
       });
       context('Condition parameters length is not correct', function () {
         it('reverts', async function () {
-          const { roles, dapiServer, beaconSet } = await deploy();
+          const { roles, dataFeedServerFull, beaconSet } = await deploy();
           await expect(
-            dapiServer
+            dataFeedServerFull
               .connect(roles.randomPerson)
               .callStatic.conditionPspBeaconSetUpdate(
                 beaconSet.beaconSetUpdateSubscriptionId,
@@ -2767,9 +2779,9 @@ describe('DapiServer', function () {
     });
     context('Data length is not correct', function () {
       it('reverts', async function () {
-        const { roles, dapiServer, beaconSet } = await deploy();
+        const { roles, dataFeedServerFull, beaconSet } = await deploy();
         await expect(
-          dapiServer
+          dataFeedServerFull
             .connect(roles.randomPerson)
             .callStatic.conditionPspBeaconSetUpdate(
               beaconSet.beaconSetUpdateSubscriptionId,
@@ -2785,14 +2797,14 @@ describe('DapiServer', function () {
     context('Data length is correct', function () {
       context('Subscription is regular', function () {
         it('updates Beacon set', async function () {
-          const { roles, dapiServer, beacons, beaconSet } = await deploy();
+          const { roles, dataFeedServerFull, beacons, beaconSet } = await deploy();
           // Populate the Beacons
           const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
           const currentTimestamp = await helpers.time.latest();
           const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
           await Promise.all(
             beacons.map(async (beacon, index) => {
-              await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+              await updateBeacon(roles, dataFeedServerFull, beacon, beaconValues[index], beaconTimestamps[index]);
             })
           );
           const beaconSetValue = median(beaconValues);
@@ -2805,11 +2817,11 @@ describe('DapiServer', function () {
             timestamp,
             beacons[0].airnode.pspSponsorWallet.address
           );
-          const beaconSetBefore = await dapiServer.dataFeeds(beaconSet.beaconSetId);
+          const beaconSetBefore = await dataFeedServerFull.dataFeeds(beaconSet.beaconSetId);
           expect(beaconSetBefore.value).to.equal(0);
           expect(beaconSetBefore.timestamp).to.equal(0);
           await expect(
-            dapiServer
+            dataFeedServerFull
               .connect(beacons[0].airnode.pspSponsorWallet)
               .fulfillPspBeaconSetUpdate(
                 beaconSet.beaconSetUpdateSubscriptionId,
@@ -2822,9 +2834,9 @@ describe('DapiServer', function () {
                 { gasLimit: 500000 }
               )
           )
-            .to.emit(dapiServer, 'UpdatedBeaconSetWithBeacons')
+            .to.emit(dataFeedServerFull, 'UpdatedBeaconSetWithBeacons')
             .withArgs(beaconSet.beaconSetId, beaconSetValue, beaconSetTimestamp);
-          const beaconSetAfter = await dapiServer.dataFeeds(beaconSet.beaconSetId);
+          const beaconSetAfter = await dataFeedServerFull.dataFeeds(beaconSet.beaconSetId);
           expect(beaconSetAfter.value).to.equal(beaconSetValue);
           expect(beaconSetAfter.timestamp).to.equal(beaconSetTimestamp);
         });
@@ -2833,26 +2845,26 @@ describe('DapiServer', function () {
         it('updates Beacon set', async function () {
           // Note that updating a Beacon set with a relayed subscription makes no sense
           // We are testing this for the sake of completeness
-          const { roles, dapiServer, beacons, beaconSet } = await deploy();
+          const { roles, dataFeedServerFull, beacons, beaconSet } = await deploy();
           // Populate the Beacons
           const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
           const currentTimestamp = await helpers.time.latest();
           const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
           await Promise.all(
             beacons.map(async (beacon, index) => {
-              await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+              await updateBeacon(roles, dataFeedServerFull, beacon, beaconValues[index], beaconTimestamps[index]);
             })
           );
           const beaconSetValue = median(beaconValues);
           const beaconSetTimestamp = median(beaconTimestamps);
           const beaconSetUpdateSubscriptionId = await deriveUpdateSubscriptionId(
-            dapiServer,
+            dataFeedServerFull,
             beacons[0].airnode.wallet.address,
             ethers.constants.HashZero,
             beaconSet.beaconSetUpdateSubscriptionConditions,
             beacons[0].relayer.wallet.address,
             roles.sponsor.address,
-            dapiServer.interface.getSighash('fulfillPspBeaconSetUpdate'),
+            dataFeedServerFull.interface.getSighash('fulfillPspBeaconSetUpdate'),
             ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSet.beaconIds])
           );
           const data = ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSet.beaconIds]);
@@ -2864,11 +2876,11 @@ describe('DapiServer', function () {
             beacons[0].relayer.pspRelayedSponsorWallet.address,
             data
           );
-          const beaconSetBefore = await dapiServer.dataFeeds(beaconSet.beaconSetId);
+          const beaconSetBefore = await dataFeedServerFull.dataFeeds(beaconSet.beaconSetId);
           expect(beaconSetBefore.value).to.equal(0);
           expect(beaconSetBefore.timestamp).to.equal(0);
           await expect(
-            dapiServer
+            dataFeedServerFull
               .connect(beacons[0].relayer.pspRelayedSponsorWallet)
               .fulfillPspBeaconSetUpdate(
                 beaconSetUpdateSubscriptionId,
@@ -2881,9 +2893,9 @@ describe('DapiServer', function () {
                 { gasLimit: 500000 }
               )
           )
-            .to.emit(dapiServer, 'UpdatedBeaconSetWithBeacons')
+            .to.emit(dataFeedServerFull, 'UpdatedBeaconSetWithBeacons')
             .withArgs(beaconSet.beaconSetId, beaconSetValue, beaconSetTimestamp);
-          const beaconSetAfter = await dapiServer.dataFeeds(beaconSet.beaconSetId);
+          const beaconSetAfter = await dataFeedServerFull.dataFeeds(beaconSet.beaconSetId);
           expect(beaconSetAfter.value).to.equal(beaconSetValue);
           expect(beaconSetAfter.timestamp).to.equal(beaconSetTimestamp);
         });
@@ -2891,14 +2903,14 @@ describe('DapiServer', function () {
     });
     context('Data length is not correct', function () {
       it('reverts', async function () {
-        const { roles, dapiServer, beacons, beaconSet } = await deploy();
+        const { roles, dataFeedServerFull, beacons, beaconSet } = await deploy();
         // Populate the Beacons
         const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
         const currentTimestamp = await helpers.time.latest();
         const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
         await Promise.all(
           beacons.map(async (beacon, index) => {
-            await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+            await updateBeacon(roles, dataFeedServerFull, beacon, beaconValues[index], beaconTimestamps[index]);
           })
         );
         const data = ethers.utils.defaultAbiCoder.encode(['bytes32[]'], [beaconSet.beaconIds]) + '00';
@@ -2910,7 +2922,7 @@ describe('DapiServer', function () {
           beacons[0].airnode.pspSponsorWallet.address
         );
         await expect(
-          dapiServer
+          dataFeedServerFull
             .connect(beacons[0].airnode.pspSponsorWallet)
             .fulfillPspBeaconSetUpdate(
               beaconSet.beaconSetUpdateSubscriptionId,
@@ -2934,7 +2946,7 @@ describe('DapiServer', function () {
           context('Decoded fulfillment data can be typecasted into int224', function () {
             context('Updates timestamp', function () {
               it('updates Beacon with signed data', async function () {
-                const { roles, dapiServer, beacons } = await deploy();
+                const { roles, dataFeedServerFull, beacons } = await deploy();
                 const beacon = beacons[0];
                 const beaconValue = Math.floor(Math.random() * 200 - 100);
                 const beaconTimestamp = await helpers.time.latest();
@@ -2944,11 +2956,11 @@ describe('DapiServer', function () {
                   beaconTimestamp,
                   encodeData(beaconValue)
                 );
-                const beaconBefore = await dapiServer.dataFeeds(beacon.beaconId);
+                const beaconBefore = await dataFeedServerFull.dataFeeds(beacon.beaconId);
                 expect(beaconBefore.value).to.equal(0);
                 expect(beaconBefore.timestamp).to.equal(0);
                 await expect(
-                  dapiServer
+                  dataFeedServerFull
                     .connect(roles.randomPerson)
                     .updateBeaconWithSignedData(
                       beacon.airnode.wallet.address,
@@ -2958,16 +2970,16 @@ describe('DapiServer', function () {
                       signature
                     )
                 )
-                  .to.emit(dapiServer, 'UpdatedBeaconWithSignedData')
+                  .to.emit(dataFeedServerFull, 'UpdatedBeaconWithSignedData')
                   .withArgs(beacon.beaconId, beaconValue, beaconTimestamp);
-                const beaconAfter = await dapiServer.dataFeeds(beacon.beaconId);
+                const beaconAfter = await dataFeedServerFull.dataFeeds(beacon.beaconId);
                 expect(beaconAfter.value).to.equal(beaconValue);
                 expect(beaconAfter.timestamp).to.equal(beaconTimestamp);
               });
             });
             context('Does not update timestamp', function () {
               it('reverts', async function () {
-                const { roles, dapiServer, beacons } = await deploy();
+                const { roles, dataFeedServerFull, beacons } = await deploy();
                 const beacon = beacons[0];
                 const beaconValue = Math.floor(Math.random() * 200 - 100);
                 const beaconTimestamp = await helpers.time.latest();
@@ -2977,7 +2989,7 @@ describe('DapiServer', function () {
                   beaconTimestamp,
                   encodeData(beaconValue)
                 );
-                await dapiServer
+                await dataFeedServerFull
                   .connect(roles.randomPerson)
                   .updateBeaconWithSignedData(
                     beacon.airnode.wallet.address,
@@ -2987,7 +2999,7 @@ describe('DapiServer', function () {
                     signature
                   );
                 await expect(
-                  dapiServer
+                  dataFeedServerFull
                     .connect(roles.randomPerson)
                     .updateBeaconWithSignedData(
                       beacon.airnode.wallet.address,
@@ -3002,7 +3014,7 @@ describe('DapiServer', function () {
           });
           context('Decoded fulfillment data cannot be typecasted into int224', function () {
             it('reverts', async function () {
-              const { roles, dapiServer, beacons } = await deploy();
+              const { roles, dataFeedServerFull, beacons } = await deploy();
               const beacon = beacons[0];
               const beaconValueWithOverflow = ethers.BigNumber.from(2).pow(223);
               const beaconTimestamp = await helpers.time.latest();
@@ -3013,7 +3025,7 @@ describe('DapiServer', function () {
                 encodeData(beaconValueWithOverflow)
               );
               await expect(
-                dapiServer
+                dataFeedServerFull
                   .connect(roles.randomPerson)
                   .updateBeaconWithSignedData(
                     beacon.airnode.wallet.address,
@@ -3031,7 +3043,7 @@ describe('DapiServer', function () {
                 encodeData(beaconValueWithUnderflow)
               );
               await expect(
-                dapiServer
+                dataFeedServerFull
                   .connect(roles.randomPerson)
                   .updateBeaconWithSignedData(
                     beacon.airnode.wallet.address,
@@ -3046,7 +3058,7 @@ describe('DapiServer', function () {
         });
         context('Fulfillment data length is not correct', function () {
           it('reverts', async function () {
-            const { roles, dapiServer, beacons } = await deploy();
+            const { roles, dataFeedServerFull, beacons } = await deploy();
             const beacon = beacons[0];
             const beaconValue = Math.floor(Math.random() * 200 - 100);
             const beaconTimestamp = await helpers.time.latest();
@@ -3057,7 +3069,7 @@ describe('DapiServer', function () {
               encodeData(beaconValue) + '00'
             );
             await expect(
-              dapiServer
+              dataFeedServerFull
                 .connect(roles.randomPerson)
                 .updateBeaconWithSignedData(
                   beacon.airnode.wallet.address,
@@ -3072,12 +3084,12 @@ describe('DapiServer', function () {
       });
       context('Signature is not valid', function () {
         it('reverts', async function () {
-          const { roles, dapiServer, beacons } = await deploy();
+          const { roles, dataFeedServerFull, beacons } = await deploy();
           const beacon = beacons[0];
           const beaconValue = Math.floor(Math.random() * 200 - 100);
           const beaconTimestamp = await helpers.time.latest();
           await expect(
-            dapiServer
+            dataFeedServerFull
               .connect(roles.randomPerson)
               .updateBeaconWithSignedData(
                 beacon.airnode.wallet.address,
@@ -3092,7 +3104,7 @@ describe('DapiServer', function () {
     });
     context('Timestamp is more than 1 hour from the future', function () {
       it('reverts', async function () {
-        const { roles, dapiServer, beacons } = await deploy();
+        const { roles, dataFeedServerFull, beacons } = await deploy();
         const beacon = beacons[0];
         const beaconValue = Math.floor(Math.random() * 200 - 100);
         const nextTimestamp = (await helpers.time.latest()) + 1;
@@ -3105,7 +3117,7 @@ describe('DapiServer', function () {
           encodeData(beaconValue)
         );
         await expect(
-          dapiServer
+          dataFeedServerFull
             .connect(roles.randomPerson)
             .updateBeaconWithSignedData(
               beacon.airnode.wallet.address,
@@ -3119,7 +3131,7 @@ describe('DapiServer', function () {
     });
     context('Timestamp is zero', function () {
       it('reverts', async function () {
-        const { roles, dapiServer, beacons } = await deploy();
+        const { roles, dataFeedServerFull, beacons } = await deploy();
         const beacon = beacons[0];
         const beaconValue = Math.floor(Math.random() * 200 - 100);
         const nextTimestamp = (await helpers.time.latest()) + 1;
@@ -3132,7 +3144,7 @@ describe('DapiServer', function () {
           encodeData(beaconValue)
         );
         await expect(
-          dapiServer
+          dataFeedServerFull
             .connect(roles.randomPerson)
             .updateBeaconWithSignedData(
               beacon.airnode.wallet.address,
@@ -3156,7 +3168,7 @@ describe('DapiServer', function () {
                 context('There are enough signatures to constitute an absolute majority', function () {
                   context('Data in packed signatures is consistent with the data feed ID', function () {
                     it('updates OEV proxy Beacon set with signed data', async function () {
-                      const { roles, dapiServer, oevProxy, beacons, beaconSet } = await deploy();
+                      const { roles, dataFeedServerFull, oevProxy, beacons, beaconSet } = await deploy();
                       const oevUpdateValue = 105;
                       const currentTimestamp = await helpers.time.latest();
                       const oevUpdateTimestamp = currentTimestamp + 1;
@@ -3170,7 +3182,7 @@ describe('DapiServer', function () {
                             return '0x';
                           } else {
                             return await testUtils.signOevData(
-                              dapiServer,
+                              dataFeedServerFull,
                               oevProxy.address,
                               beaconSet.beaconSetId,
                               updateId,
@@ -3191,17 +3203,17 @@ describe('DapiServer', function () {
                           signature
                         );
                       });
-                      const beaconSetBefore = await dapiServer.dataFeeds(beaconSet.beaconSetId);
+                      const beaconSetBefore = await dataFeedServerFull.dataFeeds(beaconSet.beaconSetId);
                       expect(beaconSetBefore.value).to.equal(0);
                       expect(beaconSetBefore.timestamp).to.equal(0);
-                      const oevProxyBeaconSetBefore = await dapiServer.oevProxyToIdToDataFeed(
+                      const oevProxyBeaconSetBefore = await dataFeedServerFull.oevProxyToIdToDataFeed(
                         oevProxy.address,
                         beaconSet.beaconSetId
                       );
                       expect(oevProxyBeaconSetBefore.value).to.equal(0);
                       expect(oevProxyBeaconSetBefore.timestamp).to.equal(0);
                       await expect(
-                        dapiServer
+                        dataFeedServerFull
                           .connect(roles.searcher)
                           .updateOevProxyDataFeedWithSignedData(
                             oevProxy.address,
@@ -3213,7 +3225,7 @@ describe('DapiServer', function () {
                             { value: bidAmount }
                           )
                       )
-                        .to.emit(dapiServer, 'UpdatedOevProxyBeaconSetWithSignedData')
+                        .to.emit(dataFeedServerFull, 'UpdatedOevProxyBeaconSetWithSignedData')
                         .withArgs(
                           beaconSet.beaconSetId,
                           oevProxy.address,
@@ -3221,10 +3233,10 @@ describe('DapiServer', function () {
                           oevUpdateValue,
                           oevUpdateTimestamp
                         );
-                      const beaconSetAfter = await dapiServer.dataFeeds(beaconSet.beaconSetId);
+                      const beaconSetAfter = await dataFeedServerFull.dataFeeds(beaconSet.beaconSetId);
                       expect(beaconSetAfter.value).to.equal(0);
                       expect(beaconSetAfter.timestamp).to.equal(0);
-                      const oevProxyBeaconSetAfter = await dapiServer.oevProxyToIdToDataFeed(
+                      const oevProxyBeaconSetAfter = await dataFeedServerFull.oevProxyToIdToDataFeed(
                         oevProxy.address,
                         beaconSet.beaconSetId
                       );
@@ -3234,7 +3246,7 @@ describe('DapiServer', function () {
                   });
                   context('Data in packed signatures is not consistent with the data feed ID', function () {
                     it('reverts', async function () {
-                      const { roles, dapiServer, oevProxy, beacons } = await deploy();
+                      const { roles, dataFeedServerFull, oevProxy, beacons } = await deploy();
                       const oevUpdateValue = 105;
                       const currentTimestamp = await helpers.time.latest();
                       const oevUpdateTimestamp = currentTimestamp + 1;
@@ -3249,7 +3261,7 @@ describe('DapiServer', function () {
                             return '0x';
                           } else {
                             return await testUtils.signOevData(
-                              dapiServer,
+                              dataFeedServerFull,
                               oevProxy.address,
                               spoofedDataFeedId,
                               updateId,
@@ -3271,7 +3283,7 @@ describe('DapiServer', function () {
                         );
                       });
                       await expect(
-                        dapiServer
+                        dataFeedServerFull
                           .connect(roles.searcher)
                           .updateOevProxyDataFeedWithSignedData(
                             oevProxy.address,
@@ -3288,7 +3300,7 @@ describe('DapiServer', function () {
                 });
                 context('There are not enough signatures to constitute an absolute majority', function () {
                   it('reverts', async function () {
-                    const { roles, dapiServer, oevProxy, beacons, beaconSet } = await deploy();
+                    const { roles, dataFeedServerFull, oevProxy, beacons, beaconSet } = await deploy();
                     const oevUpdateValue = 105;
                     const currentTimestamp = await helpers.time.latest();
                     const oevUpdateTimestamp = currentTimestamp + 1;
@@ -3302,7 +3314,7 @@ describe('DapiServer', function () {
                           return '0x';
                         } else {
                           return await testUtils.signOevData(
-                            dapiServer,
+                            dataFeedServerFull,
                             oevProxy.address,
                             beaconSet.beaconSetId,
                             updateId,
@@ -3324,7 +3336,7 @@ describe('DapiServer', function () {
                       );
                     });
                     await expect(
-                      dapiServer
+                      dataFeedServerFull
                         .connect(roles.searcher)
                         .updateOevProxyDataFeedWithSignedData(
                           oevProxy.address,
@@ -3341,7 +3353,7 @@ describe('DapiServer', function () {
               });
               context('There are invalid signatures', function () {
                 it('reverts', async function () {
-                  const { roles, dapiServer, oevProxy, beacons, beaconSet } = await deploy();
+                  const { roles, dataFeedServerFull, oevProxy, beacons, beaconSet } = await deploy();
                   const oevUpdateValue = 105;
                   const currentTimestamp = await helpers.time.latest();
                   const oevUpdateTimestamp = currentTimestamp + 1;
@@ -3366,7 +3378,7 @@ describe('DapiServer', function () {
                     );
                   });
                   await expect(
-                    dapiServer
+                    dataFeedServerFull
                       .connect(roles.searcher)
                       .updateOevProxyDataFeedWithSignedData(
                         oevProxy.address,
@@ -3386,7 +3398,7 @@ describe('DapiServer', function () {
                 context('The signature is not omitted', function () {
                   context('Data in the packed signature is consistent with the data feed ID', function () {
                     it('updates OEV proxy Beacon with signed data', async function () {
-                      const { roles, dapiServer, oevProxy, beacons } = await deploy();
+                      const { roles, dataFeedServerFull, oevProxy, beacons } = await deploy();
                       const beacon = beacons[0];
                       const oevUpdateValue = 105;
                       const currentTimestamp = await helpers.time.latest();
@@ -3394,7 +3406,7 @@ describe('DapiServer', function () {
                       const bidAmount = 10000;
                       const updateId = testUtils.generateRandomBytes32();
                       const signature = await testUtils.signOevData(
-                        dapiServer,
+                        dataFeedServerFull,
                         oevProxy.address,
                         beacon.beaconId,
                         updateId,
@@ -3410,17 +3422,17 @@ describe('DapiServer', function () {
                         beacon.templateId,
                         signature
                       );
-                      const beaconBefore = await dapiServer.dataFeeds(beacon.beaconId);
+                      const beaconBefore = await dataFeedServerFull.dataFeeds(beacon.beaconId);
                       expect(beaconBefore.value).to.equal(0);
                       expect(beaconBefore.timestamp).to.equal(0);
-                      const oevProxyBeaconBefore = await dapiServer.oevProxyToIdToDataFeed(
+                      const oevProxyBeaconBefore = await dataFeedServerFull.oevProxyToIdToDataFeed(
                         oevProxy.address,
                         beacon.beaconId
                       );
                       expect(oevProxyBeaconBefore.value).to.equal(0);
                       expect(oevProxyBeaconBefore.timestamp).to.equal(0);
                       await expect(
-                        dapiServer
+                        dataFeedServerFull
                           .connect(roles.searcher)
                           .updateOevProxyDataFeedWithSignedData(
                             oevProxy.address,
@@ -3432,12 +3444,12 @@ describe('DapiServer', function () {
                             { value: bidAmount }
                           )
                       )
-                        .to.emit(dapiServer, 'UpdatedOevProxyBeaconWithSignedData')
+                        .to.emit(dataFeedServerFull, 'UpdatedOevProxyBeaconWithSignedData')
                         .withArgs(beacon.beaconId, oevProxy.address, updateId, oevUpdateValue, oevUpdateTimestamp);
-                      const beaconAfter = await dapiServer.dataFeeds(beacon.beaconId);
+                      const beaconAfter = await dataFeedServerFull.dataFeeds(beacon.beaconId);
                       expect(beaconAfter.value).to.equal(0);
                       expect(beaconAfter.timestamp).to.equal(0);
-                      const oevProxyBeaconAfter = await dapiServer.oevProxyToIdToDataFeed(
+                      const oevProxyBeaconAfter = await dataFeedServerFull.oevProxyToIdToDataFeed(
                         oevProxy.address,
                         beacon.beaconId
                       );
@@ -3447,7 +3459,7 @@ describe('DapiServer', function () {
                   });
                   context('Data in the packed signature is not consistent with the data feed ID', function () {
                     it('reverts', async function () {
-                      const { roles, dapiServer, oevProxy, beacons } = await deploy();
+                      const { roles, dataFeedServerFull, oevProxy, beacons } = await deploy();
                       const beacon = beacons[0];
                       const oevUpdateValue = 105;
                       const currentTimestamp = await helpers.time.latest();
@@ -3456,7 +3468,7 @@ describe('DapiServer', function () {
                       const updateId = testUtils.generateRandomBytes32();
                       const spoofedDataFeedId = testUtils.generateRandomBytes32();
                       const signature = await testUtils.signOevData(
-                        dapiServer,
+                        dataFeedServerFull,
                         oevProxy.address,
                         spoofedDataFeedId,
                         updateId,
@@ -3472,17 +3484,17 @@ describe('DapiServer', function () {
                         beacon.templateId,
                         signature
                       );
-                      const beaconBefore = await dapiServer.dataFeeds(beacon.beaconId);
+                      const beaconBefore = await dataFeedServerFull.dataFeeds(beacon.beaconId);
                       expect(beaconBefore.value).to.equal(0);
                       expect(beaconBefore.timestamp).to.equal(0);
-                      const oevProxyBeaconBefore = await dapiServer.oevProxyToIdToDataFeed(
+                      const oevProxyBeaconBefore = await dataFeedServerFull.oevProxyToIdToDataFeed(
                         oevProxy.address,
                         beacon.beaconId
                       );
                       expect(oevProxyBeaconBefore.value).to.equal(0);
                       expect(oevProxyBeaconBefore.timestamp).to.equal(0);
                       await expect(
-                        dapiServer
+                        dataFeedServerFull
                           .connect(roles.searcher)
                           .updateOevProxyDataFeedWithSignedData(
                             oevProxy.address,
@@ -3499,7 +3511,7 @@ describe('DapiServer', function () {
                 });
                 context('The signature is omitted', function () {
                   it('reverts', async function () {
-                    const { roles, dapiServer, oevProxy, beacons } = await deploy();
+                    const { roles, dataFeedServerFull, oevProxy, beacons } = await deploy();
                     const beacon = beacons[0];
                     const oevUpdateValue = 105;
                     const currentTimestamp = await helpers.time.latest();
@@ -3512,7 +3524,7 @@ describe('DapiServer', function () {
                       '0x'
                     );
                     await expect(
-                      dapiServer
+                      dataFeedServerFull
                         .connect(roles.searcher)
                         .updateOevProxyDataFeedWithSignedData(
                           oevProxy.address,
@@ -3529,7 +3541,7 @@ describe('DapiServer', function () {
               });
               context('The signature is invalid', function () {
                 it('reverts', async function () {
-                  const { roles, dapiServer, oevProxy, beacons } = await deploy();
+                  const { roles, dataFeedServerFull, oevProxy, beacons } = await deploy();
                   const beacon = beacons[0];
                   const oevUpdateValue = 105;
                   const currentTimestamp = await helpers.time.latest();
@@ -3542,7 +3554,7 @@ describe('DapiServer', function () {
                     '0x123456'
                   );
                   await expect(
-                    dapiServer
+                    dataFeedServerFull
                       .connect(roles.searcher)
                       .updateOevProxyDataFeedWithSignedData(
                         oevProxy.address,
@@ -3559,7 +3571,7 @@ describe('DapiServer', function () {
             });
             context('No Beacon is specified', function () {
               it('reverts', async function () {
-                const { roles, dapiServer, oevProxy, beacons } = await deploy();
+                const { roles, dataFeedServerFull, oevProxy, beacons } = await deploy();
                 const beacon = beacons[0];
                 const oevUpdateValue = 105;
                 const currentTimestamp = await helpers.time.latest();
@@ -3567,7 +3579,7 @@ describe('DapiServer', function () {
                 const bidAmount = 10000;
                 const updateId = testUtils.generateRandomBytes32();
                 await expect(
-                  dapiServer
+                  dataFeedServerFull
                     .connect(roles.searcher)
                     .updateOevProxyDataFeedWithSignedData(
                       oevProxy.address,
@@ -3584,7 +3596,7 @@ describe('DapiServer', function () {
           });
           context('Decoded fulfillment data cannot be typecasted into int224', function () {
             it('reverts', async function () {
-              const { roles, dapiServer, oevProxy, beacons } = await deploy();
+              const { roles, dataFeedServerFull, oevProxy, beacons } = await deploy();
               const beacon = beacons[0];
               const oevUpdateValueWithUnderflow = ethers.BigNumber.from(-2).pow(223).sub(1);
               const currentTimestamp = await helpers.time.latest();
@@ -3592,7 +3604,7 @@ describe('DapiServer', function () {
               const bidAmount = 10000;
               const updateId = testUtils.generateRandomBytes32();
               const signatureWithUnderflow = await testUtils.signOevData(
-                dapiServer,
+                dataFeedServerFull,
                 oevProxy.address,
                 beacon.beaconId,
                 updateId,
@@ -3609,7 +3621,7 @@ describe('DapiServer', function () {
                 signatureWithUnderflow
               );
               await expect(
-                dapiServer
+                dataFeedServerFull
                   .connect(roles.searcher)
                   .updateOevProxyDataFeedWithSignedData(
                     oevProxy.address,
@@ -3623,7 +3635,7 @@ describe('DapiServer', function () {
               ).to.be.revertedWith('Value typecasting error');
               const oevUpdateValueWithOverflow = ethers.BigNumber.from(2).pow(223);
               const signatureWithOverflow = await testUtils.signOevData(
-                dapiServer,
+                dataFeedServerFull,
                 oevProxy.address,
                 beacon.beaconId,
                 updateId,
@@ -3640,7 +3652,7 @@ describe('DapiServer', function () {
                 signatureWithOverflow
               );
               await expect(
-                dapiServer
+                dataFeedServerFull
                   .connect(roles.searcher)
                   .updateOevProxyDataFeedWithSignedData(
                     oevProxy.address,
@@ -3657,7 +3669,7 @@ describe('DapiServer', function () {
         });
         context('Fulfillment data length is not correct', function () {
           it('reverts', async function () {
-            const { roles, dapiServer, oevProxy, beacons } = await deploy();
+            const { roles, dataFeedServerFull, oevProxy, beacons } = await deploy();
             const beacon = beacons[0];
             const oevUpdateValue = 105;
             const currentTimestamp = await helpers.time.latest();
@@ -3665,7 +3677,7 @@ describe('DapiServer', function () {
             const bidAmount = 10000;
             const updateId = testUtils.generateRandomBytes32();
             const signature = await testUtils.signOevData(
-              dapiServer,
+              dataFeedServerFull,
               oevProxy.address,
               beacon.beaconId,
               updateId,
@@ -3682,7 +3694,7 @@ describe('DapiServer', function () {
               signature
             );
             await expect(
-              dapiServer
+              dataFeedServerFull
                 .connect(roles.searcher)
                 .updateOevProxyDataFeedWithSignedData(
                   oevProxy.address,
@@ -3699,7 +3711,7 @@ describe('DapiServer', function () {
       });
       context('Does not update timestamp', function () {
         it('reverts', async function () {
-          const { roles, dapiServer, oevProxy, beacons } = await deploy();
+          const { roles, dataFeedServerFull, oevProxy, beacons } = await deploy();
           const beacon = beacons[0];
           const oevUpdateValue = 105;
           const currentTimestamp = await helpers.time.latest();
@@ -3707,7 +3719,7 @@ describe('DapiServer', function () {
           const bidAmount = 10000;
           const updateId = testUtils.generateRandomBytes32();
           const signature = await testUtils.signOevData(
-            dapiServer,
+            dataFeedServerFull,
             oevProxy.address,
             beacon.beaconId,
             updateId,
@@ -3723,7 +3735,7 @@ describe('DapiServer', function () {
             beacon.templateId,
             signature
           );
-          await dapiServer
+          await dataFeedServerFull
             .connect(roles.searcher)
             .updateOevProxyDataFeedWithSignedData(
               oevProxy.address,
@@ -3735,7 +3747,7 @@ describe('DapiServer', function () {
               { value: bidAmount }
             );
           await expect(
-            dapiServer
+            dataFeedServerFull
               .connect(roles.searcher)
               .updateOevProxyDataFeedWithSignedData(
                 oevProxy.address,
@@ -3752,14 +3764,14 @@ describe('DapiServer', function () {
     });
     context('Timestamp is more than 1 hour from the future', function () {
       it('reverts', async function () {
-        const { roles, dapiServer, oevProxy, beacons } = await deploy();
+        const { roles, dataFeedServerFull, oevProxy, beacons } = await deploy();
         const bidAmount = 10000;
         const updateId = testUtils.generateRandomBytes32();
         const nextTimestamp = (await helpers.time.latest()) + 1;
         await helpers.time.setNextBlockTimestamp(nextTimestamp);
         const beaconTimestampFromFuture = nextTimestamp + 60 * 60 + 1;
         await expect(
-          dapiServer
+          dataFeedServerFull
             .connect(roles.searcher)
             .updateOevProxyDataFeedWithSignedData(
               oevProxy.address,
@@ -3777,11 +3789,11 @@ describe('DapiServer', function () {
     });
     context('Timestamp is zero', function () {
       it('reverts', async function () {
-        const { roles, dapiServer, oevProxy, beacons } = await deploy();
+        const { roles, dataFeedServerFull, oevProxy, beacons } = await deploy();
         const bidAmount = 10000;
         const updateId = testUtils.generateRandomBytes32();
         await expect(
-          dapiServer
+          dataFeedServerFull
             .connect(roles.searcher)
             .updateOevProxyDataFeedWithSignedData(oevProxy.address, updateId, beacons[0].beaconId, 0, '0x', ['0x'], {
               value: bidAmount,
@@ -3797,14 +3809,14 @@ describe('DapiServer', function () {
         context('OEV proxy balance is not zero', function () {
           context('Beneficiary does not revert the transfer', function () {
             it('withdraws the OEV proxy balance to the respective beneficiary', async function () {
-              const { roles, dapiServer, oevProxy, beacons } = await deploy();
+              const { roles, dataFeedServerFull, oevProxy, beacons } = await deploy();
               const beacon = beacons[0];
               const beaconValue = Math.floor(Math.random() * 200 - 100);
               const beaconTimestamp = await helpers.time.latest();
               const bidAmount = 10000;
               const updateId = testUtils.generateRandomBytes32();
               const signature = await testUtils.signOevData(
-                dapiServer,
+                dataFeedServerFull,
                 oevProxy.address,
                 beacon.beaconId,
                 updateId,
@@ -3820,7 +3832,7 @@ describe('DapiServer', function () {
                 beacon.templateId,
                 signature
               );
-              await dapiServer
+              await dataFeedServerFull
                 .connect(roles.searcher)
                 .updateOevProxyDataFeedWithSignedData(
                   oevProxy.address,
@@ -3836,8 +3848,8 @@ describe('DapiServer', function () {
               const oevBeneficiaryBalanceBeforeWithdrawal = await ethers.provider.getBalance(
                 roles.oevBeneficiary.address
               );
-              await expect(dapiServer.connect(roles.randomPerson).withdraw(oevProxy.address))
-                .to.emit(dapiServer, 'Withdrew')
+              await expect(dataFeedServerFull.connect(roles.randomPerson).withdraw(oevProxy.address))
+                .to.emit(dataFeedServerFull, 'Withdrew')
                 .withArgs(oevProxy.address, roles.oevBeneficiary.address, bidAmount);
               const oevBeneficiaryBalanceAfterWithdrawal = await ethers.provider.getBalance(
                 roles.oevBeneficiary.address
@@ -3849,23 +3861,23 @@ describe('DapiServer', function () {
           });
           context('Beneficiary reverts the transfer', function () {
             it('reverts', async function () {
-              const { roles, dapiServer, beacons } = await deploy();
+              const { roles, dataFeedServerFull, beacons } = await deploy();
               const beacon = beacons[0];
               const dataFeedProxyWithOevFactory = await ethers.getContractFactory(
                 'DataFeedProxyWithOev',
                 roles.deployer
               );
               const oevProxyWithRevertingBeneficiary = await dataFeedProxyWithOevFactory.deploy(
-                dapiServer.address,
+                dataFeedServerFull.address,
                 beacon.beaconId,
-                dapiServer.address
+                dataFeedServerFull.address
               );
               const beaconValue = Math.floor(Math.random() * 200 - 100);
               const beaconTimestamp = await helpers.time.latest();
               const bidAmount = 10000;
               const updateId = testUtils.generateRandomBytes32();
               const signature = await testUtils.signOevData(
-                dapiServer,
+                dataFeedServerFull,
                 oevProxyWithRevertingBeneficiary.address,
                 beacon.beaconId,
                 updateId,
@@ -3881,7 +3893,7 @@ describe('DapiServer', function () {
                 beacon.templateId,
                 signature
               );
-              await dapiServer
+              await dataFeedServerFull
                 .connect(roles.searcher)
                 .updateOevProxyDataFeedWithSignedData(
                   oevProxyWithRevertingBeneficiary.address,
@@ -3895,15 +3907,15 @@ describe('DapiServer', function () {
                   }
                 );
               await expect(
-                dapiServer.connect(roles.randomPerson).withdraw(oevProxyWithRevertingBeneficiary.address)
+                dataFeedServerFull.connect(roles.randomPerson).withdraw(oevProxyWithRevertingBeneficiary.address)
               ).to.be.revertedWith('Withdrawal reverted');
             });
           });
         });
         context('OEV proxy balance is zero', function () {
           it('reverts', async function () {
-            const { roles, dapiServer, oevProxy } = await deploy();
-            await expect(dapiServer.connect(roles.randomPerson).withdraw(oevProxy.address)).to.be.revertedWith(
+            const { roles, dataFeedServerFull, oevProxy } = await deploy();
+            await expect(dataFeedServerFull.connect(roles.randomPerson).withdraw(oevProxy.address)).to.be.revertedWith(
               'OEV proxy balance zero'
             );
           });
@@ -3911,27 +3923,29 @@ describe('DapiServer', function () {
       });
       context('OEV proxy announces a zero beneficiary address', function () {
         it('reverts', async function () {
-          const { roles, dapiServer, beacons } = await deploy();
+          const { roles, dataFeedServerFull, beacons } = await deploy();
           const beacon = beacons[0];
           const dataFeedProxyWithOevFactory = await ethers.getContractFactory('DataFeedProxyWithOev', roles.deployer);
           const oevProxyWithZeroBeneficiary = await dataFeedProxyWithOevFactory.deploy(
-            dapiServer.address,
+            dataFeedServerFull.address,
             beacon.beaconId,
             ethers.constants.AddressZero
           );
           await expect(
-            dapiServer.connect(roles.randomPerson).withdraw(oevProxyWithZeroBeneficiary.address)
+            dataFeedServerFull.connect(roles.randomPerson).withdraw(oevProxyWithZeroBeneficiary.address)
           ).to.be.revertedWith('Beneficiary address zero');
         });
       });
     });
     context('OEV proxy does not announce a beneficiary address', function () {
       it('reverts', async function () {
-        const { roles, dapiServer } = await deploy();
+        const { roles, dataFeedServerFull } = await deploy();
         await expect(
-          dapiServer.connect(roles.randomPerson).withdraw(roles.randomPerson.address)
+          dataFeedServerFull.connect(roles.randomPerson).withdraw(roles.randomPerson.address)
         ).to.be.revertedWithoutReason;
-        await expect(dapiServer.connect(roles.randomPerson).withdraw(dapiServer.address)).to.be.revertedWithoutReason;
+        await expect(
+          dataFeedServerFull.connect(roles.randomPerson).withdraw(dataFeedServerFull.address)
+        ).to.be.revertedWithoutReason;
       });
     });
   });
@@ -3941,32 +3955,32 @@ describe('DapiServer', function () {
       context('Data feed ID is not zero', function () {
         context('Sender is manager', function () {
           it('sets dAPI name', async function () {
-            const { roles, dapiServer, beaconSet } = await deploy();
+            const { roles, dataFeedServerFull, beaconSet } = await deploy();
             const dapiName = ethers.utils.formatBytes32String('My dAPI');
-            expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(ethers.constants.HashZero);
-            await expect(dapiServer.connect(roles.manager).setDapiName(dapiName, beaconSet.beaconSetId))
-              .to.emit(dapiServer, 'SetDapiName')
+            expect(await dataFeedServerFull.dapiNameToDataFeedId(dapiName)).to.equal(ethers.constants.HashZero);
+            await expect(dataFeedServerFull.connect(roles.manager).setDapiName(dapiName, beaconSet.beaconSetId))
+              .to.emit(dataFeedServerFull, 'SetDapiName')
               .withArgs(beaconSet.beaconSetId, dapiName, roles.manager.address);
-            expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(beaconSet.beaconSetId);
+            expect(await dataFeedServerFull.dapiNameToDataFeedId(dapiName)).to.equal(beaconSet.beaconSetId);
           });
         });
         context('Sender is dAPI name setter', function () {
           it('sets dAPI name', async function () {
-            const { roles, dapiServer, beaconSet } = await deploy();
+            const { roles, dataFeedServerFull, beaconSet } = await deploy();
             const dapiName = ethers.utils.formatBytes32String('My dAPI');
-            expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(ethers.constants.HashZero);
-            await expect(dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSet.beaconSetId))
-              .to.emit(dapiServer, 'SetDapiName')
+            expect(await dataFeedServerFull.dapiNameToDataFeedId(dapiName)).to.equal(ethers.constants.HashZero);
+            await expect(dataFeedServerFull.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSet.beaconSetId))
+              .to.emit(dataFeedServerFull, 'SetDapiName')
               .withArgs(beaconSet.beaconSetId, dapiName, roles.dapiNameSetter.address);
-            expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(beaconSet.beaconSetId);
+            expect(await dataFeedServerFull.dapiNameToDataFeedId(dapiName)).to.equal(beaconSet.beaconSetId);
           });
         });
         context('Sender is not dAPI name setter', function () {
           it('reverts', async function () {
-            const { roles, dapiServer, beaconSet } = await deploy();
+            const { roles, dataFeedServerFull, beaconSet } = await deploy();
             const dapiName = ethers.utils.formatBytes32String('My dAPI');
             await expect(
-              dapiServer.connect(roles.randomPerson).setDapiName(dapiName, beaconSet.beaconSetId)
+              dataFeedServerFull.connect(roles.randomPerson).setDapiName(dapiName, beaconSet.beaconSetId)
             ).to.be.revertedWith('Sender cannot set dAPI name');
           });
         });
@@ -3974,38 +3988,40 @@ describe('DapiServer', function () {
       context('Data feed ID is zero', function () {
         context('Sender is manager', function () {
           it('sets dAPI name', async function () {
-            const { roles, dapiServer, beaconSet } = await deploy();
+            const { roles, dataFeedServerFull, beaconSet } = await deploy();
             const dapiName = ethers.utils.formatBytes32String('My dAPI');
-            await dapiServer.connect(roles.manager).setDapiName(dapiName, beaconSet.beaconSetId);
-            await expect(dapiServer.connect(roles.manager).setDapiName(dapiName, ethers.constants.HashZero))
-              .to.emit(dapiServer, 'SetDapiName')
+            await dataFeedServerFull.connect(roles.manager).setDapiName(dapiName, beaconSet.beaconSetId);
+            await expect(dataFeedServerFull.connect(roles.manager).setDapiName(dapiName, ethers.constants.HashZero))
+              .to.emit(dataFeedServerFull, 'SetDapiName')
               .withArgs(ethers.constants.HashZero, dapiName, roles.manager.address);
-            expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(ethers.constants.HashZero);
+            expect(await dataFeedServerFull.dapiNameToDataFeedId(dapiName)).to.equal(ethers.constants.HashZero);
             // Check if we can still set the dAPI name
-            await dapiServer.connect(roles.manager).setDapiName(dapiName, beaconSet.beaconSetId);
-            expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(beaconSet.beaconSetId);
+            await dataFeedServerFull.connect(roles.manager).setDapiName(dapiName, beaconSet.beaconSetId);
+            expect(await dataFeedServerFull.dapiNameToDataFeedId(dapiName)).to.equal(beaconSet.beaconSetId);
           });
         });
         context('Sender is dAPI name setter', function () {
           it('sets dAPI name', async function () {
-            const { roles, dapiServer, beaconSet } = await deploy();
+            const { roles, dataFeedServerFull, beaconSet } = await deploy();
             const dapiName = ethers.utils.formatBytes32String('My dAPI');
-            await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSet.beaconSetId);
-            await expect(dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, ethers.constants.HashZero))
-              .to.emit(dapiServer, 'SetDapiName')
+            await dataFeedServerFull.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSet.beaconSetId);
+            await expect(
+              dataFeedServerFull.connect(roles.dapiNameSetter).setDapiName(dapiName, ethers.constants.HashZero)
+            )
+              .to.emit(dataFeedServerFull, 'SetDapiName')
               .withArgs(ethers.constants.HashZero, dapiName, roles.dapiNameSetter.address);
-            expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(ethers.constants.HashZero);
+            expect(await dataFeedServerFull.dapiNameToDataFeedId(dapiName)).to.equal(ethers.constants.HashZero);
             // Check if we can still set the dAPI name
-            await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSet.beaconSetId);
-            expect(await dapiServer.dapiNameToDataFeedId(dapiName)).to.equal(beaconSet.beaconSetId);
+            await dataFeedServerFull.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSet.beaconSetId);
+            expect(await dataFeedServerFull.dapiNameToDataFeedId(dapiName)).to.equal(beaconSet.beaconSetId);
           });
         });
         context('Sender is not dAPI name setter', function () {
           it('reverts', async function () {
-            const { roles, dapiServer, beaconSet } = await deploy();
+            const { roles, dataFeedServerFull, beaconSet } = await deploy();
             const dapiName = ethers.utils.formatBytes32String('My dAPI');
             await expect(
-              dapiServer.connect(roles.randomPerson).setDapiName(dapiName, beaconSet.beaconSetId)
+              dataFeedServerFull.connect(roles.randomPerson).setDapiName(dapiName, beaconSet.beaconSetId)
             ).to.be.revertedWith('Sender cannot set dAPI name');
           });
         });
@@ -4013,9 +4029,9 @@ describe('DapiServer', function () {
     });
     context('dAPI name is zero', function () {
       it('reverts', async function () {
-        const { roles, dapiServer, beaconSet } = await deploy();
+        const { roles, dataFeedServerFull, beaconSet } = await deploy();
         await expect(
-          dapiServer.connect(roles.dapiNameSetter).setDapiName(ethers.constants.HashZero, beaconSet.beaconSetId)
+          dataFeedServerFull.connect(roles.dapiNameSetter).setDapiName(ethers.constants.HashZero, beaconSet.beaconSetId)
         ).to.be.revertedWith('dAPI name zero');
       });
     });
@@ -4024,23 +4040,23 @@ describe('DapiServer', function () {
   describe('readDataFeedWithId', function () {
     context('Data feed is initialized', function () {
       it('reads data feed', async function () {
-        const { roles, dapiServer, beacons } = await deploy();
+        const { roles, dataFeedServerFull, beacons } = await deploy();
         const beacon = beacons[0];
         const beaconValue = Math.floor(Math.random() * 200 - 100);
         const beaconTimestamp = await helpers.time.latest();
-        await updateBeacon(roles, dapiServer, beacon, beaconValue, beaconTimestamp);
-        const beaconAfter = await dapiServer.connect(roles.randomPerson).readDataFeedWithId(beacon.beaconId);
+        await updateBeacon(roles, dataFeedServerFull, beacon, beaconValue, beaconTimestamp);
+        const beaconAfter = await dataFeedServerFull.connect(roles.randomPerson).readDataFeedWithId(beacon.beaconId);
         expect(beaconAfter.value).to.equal(beaconValue);
         expect(beaconAfter.timestamp).to.equal(beaconTimestamp);
       });
     });
     context('Data feed is not initialized', function () {
       it('reverts', async function () {
-        const { roles, dapiServer, beacons } = await deploy();
+        const { roles, dataFeedServerFull, beacons } = await deploy();
         const beacon = beacons[0];
-        await expect(dapiServer.connect(roles.randomPerson).readDataFeedWithId(beacon.beaconId)).to.be.revertedWith(
-          'Data feed not initialized'
-        );
+        await expect(
+          dataFeedServerFull.connect(roles.randomPerson).readDataFeedWithId(beacon.beaconId)
+        ).to.be.revertedWith('Data feed not initialized');
       });
     });
   });
@@ -4049,28 +4065,30 @@ describe('DapiServer', function () {
     context('dAPI name set to Beacon', function () {
       context('Data feed is initialized', function () {
         it('reads Beacon', async function () {
-          const { roles, dapiServer, beacons } = await deploy();
+          const { roles, dataFeedServerFull, beacons } = await deploy();
           const beacon = beacons[0];
           const beaconValue = Math.floor(Math.random() * 200 - 100);
           const beaconTimestamp = await helpers.time.latest();
-          await updateBeacon(roles, dapiServer, beacon, beaconValue, beaconTimestamp);
+          await updateBeacon(roles, dataFeedServerFull, beacon, beaconValue, beaconTimestamp);
           const dapiName = ethers.utils.formatBytes32String('My dAPI');
           const dapiNameHash = ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
-          await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beacon.beaconId);
-          const dapiAfter = await dapiServer.connect(roles.randomPerson).readDataFeedWithDapiNameHash(dapiNameHash);
+          await dataFeedServerFull.connect(roles.dapiNameSetter).setDapiName(dapiName, beacon.beaconId);
+          const dapiAfter = await dataFeedServerFull
+            .connect(roles.randomPerson)
+            .readDataFeedWithDapiNameHash(dapiNameHash);
           expect(dapiAfter.value).to.be.equal(beaconValue);
           expect(dapiAfter.timestamp).to.be.equal(beaconTimestamp);
         });
       });
       context('Data feed is not initialized', function () {
         it('reverts', async function () {
-          const { roles, dapiServer, beacons } = await deploy();
+          const { roles, dataFeedServerFull, beacons } = await deploy();
           const beacon = beacons[0];
           const dapiName = ethers.utils.formatBytes32String('My dAPI');
           const dapiNameHash = ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
-          await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beacon.beaconId);
+          await dataFeedServerFull.connect(roles.dapiNameSetter).setDapiName(dapiName, beacon.beaconId);
           await expect(
-            dapiServer.connect(roles.randomPerson).readDataFeedWithDapiNameHash(dapiNameHash)
+            dataFeedServerFull.connect(roles.randomPerson).readDataFeedWithDapiNameHash(dapiNameHash)
           ).to.be.revertedWith('Data feed not initialized');
         });
       });
@@ -4078,37 +4096,39 @@ describe('DapiServer', function () {
     context('dAPI name set to Beacon set', function () {
       context('Data feed is initialized', function () {
         it('reads Beacon set', async function () {
-          const { roles, dapiServer, beacons, beaconSet } = await deploy();
+          const { roles, dataFeedServerFull, beacons, beaconSet } = await deploy();
           const beaconSetValue = Math.floor(Math.random() * 200 - 100);
           const beaconSetTimestamp = await helpers.time.latest();
-          await updateBeaconSet(roles, dapiServer, beacons, beaconSetValue, beaconSetTimestamp);
+          await updateBeaconSet(roles, dataFeedServerFull, beacons, beaconSetValue, beaconSetTimestamp);
           const dapiName = ethers.utils.formatBytes32String('My dAPI');
           const dapiNameHash = ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
-          await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSet.beaconSetId);
-          const dapiAfter = await dapiServer.connect(roles.randomPerson).readDataFeedWithDapiNameHash(dapiNameHash);
+          await dataFeedServerFull.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSet.beaconSetId);
+          const dapiAfter = await dataFeedServerFull
+            .connect(roles.randomPerson)
+            .readDataFeedWithDapiNameHash(dapiNameHash);
           expect(dapiAfter.value).to.be.equal(beaconSetValue);
           expect(dapiAfter.timestamp).to.be.equal(beaconSetTimestamp);
         });
       });
       context('Data feed is not initialized', function () {
         it('reverts', async function () {
-          const { roles, dapiServer, beaconSet } = await deploy();
+          const { roles, dataFeedServerFull, beaconSet } = await deploy();
           const dapiName = ethers.utils.formatBytes32String('My dAPI');
           const dapiNameHash = ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
-          await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSet.beaconSetId);
+          await dataFeedServerFull.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSet.beaconSetId);
           await expect(
-            dapiServer.connect(roles.randomPerson).readDataFeedWithDapiNameHash(dapiNameHash)
+            dataFeedServerFull.connect(roles.randomPerson).readDataFeedWithDapiNameHash(dapiNameHash)
           ).to.be.revertedWith('Data feed not initialized');
         });
       });
     });
     context('dAPI name not set', function () {
       it('reverts', async function () {
-        const { roles, dapiServer } = await deploy();
+        const { roles, dataFeedServerFull } = await deploy();
         const dapiName = ethers.utils.formatBytes32String('My dAPI');
         const dapiNameHash = ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
         await expect(
-          dapiServer.connect(roles.randomPerson).readDataFeedWithDapiNameHash(dapiNameHash)
+          dataFeedServerFull.connect(roles.randomPerson).readDataFeedWithDapiNameHash(dapiNameHash)
         ).to.be.revertedWith('dAPI name not set');
       });
     });
@@ -4118,14 +4138,14 @@ describe('DapiServer', function () {
     context('Data feed is initialized', function () {
       context('OEV proxy data feed is more up to date', function () {
         it('reads OEV proxy data feed', async function () {
-          const { roles, dapiServer, beacons } = await deploy();
+          const { roles, dataFeedServerFull, beacons } = await deploy();
           const beacon = beacons[0];
           const beaconValue = Math.floor(Math.random() * 200 - 100);
           const beaconTimestamp = await helpers.time.latest();
           const bidAmount = 10000;
           const updateId = testUtils.generateRandomBytes32();
           const signature = await testUtils.signOevData(
-            dapiServer,
+            dataFeedServerFull,
             roles.mockOevProxy.address,
             beacon.beaconId,
             updateId,
@@ -4141,7 +4161,7 @@ describe('DapiServer', function () {
             beacon.templateId,
             signature
           );
-          await dapiServer
+          await dataFeedServerFull
             .connect(roles.searcher)
             .updateOevProxyDataFeedWithSignedData(
               roles.mockOevProxy.address,
@@ -4154,7 +4174,7 @@ describe('DapiServer', function () {
                 value: bidAmount,
               }
             );
-          const beaconAfter = await dapiServer
+          const beaconAfter = await dataFeedServerFull
             .connect(roles.mockOevProxy)
             .readDataFeedWithIdAsOevProxy(beacon.beaconId);
           expect(beaconAfter.value).to.equal(beaconValue);
@@ -4163,12 +4183,12 @@ describe('DapiServer', function () {
       });
       context('Base data feed is more up to date', function () {
         it('reads base data feed', async function () {
-          const { roles, dapiServer, beacons } = await deploy();
+          const { roles, dataFeedServerFull, beacons } = await deploy();
           const beacon = beacons[0];
           const beaconValue = Math.floor(Math.random() * 200 - 100);
           const beaconTimestamp = await helpers.time.latest();
-          await updateBeacon(roles, dapiServer, beacon, beaconValue, beaconTimestamp);
-          const beaconAfter = await dapiServer
+          await updateBeacon(roles, dataFeedServerFull, beacon, beaconValue, beaconTimestamp);
+          const beaconAfter = await dataFeedServerFull
             .connect(roles.mockOevProxy)
             .readDataFeedWithIdAsOevProxy(beacon.beaconId);
           expect(beaconAfter.value).to.equal(beaconValue);
@@ -4178,10 +4198,10 @@ describe('DapiServer', function () {
     });
     context('Data feed is not initialized', function () {
       it('reverts', async function () {
-        const { roles, dapiServer, beacons } = await deploy();
+        const { roles, dataFeedServerFull, beacons } = await deploy();
         const beacon = beacons[0];
         await expect(
-          dapiServer.connect(roles.mockOevProxy).readDataFeedWithIdAsOevProxy(beacon.beaconId)
+          dataFeedServerFull.connect(roles.mockOevProxy).readDataFeedWithIdAsOevProxy(beacon.beaconId)
         ).to.be.revertedWith('Data feed not initialized');
       });
     });
@@ -4192,14 +4212,14 @@ describe('DapiServer', function () {
       context('Data feed is initialized', function () {
         context('OEV proxy data feed is more up to date', function () {
           it('reads OEV proxy data feed', async function () {
-            const { roles, dapiServer, beacons } = await deploy();
+            const { roles, dataFeedServerFull, beacons } = await deploy();
             const beacon = beacons[0];
             const beaconValue = Math.floor(Math.random() * 200 - 100);
             const beaconTimestamp = await helpers.time.latest();
             const bidAmount = 10000;
             const updateId = testUtils.generateRandomBytes32();
             const signature = await testUtils.signOevData(
-              dapiServer,
+              dataFeedServerFull,
               roles.mockOevProxy.address,
               beacon.beaconId,
               updateId,
@@ -4215,7 +4235,7 @@ describe('DapiServer', function () {
               beacon.templateId,
               signature
             );
-            await dapiServer
+            await dataFeedServerFull
               .connect(roles.searcher)
               .updateOevProxyDataFeedWithSignedData(
                 roles.mockOevProxy.address,
@@ -4230,8 +4250,8 @@ describe('DapiServer', function () {
               );
             const dapiName = ethers.utils.formatBytes32String('My dAPI');
             const dapiNameHash = ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
-            await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beacon.beaconId);
-            const dapiAfter = await dapiServer
+            await dataFeedServerFull.connect(roles.dapiNameSetter).setDapiName(dapiName, beacon.beaconId);
+            const dapiAfter = await dataFeedServerFull
               .connect(roles.mockOevProxy)
               .readDataFeedWithDapiNameHashAsOevProxy(dapiNameHash);
             expect(dapiAfter.value).to.equal(beaconValue);
@@ -4240,15 +4260,15 @@ describe('DapiServer', function () {
         });
         context('Base data feed is more up to date', function () {
           it('reads base data feed', async function () {
-            const { roles, dapiServer, beacons } = await deploy();
+            const { roles, dataFeedServerFull, beacons } = await deploy();
             const beacon = beacons[0];
             const beaconValue = Math.floor(Math.random() * 200 - 100);
             const beaconTimestamp = await helpers.time.latest();
-            await updateBeacon(roles, dapiServer, beacon, beaconValue, beaconTimestamp);
+            await updateBeacon(roles, dataFeedServerFull, beacon, beaconValue, beaconTimestamp);
             const dapiName = ethers.utils.formatBytes32String('My dAPI');
             const dapiNameHash = ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
-            await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beacon.beaconId);
-            const dapiAfter = await dapiServer
+            await dataFeedServerFull.connect(roles.dapiNameSetter).setDapiName(dapiName, beacon.beaconId);
+            const dapiAfter = await dataFeedServerFull
               .connect(roles.mockOevProxy)
               .readDataFeedWithDapiNameHashAsOevProxy(dapiNameHash);
             expect(dapiAfter.value).to.equal(beaconValue);
@@ -4258,13 +4278,13 @@ describe('DapiServer', function () {
       });
       context('Data feed is not initialized', function () {
         it('reverts', async function () {
-          const { roles, dapiServer, beacons } = await deploy();
+          const { roles, dataFeedServerFull, beacons } = await deploy();
           const beacon = beacons[0];
           const dapiName = ethers.utils.formatBytes32String('My dAPI');
           const dapiNameHash = ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
-          await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beacon.beaconId);
+          await dataFeedServerFull.connect(roles.dapiNameSetter).setDapiName(dapiName, beacon.beaconId);
           await expect(
-            dapiServer.connect(roles.mockOevProxy).readDataFeedWithDapiNameHashAsOevProxy(dapiNameHash)
+            dataFeedServerFull.connect(roles.mockOevProxy).readDataFeedWithDapiNameHashAsOevProxy(dapiNameHash)
           ).to.be.revertedWith('Data feed not initialized');
         });
       });
@@ -4273,20 +4293,20 @@ describe('DapiServer', function () {
       context('Data feed is initialized', function () {
         context('OEV proxy data feed is more up to date', function () {
           it('reads OEV proxy data feed', async function () {
-            const { roles, dapiServer, beacons, beaconSet } = await deploy();
+            const { roles, dataFeedServerFull, beacons, beaconSet } = await deploy();
             // Populate the Beacons
             const beaconValues = [100, 80, 120];
             const currentTimestamp = await helpers.time.latest();
             const beaconTimestamps = [currentTimestamp, currentTimestamp, currentTimestamp];
             await Promise.all(
               beacons.map(async (beacon, index) => {
-                await updateBeacon(roles, dapiServer, beacon, beaconValues[index], beaconTimestamps[index]);
+                await updateBeacon(roles, dataFeedServerFull, beacon, beaconValues[index], beaconTimestamps[index]);
               })
             );
             const beaconIds = beacons.map((beacon) => {
               return beacon.beaconId;
             });
-            await dapiServer.updateBeaconSetWithBeacons(beaconIds);
+            await dataFeedServerFull.updateBeaconSetWithBeacons(beaconIds);
 
             const oevUpdateValue = 105;
             const oevUpdateTimestamp = currentTimestamp + 1;
@@ -4300,7 +4320,7 @@ describe('DapiServer', function () {
                   return '0x';
                 } else {
                   return await testUtils.signOevData(
-                    dapiServer,
+                    dataFeedServerFull,
                     roles.mockOevProxy.address,
                     beaconSet.beaconSetId,
                     updateId,
@@ -4321,7 +4341,7 @@ describe('DapiServer', function () {
                 signature
               );
             });
-            await dapiServer
+            await dataFeedServerFull
               .connect(roles.searcher)
               .updateOevProxyDataFeedWithSignedData(
                 roles.mockOevProxy.address,
@@ -4334,8 +4354,8 @@ describe('DapiServer', function () {
               );
             const dapiName = ethers.utils.formatBytes32String('My dAPI');
             const dapiNameHash = ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
-            await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSet.beaconSetId);
-            const dapiAfter = await dapiServer
+            await dataFeedServerFull.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSet.beaconSetId);
+            const dapiAfter = await dataFeedServerFull
               .connect(roles.mockOevProxy)
               .readDataFeedWithDapiNameHashAsOevProxy(dapiNameHash);
             expect(dapiAfter.value).to.equal(oevUpdateValue);
@@ -4344,15 +4364,15 @@ describe('DapiServer', function () {
         });
         context('Base data feed is more up to date', function () {
           it('reads base data feed', async function () {
-            const { roles, dapiServer, beacons, beaconSet } = await deploy();
+            const { roles, dataFeedServerFull, beacons, beaconSet } = await deploy();
             const currentTimestamp = await helpers.time.latest();
             const beaconSetValue = Math.floor(Math.random() * 200 - 100);
             const beaconSetTimestamp = Math.floor(currentTimestamp - Math.random() * 5 * 60);
-            await updateBeaconSet(roles, dapiServer, beacons, beaconSetValue, beaconSetTimestamp);
+            await updateBeaconSet(roles, dataFeedServerFull, beacons, beaconSetValue, beaconSetTimestamp);
             const dapiName = ethers.utils.formatBytes32String('My dAPI');
             const dapiNameHash = ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
-            await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSet.beaconSetId);
-            const dapiAfter = await dapiServer
+            await dataFeedServerFull.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSet.beaconSetId);
+            const dapiAfter = await dataFeedServerFull
               .connect(roles.mockOevProxy)
               .readDataFeedWithDapiNameHashAsOevProxy(dapiNameHash);
             expect(dapiAfter.value).to.equal(beaconSetValue);
@@ -4362,23 +4382,23 @@ describe('DapiServer', function () {
       });
       context('Data feed is not initialized', function () {
         it('reverts', async function () {
-          const { roles, dapiServer, beaconSet } = await deploy();
+          const { roles, dataFeedServerFull, beaconSet } = await deploy();
           const dapiName = ethers.utils.formatBytes32String('My dAPI');
           const dapiNameHash = ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
-          await dapiServer.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSet.beaconSetId);
+          await dataFeedServerFull.connect(roles.dapiNameSetter).setDapiName(dapiName, beaconSet.beaconSetId);
           await expect(
-            dapiServer.connect(roles.mockOevProxy).readDataFeedWithDapiNameHashAsOevProxy(dapiNameHash)
+            dataFeedServerFull.connect(roles.mockOevProxy).readDataFeedWithDapiNameHashAsOevProxy(dapiNameHash)
           ).to.be.revertedWith('Data feed not initialized');
         });
       });
     });
     context('dAPI name not set', function () {
       it('reverts', async function () {
-        const { roles, dapiServer } = await deploy();
+        const { roles, dataFeedServerFull } = await deploy();
         const dapiName = ethers.utils.formatBytes32String('My dAPI');
         const dapiNameHash = ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
         await expect(
-          dapiServer.connect(roles.mockOevProxy).readDataFeedWithDapiNameHashAsOevProxy(dapiNameHash)
+          dataFeedServerFull.connect(roles.mockOevProxy).readDataFeedWithDapiNameHashAsOevProxy(dapiNameHash)
         ).to.be.revertedWith('dAPI name not set');
       });
     });

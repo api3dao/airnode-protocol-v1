@@ -19,14 +19,11 @@ describe('ProxyFactory', function () {
 
     const accessControlRegistryFactory = await ethers.getContractFactory('AccessControlRegistry', roles.deployer);
     const accessControlRegistry = await accessControlRegistryFactory.deploy();
-    const airnodeProtocolFactory = await ethers.getContractFactory('AirnodeProtocol', roles.deployer);
-    const airnodeProtocol = await airnodeProtocolFactory.deploy();
-    const dapiServerFactory = await ethers.getContractFactory('DapiServer', roles.deployer);
+    const dapiServerFactory = await ethers.getContractFactory('Api3ServerV1', roles.deployer);
     const dapiServer = await dapiServerFactory.deploy(
       accessControlRegistry.address,
       dapiServerAdminRoleDescription,
-      roles.manager.address,
-      airnodeProtocol.address
+      roles.manager.address
     );
     const proxyFactoryFactory = await ethers.getContractFactory('ProxyFactory', roles.deployer);
     const proxyFactory = await proxyFactoryFactory.deploy(dapiServer.address);
