@@ -23,6 +23,14 @@ describe('ExtendedSelfMulticall', function () {
     });
   });
 
+  describe('containsBytecode', function () {
+    it('returns if account contains bytecode', async function () {
+      const { roles, extendedSelfMulticall } = await helpers.loadFixture(deploy);
+      expect(await extendedSelfMulticall.containsBytecode(roles.deployer.address)).to.equal(false);
+      expect(await extendedSelfMulticall.containsBytecode(extendedSelfMulticall.address)).to.equal(true);
+    });
+  });
+
   describe('getBalance', function () {
     it('gets balance', async function () {
       const { roles, extendedSelfMulticall } = await helpers.loadFixture(deploy);
