@@ -66,43 +66,31 @@ describe('StorageUtils', function () {
     });
   });
 
-  describe('announceTemplate', function () {
+  describe('storeTemplate', function () {
     context('Template parameters are not too long', function () {
-      it('announces template but does not store it', async function () {
+      it('stores template', async function () {
         const { roles, airnodeProtocol, endpointId, templateParameters, templateId } = await helpers.loadFixture(
           deploy
         );
-        await expect(airnodeProtocol.connect(roles.randomPerson).announceTemplate(endpointId, templateParameters))
-          .to.emit(airnodeProtocol, 'AnnouncedTemplate')
+        await expect(airnodeProtocol.connect(roles.randomPerson).storeTemplate(endpointId, templateParameters))
+          .to.emit(airnodeProtocol, 'StoredTemplate')
           .withArgs(templateId, endpointId, templateParameters);
         const template = await airnodeProtocol.templates(templateId);
-        expect(template.endpointId).to.equal(ethers.constants.HashZero);
-        expect(template.parameters).to.equal('0x');
+        expect(template.endpointId).to.equal(endpointId);
+        expect(template.parameters).to.equal(templateParameters);
       });
     });
     context('Template parameters are too long', function () {
       it('reverts', async function () {
         const { roles, airnodeProtocol, endpointId } = await helpers.loadFixture(deploy);
         await expect(
-          airnodeProtocol.connect(roles.randomPerson).announceTemplate(endpointId, `0x${'12'.repeat(4096 + 1)}`)
+          airnodeProtocol.connect(roles.randomPerson).storeTemplate(endpointId, `0x${'12'.repeat(4096 + 1)}`)
         ).to.be.revertedWith('Parameters too long');
       });
     });
   });
 
-  describe('storeTemplate', function () {
-    it('announces and stores template', async function () {
-      const { roles, airnodeProtocol, endpointId, templateParameters, templateId } = await helpers.loadFixture(deploy);
-      await expect(airnodeProtocol.connect(roles.randomPerson).storeTemplate(endpointId, templateParameters))
-        .to.emit(airnodeProtocol, 'AnnouncedTemplate')
-        .withArgs(templateId, endpointId, templateParameters);
-      const template = await airnodeProtocol.templates(templateId);
-      expect(template.endpointId).to.equal(endpointId);
-      expect(template.parameters).to.equal(templateParameters);
-    });
-  });
-
-  describe('announceSubscription', function () {
+  describe('storeSubscription', function () {
     context('Chain ID is not zero', function () {
       context('Airnode address is not zero', function () {
         context('Subscription parameters are not too long', function () {
@@ -125,7 +113,7 @@ describe('StorageUtils', function () {
                       await expect(
                         airnodeProtocol
                           .connect(roles.randomPerson)
-                          .announceSubscription(
+                          .storeSubscription(
                             chainId,
                             roles.airnode.address,
                             templateId,
@@ -137,7 +125,7 @@ describe('StorageUtils', function () {
                             fulfillFunctionId
                           )
                       )
-                        .to.emit(airnodeProtocol, 'AnnouncedSubscription')
+                        .to.emit(airnodeProtocol, 'StoredSubscription')
                         .withArgs(
                           subscriptionId,
                           chainId,
@@ -151,15 +139,15 @@ describe('StorageUtils', function () {
                           fulfillFunctionId
                         );
                       const subscription = await airnodeProtocol.subscriptions(subscriptionId);
-                      expect(subscription.chainId).to.equal(0);
-                      expect(subscription.airnode).to.equal(ethers.constants.AddressZero);
-                      expect(subscription.endpointOrTemplateId).to.equal(ethers.constants.HashZero);
-                      expect(subscription.parameters).to.equal('0x');
-                      expect(subscription.conditions).to.equal('0x');
-                      expect(subscription.relayer).to.equal(ethers.constants.AddressZero);
-                      expect(subscription.sponsor).to.equal(ethers.constants.AddressZero);
-                      expect(subscription.requester).to.equal(ethers.constants.AddressZero);
-                      expect(subscription.fulfillFunctionId).to.equal('0x00000000');
+                      expect(subscription.chainId).to.equal(chainId);
+                      expect(subscription.airnode).to.equal(roles.airnode.address);
+                      expect(subscription.endpointOrTemplateId).to.equal(templateId);
+                      expect(subscription.parameters).to.equal(subscriptionParameters);
+                      expect(subscription.conditions).to.equal(subscriptionConditions);
+                      expect(subscription.relayer).to.equal(roles.relayer.address);
+                      expect(subscription.sponsor).to.equal(roles.sponsor.address);
+                      expect(subscription.requester).to.equal(roles.requester.address);
+                      expect(subscription.fulfillFunctionId).to.equal(fulfillFunctionId);
                     });
                   });
                   context('Fulfill function ID is zero', function () {
@@ -175,7 +163,7 @@ describe('StorageUtils', function () {
                       await expect(
                         airnodeProtocol
                           .connect(roles.randomPerson)
-                          .announceSubscription(
+                          .storeSubscription(
                             chainId,
                             roles.airnode.address,
                             templateId,
@@ -204,7 +192,7 @@ describe('StorageUtils', function () {
                     await expect(
                       airnodeProtocol
                         .connect(roles.randomPerson)
-                        .announceSubscription(
+                        .storeSubscription(
                           chainId,
                           roles.airnode.address,
                           templateId,
@@ -233,7 +221,7 @@ describe('StorageUtils', function () {
                   await expect(
                     airnodeProtocol
                       .connect(roles.randomPerson)
-                      .announceSubscription(
+                      .storeSubscription(
                         chainId,
                         roles.airnode.address,
                         templateId,
@@ -262,7 +250,7 @@ describe('StorageUtils', function () {
                 await expect(
                   airnodeProtocol
                     .connect(roles.randomPerson)
-                    .announceSubscription(
+                    .storeSubscription(
                       chainId,
                       roles.airnode.address,
                       templateId,
@@ -284,7 +272,7 @@ describe('StorageUtils', function () {
               await expect(
                 airnodeProtocol
                   .connect(roles.randomPerson)
-                  .announceSubscription(
+                  .storeSubscription(
                     chainId,
                     roles.airnode.address,
                     templateId,
@@ -306,7 +294,7 @@ describe('StorageUtils', function () {
             await expect(
               airnodeProtocol
                 .connect(roles.randomPerson)
-                .announceSubscription(
+                .storeSubscription(
                   chainId,
                   roles.airnode.address,
                   templateId,
@@ -335,7 +323,7 @@ describe('StorageUtils', function () {
           await expect(
             airnodeProtocol
               .connect(roles.randomPerson)
-              .announceSubscription(
+              .storeSubscription(
                 chainId,
                 ethers.constants.AddressZero,
                 templateId,
@@ -363,7 +351,7 @@ describe('StorageUtils', function () {
         await expect(
           airnodeProtocol
             .connect(roles.randomPerson)
-            .announceSubscription(
+            .storeSubscription(
               0,
               roles.airnode.address,
               templateId,
@@ -376,59 +364,6 @@ describe('StorageUtils', function () {
             )
         ).to.be.revertedWith('Chain ID zero');
       });
-    });
-  });
-
-  describe('storeSubscription', function () {
-    it('announces and stores subscription', async function () {
-      const {
-        roles,
-        airnodeProtocol,
-        templateId,
-        chainId,
-        subscriptionParameters,
-        subscriptionConditions,
-        fulfillFunctionId,
-        subscriptionId,
-      } = await helpers.loadFixture(deploy);
-      await expect(
-        airnodeProtocol
-          .connect(roles.randomPerson)
-          .storeSubscription(
-            chainId,
-            roles.airnode.address,
-            templateId,
-            subscriptionParameters,
-            subscriptionConditions,
-            roles.relayer.address,
-            roles.sponsor.address,
-            roles.requester.address,
-            fulfillFunctionId
-          )
-      )
-        .to.emit(airnodeProtocol, 'AnnouncedSubscription')
-        .withArgs(
-          subscriptionId,
-          chainId,
-          roles.airnode.address,
-          templateId,
-          subscriptionParameters,
-          subscriptionConditions,
-          roles.relayer.address,
-          roles.sponsor.address,
-          roles.requester.address,
-          fulfillFunctionId
-        );
-      const subscription = await airnodeProtocol.subscriptions(subscriptionId);
-      expect(subscription.chainId).to.equal(chainId);
-      expect(subscription.airnode).to.equal(roles.airnode.address);
-      expect(subscription.endpointOrTemplateId).to.equal(templateId);
-      expect(subscription.parameters).to.equal(subscriptionParameters);
-      expect(subscription.conditions).to.equal(subscriptionConditions);
-      expect(subscription.relayer).to.equal(roles.relayer.address);
-      expect(subscription.sponsor).to.equal(roles.sponsor.address);
-      expect(subscription.requester).to.equal(roles.requester.address);
-      expect(subscription.fulfillFunctionId).to.equal(fulfillFunctionId);
     });
   });
 });

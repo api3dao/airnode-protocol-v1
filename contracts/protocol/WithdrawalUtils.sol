@@ -32,7 +32,12 @@ contract WithdrawalUtils is IWithdrawalUtils {
 
     mapping(bytes32 => bytes32) private withdrawalRequestIdToParameters;
 
-    /// @notice Called by a sponsor to request a withdrawal
+    /// @notice Called by a sponsor to request a withdrawal. In response, the
+    /// Airnode/relayer is expected to deposit the funds at this contract by
+    /// calling `fulfillWithdrawal()`, and then the sponsor will have to call
+    /// `claimBalance()` to have the funds sent to itself. For sponsor to be
+    /// able to receive funds this way, it has to be an EOA or a contract that
+    /// has an appropriate payable fallback function.
     /// @param airnodeOrRelayer Airnode/relayer address
     /// @param protocolId Protocol ID
     function requestWithdrawal(
@@ -84,7 +89,7 @@ contract WithdrawalUtils is IWithdrawalUtils {
         unchecked {
             require(
                 timestamp + 1 hours > block.timestamp &&
-                    timestamp < block.timestamp + 15 minutes,
+                    timestamp < block.timestamp + 1 hours,
                 "Timestamp not valid"
             );
         }

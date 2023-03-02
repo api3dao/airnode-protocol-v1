@@ -3,14 +3,17 @@ pragma solidity ^0.8.0;
 
 import "./interfaces/ISelfMulticall.sol";
 
-/// @title Contract that enables calls to the inheriting contract to be
-/// batched
+/// @title Contract that enables calls to the inheriting contract to be batched
 /// @notice Implements two ways of batching, one requires none of the calls to
 /// revert and the other tolerates individual calls reverting
-/// @dev Refer to OpenZeppelin's Multicall.sol for a similar implementation
+/// @dev This implementation uses delegatecall for individual function calls.
+/// Since delegatecall is a message call, it can only be made to functions that
+/// are externally visible. This means that a contract cannot multicall its own
+/// functions that use internal/private visibility modifiers.
+/// Refer to OpenZeppelin's Multicall.sol for a similar implementation.
 contract SelfMulticall is ISelfMulticall {
-    /// @notice Batches calls to the inheriting contract and reverts if at
-    /// least one of the batched calls reverts
+    /// @notice Batches calls to the inheriting contract and reverts as soon as
+    /// one of the batched calls reverts
     /// @param data Array of calldata of batched calls
     /// @return returndata Array of returndata of batched calls
     function multicall(

@@ -2,9 +2,14 @@
 pragma solidity ^0.8.0;
 
 import "./interfaces/IDataFeedProxy.sol";
+import "../interfaces/IApi3ServerV1.sol";
 
 /// @title An immutable proxy contract that is used to read a specific data
 /// feed (Beacon or Beacon set) of a specific DapiServer contract
+/// @notice In an effort to reduce the bytecode of this contract, its
+/// constructor arguments are validated by ProxyFactory, rather than
+/// internally. If you intend to deploy this contract without using
+/// ProxyFactory, you are recommended to implement an equivalent validation.
 /// @dev See DapiProxy.sol for comments about usage
 contract DataFeedProxy is IDataFeedProxy {
     /// @notice DapiServer address
@@ -29,7 +34,7 @@ contract DataFeedProxy is IDataFeedProxy {
         override
         returns (int224 value, uint32 timestamp)
     {
-        (value, timestamp) = IDapiServer(dapiServer).readDataFeedWithId(
+        (value, timestamp) = IApi3ServerV1(dapiServer).readDataFeedWithId(
             dataFeedId
         );
     }
