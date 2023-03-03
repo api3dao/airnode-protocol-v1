@@ -24,6 +24,18 @@ contract ExtendedSelfMulticall is SelfMulticall, IExtendedSelfMulticall {
         return account.balance;
     }
 
+    /// @notice Returns if the account contains bytecode
+    /// @dev An account not containing any bytecode does not indicate that it
+    /// is an EOA or it will not contain any bytecode in the future.
+    /// Contract construction and `SELFDESTRUCT` updates the bytecode at the
+    /// end of the transaction.
+    /// @return If the account contains bytecode
+    function containsBytecode(
+        address account
+    ) external view override returns (bool) {
+        return account.code.length > 0;
+    }
+
     /// @notice Returns the current block number
     /// @return Current block number
     function getBlockNumber() external view override returns (uint256) {
