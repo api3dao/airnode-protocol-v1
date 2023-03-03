@@ -3,7 +3,6 @@ pragma solidity 0.8.17;
 
 import "./OevDapiServer.sol";
 import "./BeaconUpdatesWithSignedData.sol";
-import "./BeaconSetUpdatesWithPsp.sol";
 import "./interfaces/IApi3ServerV1.sol";
 
 /// @title First version of the contract that API3 uses to serve data feeds
@@ -16,7 +15,6 @@ import "./interfaces/IApi3ServerV1.sol";
 contract Api3ServerV1 is
     OevDapiServer,
     BeaconUpdatesWithSignedData,
-    BeaconSetUpdatesWithPsp,
     IApi3ServerV1
 {
     /// @param _accessControlRegistry AccessControlRegistry contract address
