@@ -16,14 +16,11 @@ describe('DataFeedProxy', function () {
 
     const accessControlRegistryFactory = await ethers.getContractFactory('AccessControlRegistry', roles.deployer);
     const accessControlRegistry = await accessControlRegistryFactory.deploy();
-    const airnodeProtocolFactory = await ethers.getContractFactory('AirnodeProtocol', roles.deployer);
-    const airnodeProtocol = await airnodeProtocolFactory.deploy();
-    const dapiServerFactory = await ethers.getContractFactory('DapiServer', roles.deployer);
+    const dapiServerFactory = await ethers.getContractFactory('Api3ServerV1', roles.deployer);
     const dapiServer = await dapiServerFactory.deploy(
       accessControlRegistry.address,
       dapiServerAdminRoleDescription,
-      roles.manager.address,
-      airnodeProtocol.address
+      roles.manager.address
     );
 
     const endpointId = testUtils.generateRandomBytes32();
@@ -39,11 +36,7 @@ describe('DataFeedProxy', function () {
     const beaconTimestamp = await helpers.time.latest();
     const data = ethers.utils.defaultAbiCoder.encode(['int256'], [beaconValue]);
     const signature = await testUtils.signData(roles.airnode, templateId, beaconTimestamp, data);
-    const signedData = ethers.utils.defaultAbiCoder.encode(
-      ['address', 'bytes32', 'uint256', 'bytes', 'bytes'],
-      [roles.airnode.address, templateId, beaconTimestamp, data, signature]
-    );
-    await dapiServer.updateDataFeedWithSignedData([signedData]);
+    await dapiServer.updateBeaconWithSignedData(roles.airnode.address, templateId, beaconTimestamp, data, signature);
 
     const dataFeedProxyFactory = await ethers.getContractFactory('DataFeedProxy', roles.deployer);
     const dataFeedProxy = await dataFeedProxyFactory.deploy(dapiServer.address, beaconId);

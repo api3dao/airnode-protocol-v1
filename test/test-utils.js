@@ -49,13 +49,6 @@ module.exports = {
       `m/44'/60'/0'/${deriveWalletPathFromSponsorAddress(sponsorAddress, protocolId)}`
     ).connect(ethers.provider);
   },
-  deriveSponsorshipId: (scheme, parameters) => {
-    if (scheme === 'Requester') {
-      return ethers.utils.keccak256(ethers.utils.solidityPack(['uint256', 'address'], [1, parameters.requester]));
-    } else {
-      throw new Error('Invalid sponsorship scheme');
-    }
-  },
   getCurrentTimestamp: async (provider) => {
     return (await provider.getBlock()).timestamp;
   },
@@ -203,49 +196,34 @@ module.exports = {
       )
     );
   },
-  domainSignData: async (airnode, dapiServer, templateId, timestamp, data) => {
-    return await airnode.signMessage(
-      ethers.utils.arrayify(
-        ethers.utils.solidityKeccak256(
-          ['uint256', 'address', 'bytes32', 'uint256', 'bytes'],
-          [(await dapiServer.provider.getNetwork()).chainId, dapiServer.address, templateId, timestamp, data]
-        )
-      )
-    );
-  },
   signOevData: async (
     dapiServer,
     oevProxyAddress,
+    dataFeedId,
+    updateId,
+    timestamp,
+    data,
     searcherAddress,
     bidAmount,
-    updateId,
-    signatureCount,
-    beaconCount,
     airnode,
-    templateId,
-    timestamp,
-    data
+    templateId
   ) => {
-    const metadataHash = ethers.utils.solidityKeccak256(
-      ['uint256', 'address', 'address', 'address', 'uint256', 'bytes32', 'uint256', 'uint256'],
+    const oevUpdateHash = ethers.utils.solidityKeccak256(
+      ['uint256', 'address', 'address', 'bytes32', 'bytes32', 'uint256', 'bytes', 'address', 'uint256'],
       [
         (await dapiServer.provider.getNetwork()).chainId,
         dapiServer.address,
         oevProxyAddress,
+        dataFeedId,
+        updateId,
+        timestamp,
+        data,
         searcherAddress,
         bidAmount,
-        updateId,
-        signatureCount,
-        beaconCount,
       ]
     );
     return await airnode.signMessage(
-      ethers.utils.arrayify(
-        ethers.utils.solidityKeccak256(
-          ['bytes32', 'bytes32', 'uint256', 'bytes'],
-          [metadataHash, templateId, timestamp, data]
-        )
-      )
+      ethers.utils.arrayify(ethers.utils.solidityKeccak256(['bytes32', 'bytes32'], [oevUpdateHash, templateId]))
     );
   },
 };

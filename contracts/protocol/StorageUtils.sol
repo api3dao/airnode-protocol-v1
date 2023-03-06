@@ -3,16 +3,11 @@ pragma solidity 0.8.17;
 
 import "./interfaces/IStorageUtils.sol";
 
-/// @title Contract that can be used to announce template and subscription
-/// details through events and/or store them on-chain
+/// @title Contract that stores template and subscription details on chain
 /// @notice The Airnode protocol does not depend on the template or
-/// subscription details being announced or stored on-chain. Airnode can be
-/// informed about these in other ways, e.g., the details are hardcoded in the
-/// Airnode configuration file.
-/// @dev Storing the details is preferable to merely announcing them to ensure
-/// persistence. However, bare announcements are provided as an alternative
-/// when storage is prohibitively expensive and using off-chain channels is not
-/// an option.
+/// subscription details being stored on-chain. Airnode can be informed about
+/// these in other ways, e.g., the details are hardcoded in the Airnode
+/// configuration file.
 contract StorageUtils is IStorageUtils {
     struct Template {
         bytes32 endpointId;
@@ -46,7 +41,7 @@ contract StorageUtils is IStorageUtils {
     /// @notice Subscription details with the ID
     mapping(bytes32 => Subscription) public override subscriptions;
 
-    /// @notice Announces template details with an event
+    /// @notice Stores template details
     /// @dev Templates fully or partially define requests. By referencing a
     /// template, requesters can omit specifying the "boilerplate" sections of
     /// requests.
@@ -57,34 +52,23 @@ contract StorageUtils is IStorageUtils {
     /// @param endpointId Endpoint ID (allowed to be `bytes32(0)`)
     /// @param parameters Template parameters, encoded in Airnode ABI
     /// @return templateId Template ID
-    function announceTemplate(
+    function storeTemplate(
         bytes32 endpointId,
         bytes calldata parameters
-    ) public override returns (bytes32 templateId) {
+    ) external override returns (bytes32 templateId) {
         require(
             parameters.length <= MAXIMUM_PARAMETER_LENGTH,
             "Parameters too long"
         );
         templateId = keccak256(abi.encodePacked(endpointId, parameters));
-        emit AnnouncedTemplate(templateId, endpointId, parameters);
-    }
-
-    /// @notice Stores template details
-    /// @param endpointId Endpoint ID (allowed to be `bytes32(0)`)
-    /// @param parameters Template parameters, encoded in Airnode ABI
-    /// @return templateId Template ID
-    function storeTemplate(
-        bytes32 endpointId,
-        bytes calldata parameters
-    ) external override returns (bytes32 templateId) {
-        templateId = announceTemplate(endpointId, parameters);
         templates[templateId] = Template({
             endpointId: endpointId,
             parameters: parameters
         });
+        emit StoredTemplate(templateId, endpointId, parameters);
     }
 
-    /// @notice Announces subscription details
+    /// @notice Stores subscription details
     /// @dev `airnode` should make the query specified by `templateId` and
     /// `parameters`. If the returned data satisfies `conditions`, it should
     /// call `requester`'s `fulfillFunctionId` on `chainId` with the returned
@@ -116,7 +100,7 @@ contract StorageUtils is IStorageUtils {
     /// @param fulfillFunctionId Selector of the function to be called for
     /// fulfillment
     /// @return subscriptionId Subscription ID
-    function announceSubscription(
+    function storeSubscription(
         uint256 chainId,
         address airnode,
         bytes32 endpointOrTemplateId,
@@ -126,7 +110,7 @@ contract StorageUtils is IStorageUtils {
         address sponsor,
         address requester,
         bytes4 fulfillFunctionId
-    ) public override returns (bytes32 subscriptionId) {
+    ) external override returns (bytes32 subscriptionId) {
         require(chainId != 0, "Chain ID zero");
         require(airnode != address(0), "Airnode address zero");
         require(
@@ -154,58 +138,6 @@ contract StorageUtils is IStorageUtils {
                 fulfillFunctionId
             )
         );
-        emit AnnouncedSubscription(
-            subscriptionId,
-            chainId,
-            airnode,
-            endpointOrTemplateId,
-            parameters,
-            conditions,
-            relayer,
-            sponsor,
-            requester,
-            fulfillFunctionId
-        );
-    }
-
-    /// @notice Stores subscription details
-    /// @param chainId Chain ID
-    /// @param airnode Airnode address
-    /// @param endpointOrTemplateId Endpoint or template ID (allowed to be
-    /// `bytes32(0)`)
-    /// @param parameters Parameters provided by the subscription in addition
-    /// to the parameters in the template (if applicable), encoded in Airnode
-    /// ABI
-    /// @param conditions Conditions under which the subscription is requested
-    /// to be fulfilled, encoded in Airnode ABI
-    /// @param relayer Relayer address
-    /// @param sponsor Sponsor address
-    /// @param requester Requester address
-    /// @param fulfillFunctionId Selector of the function to be called for
-    /// fulfillment
-    /// @return subscriptionId Subscription ID
-    function storeSubscription(
-        uint256 chainId,
-        address airnode,
-        bytes32 endpointOrTemplateId,
-        bytes calldata parameters,
-        bytes calldata conditions,
-        address relayer,
-        address sponsor,
-        address requester,
-        bytes4 fulfillFunctionId
-    ) external override returns (bytes32 subscriptionId) {
-        subscriptionId = announceSubscription(
-            chainId,
-            airnode,
-            endpointOrTemplateId,
-            parameters,
-            conditions,
-            relayer,
-            sponsor,
-            requester,
-            fulfillFunctionId
-        );
         subscriptions[subscriptionId] = Subscription({
             chainId: chainId,
             airnode: airnode,
@@ -217,5 +149,17 @@ contract StorageUtils is IStorageUtils {
             requester: requester,
             fulfillFunctionId: fulfillFunctionId
         });
+        emit StoredSubscription(
+            subscriptionId,
+            chainId,
+            airnode,
+            endpointOrTemplateId,
+            parameters,
+            conditions,
+            relayer,
+            sponsor,
+            requester,
+            fulfillFunctionId
+        );
     }
 }

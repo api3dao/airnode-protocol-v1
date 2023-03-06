@@ -6,7 +6,7 @@ import "./interfaces/IAirnodeRequester.sol";
 
 /// @title Contract to be inherited by contracts that will make Airnode
 /// requests and receive fulfillments
-contract AirnodeRequester is IAirnodeRequester {
+abstract contract AirnodeRequester is IAirnodeRequester {
     /// @notice AirnodeProtocol contract address
     address public immutable override airnodeProtocol;
 
@@ -34,22 +34,20 @@ contract AirnodeRequester is IAirnodeRequester {
         airnodeProtocol = _airnodeProtocol;
     }
 
-    /// @notice Returns if the timestamp used in the signature is valid
+    /// @notice Overriden by the inheriting contract to return if the timestamp
+    /// used in the signature is valid
     /// @dev If and how the timestamp should be validated depends on the nature
     /// of the request. If the request is "return me the price of this asset at
     /// this specific time in history", it can be assumed that the response
     /// will not go out of date. If the request is "return me the price of this
     /// asset now", the requester would rather not consider a response that is
-    /// not immediate. Since users commonly make the latter type of requests,
-    /// we provide an example timestamp validation function. Feel free to use a
-    /// different condition or even omit it if you are aware of the
-    /// implications.
+    /// not immediate.
+    /// In addition to the nature of the request, if and how the timestamp is
+    /// used in the contract logic determines how it should be validated.
+    /// In general, one should keep in mind that similar to the fulfillment
+    /// data, it is possible for the timestamp to be misreported.
     /// @param timestamp Timestamp used in the signature
-    function timestampIsValid(uint256 timestamp) internal view returns (bool) {
-        unchecked {
-            return
-                timestamp + 1 hours > block.timestamp &&
-                timestamp < block.timestamp + 15 minutes;
-        }
-    }
+    function timestampIsValid(
+        uint256 timestamp
+    ) internal view virtual returns (bool);
 }
