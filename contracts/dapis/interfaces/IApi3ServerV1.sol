@@ -3,13 +3,8 @@ pragma solidity ^0.8.0;
 
 import "./IOevDapiServer.sol";
 import "./IBeaconUpdatesWithSignedData.sol";
-import "./IBeaconSetUpdatesWithPsp.sol";
 
-interface IApi3ServerV1 is
-    IOevDapiServer,
-    IBeaconUpdatesWithSignedData,
-    IBeaconSetUpdatesWithPsp
-{
+interface IApi3ServerV1 is IOevDapiServer, IBeaconUpdatesWithSignedData {
     function readDataFeedWithId(
         bytes32 dataFeedId
     ) external view returns (int224 value, uint32 timestamp);
