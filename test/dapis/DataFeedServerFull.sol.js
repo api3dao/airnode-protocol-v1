@@ -3064,7 +3064,7 @@ describe('DataFeedServerFull', function () {
       context('Signature is valid', function () {
         context('Fulfillment data length is correct', function () {
           context('Decoded fulfillment data can be typecasted into int224', function () {
-            context('Updates timestamp', function () {
+            context('Updates timestamp from a non-zero value', function () {
               context('Updates value', function () {
                 it('updates Beacon with signed data', async function () {
                   const { roles, dataFeedServerFull, beacons } = await deploy();
@@ -3138,6 +3138,39 @@ describe('DataFeedServerFull', function () {
                       )
                   ).to.be.revertedWith('Does not update value');
                 });
+              });
+            });
+            context('Updates timestamp from a zero value', function () {
+              it('updates Beacon with signed data', async function () {
+                const { roles, dataFeedServerFull, beacons } = await deploy();
+                const beacon = beacons[0];
+                const beaconValue = 0;
+                const beaconTimestamp = await helpers.time.latest();
+                const signature = await testUtils.signData(
+                  beacon.airnode.wallet,
+                  beacon.templateId,
+                  beaconTimestamp,
+                  encodeData(beaconValue)
+                );
+                const beaconBefore = await dataFeedServerFull.dataFeeds(beacon.beaconId);
+                expect(beaconBefore.value).to.equal(0);
+                expect(beaconBefore.timestamp).to.equal(0);
+                await expect(
+                  dataFeedServerFull
+                    .connect(roles.randomPerson)
+                    .updateBeaconWithSignedData(
+                      beacon.airnode.wallet.address,
+                      beacon.templateId,
+                      beaconTimestamp,
+                      encodeData(beaconValue),
+                      signature
+                    )
+                )
+                  .to.emit(dataFeedServerFull, 'UpdatedBeaconWithSignedData')
+                  .withArgs(beacon.beaconId, beaconValue, beaconTimestamp);
+                const beaconAfter = await dataFeedServerFull.dataFeeds(beacon.beaconId);
+                expect(beaconAfter.value).to.equal(beaconValue);
+                expect(beaconAfter.timestamp).to.equal(beaconTimestamp);
               });
             });
             context('Does not update timestamp', function () {
