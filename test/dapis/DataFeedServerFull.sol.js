@@ -2542,7 +2542,7 @@ describe('DataFeedServerFull', function () {
 
   describe('updateBeaconSetWithBeacons', function () {
     context('Did not specify less than two Beacons', function () {
-      context('Updates timestamp', function () {
+      context('Updates timestamp from a non-zero value', function () {
         context('Updates value', function () {
           it('updates Beacon set', async function () {
             const { roles, dataFeedServerFull, beacons, beaconSet } = await deploy();
@@ -2594,6 +2594,36 @@ describe('DataFeedServerFull', function () {
               dataFeedServerFull.connect(roles.randomPerson).updateBeaconSetWithBeacons(beaconSet.beaconIds)
             ).to.be.revertedWith('Does not update value');
           });
+        });
+      });
+      context('Updates timestamp from zero', function () {
+        it('updates Beacon set', async function () {
+          const { roles, dataFeedServerFull, beacons, beaconSet } = await deploy();
+          // Populate the Beacons
+          const beaconValues = beacons.map(() => 0);
+          const currentTimestamp = await helpers.time.latest();
+          const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
+          await Promise.all(
+            beacons.map(async (beacon, index) => {
+              await updateBeacon(roles, dataFeedServerFull, beacon, beaconValues[index], beaconTimestamps[index]);
+            })
+          );
+          const beaconSetValue = median(beaconValues);
+          const beaconSetTimestamp = median(beaconTimestamps);
+          const beaconSetBefore = await dataFeedServerFull.dataFeeds(beaconSet.beaconSetId);
+          expect(beaconSetBefore.value).to.equal(0);
+          expect(beaconSetBefore.timestamp).to.equal(0);
+          expect(
+            await dataFeedServerFull
+              .connect(roles.randomPerson)
+              .callStatic.updateBeaconSetWithBeacons(beaconSet.beaconIds)
+          ).to.equal(beaconSet.beaconSetId);
+          await expect(dataFeedServerFull.connect(roles.randomPerson).updateBeaconSetWithBeacons(beaconSet.beaconIds))
+            .to.emit(dataFeedServerFull, 'UpdatedBeaconSetWithBeacons')
+            .withArgs(beaconSet.beaconSetId, beaconSetValue, beaconSetTimestamp);
+          const beaconSetAfter = await dataFeedServerFull.dataFeeds(beaconSet.beaconSetId);
+          expect(beaconSetAfter.value).to.equal(beaconSetValue);
+          expect(beaconSetAfter.timestamp).to.equal(beaconSetTimestamp);
         });
       });
       context('Does not update timestamp', function () {
@@ -3140,7 +3170,7 @@ describe('DataFeedServerFull', function () {
                 });
               });
             });
-            context('Updates timestamp from a zero value', function () {
+            context('Updates timestamp from zero', function () {
               it('updates Beacon with signed data', async function () {
                 const { roles, dataFeedServerFull, beacons } = await deploy();
                 const beacon = beacons[0];

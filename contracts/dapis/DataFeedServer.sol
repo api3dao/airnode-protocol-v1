@@ -55,7 +55,9 @@ contract DataFeedServer is ExtendedSelfMulticall, Median, IDataFeedServer {
             updatedTimestamp > beaconSet.timestamp,
             "Does not update timestamp"
         );
-        require(updatedValue != beaconSet.value, "Does not update value");
+        if (beaconSet.timestamp != 0) {
+            require(updatedValue != beaconSet.value, "Does not update value");
+        }
         _dataFeeds[beaconSetId] = DataFeed({
             value: updatedValue,
             timestamp: updatedTimestamp
