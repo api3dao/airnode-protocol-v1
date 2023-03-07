@@ -116,10 +116,9 @@ contract DataFeedServer is ExtendedSelfMulticall, Median, IDataFeedServer {
         returns (int224 updatedBeaconValue)
     {
         updatedBeaconValue = decodeFulfillmentData(data);
-        require(
-            timestamp > _dataFeeds[beaconId].timestamp,
-            "Does not update timestamp"
-        );
+        DataFeed storage beacon = _dataFeeds[beaconId];
+        require(timestamp > beacon.timestamp, "Does not update timestamp");
+        require(updatedBeaconValue != beacon.value, "Does not update value");
         _dataFeeds[beaconId] = DataFeed({
             value: updatedBeaconValue,
             timestamp: uint32(timestamp)

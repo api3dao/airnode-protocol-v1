@@ -225,7 +225,7 @@ describe('Api3ServerV1', function () {
         it('updates Beacon set', async function () {
           const { roles, api3ServerV1, beacons, beaconSet } = await deploy();
           // Populate the Beacons
-          const beaconValues = beacons.map(() => Math.floor(Math.random() * 200 - 100));
+          const beaconValues = beacons.map(() => Math.floor(Math.random() * 20000 - 10000));
           const currentTimestamp = await helpers.time.latest();
           const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
           await Promise.all(
@@ -312,43 +312,86 @@ describe('Api3ServerV1', function () {
         context('Fulfillment data length is correct', function () {
           context('Decoded fulfillment data can be typecasted into int224', function () {
             context('Updates timestamp', function () {
-              it('updates Beacon with signed data', async function () {
-                const { roles, api3ServerV1, beacons } = await deploy();
-                const beacon = beacons[0];
-                const beaconValue = Math.floor(Math.random() * 200 - 100);
-                const beaconTimestamp = await helpers.time.latest();
-                const signature = await testUtils.signData(
-                  beacon.airnode.wallet,
-                  beacon.templateId,
-                  beaconTimestamp,
-                  encodeData(beaconValue)
-                );
-                const beaconBefore = await api3ServerV1.dataFeeds(beacon.beaconId);
-                expect(beaconBefore.value).to.equal(0);
-                expect(beaconBefore.timestamp).to.equal(0);
-                await expect(
-                  api3ServerV1
+              context('Updates value', function () {
+                it('updates Beacon with signed data', async function () {
+                  const { roles, api3ServerV1, beacons } = await deploy();
+                  const beacon = beacons[0];
+                  const beaconValue = Math.floor(Math.random() * 20000 - 10000);
+                  const beaconTimestamp = await helpers.time.latest();
+                  const signature = await testUtils.signData(
+                    beacon.airnode.wallet,
+                    beacon.templateId,
+                    beaconTimestamp,
+                    encodeData(beaconValue)
+                  );
+                  const beaconBefore = await api3ServerV1.dataFeeds(beacon.beaconId);
+                  expect(beaconBefore.value).to.equal(0);
+                  expect(beaconBefore.timestamp).to.equal(0);
+                  await expect(
+                    api3ServerV1
+                      .connect(roles.randomPerson)
+                      .updateBeaconWithSignedData(
+                        beacon.airnode.wallet.address,
+                        beacon.templateId,
+                        beaconTimestamp,
+                        encodeData(beaconValue),
+                        signature
+                      )
+                  )
+                    .to.emit(api3ServerV1, 'UpdatedBeaconWithSignedData')
+                    .withArgs(beacon.beaconId, beaconValue, beaconTimestamp);
+                  const beaconAfter = await api3ServerV1.dataFeeds(beacon.beaconId);
+                  expect(beaconAfter.value).to.equal(beaconValue);
+                  expect(beaconAfter.timestamp).to.equal(beaconTimestamp);
+                });
+              });
+              context('Does not update value', function () {
+                it('reverts', async function () {
+                  const { roles, api3ServerV1, beacons } = await deploy();
+                  const beacon = beacons[0];
+                  const beaconValue = Math.floor(Math.random() * 20000 - 10000);
+                  const beaconTimestampFirst = await helpers.time.latest();
+                  const signatureFirst = await testUtils.signData(
+                    beacon.airnode.wallet,
+                    beacon.templateId,
+                    beaconTimestampFirst,
+                    encodeData(beaconValue)
+                  );
+                  await api3ServerV1
                     .connect(roles.randomPerson)
                     .updateBeaconWithSignedData(
                       beacon.airnode.wallet.address,
                       beacon.templateId,
-                      beaconTimestamp,
+                      beaconTimestampFirst,
                       encodeData(beaconValue),
-                      signature
-                    )
-                )
-                  .to.emit(api3ServerV1, 'UpdatedBeaconWithSignedData')
-                  .withArgs(beacon.beaconId, beaconValue, beaconTimestamp);
-                const beaconAfter = await api3ServerV1.dataFeeds(beacon.beaconId);
-                expect(beaconAfter.value).to.equal(beaconValue);
-                expect(beaconAfter.timestamp).to.equal(beaconTimestamp);
+                      signatureFirst
+                    );
+                  const beaconTimestampSecond = await helpers.time.latest();
+                  const signatureSecond = await testUtils.signData(
+                    beacon.airnode.wallet,
+                    beacon.templateId,
+                    beaconTimestampSecond,
+                    encodeData(beaconValue)
+                  );
+                  await expect(
+                    api3ServerV1
+                      .connect(roles.randomPerson)
+                      .updateBeaconWithSignedData(
+                        beacon.airnode.wallet.address,
+                        beacon.templateId,
+                        beaconTimestampSecond,
+                        encodeData(beaconValue),
+                        signatureSecond
+                      )
+                  ).to.be.revertedWith('Does not update value');
+                });
               });
             });
             context('Does not update timestamp', function () {
               it('reverts', async function () {
                 const { roles, api3ServerV1, beacons } = await deploy();
                 const beacon = beacons[0];
-                const beaconValue = Math.floor(Math.random() * 200 - 100);
+                const beaconValue = Math.floor(Math.random() * 20000 - 10000);
                 const beaconTimestamp = await helpers.time.latest();
                 const signature = await testUtils.signData(
                   beacon.airnode.wallet,
@@ -427,7 +470,7 @@ describe('Api3ServerV1', function () {
           it('reverts', async function () {
             const { roles, api3ServerV1, beacons } = await deploy();
             const beacon = beacons[0];
-            const beaconValue = Math.floor(Math.random() * 200 - 100);
+            const beaconValue = Math.floor(Math.random() * 20000 - 10000);
             const beaconTimestamp = await helpers.time.latest();
             const signature = await testUtils.signData(
               beacon.airnode.wallet,
@@ -453,7 +496,7 @@ describe('Api3ServerV1', function () {
         it('reverts', async function () {
           const { roles, api3ServerV1, beacons } = await deploy();
           const beacon = beacons[0];
-          const beaconValue = Math.floor(Math.random() * 200 - 100);
+          const beaconValue = Math.floor(Math.random() * 20000 - 10000);
           const beaconTimestamp = await helpers.time.latest();
           await expect(
             api3ServerV1
@@ -473,7 +516,7 @@ describe('Api3ServerV1', function () {
       it('reverts', async function () {
         const { roles, api3ServerV1, beacons } = await deploy();
         const beacon = beacons[0];
-        const beaconValue = Math.floor(Math.random() * 200 - 100);
+        const beaconValue = Math.floor(Math.random() * 20000 - 10000);
         const nextTimestamp = (await helpers.time.latest()) + 1;
         await helpers.time.setNextBlockTimestamp(nextTimestamp);
         const beaconTimestamp = nextTimestamp + 60 * 60 + 1;
@@ -500,7 +543,7 @@ describe('Api3ServerV1', function () {
       it('reverts', async function () {
         const { roles, api3ServerV1, beacons } = await deploy();
         const beacon = beacons[0];
-        const beaconValue = Math.floor(Math.random() * 200 - 100);
+        const beaconValue = Math.floor(Math.random() * 20000 - 10000);
         const nextTimestamp = (await helpers.time.latest()) + 1;
         await helpers.time.setNextBlockTimestamp(nextTimestamp);
         const beaconTimestamp = 0;
@@ -1178,7 +1221,7 @@ describe('Api3ServerV1', function () {
             it('withdraws the OEV proxy balance to the respective beneficiary', async function () {
               const { roles, api3ServerV1, oevProxy, beacons } = await deploy();
               const beacon = beacons[0];
-              const beaconValue = Math.floor(Math.random() * 200 - 100);
+              const beaconValue = Math.floor(Math.random() * 20000 - 10000);
               const beaconTimestamp = await helpers.time.latest();
               const bidAmount = 10000;
               const updateId = testUtils.generateRandomBytes32();
@@ -1239,7 +1282,7 @@ describe('Api3ServerV1', function () {
                 beacon.beaconId,
                 api3ServerV1.address
               );
-              const beaconValue = Math.floor(Math.random() * 200 - 100);
+              const beaconValue = Math.floor(Math.random() * 20000 - 10000);
               const beaconTimestamp = await helpers.time.latest();
               const bidAmount = 10000;
               const updateId = testUtils.generateRandomBytes32();
@@ -1407,7 +1450,7 @@ describe('Api3ServerV1', function () {
       it('reads data feed', async function () {
         const { roles, api3ServerV1, beacons } = await deploy();
         const beacon = beacons[0];
-        const beaconValue = Math.floor(Math.random() * 200 - 100);
+        const beaconValue = Math.floor(Math.random() * 20000 - 10000);
         const beaconTimestamp = await helpers.time.latest();
         await updateBeacon(roles, api3ServerV1, beacon, beaconValue, beaconTimestamp);
         const beaconAfter = await api3ServerV1.connect(roles.randomPerson).readDataFeedWithId(beacon.beaconId);
@@ -1432,7 +1475,7 @@ describe('Api3ServerV1', function () {
         it('reads Beacon', async function () {
           const { roles, api3ServerV1, beacons } = await deploy();
           const beacon = beacons[0];
-          const beaconValue = Math.floor(Math.random() * 200 - 100);
+          const beaconValue = Math.floor(Math.random() * 20000 - 10000);
           const beaconTimestamp = await helpers.time.latest();
           await updateBeacon(roles, api3ServerV1, beacon, beaconValue, beaconTimestamp);
           const dapiName = ethers.utils.formatBytes32String('My dAPI');
@@ -1460,7 +1503,7 @@ describe('Api3ServerV1', function () {
       context('Data feed is initialized', function () {
         it('reads Beacon set', async function () {
           const { roles, api3ServerV1, beacons, beaconSet } = await deploy();
-          const beaconSetValue = Math.floor(Math.random() * 200 - 100);
+          const beaconSetValue = Math.floor(Math.random() * 20000 - 10000);
           const beaconSetTimestamp = await helpers.time.latest();
           await updateBeaconSet(roles, api3ServerV1, beacons, beaconSetValue, beaconSetTimestamp);
           const dapiName = ethers.utils.formatBytes32String('My dAPI');
@@ -1501,7 +1544,7 @@ describe('Api3ServerV1', function () {
         it('reads OEV proxy data feed', async function () {
           const { roles, api3ServerV1, beacons } = await deploy();
           const beacon = beacons[0];
-          const beaconValue = Math.floor(Math.random() * 200 - 100);
+          const beaconValue = Math.floor(Math.random() * 20000 - 10000);
           const beaconTimestamp = await helpers.time.latest();
           const bidAmount = 10000;
           const updateId = testUtils.generateRandomBytes32();
@@ -1546,7 +1589,7 @@ describe('Api3ServerV1', function () {
         it('reads base data feed', async function () {
           const { roles, api3ServerV1, beacons } = await deploy();
           const beacon = beacons[0];
-          const beaconValue = Math.floor(Math.random() * 200 - 100);
+          const beaconValue = Math.floor(Math.random() * 20000 - 10000);
           const beaconTimestamp = await helpers.time.latest();
           await updateBeacon(roles, api3ServerV1, beacon, beaconValue, beaconTimestamp);
           const beaconAfter = await api3ServerV1
@@ -1575,7 +1618,7 @@ describe('Api3ServerV1', function () {
           it('reads OEV proxy data feed', async function () {
             const { roles, api3ServerV1, beacons } = await deploy();
             const beacon = beacons[0];
-            const beaconValue = Math.floor(Math.random() * 200 - 100);
+            const beaconValue = Math.floor(Math.random() * 20000 - 10000);
             const beaconTimestamp = await helpers.time.latest();
             const bidAmount = 10000;
             const updateId = testUtils.generateRandomBytes32();
@@ -1623,7 +1666,7 @@ describe('Api3ServerV1', function () {
           it('reads base data feed', async function () {
             const { roles, api3ServerV1, beacons } = await deploy();
             const beacon = beacons[0];
-            const beaconValue = Math.floor(Math.random() * 200 - 100);
+            const beaconValue = Math.floor(Math.random() * 20000 - 10000);
             const beaconTimestamp = await helpers.time.latest();
             await updateBeacon(roles, api3ServerV1, beacon, beaconValue, beaconTimestamp);
             const dapiName = ethers.utils.formatBytes32String('My dAPI');
@@ -1727,7 +1770,7 @@ describe('Api3ServerV1', function () {
           it('reads base data feed', async function () {
             const { roles, api3ServerV1, beacons, beaconSet } = await deploy();
             const currentTimestamp = await helpers.time.latest();
-            const beaconSetValue = Math.floor(Math.random() * 200 - 100);
+            const beaconSetValue = Math.floor(Math.random() * 20000 - 10000);
             const beaconSetTimestamp = Math.floor(currentTimestamp - Math.random() * 5 * 60);
             await updateBeaconSet(roles, api3ServerV1, beacons, beaconSetValue, beaconSetTimestamp);
             const dapiName = ethers.utils.formatBytes32String('My dAPI');
