@@ -58,6 +58,49 @@ describe('DataFeedServerFull', function () {
     ];
     await dataFeedServerFull.connect(roles.randomPerson).multicall(updateBeaconSetCalldata);
   }
+  async function updateProxyDataFeed(
+    roles,
+    dataFeedServerFull,
+    oevProxyAddress,
+    beacons,
+    updateId,
+    dataFeedId,
+    decodedData,
+    timestamp
+  ) {
+    if (!timestamp) {
+      timestamp = await helpers.time.latest();
+    }
+    const data = encodeData(decodedData);
+    const packedOevUpdateSignatures = await Promise.all(
+      beacons.map(async (beacon) => {
+        const signature = await testUtils.signOevData(
+          dataFeedServerFull,
+          oevProxyAddress,
+          dataFeedId,
+          updateId,
+          timestamp,
+          data,
+          roles.searcher.address,
+          1,
+          beacon.airnode.wallet,
+          beacon.templateId
+        );
+        return packOevUpdateSignature(beacon.airnode.wallet.address, beacon.templateId, signature);
+      })
+    );
+    await dataFeedServerFull
+      .connect(roles.searcher)
+      .updateOevProxyDataFeedWithSignedData(
+        oevProxyAddress,
+        dataFeedId,
+        updateId,
+        timestamp,
+        data,
+        packedOevUpdateSignatures,
+        { value: 1 }
+      );
+  }
 
   function encodeUpdateSubscriptionConditionParameters(
     deviationThresholdInPercentage,
@@ -3386,15 +3429,242 @@ describe('DataFeedServerFull', function () {
 
   describe('updateOevProxyDataFeedWithSignedData', function () {
     context('Timestamp is valid', function () {
-      context('Updates timestamp', function () {
-        context('Fulfillment data length is correct', function () {
-          context('Decoded fulfillment data can be typecasted into int224', function () {
-            context('More than one Beacon is specified', function () {
-              context('There are no invalid signatures', function () {
-                context('There are enough signatures to constitute an absolute majority', function () {
-                  context('Data in packed signatures is consistent with the data feed ID', function () {
-                    it('updates OEV proxy Beacon set with signed data', async function () {
+      context('Fulfillment data length is correct', function () {
+        context('Decoded fulfillment data can be typecasted into int224', function () {
+          context('Updates timestamp from a non-zero value', function () {
+            context('Updates value', function () {
+              context('Updated value not same as base feed value', function () {
+                context('More than one Beacon is specified', function () {
+                  context('There are no invalid signatures', function () {
+                    context('There are enough signatures to constitute an absolute majority', function () {
+                      context('Data in packed signatures is consistent with the data feed ID', function () {
+                        it('updates OEV proxy Beacon set with signed data', async function () {
+                          const { roles, dataFeedServerFull, oevProxy, beacons, beaconSet } = await deploy();
+                          await updateProxyDataFeed(
+                            roles,
+                            dataFeedServerFull,
+                            oevProxy.address,
+                            beacons,
+                            testUtils.generateRandomBytes32(),
+                            beaconSet.beaconSetId,
+                            1,
+                            1
+                          );
+                          const oevUpdateValue = 105;
+                          const currentTimestamp = await helpers.time.latest();
+                          const oevUpdateTimestamp = currentTimestamp + 1;
+                          const bidAmount = 10000;
+                          const updateId = testUtils.generateRandomBytes32();
+                          // Randomly omit one of the signatures
+                          const omitSignatureAtIndex = Math.floor(Math.random() * beacons.length);
+                          const signatures = await Promise.all(
+                            beacons.map(async (beacon, index) => {
+                              if (index === omitSignatureAtIndex) {
+                                return '0x';
+                              } else {
+                                return await testUtils.signOevData(
+                                  dataFeedServerFull,
+                                  oevProxy.address,
+                                  beaconSet.beaconSetId,
+                                  updateId,
+                                  oevUpdateTimestamp,
+                                  encodeData(oevUpdateValue),
+                                  roles.searcher.address,
+                                  bidAmount,
+                                  beacon.airnode.wallet,
+                                  beacon.templateId
+                                );
+                              }
+                            })
+                          );
+                          const packedOevUpdateSignatures = signatures.map((signature, index) => {
+                            return packOevUpdateSignature(
+                              beacons[index].airnode.wallet.address,
+                              beacons[index].templateId,
+                              signature
+                            );
+                          });
+                          const beaconSetBefore = await dataFeedServerFull.dataFeeds(beaconSet.beaconSetId);
+                          expect(beaconSetBefore.value).to.equal(0);
+                          expect(beaconSetBefore.timestamp).to.equal(0);
+                          const oevProxyBeaconSetBefore = await dataFeedServerFull.oevProxyToIdToDataFeed(
+                            oevProxy.address,
+                            beaconSet.beaconSetId
+                          );
+                          expect(oevProxyBeaconSetBefore.value).to.equal(1);
+                          expect(oevProxyBeaconSetBefore.timestamp).to.equal(1);
+                          await expect(
+                            dataFeedServerFull
+                              .connect(roles.searcher)
+                              .updateOevProxyDataFeedWithSignedData(
+                                oevProxy.address,
+                                beaconSet.beaconSetId,
+                                updateId,
+                                oevUpdateTimestamp,
+                                encodeData(oevUpdateValue),
+                                packedOevUpdateSignatures,
+                                { value: bidAmount }
+                              )
+                          )
+                            .to.emit(dataFeedServerFull, 'UpdatedOevProxyBeaconSetWithSignedData')
+                            .withArgs(
+                              beaconSet.beaconSetId,
+                              oevProxy.address,
+                              updateId,
+                              oevUpdateValue,
+                              oevUpdateTimestamp
+                            );
+                          const beaconSetAfter = await dataFeedServerFull.dataFeeds(beaconSet.beaconSetId);
+                          expect(beaconSetAfter.value).to.equal(0);
+                          expect(beaconSetAfter.timestamp).to.equal(0);
+                          const oevProxyBeaconSetAfter = await dataFeedServerFull.oevProxyToIdToDataFeed(
+                            oevProxy.address,
+                            beaconSet.beaconSetId
+                          );
+                          expect(oevProxyBeaconSetAfter.value).to.equal(oevUpdateValue);
+                          expect(oevProxyBeaconSetAfter.timestamp).to.equal(oevUpdateTimestamp);
+                        });
+                      });
+                      context('Data in packed signatures is not consistent with the data feed ID', function () {
+                        it('reverts', async function () {
+                          const { roles, dataFeedServerFull, oevProxy, beacons, beaconSet } = await deploy();
+                          await updateProxyDataFeed(
+                            roles,
+                            dataFeedServerFull,
+                            oevProxy.address,
+                            beacons,
+                            testUtils.generateRandomBytes32(),
+                            beaconSet.beaconSetId,
+                            1,
+                            1
+                          );
+                          const oevUpdateValue = 105;
+                          const currentTimestamp = await helpers.time.latest();
+                          const oevUpdateTimestamp = currentTimestamp + 1;
+                          const bidAmount = 10000;
+                          const updateId = testUtils.generateRandomBytes32();
+                          // Randomly omit one of the signatures
+                          const omitSignatureAtIndex = Math.floor(Math.random() * beacons.length);
+                          const spoofedDataFeedId = testUtils.generateRandomBytes32();
+                          const signatures = await Promise.all(
+                            beacons.map(async (beacon, index) => {
+                              if (index === omitSignatureAtIndex) {
+                                return '0x';
+                              } else {
+                                return await testUtils.signOevData(
+                                  dataFeedServerFull,
+                                  oevProxy.address,
+                                  spoofedDataFeedId,
+                                  updateId,
+                                  oevUpdateTimestamp,
+                                  encodeData(oevUpdateValue),
+                                  roles.searcher.address,
+                                  bidAmount,
+                                  beacon.airnode.wallet,
+                                  beacon.templateId
+                                );
+                              }
+                            })
+                          );
+                          const packedOevUpdateSignatures = signatures.map((signature, index) => {
+                            return packOevUpdateSignature(
+                              beacons[index].airnode.wallet.address,
+                              beacons[index].templateId,
+                              signature
+                            );
+                          });
+                          await expect(
+                            dataFeedServerFull
+                              .connect(roles.searcher)
+                              .updateOevProxyDataFeedWithSignedData(
+                                oevProxy.address,
+                                spoofedDataFeedId,
+                                updateId,
+                                oevUpdateTimestamp,
+                                encodeData(oevUpdateValue),
+                                packedOevUpdateSignatures,
+                                { value: bidAmount }
+                              )
+                          ).to.be.revertedWith('Beacon set ID mismatch');
+                        });
+                      });
+                    });
+                    context('There are not enough signatures to constitute an absolute majority', function () {
+                      it('reverts', async function () {
+                        const { roles, dataFeedServerFull, oevProxy, beacons, beaconSet } = await deploy();
+                        await updateProxyDataFeed(
+                          roles,
+                          dataFeedServerFull,
+                          oevProxy.address,
+                          beacons,
+                          testUtils.generateRandomBytes32(),
+                          beaconSet.beaconSetId,
+                          1,
+                          1
+                        );
+                        const oevUpdateValue = 105;
+                        const currentTimestamp = await helpers.time.latest();
+                        const oevUpdateTimestamp = currentTimestamp + 1;
+                        const bidAmount = 10000;
+                        const updateId = testUtils.generateRandomBytes32();
+                        // Randomly omit two of the signatures
+                        const includeSignatureAtIndex = Math.floor(Math.random() * beacons.length);
+                        const signatures = await Promise.all(
+                          beacons.map(async (beacon, index) => {
+                            if (index !== includeSignatureAtIndex) {
+                              return '0x';
+                            } else {
+                              return await testUtils.signOevData(
+                                dataFeedServerFull,
+                                oevProxy.address,
+                                beaconSet.beaconSetId,
+                                updateId,
+                                oevUpdateTimestamp,
+                                encodeData(oevUpdateValue),
+                                roles.searcher.address,
+                                bidAmount,
+                                beacon.airnode.wallet,
+                                beacon.templateId
+                              );
+                            }
+                          })
+                        );
+                        const packedOevUpdateSignatures = signatures.map((signature, index) => {
+                          return packOevUpdateSignature(
+                            beacons[index].airnode.wallet.address,
+                            beacons[index].templateId,
+                            signature
+                          );
+                        });
+                        await expect(
+                          dataFeedServerFull
+                            .connect(roles.searcher)
+                            .updateOevProxyDataFeedWithSignedData(
+                              oevProxy.address,
+                              beaconSet.beaconSetId,
+                              updateId,
+                              oevUpdateTimestamp,
+                              encodeData(oevUpdateValue),
+                              packedOevUpdateSignatures,
+                              { value: bidAmount }
+                            )
+                        ).to.be.revertedWith('Not enough signatures');
+                      });
+                    });
+                  });
+                  context('There are invalid signatures', function () {
+                    it('reverts', async function () {
                       const { roles, dataFeedServerFull, oevProxy, beacons, beaconSet } = await deploy();
+                      await updateProxyDataFeed(
+                        roles,
+                        dataFeedServerFull,
+                        oevProxy.address,
+                        beacons,
+                        testUtils.generateRandomBytes32(),
+                        beaconSet.beaconSetId,
+                        1,
+                        1
+                      );
                       const oevUpdateValue = 105;
                       const currentTimestamp = await helpers.time.latest();
                       const oevUpdateTimestamp = currentTimestamp + 1;
@@ -3405,6 +3675,531 @@ describe('DataFeedServerFull', function () {
                       const signatures = await Promise.all(
                         beacons.map(async (beacon, index) => {
                           if (index === omitSignatureAtIndex) {
+                            return '0x';
+                          } else {
+                            return '0x123456';
+                          }
+                        })
+                      );
+                      const packedOevUpdateSignatures = signatures.map((signature, index) => {
+                        return packOevUpdateSignature(
+                          beacons[index].airnode.wallet.address,
+                          beacons[index].templateId,
+                          signature
+                        );
+                      });
+                      await expect(
+                        dataFeedServerFull
+                          .connect(roles.searcher)
+                          .updateOevProxyDataFeedWithSignedData(
+                            oevProxy.address,
+                            beaconSet.beaconSetId,
+                            updateId,
+                            oevUpdateTimestamp,
+                            encodeData(oevUpdateValue),
+                            packedOevUpdateSignatures,
+                            { value: bidAmount }
+                          )
+                      ).to.be.revertedWith('ECDSA: invalid signature length');
+                    });
+                  });
+                });
+                context('One Beacon is specified', function () {
+                  context('The signature is not invalid', function () {
+                    context('The signature is not omitted', function () {
+                      context('Data in the packed signature is consistent with the data feed ID', function () {
+                        it('updates OEV proxy Beacon with signed data', async function () {
+                          const { roles, dataFeedServerFull, oevProxy, beacons } = await deploy();
+                          const beacon = beacons[0];
+                          await updateProxyDataFeed(
+                            roles,
+                            dataFeedServerFull,
+                            oevProxy.address,
+                            [beacon],
+                            testUtils.generateRandomBytes32(),
+                            beacon.beaconId,
+                            1,
+                            1
+                          );
+                          const oevUpdateValue = 105;
+                          const currentTimestamp = await helpers.time.latest();
+                          const oevUpdateTimestamp = currentTimestamp + 1;
+                          const bidAmount = 10000;
+                          const updateId = testUtils.generateRandomBytes32();
+                          const signature = await testUtils.signOevData(
+                            dataFeedServerFull,
+                            oevProxy.address,
+                            beacon.beaconId,
+                            updateId,
+                            oevUpdateTimestamp,
+                            encodeData(oevUpdateValue),
+                            roles.searcher.address,
+                            bidAmount,
+                            beacon.airnode.wallet,
+                            beacon.templateId
+                          );
+                          const packedOevUpdateSignature = packOevUpdateSignature(
+                            beacon.airnode.wallet.address,
+                            beacon.templateId,
+                            signature
+                          );
+                          const beaconBefore = await dataFeedServerFull.dataFeeds(beacon.beaconId);
+                          expect(beaconBefore.value).to.equal(0);
+                          expect(beaconBefore.timestamp).to.equal(0);
+                          const oevProxyBeaconBefore = await dataFeedServerFull.oevProxyToIdToDataFeed(
+                            oevProxy.address,
+                            beacon.beaconId
+                          );
+                          expect(oevProxyBeaconBefore.value).to.equal(1);
+                          expect(oevProxyBeaconBefore.timestamp).to.equal(1);
+                          await expect(
+                            dataFeedServerFull
+                              .connect(roles.searcher)
+                              .updateOevProxyDataFeedWithSignedData(
+                                oevProxy.address,
+                                beacon.beaconId,
+                                updateId,
+                                oevUpdateTimestamp,
+                                encodeData(oevUpdateValue),
+                                [packedOevUpdateSignature],
+                                { value: bidAmount }
+                              )
+                          )
+                            .to.emit(dataFeedServerFull, 'UpdatedOevProxyBeaconWithSignedData')
+                            .withArgs(beacon.beaconId, oevProxy.address, updateId, oevUpdateValue, oevUpdateTimestamp);
+                          const beaconAfter = await dataFeedServerFull.dataFeeds(beacon.beaconId);
+                          expect(beaconAfter.value).to.equal(0);
+                          expect(beaconAfter.timestamp).to.equal(0);
+                          const oevProxyBeaconAfter = await dataFeedServerFull.oevProxyToIdToDataFeed(
+                            oevProxy.address,
+                            beacon.beaconId
+                          );
+                          expect(oevProxyBeaconAfter.value).to.equal(oevUpdateValue);
+                          expect(oevProxyBeaconAfter.timestamp).to.equal(oevUpdateTimestamp);
+                        });
+                      });
+                      context('Data in the packed signature is not consistent with the data feed ID', function () {
+                        it('reverts', async function () {
+                          const { roles, dataFeedServerFull, oevProxy, beacons } = await deploy();
+                          const beacon = beacons[0];
+                          await updateProxyDataFeed(
+                            roles,
+                            dataFeedServerFull,
+                            oevProxy.address,
+                            [beacon],
+                            testUtils.generateRandomBytes32(),
+                            beacon.beaconId,
+                            1,
+                            1
+                          );
+                          const oevUpdateValue = 105;
+                          const currentTimestamp = await helpers.time.latest();
+                          const oevUpdateTimestamp = currentTimestamp + 1;
+                          const bidAmount = 10000;
+                          const updateId = testUtils.generateRandomBytes32();
+                          const spoofedDataFeedId = testUtils.generateRandomBytes32();
+                          const signature = await testUtils.signOevData(
+                            dataFeedServerFull,
+                            oevProxy.address,
+                            spoofedDataFeedId,
+                            updateId,
+                            oevUpdateTimestamp,
+                            encodeData(oevUpdateValue),
+                            roles.searcher.address,
+                            bidAmount,
+                            beacon.airnode.wallet,
+                            beacon.templateId
+                          );
+                          const packedOevUpdateSignature = packOevUpdateSignature(
+                            beacon.airnode.wallet.address,
+                            beacon.templateId,
+                            signature
+                          );
+                          await expect(
+                            dataFeedServerFull
+                              .connect(roles.searcher)
+                              .updateOevProxyDataFeedWithSignedData(
+                                oevProxy.address,
+                                spoofedDataFeedId,
+                                updateId,
+                                oevUpdateTimestamp,
+                                encodeData(oevUpdateValue),
+                                [packedOevUpdateSignature],
+                                { value: bidAmount }
+                              )
+                          ).to.be.revertedWith('Beacon ID mismatch');
+                        });
+                      });
+                    });
+                    context('The signature is omitted', function () {
+                      it('reverts', async function () {
+                        const { roles, dataFeedServerFull, oevProxy, beacons } = await deploy();
+                        const beacon = beacons[0];
+                        await updateProxyDataFeed(
+                          roles,
+                          dataFeedServerFull,
+                          oevProxy.address,
+                          [beacon],
+                          testUtils.generateRandomBytes32(),
+                          beacon.beaconId,
+                          1,
+                          1
+                        );
+                        const oevUpdateValue = 105;
+                        const currentTimestamp = await helpers.time.latest();
+                        const oevUpdateTimestamp = currentTimestamp + 1;
+                        const bidAmount = 10000;
+                        const updateId = testUtils.generateRandomBytes32();
+                        const packedOevUpdateSignature = packOevUpdateSignature(
+                          beacon.airnode.wallet.address,
+                          beacon.templateId,
+                          '0x'
+                        );
+                        await expect(
+                          dataFeedServerFull
+                            .connect(roles.searcher)
+                            .updateOevProxyDataFeedWithSignedData(
+                              oevProxy.address,
+                              beacon.beaconId,
+                              updateId,
+                              oevUpdateTimestamp,
+                              encodeData(oevUpdateValue),
+                              [packedOevUpdateSignature],
+                              { value: bidAmount }
+                            )
+                        ).to.be.revertedWith('Missing signature');
+                      });
+                    });
+                  });
+                  context('The signature is invalid', function () {
+                    it('reverts', async function () {
+                      const { roles, dataFeedServerFull, oevProxy, beacons } = await deploy();
+                      const beacon = beacons[0];
+                      await updateProxyDataFeed(
+                        roles,
+                        dataFeedServerFull,
+                        oevProxy.address,
+                        [beacon],
+                        testUtils.generateRandomBytes32(),
+                        beacon.beaconId,
+                        1,
+                        1
+                      );
+                      const oevUpdateValue = 105;
+                      const currentTimestamp = await helpers.time.latest();
+                      const oevUpdateTimestamp = currentTimestamp + 1;
+                      const bidAmount = 10000;
+                      const updateId = testUtils.generateRandomBytes32();
+                      const packedOevUpdateSignature = packOevUpdateSignature(
+                        beacon.airnode.wallet.address,
+                        beacon.templateId,
+                        '0x123456'
+                      );
+                      await expect(
+                        dataFeedServerFull
+                          .connect(roles.searcher)
+                          .updateOevProxyDataFeedWithSignedData(
+                            oevProxy.address,
+                            beacon.beaconId,
+                            updateId,
+                            oevUpdateTimestamp,
+                            encodeData(oevUpdateValue),
+                            [packedOevUpdateSignature],
+                            { value: bidAmount }
+                          )
+                      ).to.be.revertedWith('ECDSA: invalid signature length');
+                    });
+                  });
+                });
+                context('No Beacon is specified', function () {
+                  it('reverts', async function () {
+                    const { roles, dataFeedServerFull, oevProxy, beacons } = await deploy();
+                    const beacon = beacons[0];
+                    await updateProxyDataFeed(
+                      roles,
+                      dataFeedServerFull,
+                      oevProxy.address,
+                      [beacon],
+                      testUtils.generateRandomBytes32(),
+                      beacon.beaconId,
+                      1,
+                      1
+                    );
+                    const oevUpdateValue = 105;
+                    const currentTimestamp = await helpers.time.latest();
+                    const oevUpdateTimestamp = currentTimestamp + 1;
+                    const bidAmount = 10000;
+                    const updateId = testUtils.generateRandomBytes32();
+                    await expect(
+                      dataFeedServerFull
+                        .connect(roles.searcher)
+                        .updateOevProxyDataFeedWithSignedData(
+                          oevProxy.address,
+                          beacon.beaconId,
+                          updateId,
+                          oevUpdateTimestamp,
+                          encodeData(oevUpdateValue),
+                          [],
+                          { value: bidAmount }
+                        )
+                    ).to.be.revertedWith('Did not specify any Beacons');
+                  });
+                });
+              });
+              context('Updated value same as base feed value', function () {
+                it('reverts', async function () {
+                  const { roles, dataFeedServerFull, oevProxy, beacons } = await deploy();
+                  const beacon = beacons[0];
+                  const oevUpdateValue = 105;
+                  await updateBeacon(roles, dataFeedServerFull, beacon, oevUpdateValue, 1);
+                  const updateId = testUtils.generateRandomBytes32();
+                  const currentTimestamp = await helpers.time.latest();
+                  const oevUpdateTimestamp = currentTimestamp + 1;
+                  const bidAmount = 10000;
+                  const signature = await testUtils.signOevData(
+                    dataFeedServerFull,
+                    oevProxy.address,
+                    beacon.beaconId,
+                    updateId,
+                    oevUpdateTimestamp,
+                    encodeData(oevUpdateValue),
+                    roles.searcher.address,
+                    bidAmount,
+                    beacon.airnode.wallet,
+                    beacon.templateId
+                  );
+                  const packedOevUpdateSignature = packOevUpdateSignature(
+                    beacon.airnode.wallet.address,
+                    beacon.templateId,
+                    signature
+                  );
+                  await expect(
+                    dataFeedServerFull
+                      .connect(roles.searcher)
+                      .updateOevProxyDataFeedWithSignedData(
+                        oevProxy.address,
+                        beacon.beaconId,
+                        updateId,
+                        oevUpdateTimestamp,
+                        encodeData(oevUpdateValue),
+                        [packedOevUpdateSignature],
+                        { value: bidAmount }
+                      )
+                  ).to.be.revertedWith('Updated value same as base feed');
+                });
+              });
+            });
+            context('Does not update value', function () {
+              it('reverts', async function () {
+                const { roles, dataFeedServerFull, oevProxy, beacons } = await deploy();
+                const beacon = beacons[0];
+                const oevUpdateValue = 105;
+                await updateProxyDataFeed(
+                  roles,
+                  dataFeedServerFull,
+                  oevProxy.address,
+                  [beacon],
+                  testUtils.generateRandomBytes32(),
+                  beacon.beaconId,
+                  oevUpdateValue,
+                  1
+                );
+                const updateId = testUtils.generateRandomBytes32();
+                const currentTimestamp = await helpers.time.latest();
+                const oevUpdateTimestamp = currentTimestamp + 1;
+                const bidAmount = 10000;
+                const signature = await testUtils.signOevData(
+                  dataFeedServerFull,
+                  oevProxy.address,
+                  beacon.beaconId,
+                  updateId,
+                  oevUpdateTimestamp,
+                  encodeData(oevUpdateValue),
+                  roles.searcher.address,
+                  bidAmount,
+                  beacon.airnode.wallet,
+                  beacon.templateId
+                );
+                const packedOevUpdateSignature = packOevUpdateSignature(
+                  beacon.airnode.wallet.address,
+                  beacon.templateId,
+                  signature
+                );
+                await expect(
+                  dataFeedServerFull
+                    .connect(roles.searcher)
+                    .updateOevProxyDataFeedWithSignedData(
+                      oevProxy.address,
+                      beacon.beaconId,
+                      updateId,
+                      oevUpdateTimestamp,
+                      encodeData(oevUpdateValue),
+                      [packedOevUpdateSignature],
+                      { value: bidAmount }
+                    )
+                ).to.be.revertedWith('Does not update value');
+              });
+            });
+          });
+          context('Updates timestamp from zero', function () {
+            context('Updated value not same as base feed value', function () {
+              context('More than one Beacon is specified', function () {
+                context('There are no invalid signatures', function () {
+                  context('There are enough signatures to constitute an absolute majority', function () {
+                    context('Data in packed signatures is consistent with the data feed ID', function () {
+                      it('updates OEV proxy Beacon set with signed data', async function () {
+                        const { roles, dataFeedServerFull, oevProxy, beacons, beaconSet } = await deploy();
+                        await updateBeaconSet(roles, dataFeedServerFull, beacons, 1, 1);
+                        const oevUpdateValue = 0;
+                        const currentTimestamp = await helpers.time.latest();
+                        const oevUpdateTimestamp = currentTimestamp + 1;
+                        const bidAmount = 10000;
+                        const updateId = testUtils.generateRandomBytes32();
+                        // Randomly omit one of the signatures
+                        const omitSignatureAtIndex = Math.floor(Math.random() * beacons.length);
+                        const signatures = await Promise.all(
+                          beacons.map(async (beacon, index) => {
+                            if (index === omitSignatureAtIndex) {
+                              return '0x';
+                            } else {
+                              return await testUtils.signOevData(
+                                dataFeedServerFull,
+                                oevProxy.address,
+                                beaconSet.beaconSetId,
+                                updateId,
+                                oevUpdateTimestamp,
+                                encodeData(oevUpdateValue),
+                                roles.searcher.address,
+                                bidAmount,
+                                beacon.airnode.wallet,
+                                beacon.templateId
+                              );
+                            }
+                          })
+                        );
+                        const packedOevUpdateSignatures = signatures.map((signature, index) => {
+                          return packOevUpdateSignature(
+                            beacons[index].airnode.wallet.address,
+                            beacons[index].templateId,
+                            signature
+                          );
+                        });
+                        const beaconSetBefore = await dataFeedServerFull.dataFeeds(beaconSet.beaconSetId);
+                        expect(beaconSetBefore.value).to.equal(1);
+                        expect(beaconSetBefore.timestamp).to.equal(1);
+                        const oevProxyBeaconSetBefore = await dataFeedServerFull.oevProxyToIdToDataFeed(
+                          oevProxy.address,
+                          beaconSet.beaconSetId
+                        );
+                        expect(oevProxyBeaconSetBefore.value).to.equal(0);
+                        expect(oevProxyBeaconSetBefore.timestamp).to.equal(0);
+                        await expect(
+                          dataFeedServerFull
+                            .connect(roles.searcher)
+                            .updateOevProxyDataFeedWithSignedData(
+                              oevProxy.address,
+                              beaconSet.beaconSetId,
+                              updateId,
+                              oevUpdateTimestamp,
+                              encodeData(oevUpdateValue),
+                              packedOevUpdateSignatures,
+                              { value: bidAmount }
+                            )
+                        )
+                          .to.emit(dataFeedServerFull, 'UpdatedOevProxyBeaconSetWithSignedData')
+                          .withArgs(
+                            beaconSet.beaconSetId,
+                            oevProxy.address,
+                            updateId,
+                            oevUpdateValue,
+                            oevUpdateTimestamp
+                          );
+                        const beaconSetAfter = await dataFeedServerFull.dataFeeds(beaconSet.beaconSetId);
+                        expect(beaconSetAfter.value).to.equal(1);
+                        expect(beaconSetAfter.timestamp).to.equal(1);
+                        const oevProxyBeaconSetAfter = await dataFeedServerFull.oevProxyToIdToDataFeed(
+                          oevProxy.address,
+                          beaconSet.beaconSetId
+                        );
+                        expect(oevProxyBeaconSetAfter.value).to.equal(oevUpdateValue);
+                        expect(oevProxyBeaconSetAfter.timestamp).to.equal(oevUpdateTimestamp);
+                      });
+                    });
+                    context('Data in packed signatures is not consistent with the data feed ID', function () {
+                      it('reverts', async function () {
+                        const { roles, dataFeedServerFull, oevProxy, beacons } = await deploy();
+                        const spoofedDataFeedId = ethers.utils.keccak256(
+                          ethers.utils.defaultAbiCoder.encode(
+                            ['bytes32[]'],
+                            [[beacons[0].beaconId, beacons[1].beaconId]]
+                          )
+                        );
+                        await updateBeaconSet(roles, dataFeedServerFull, beacons, 1, 1);
+                        await dataFeedServerFull.updateBeaconSetWithBeacons([beacons[0].beaconId, beacons[1].beaconId]);
+                        const oevUpdateValue = 0;
+                        const currentTimestamp = await helpers.time.latest();
+                        const oevUpdateTimestamp = currentTimestamp + 1;
+                        const bidAmount = 10000;
+                        const updateId = testUtils.generateRandomBytes32();
+                        // Randomly omit one of the signatures
+                        const omitSignatureAtIndex = Math.floor(Math.random() * beacons.length);
+                        const signatures = await Promise.all(
+                          beacons.map(async (beacon, index) => {
+                            if (index === omitSignatureAtIndex) {
+                              return '0x';
+                            } else {
+                              return await testUtils.signOevData(
+                                dataFeedServerFull,
+                                oevProxy.address,
+                                spoofedDataFeedId,
+                                updateId,
+                                oevUpdateTimestamp,
+                                encodeData(oevUpdateValue),
+                                roles.searcher.address,
+                                bidAmount,
+                                beacon.airnode.wallet,
+                                beacon.templateId
+                              );
+                            }
+                          })
+                        );
+                        const packedOevUpdateSignatures = signatures.map((signature, index) => {
+                          return packOevUpdateSignature(
+                            beacons[index].airnode.wallet.address,
+                            beacons[index].templateId,
+                            signature
+                          );
+                        });
+                        await expect(
+                          dataFeedServerFull
+                            .connect(roles.searcher)
+                            .updateOevProxyDataFeedWithSignedData(
+                              oevProxy.address,
+                              spoofedDataFeedId,
+                              updateId,
+                              oevUpdateTimestamp,
+                              encodeData(oevUpdateValue),
+                              packedOevUpdateSignatures,
+                              { value: bidAmount }
+                            )
+                        ).to.be.revertedWith('Beacon set ID mismatch');
+                      });
+                    });
+                  });
+                  context('There are not enough signatures to constitute an absolute majority', function () {
+                    it('reverts', async function () {
+                      const { roles, dataFeedServerFull, oevProxy, beacons, beaconSet } = await deploy();
+                      await updateBeaconSet(roles, dataFeedServerFull, beacons, 1, 1);
+                      const oevUpdateValue = 0;
+                      const currentTimestamp = await helpers.time.latest();
+                      const oevUpdateTimestamp = currentTimestamp + 1;
+                      const bidAmount = 10000;
+                      const updateId = testUtils.generateRandomBytes32();
+                      // Randomly omit two of the signatures
+                      const includeSignatureAtIndex = Math.floor(Math.random() * beacons.length);
+                      const signatures = await Promise.all(
+                        beacons.map(async (beacon, index) => {
+                          if (index !== includeSignatureAtIndex) {
                             return '0x';
                           } else {
                             return await testUtils.signOevData(
@@ -3429,15 +4224,6 @@ describe('DataFeedServerFull', function () {
                           signature
                         );
                       });
-                      const beaconSetBefore = await dataFeedServerFull.dataFeeds(beaconSet.beaconSetId);
-                      expect(beaconSetBefore.value).to.equal(0);
-                      expect(beaconSetBefore.timestamp).to.equal(0);
-                      const oevProxyBeaconSetBefore = await dataFeedServerFull.oevProxyToIdToDataFeed(
-                        oevProxy.address,
-                        beaconSet.beaconSetId
-                      );
-                      expect(oevProxyBeaconSetBefore.value).to.equal(0);
-                      expect(oevProxyBeaconSetBefore.timestamp).to.equal(0);
                       await expect(
                         dataFeedServerFull
                           .connect(roles.searcher)
@@ -3450,107 +4236,27 @@ describe('DataFeedServerFull', function () {
                             packedOevUpdateSignatures,
                             { value: bidAmount }
                           )
-                      )
-                        .to.emit(dataFeedServerFull, 'UpdatedOevProxyBeaconSetWithSignedData')
-                        .withArgs(
-                          beaconSet.beaconSetId,
-                          oevProxy.address,
-                          updateId,
-                          oevUpdateValue,
-                          oevUpdateTimestamp
-                        );
-                      const beaconSetAfter = await dataFeedServerFull.dataFeeds(beaconSet.beaconSetId);
-                      expect(beaconSetAfter.value).to.equal(0);
-                      expect(beaconSetAfter.timestamp).to.equal(0);
-                      const oevProxyBeaconSetAfter = await dataFeedServerFull.oevProxyToIdToDataFeed(
-                        oevProxy.address,
-                        beaconSet.beaconSetId
-                      );
-                      expect(oevProxyBeaconSetAfter.value).to.equal(oevUpdateValue);
-                      expect(oevProxyBeaconSetAfter.timestamp).to.equal(oevUpdateTimestamp);
-                    });
-                  });
-                  context('Data in packed signatures is not consistent with the data feed ID', function () {
-                    it('reverts', async function () {
-                      const { roles, dataFeedServerFull, oevProxy, beacons } = await deploy();
-                      const oevUpdateValue = 105;
-                      const currentTimestamp = await helpers.time.latest();
-                      const oevUpdateTimestamp = currentTimestamp + 1;
-                      const bidAmount = 10000;
-                      const updateId = testUtils.generateRandomBytes32();
-                      // Randomly omit one of the signatures
-                      const omitSignatureAtIndex = Math.floor(Math.random() * beacons.length);
-                      const spoofedDataFeedId = testUtils.generateRandomBytes32();
-                      const signatures = await Promise.all(
-                        beacons.map(async (beacon, index) => {
-                          if (index === omitSignatureAtIndex) {
-                            return '0x';
-                          } else {
-                            return await testUtils.signOevData(
-                              dataFeedServerFull,
-                              oevProxy.address,
-                              spoofedDataFeedId,
-                              updateId,
-                              oevUpdateTimestamp,
-                              encodeData(oevUpdateValue),
-                              roles.searcher.address,
-                              bidAmount,
-                              beacon.airnode.wallet,
-                              beacon.templateId
-                            );
-                          }
-                        })
-                      );
-                      const packedOevUpdateSignatures = signatures.map((signature, index) => {
-                        return packOevUpdateSignature(
-                          beacons[index].airnode.wallet.address,
-                          beacons[index].templateId,
-                          signature
-                        );
-                      });
-                      await expect(
-                        dataFeedServerFull
-                          .connect(roles.searcher)
-                          .updateOevProxyDataFeedWithSignedData(
-                            oevProxy.address,
-                            spoofedDataFeedId,
-                            updateId,
-                            oevUpdateTimestamp,
-                            encodeData(oevUpdateValue),
-                            packedOevUpdateSignatures,
-                            { value: bidAmount }
-                          )
-                      ).to.be.revertedWith('Beacon set ID mismatch');
+                      ).to.be.revertedWith('Not enough signatures');
                     });
                   });
                 });
-                context('There are not enough signatures to constitute an absolute majority', function () {
+                context('There are invalid signatures', function () {
                   it('reverts', async function () {
                     const { roles, dataFeedServerFull, oevProxy, beacons, beaconSet } = await deploy();
-                    const oevUpdateValue = 105;
+                    await updateBeaconSet(roles, dataFeedServerFull, beacons, 1, 1);
+                    const oevUpdateValue = 0;
                     const currentTimestamp = await helpers.time.latest();
                     const oevUpdateTimestamp = currentTimestamp + 1;
                     const bidAmount = 10000;
                     const updateId = testUtils.generateRandomBytes32();
-                    // Randomly omit two of the signatures
-                    const includeSignatureAtIndex = Math.floor(Math.random() * beacons.length);
+                    // Randomly omit one of the signatures
+                    const omitSignatureAtIndex = Math.floor(Math.random() * beacons.length);
                     const signatures = await Promise.all(
                       beacons.map(async (beacon, index) => {
-                        if (index !== includeSignatureAtIndex) {
+                        if (index === omitSignatureAtIndex) {
                           return '0x';
                         } else {
-                          return await testUtils.signOevData(
-                            dataFeedServerFull,
-                            oevProxy.address,
-                            beaconSet.beaconSetId,
-                            updateId,
-                            oevUpdateTimestamp,
-                            encodeData(oevUpdateValue),
-                            roles.searcher.address,
-                            bidAmount,
-                            beacon.airnode.wallet,
-                            beacon.templateId
-                          );
+                          return '0x123456';
                         }
                       })
                     );
@@ -3573,90 +4279,135 @@ describe('DataFeedServerFull', function () {
                           packedOevUpdateSignatures,
                           { value: bidAmount }
                         )
-                    ).to.be.revertedWith('Not enough signatures');
+                    ).to.be.revertedWith('ECDSA: invalid signature length');
                   });
                 });
               });
-              context('There are invalid signatures', function () {
-                it('reverts', async function () {
-                  const { roles, dataFeedServerFull, oevProxy, beacons, beaconSet } = await deploy();
-                  const oevUpdateValue = 105;
-                  const currentTimestamp = await helpers.time.latest();
-                  const oevUpdateTimestamp = currentTimestamp + 1;
-                  const bidAmount = 10000;
-                  const updateId = testUtils.generateRandomBytes32();
-                  // Randomly omit one of the signatures
-                  const omitSignatureAtIndex = Math.floor(Math.random() * beacons.length);
-                  const signatures = await Promise.all(
-                    beacons.map(async (beacon, index) => {
-                      if (index === omitSignatureAtIndex) {
-                        return '0x';
-                      } else {
-                        return '0x123456';
-                      }
-                    })
-                  );
-                  const packedOevUpdateSignatures = signatures.map((signature, index) => {
-                    return packOevUpdateSignature(
-                      beacons[index].airnode.wallet.address,
-                      beacons[index].templateId,
-                      signature
-                    );
+              context('One Beacon is specified', function () {
+                context('The signature is not invalid', function () {
+                  context('The signature is not omitted', function () {
+                    context('Data in the packed signature is consistent with the data feed ID', function () {
+                      it('updates OEV proxy Beacon with signed data', async function () {
+                        const { roles, dataFeedServerFull, oevProxy, beacons } = await deploy();
+                        const beacon = beacons[0];
+                        await updateBeacon(roles, dataFeedServerFull, beacon, 1, 1);
+                        const oevUpdateValue = 0;
+                        const currentTimestamp = await helpers.time.latest();
+                        const oevUpdateTimestamp = currentTimestamp + 1;
+                        const bidAmount = 10000;
+                        const updateId = testUtils.generateRandomBytes32();
+                        const signature = await testUtils.signOevData(
+                          dataFeedServerFull,
+                          oevProxy.address,
+                          beacon.beaconId,
+                          updateId,
+                          oevUpdateTimestamp,
+                          encodeData(oevUpdateValue),
+                          roles.searcher.address,
+                          bidAmount,
+                          beacon.airnode.wallet,
+                          beacon.templateId
+                        );
+                        const packedOevUpdateSignature = packOevUpdateSignature(
+                          beacon.airnode.wallet.address,
+                          beacon.templateId,
+                          signature
+                        );
+                        const beaconBefore = await dataFeedServerFull.dataFeeds(beacon.beaconId);
+                        expect(beaconBefore.value).to.equal(1);
+                        expect(beaconBefore.timestamp).to.equal(1);
+                        const oevProxyBeaconBefore = await dataFeedServerFull.oevProxyToIdToDataFeed(
+                          oevProxy.address,
+                          beacon.beaconId
+                        );
+                        expect(oevProxyBeaconBefore.value).to.equal(0);
+                        expect(oevProxyBeaconBefore.timestamp).to.equal(0);
+                        await expect(
+                          dataFeedServerFull
+                            .connect(roles.searcher)
+                            .updateOevProxyDataFeedWithSignedData(
+                              oevProxy.address,
+                              beacon.beaconId,
+                              updateId,
+                              oevUpdateTimestamp,
+                              encodeData(oevUpdateValue),
+                              [packedOevUpdateSignature],
+                              { value: bidAmount }
+                            )
+                        )
+                          .to.emit(dataFeedServerFull, 'UpdatedOevProxyBeaconWithSignedData')
+                          .withArgs(beacon.beaconId, oevProxy.address, updateId, oevUpdateValue, oevUpdateTimestamp);
+                        const beaconAfter = await dataFeedServerFull.dataFeeds(beacon.beaconId);
+                        expect(beaconAfter.value).to.equal(1);
+                        expect(beaconAfter.timestamp).to.equal(1);
+                        const oevProxyBeaconAfter = await dataFeedServerFull.oevProxyToIdToDataFeed(
+                          oevProxy.address,
+                          beacon.beaconId
+                        );
+                        expect(oevProxyBeaconAfter.value).to.equal(oevUpdateValue);
+                        expect(oevProxyBeaconAfter.timestamp).to.equal(oevUpdateTimestamp);
+                      });
+                    });
+                    context('Data in the packed signature is not consistent with the data feed ID', function () {
+                      it('reverts', async function () {
+                        const { roles, dataFeedServerFull, oevProxy, beacons } = await deploy();
+                        const beacon = beacons[0];
+                        const spoofedDataFeedId = beacons[1].beaconId;
+                        await updateBeacon(roles, dataFeedServerFull, beacons[1], 1, 1);
+                        await updateBeacon(roles, dataFeedServerFull, beacon, 1, 1);
+                        const oevUpdateValue = 0;
+                        const currentTimestamp = await helpers.time.latest();
+                        const oevUpdateTimestamp = currentTimestamp + 1;
+                        const bidAmount = 10000;
+                        const updateId = testUtils.generateRandomBytes32();
+                        const signature = await testUtils.signOevData(
+                          dataFeedServerFull,
+                          oevProxy.address,
+                          spoofedDataFeedId,
+                          updateId,
+                          oevUpdateTimestamp,
+                          encodeData(oevUpdateValue),
+                          roles.searcher.address,
+                          bidAmount,
+                          beacon.airnode.wallet,
+                          beacon.templateId
+                        );
+                        const packedOevUpdateSignature = packOevUpdateSignature(
+                          beacon.airnode.wallet.address,
+                          beacon.templateId,
+                          signature
+                        );
+                        await expect(
+                          dataFeedServerFull
+                            .connect(roles.searcher)
+                            .updateOevProxyDataFeedWithSignedData(
+                              oevProxy.address,
+                              spoofedDataFeedId,
+                              updateId,
+                              oevUpdateTimestamp,
+                              encodeData(oevUpdateValue),
+                              [packedOevUpdateSignature],
+                              { value: bidAmount }
+                            )
+                        ).to.be.revertedWith('Beacon ID mismatch');
+                      });
+                    });
                   });
-                  await expect(
-                    dataFeedServerFull
-                      .connect(roles.searcher)
-                      .updateOevProxyDataFeedWithSignedData(
-                        oevProxy.address,
-                        beaconSet.beaconSetId,
-                        updateId,
-                        oevUpdateTimestamp,
-                        encodeData(oevUpdateValue),
-                        packedOevUpdateSignatures,
-                        { value: bidAmount }
-                      )
-                  ).to.be.revertedWith('ECDSA: invalid signature length');
-                });
-              });
-            });
-            context('One Beacon is specified', function () {
-              context('The signature is not invalid', function () {
-                context('The signature is not omitted', function () {
-                  context('Data in the packed signature is consistent with the data feed ID', function () {
-                    it('updates OEV proxy Beacon with signed data', async function () {
+                  context('The signature is omitted', function () {
+                    it('reverts', async function () {
                       const { roles, dataFeedServerFull, oevProxy, beacons } = await deploy();
                       const beacon = beacons[0];
-                      const oevUpdateValue = 105;
+                      await updateBeacon(roles, dataFeedServerFull, beacon, 1, 1);
+                      const oevUpdateValue = 0;
                       const currentTimestamp = await helpers.time.latest();
                       const oevUpdateTimestamp = currentTimestamp + 1;
                       const bidAmount = 10000;
                       const updateId = testUtils.generateRandomBytes32();
-                      const signature = await testUtils.signOevData(
-                        dataFeedServerFull,
-                        oevProxy.address,
-                        beacon.beaconId,
-                        updateId,
-                        oevUpdateTimestamp,
-                        encodeData(oevUpdateValue),
-                        roles.searcher.address,
-                        bidAmount,
-                        beacon.airnode.wallet,
-                        beacon.templateId
-                      );
                       const packedOevUpdateSignature = packOevUpdateSignature(
                         beacon.airnode.wallet.address,
                         beacon.templateId,
-                        signature
+                        '0x'
                       );
-                      const beaconBefore = await dataFeedServerFull.dataFeeds(beacon.beaconId);
-                      expect(beaconBefore.value).to.equal(0);
-                      expect(beaconBefore.timestamp).to.equal(0);
-                      const oevProxyBeaconBefore = await dataFeedServerFull.oevProxyToIdToDataFeed(
-                        oevProxy.address,
-                        beacon.beaconId
-                      );
-                      expect(oevProxyBeaconBefore.value).to.equal(0);
-                      expect(oevProxyBeaconBefore.timestamp).to.equal(0);
                       await expect(
                         dataFeedServerFull
                           .connect(roles.searcher)
@@ -3669,77 +4420,16 @@ describe('DataFeedServerFull', function () {
                             [packedOevUpdateSignature],
                             { value: bidAmount }
                           )
-                      )
-                        .to.emit(dataFeedServerFull, 'UpdatedOevProxyBeaconWithSignedData')
-                        .withArgs(beacon.beaconId, oevProxy.address, updateId, oevUpdateValue, oevUpdateTimestamp);
-                      const beaconAfter = await dataFeedServerFull.dataFeeds(beacon.beaconId);
-                      expect(beaconAfter.value).to.equal(0);
-                      expect(beaconAfter.timestamp).to.equal(0);
-                      const oevProxyBeaconAfter = await dataFeedServerFull.oevProxyToIdToDataFeed(
-                        oevProxy.address,
-                        beacon.beaconId
-                      );
-                      expect(oevProxyBeaconAfter.value).to.equal(oevUpdateValue);
-                      expect(oevProxyBeaconAfter.timestamp).to.equal(oevUpdateTimestamp);
-                    });
-                  });
-                  context('Data in the packed signature is not consistent with the data feed ID', function () {
-                    it('reverts', async function () {
-                      const { roles, dataFeedServerFull, oevProxy, beacons } = await deploy();
-                      const beacon = beacons[0];
-                      const oevUpdateValue = 105;
-                      const currentTimestamp = await helpers.time.latest();
-                      const oevUpdateTimestamp = currentTimestamp + 1;
-                      const bidAmount = 10000;
-                      const updateId = testUtils.generateRandomBytes32();
-                      const spoofedDataFeedId = testUtils.generateRandomBytes32();
-                      const signature = await testUtils.signOevData(
-                        dataFeedServerFull,
-                        oevProxy.address,
-                        spoofedDataFeedId,
-                        updateId,
-                        oevUpdateTimestamp,
-                        encodeData(oevUpdateValue),
-                        roles.searcher.address,
-                        bidAmount,
-                        beacon.airnode.wallet,
-                        beacon.templateId
-                      );
-                      const packedOevUpdateSignature = packOevUpdateSignature(
-                        beacon.airnode.wallet.address,
-                        beacon.templateId,
-                        signature
-                      );
-                      const beaconBefore = await dataFeedServerFull.dataFeeds(beacon.beaconId);
-                      expect(beaconBefore.value).to.equal(0);
-                      expect(beaconBefore.timestamp).to.equal(0);
-                      const oevProxyBeaconBefore = await dataFeedServerFull.oevProxyToIdToDataFeed(
-                        oevProxy.address,
-                        beacon.beaconId
-                      );
-                      expect(oevProxyBeaconBefore.value).to.equal(0);
-                      expect(oevProxyBeaconBefore.timestamp).to.equal(0);
-                      await expect(
-                        dataFeedServerFull
-                          .connect(roles.searcher)
-                          .updateOevProxyDataFeedWithSignedData(
-                            oevProxy.address,
-                            spoofedDataFeedId,
-                            updateId,
-                            oevUpdateTimestamp,
-                            encodeData(oevUpdateValue),
-                            [packedOevUpdateSignature],
-                            { value: bidAmount }
-                          )
-                      ).to.be.revertedWith('Beacon ID mismatch');
+                      ).to.be.revertedWith('Missing signature');
                     });
                   });
                 });
-                context('The signature is omitted', function () {
+                context('The signature is invalid', function () {
                   it('reverts', async function () {
                     const { roles, dataFeedServerFull, oevProxy, beacons } = await deploy();
                     const beacon = beacons[0];
-                    const oevUpdateValue = 105;
+                    await updateBeacon(roles, dataFeedServerFull, beacon, 1, 1);
+                    const oevUpdateValue = 0;
                     const currentTimestamp = await helpers.time.latest();
                     const oevUpdateTimestamp = currentTimestamp + 1;
                     const bidAmount = 10000;
@@ -3747,7 +4437,7 @@ describe('DataFeedServerFull', function () {
                     const packedOevUpdateSignature = packOevUpdateSignature(
                       beacon.airnode.wallet.address,
                       beacon.templateId,
-                      '0x'
+                      '0x123456'
                     );
                     await expect(
                       dataFeedServerFull
@@ -3761,24 +4451,20 @@ describe('DataFeedServerFull', function () {
                           [packedOevUpdateSignature],
                           { value: bidAmount }
                         )
-                    ).to.be.revertedWith('Missing signature');
+                    ).to.be.revertedWith('ECDSA: invalid signature length');
                   });
                 });
               });
-              context('The signature is invalid', function () {
+              context('No Beacon is specified', function () {
                 it('reverts', async function () {
                   const { roles, dataFeedServerFull, oevProxy, beacons } = await deploy();
                   const beacon = beacons[0];
-                  const oevUpdateValue = 105;
+                  await updateBeacon(roles, dataFeedServerFull, beacon, 1, 1);
+                  const oevUpdateValue = 0;
                   const currentTimestamp = await helpers.time.latest();
                   const oevUpdateTimestamp = currentTimestamp + 1;
                   const bidAmount = 10000;
                   const updateId = testUtils.generateRandomBytes32();
-                  const packedOevUpdateSignature = packOevUpdateSignature(
-                    beacon.airnode.wallet.address,
-                    beacon.templateId,
-                    '0x123456'
-                  );
                   await expect(
                     dataFeedServerFull
                       .connect(roles.searcher)
@@ -3788,18 +4474,18 @@ describe('DataFeedServerFull', function () {
                         updateId,
                         oevUpdateTimestamp,
                         encodeData(oevUpdateValue),
-                        [packedOevUpdateSignature],
+                        [],
                         { value: bidAmount }
                       )
-                  ).to.be.revertedWith('ECDSA: invalid signature length');
+                  ).to.be.revertedWith('Did not specify any Beacons');
                 });
               });
             });
-            context('No Beacon is specified', function () {
+            context('Updated value same as base feed value', function () {
               it('reverts', async function () {
                 const { roles, dataFeedServerFull, oevProxy, beacons } = await deploy();
                 const beacon = beacons[0];
-                const oevUpdateValue = 105;
+                const oevUpdateValue = 0;
                 const currentTimestamp = await helpers.time.latest();
                 const oevUpdateTimestamp = currentTimestamp + 1;
                 const bidAmount = 10000;
@@ -3816,36 +4502,47 @@ describe('DataFeedServerFull', function () {
                       [],
                       { value: bidAmount }
                     )
-                ).to.be.revertedWith('Did not specify any Beacons');
+                ).to.be.revertedWith('Updated value same as base feed');
               });
             });
           });
-          context('Decoded fulfillment data cannot be typecasted into int224', function () {
+          context('Does not update timestamp', function () {
             it('reverts', async function () {
               const { roles, dataFeedServerFull, oevProxy, beacons } = await deploy();
               const beacon = beacons[0];
-              const oevUpdateValueWithUnderflow = ethers.BigNumber.from(-2).pow(223).sub(1);
+              const oevUpdateValue = 105;
               const currentTimestamp = await helpers.time.latest();
               const oevUpdateTimestamp = currentTimestamp + 1;
               const bidAmount = 10000;
               const updateId = testUtils.generateRandomBytes32();
-              const signatureWithUnderflow = await testUtils.signOevData(
+              const signature = await testUtils.signOevData(
                 dataFeedServerFull,
                 oevProxy.address,
                 beacon.beaconId,
                 updateId,
                 oevUpdateTimestamp,
-                encodeData(oevUpdateValueWithUnderflow),
+                encodeData(oevUpdateValue),
                 roles.searcher.address,
                 bidAmount,
                 beacon.airnode.wallet,
                 beacon.templateId
               );
-              const packedOevUpdateSignatureWithUnderflow = packOevUpdateSignature(
+              const packedOevUpdateSignature = packOevUpdateSignature(
                 beacon.airnode.wallet.address,
                 beacon.templateId,
-                signatureWithUnderflow
+                signature
               );
+              await dataFeedServerFull
+                .connect(roles.searcher)
+                .updateOevProxyDataFeedWithSignedData(
+                  oevProxy.address,
+                  beacon.beaconId,
+                  updateId,
+                  oevUpdateTimestamp,
+                  encodeData(oevUpdateValue),
+                  [packedOevUpdateSignature],
+                  { value: bidAmount }
+                );
               await expect(
                 dataFeedServerFull
                   .connect(roles.searcher)
@@ -3854,70 +4551,39 @@ describe('DataFeedServerFull', function () {
                     beacon.beaconId,
                     updateId,
                     oevUpdateTimestamp,
-                    encodeData(oevUpdateValueWithUnderflow),
-                    [packedOevUpdateSignatureWithUnderflow],
+                    encodeData(oevUpdateValue),
+                    [packedOevUpdateSignature],
                     { value: bidAmount }
                   )
-              ).to.be.revertedWith('Value typecasting error');
-              const oevUpdateValueWithOverflow = ethers.BigNumber.from(2).pow(223);
-              const signatureWithOverflow = await testUtils.signOevData(
-                dataFeedServerFull,
-                oevProxy.address,
-                beacon.beaconId,
-                updateId,
-                oevUpdateTimestamp,
-                encodeData(oevUpdateValueWithOverflow),
-                roles.searcher.address,
-                bidAmount,
-                beacon.airnode.wallet,
-                beacon.templateId
-              );
-              const packedOevUpdateSignatureWithOverflow = packOevUpdateSignature(
-                beacon.airnode.wallet.address,
-                beacon.templateId,
-                signatureWithOverflow
-              );
-              await expect(
-                dataFeedServerFull
-                  .connect(roles.searcher)
-                  .updateOevProxyDataFeedWithSignedData(
-                    oevProxy.address,
-                    beacon.beaconId,
-                    updateId,
-                    oevUpdateTimestamp,
-                    encodeData(oevUpdateValueWithOverflow),
-                    [packedOevUpdateSignatureWithOverflow],
-                    { value: bidAmount }
-                  )
-              ).to.be.revertedWith('Value typecasting error');
+              ).to.be.revertedWith('Does not update timestamp');
             });
           });
         });
-        context('Fulfillment data length is not correct', function () {
+        context('Decoded fulfillment data cannot be typecasted into int224', function () {
           it('reverts', async function () {
             const { roles, dataFeedServerFull, oevProxy, beacons } = await deploy();
             const beacon = beacons[0];
-            const oevUpdateValue = 105;
+            const oevUpdateValueWithUnderflow = ethers.BigNumber.from(-2).pow(223).sub(1);
             const currentTimestamp = await helpers.time.latest();
             const oevUpdateTimestamp = currentTimestamp + 1;
             const bidAmount = 10000;
             const updateId = testUtils.generateRandomBytes32();
-            const signature = await testUtils.signOevData(
+            const signatureWithUnderflow = await testUtils.signOevData(
               dataFeedServerFull,
               oevProxy.address,
               beacon.beaconId,
               updateId,
               oevUpdateTimestamp,
-              encodeData(oevUpdateValue) + '00',
+              encodeData(oevUpdateValueWithUnderflow),
               roles.searcher.address,
               bidAmount,
               beacon.airnode.wallet,
               beacon.templateId
             );
-            const packedOevUpdateSignature = packOevUpdateSignature(
+            const packedOevUpdateSignatureWithUnderflow = packOevUpdateSignature(
               beacon.airnode.wallet.address,
               beacon.templateId,
-              signature
+              signatureWithUnderflow
             );
             await expect(
               dataFeedServerFull
@@ -3927,15 +4593,46 @@ describe('DataFeedServerFull', function () {
                   beacon.beaconId,
                   updateId,
                   oevUpdateTimestamp,
-                  encodeData(oevUpdateValue) + '00',
-                  [packedOevUpdateSignature],
+                  encodeData(oevUpdateValueWithUnderflow),
+                  [packedOevUpdateSignatureWithUnderflow],
                   { value: bidAmount }
                 )
-            ).to.be.revertedWith('Data length not correct');
+            ).to.be.revertedWith('Value typecasting error');
+            const oevUpdateValueWithOverflow = ethers.BigNumber.from(2).pow(223);
+            const signatureWithOverflow = await testUtils.signOevData(
+              dataFeedServerFull,
+              oevProxy.address,
+              beacon.beaconId,
+              updateId,
+              oevUpdateTimestamp,
+              encodeData(oevUpdateValueWithOverflow),
+              roles.searcher.address,
+              bidAmount,
+              beacon.airnode.wallet,
+              beacon.templateId
+            );
+            const packedOevUpdateSignatureWithOverflow = packOevUpdateSignature(
+              beacon.airnode.wallet.address,
+              beacon.templateId,
+              signatureWithOverflow
+            );
+            await expect(
+              dataFeedServerFull
+                .connect(roles.searcher)
+                .updateOevProxyDataFeedWithSignedData(
+                  oevProxy.address,
+                  beacon.beaconId,
+                  updateId,
+                  oevUpdateTimestamp,
+                  encodeData(oevUpdateValueWithOverflow),
+                  [packedOevUpdateSignatureWithOverflow],
+                  { value: bidAmount }
+                )
+            ).to.be.revertedWith('Value typecasting error');
           });
         });
       });
-      context('Does not update timestamp', function () {
+      context('Fulfillment data length is not correct', function () {
         it('reverts', async function () {
           const { roles, dataFeedServerFull, oevProxy, beacons } = await deploy();
           const beacon = beacons[0];
@@ -3950,7 +4647,7 @@ describe('DataFeedServerFull', function () {
             beacon.beaconId,
             updateId,
             oevUpdateTimestamp,
-            encodeData(oevUpdateValue),
+            encodeData(oevUpdateValue) + '00',
             roles.searcher.address,
             bidAmount,
             beacon.airnode.wallet,
@@ -3961,17 +4658,6 @@ describe('DataFeedServerFull', function () {
             beacon.templateId,
             signature
           );
-          await dataFeedServerFull
-            .connect(roles.searcher)
-            .updateOevProxyDataFeedWithSignedData(
-              oevProxy.address,
-              beacon.beaconId,
-              updateId,
-              oevUpdateTimestamp,
-              encodeData(oevUpdateValue),
-              [packedOevUpdateSignature],
-              { value: bidAmount }
-            );
           await expect(
             dataFeedServerFull
               .connect(roles.searcher)
@@ -3980,11 +4666,11 @@ describe('DataFeedServerFull', function () {
                 beacon.beaconId,
                 updateId,
                 oevUpdateTimestamp,
-                encodeData(oevUpdateValue),
+                encodeData(oevUpdateValue) + '00',
                 [packedOevUpdateSignature],
                 { value: bidAmount }
               )
-          ).to.be.revertedWith('Does not update timestamp');
+          ).to.be.revertedWith('Data length not correct');
         });
       });
     });
@@ -4011,20 +4697,6 @@ describe('DataFeedServerFull', function () {
               }
             )
         ).to.be.revertedWith('Timestamp not valid');
-      });
-    });
-    context('Timestamp is zero', function () {
-      it('reverts', async function () {
-        const { roles, dataFeedServerFull, oevProxy, beacons } = await deploy();
-        const bidAmount = 10000;
-        const updateId = testUtils.generateRandomBytes32();
-        await expect(
-          dataFeedServerFull
-            .connect(roles.searcher)
-            .updateOevProxyDataFeedWithSignedData(oevProxy.address, updateId, beacons[0].beaconId, 0, '0x', ['0x'], {
-              value: bidAmount,
-            })
-        ).to.be.revertedWith('Does not update timestamp');
       });
     });
   });
