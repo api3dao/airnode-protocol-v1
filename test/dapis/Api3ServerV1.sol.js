@@ -221,37 +221,37 @@ describe('Api3ServerV1', function () {
 
   describe('updateBeaconSetWithBeacons', function () {
     context('Did not specify less than two Beacons', function () {
-      context('Beacons update Beacon set timestamp', function () {
-        it('updates Beacon set', async function () {
-          const { roles, api3ServerV1, beacons, beaconSet } = await deploy();
-          // Populate the Beacons
-          const beaconValues = beacons.map(() => Math.floor(Math.random() * 20000 - 10000));
-          const currentTimestamp = await helpers.time.latest();
-          const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
-          await Promise.all(
-            beacons.map(async (beacon, index) => {
-              await updateBeacon(roles, api3ServerV1, beacon, beaconValues[index], beaconTimestamps[index]);
-            })
-          );
-          const beaconSetValue = median(beaconValues);
-          const beaconSetTimestamp = median(beaconTimestamps);
-          const beaconSetBefore = await api3ServerV1.dataFeeds(beaconSet.beaconSetId);
-          expect(beaconSetBefore.value).to.equal(0);
-          expect(beaconSetBefore.timestamp).to.equal(0);
-          expect(
-            await api3ServerV1.connect(roles.randomPerson).callStatic.updateBeaconSetWithBeacons(beaconSet.beaconIds)
-          ).to.equal(beaconSet.beaconSetId);
-          await expect(api3ServerV1.connect(roles.randomPerson).updateBeaconSetWithBeacons(beaconSet.beaconIds))
-            .to.emit(api3ServerV1, 'UpdatedBeaconSetWithBeacons')
-            .withArgs(beaconSet.beaconSetId, beaconSetValue, beaconSetTimestamp);
-          const beaconSetAfter = await api3ServerV1.dataFeeds(beaconSet.beaconSetId);
-          expect(beaconSetAfter.value).to.equal(beaconSetValue);
-          expect(beaconSetAfter.timestamp).to.equal(beaconSetTimestamp);
-        });
-      });
-      context('Beacons do not update Beacon set timestamp', function () {
-        context('Beacons update Beacon set value', function () {
+      context('Updates timestamp', function () {
+        context('Updates value', function () {
           it('updates Beacon set', async function () {
+            const { roles, api3ServerV1, beacons, beaconSet } = await deploy();
+            // Populate the Beacons
+            const beaconValues = beacons.map(() => Math.floor(Math.random() * 20000 - 10000));
+            const currentTimestamp = await helpers.time.latest();
+            const beaconTimestamps = beacons.map(() => Math.floor(currentTimestamp - Math.random() * 5 * 60));
+            await Promise.all(
+              beacons.map(async (beacon, index) => {
+                await updateBeacon(roles, api3ServerV1, beacon, beaconValues[index], beaconTimestamps[index]);
+              })
+            );
+            const beaconSetValue = median(beaconValues);
+            const beaconSetTimestamp = median(beaconTimestamps);
+            const beaconSetBefore = await api3ServerV1.dataFeeds(beaconSet.beaconSetId);
+            expect(beaconSetBefore.value).to.equal(0);
+            expect(beaconSetBefore.timestamp).to.equal(0);
+            expect(
+              await api3ServerV1.connect(roles.randomPerson).callStatic.updateBeaconSetWithBeacons(beaconSet.beaconIds)
+            ).to.equal(beaconSet.beaconSetId);
+            await expect(api3ServerV1.connect(roles.randomPerson).updateBeaconSetWithBeacons(beaconSet.beaconIds))
+              .to.emit(api3ServerV1, 'UpdatedBeaconSetWithBeacons')
+              .withArgs(beaconSet.beaconSetId, beaconSetValue, beaconSetTimestamp);
+            const beaconSetAfter = await api3ServerV1.dataFeeds(beaconSet.beaconSetId);
+            expect(beaconSetAfter.value).to.equal(beaconSetValue);
+            expect(beaconSetAfter.timestamp).to.equal(beaconSetTimestamp);
+          });
+        });
+        context('Does not update value', function () {
+          it('reverts', async function () {
             const { roles, api3ServerV1, beacons, beaconSet } = await deploy();
             // Populate the Beacons
             const beaconValues = [100, 80, 120];
@@ -262,34 +262,36 @@ describe('Api3ServerV1', function () {
                 await updateBeacon(roles, api3ServerV1, beacon, beaconValues[index], beaconTimestamps[index]);
               })
             );
-            const beaconIds = beacons.map((beacon) => {
-              return beacon.beaconId;
-            });
-            await api3ServerV1.updateBeaconSetWithBeacons(beaconIds);
-            await updateBeacon(roles, api3ServerV1, beacons[0], 110, currentTimestamp + 10);
-            const beaconSetBefore = await api3ServerV1.dataFeeds(beaconSet.beaconSetId);
-            expect(beaconSetBefore.value).to.equal(100);
-            expect(beaconSetBefore.timestamp).to.equal(currentTimestamp);
-            expect(
-              await api3ServerV1.connect(roles.randomPerson).callStatic.updateBeaconSetWithBeacons(beaconSet.beaconIds)
-            ).to.equal(beaconSet.beaconSetId);
-            await expect(api3ServerV1.connect(roles.randomPerson).updateBeaconSetWithBeacons(beaconSet.beaconIds))
-              .to.emit(api3ServerV1, 'UpdatedBeaconSetWithBeacons')
-              .withArgs(beaconSet.beaconSetId, 110, currentTimestamp);
-            const beaconSetAfter = await api3ServerV1.dataFeeds(beaconSet.beaconSetId);
-            expect(beaconSetAfter.value).to.equal(110);
-            expect(beaconSetAfter.timestamp).to.equal(currentTimestamp);
-          });
-        });
-        context('Beacons do not update Beacon set value', function () {
-          it('reverts', async function () {
-            const { roles, api3ServerV1, beacons, beaconSet } = await deploy();
-            // Update Beacon set with recent timestamp
-            await updateBeaconSet(roles, api3ServerV1, beacons, 123);
+            // Update the Beacon set
+            await api3ServerV1.connect(roles.randomPerson).updateBeaconSetWithBeacons(beaconSet.beaconIds);
+            // Update the Beacons in a way that it will not affect the aggregated value
+            await updateBeacon(roles, api3ServerV1, beacons[1], 79, currentTimestamp + 1);
+            await updateBeacon(roles, api3ServerV1, beacons[2], 121, currentTimestamp + 1);
             await expect(
               api3ServerV1.connect(roles.randomPerson).updateBeaconSetWithBeacons(beaconSet.beaconIds)
-            ).to.be.revertedWith('Does not update Beacon set');
+            ).to.be.revertedWith('Does not update value');
           });
+        });
+      });
+      context('Does not update timestamp', function () {
+        it('reverts', async function () {
+          const { roles, api3ServerV1, beacons, beaconSet } = await deploy();
+          // Populate the Beacons
+          const beaconValues = [100, 80, 120];
+          const currentTimestamp = await helpers.time.latest();
+          const beaconTimestamps = [currentTimestamp, currentTimestamp, currentTimestamp];
+          await Promise.all(
+            beacons.map(async (beacon, index) => {
+              await updateBeacon(roles, api3ServerV1, beacon, beaconValues[index], beaconTimestamps[index]);
+            })
+          );
+          // Update the Beacon set
+          await api3ServerV1.connect(roles.randomPerson).updateBeaconSetWithBeacons(beaconSet.beaconIds);
+          // Update the Beacons in a way that it will not affect the aggregated timestamp
+          await updateBeacon(roles, api3ServerV1, beacons[0], 101, currentTimestamp + 1);
+          await expect(
+            api3ServerV1.connect(roles.randomPerson).updateBeaconSetWithBeacons(beaconSet.beaconIds)
+          ).to.be.revertedWith('Does not update timestamp');
         });
       });
     });
