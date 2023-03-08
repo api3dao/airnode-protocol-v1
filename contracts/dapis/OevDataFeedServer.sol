@@ -50,10 +50,26 @@ contract OevDataFeedServer is DataFeedServer, IOevDataFeedServer {
         bytes calldata data,
         bytes[] calldata packedOevUpdateSignatures
     ) external payable override onlyValidTimestamp(timestamp) {
-        require(
-            timestamp > _oevProxyToIdToDataFeed[oevProxy][dataFeedId].timestamp,
-            "Does not update timestamp"
-        );
+        int224 updatedValue = decodeFulfillmentData(data);
+        {
+            DataFeed storage oevProxyDataFeed = _oevProxyToIdToDataFeed[
+                oevProxy
+            ][dataFeedId];
+            require(
+                timestamp > oevProxyDataFeed.timestamp,
+                "Does not update timestamp"
+            );
+            if (oevProxyDataFeed.timestamp != 0) {
+                require(
+                    updatedValue != oevProxyDataFeed.value,
+                    "Does not update value"
+                );
+            }
+            require(
+                updatedValue != _dataFeeds[dataFeedId].value,
+                "Updated value same as base feed"
+            );
+        }
         bytes32 oevUpdateHash = keccak256(
             abi.encodePacked(
                 block.chainid,
@@ -67,7 +83,6 @@ contract OevDataFeedServer is DataFeedServer, IOevDataFeedServer {
                 msg.value
             )
         );
-        int224 updatedValue = decodeFulfillmentData(data);
         uint32 updatedTimestamp = uint32(timestamp);
         uint256 beaconCount = packedOevUpdateSignatures.length;
         if (beaconCount > 1) {
