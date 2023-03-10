@@ -13,6 +13,11 @@ import "./interfaces/IOwnableCallForwarder.sol";
 /// with a single address, in which case the manager will interact with
 /// AccessControlRegistry directly.
 contract OwnableCallForwarder is Ownable, IOwnableCallForwarder {
+    /// @param _owner Owner address
+    constructor(address _owner) {
+        transferOwnership(_owner);
+    }
+
     /// @notice Forwards the calldata and the value to the target address if
     /// the sender is the owner and returns the data
     /// @param forwardTarget Target address that the calldata will be forwarded

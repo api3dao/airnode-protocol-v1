@@ -13,14 +13,20 @@ describe('OwnableCallForwarder', function () {
     const mockCallForwarderTargetFactory = await ethers.getContractFactory('MockCallForwarderTarget', roles.deployer);
     const ownableCallForwarderTarget = await mockCallForwarderTargetFactory.deploy();
     const ownableCallForwarderFactory = await ethers.getContractFactory('OwnableCallForwarder', roles.deployer);
-    const ownableCallForwarder = await ownableCallForwarderFactory.deploy();
-    await ownableCallForwarder.transferOwnership(roles.owner.address);
+    const ownableCallForwarder = await ownableCallForwarderFactory.deploy(roles.owner.address);
     return {
       roles,
       ownableCallForwarder,
       ownableCallForwarderTarget,
     };
   }
+
+  describe('constructor', function () {
+    it('constructor', async function () {
+      const { roles, ownableCallForwarder } = await helpers.loadFixture(deploy);
+      expect(await ownableCallForwarder.owner()).to.equal(roles.owner.address);
+    });
+  });
 
   describe('forwardCall', function () {
     context('Sender is the owner', function () {
