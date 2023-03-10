@@ -65,10 +65,13 @@ contract OevDataFeedServer is DataFeedServer, IOevDataFeedServer {
                     "Does not update value"
                 );
             }
-            require(
-                updatedValue != _dataFeeds[dataFeedId].value,
-                "Updated value same as base feed"
-            );
+            DataFeed storage baseDataFeed = _dataFeeds[dataFeedId];
+            if (updatedValue == baseDataFeed.value) {
+                require(
+                    oevProxyDataFeed.timestamp > baseDataFeed.timestamp,
+                    "Repeats base feed update"
+                );
+            }
         }
         bytes32 oevUpdateHash = keccak256(
             abi.encodePacked(
