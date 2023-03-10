@@ -6,8 +6,7 @@
   "main": "dist/index",
   "files": [
     "contracts",
-    "dist",
-    "deployments/references.json"
+    "dist"
   ],
   "scripts": {
     "build": "yarn clean && yarn build:contracts && yarn build:tsc",
