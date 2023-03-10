@@ -60,7 +60,7 @@ describe('ProxyFactory', function () {
     context('DapiServer addres is not zero', function () {
       it('constructs', async function () {
         const { dapiServer, proxyFactory } = await helpers.loadFixture(deploy);
-        expect(await proxyFactory.dapiServer()).to.equal(dapiServer.address);
+        expect(await proxyFactory.oevDapiServer()).to.equal(dapiServer.address);
       });
     });
     context('DapiServer addres is zero', function () {

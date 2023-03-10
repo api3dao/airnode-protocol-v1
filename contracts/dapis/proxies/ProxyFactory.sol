@@ -13,13 +13,13 @@ import "./interfaces/IProxyFactory.sol";
 /// @dev The proxies are deployed normally and not cloned to minimize the gas
 /// cost overhead while using them to read data feed values
 contract ProxyFactory is IProxyFactory {
-    /// @notice DapiServer address
-    address public immutable override dapiServer;
+    /// @notice OevDapiServer address
+    address public immutable override oevDapiServer;
 
-    /// @param _dapiServer DapiServer address
-    constructor(address _dapiServer) {
-        require(_dapiServer != address(0), "DapiServer address zero");
-        dapiServer = _dapiServer;
+    /// @param _oevDapiServer OevDapiServer address
+    constructor(address _oevDapiServer) {
+        require(_oevDapiServer != address(0), "DapiServer address zero");
+        oevDapiServer = _oevDapiServer;
     }
 
     /// @notice Deterministically deploys a data feed proxy
@@ -32,7 +32,10 @@ contract ProxyFactory is IProxyFactory {
     ) external override returns (address proxyAddress) {
         require(dataFeedId != bytes32(0), "Data feed ID zero");
         proxyAddress = address(
-            new DataFeedProxy{salt: keccak256(metadata)}(dapiServer, dataFeedId)
+            new DataFeedProxy{salt: keccak256(metadata)}(
+                oevDapiServer,
+                dataFeedId
+            )
         );
         emit DeployedDataFeedProxy(proxyAddress, dataFeedId, metadata);
     }
@@ -48,7 +51,7 @@ contract ProxyFactory is IProxyFactory {
         require(dapiName != bytes32(0), "dAPI name zero");
         proxyAddress = address(
             new DapiProxy{salt: keccak256(metadata)}(
-                dapiServer,
+                oevDapiServer,
                 keccak256(abi.encodePacked(dapiName))
             )
         );
@@ -69,7 +72,7 @@ contract ProxyFactory is IProxyFactory {
         require(oevBeneficiary != address(0), "OEV beneficiary zero");
         proxyAddress = address(
             new DataFeedProxyWithOev{salt: keccak256(metadata)}(
-                dapiServer,
+                oevDapiServer,
                 dataFeedId,
                 oevBeneficiary
             )
@@ -96,7 +99,7 @@ contract ProxyFactory is IProxyFactory {
         require(oevBeneficiary != address(0), "OEV beneficiary zero");
         proxyAddress = address(
             new DapiProxyWithOev{salt: keccak256(metadata)}(
-                dapiServer,
+                oevDapiServer,
                 keccak256(abi.encodePacked(dapiName)),
                 oevBeneficiary
             )
