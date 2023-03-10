@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.9;
+pragma solidity 0.8.17;
 
-import "@openzeppelin/contracts/utils/Multicall.sol";
+import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
+import "../utils/ExpiringMetaTxForwarder.sol";
+import "../utils/SelfMulticall.sol";
 import "./RoleDeriver.sol";
 import "./interfaces/IAccessControlRegistry.sol";
 
@@ -16,11 +18,16 @@ import "./interfaces/IAccessControlRegistry.sol";
 /// roles and grant these to accounts. Each role has a description, and roles
 /// adminned by the same role cannot have the same description.
 contract AccessControlRegistry is
-    Multicall,
+    ERC2771Context,
     AccessControl,
+    ExpiringMetaTxForwarder,
+    SelfMulticall,
     RoleDeriver,
     IAccessControlRegistry
 {
+    /// @dev AccessControlRegistry is its own trusted meta-tx forwarder
+    constructor() ERC2771Context(address(this)) {}
+
     /// @notice Initializes the manager by initializing its root role and
     /// granting it to them
     /// @dev Anyone can initialize a manager. An uninitialized manager
@@ -30,25 +37,25 @@ contract AccessControlRegistry is
     /// @param manager Manager address to be initialized
     function initializeManager(address manager) public override {
         require(manager != address(0), "Manager address zero");
-        bytes32 rootRole = deriveRootRole(manager);
+        bytes32 rootRole = _deriveRootRole(manager);
         if (!hasRole(rootRole, manager)) {
             _grantRole(rootRole, manager);
-            emit InitializedManager(rootRole, manager);
+            emit InitializedManager(rootRole, manager, _msgSender());
         }
     }
 
     /// @notice Called by the account to renounce the role
-    /// @dev Overriden to disallow managers to renounce their root roles.
+    /// @dev Overriden to disallow managers from renouncing their root roles.
     /// `role` and `account` are not validated because
     /// `AccessControl.renounceRole` will revert if either of them is zero.
     /// @param role Role to be renounced
     /// @param account Account to renounce the role
-    function renounceRole(bytes32 role, address account)
-        public
-        override(AccessControl, IAccessControl)
-    {
+    function renounceRole(
+        bytes32 role,
+        address account
+    ) public override(AccessControl, IAccessControl) {
         require(
-            role != deriveRootRole(account),
+            role != _deriveRootRole(account),
             "role is root role of account"
         );
         AccessControl.renounceRole(role, account);
@@ -74,13 +81,13 @@ contract AccessControlRegistry is
         string calldata description
     ) external override returns (bytes32 role) {
         require(bytes(description).length > 0, "Role description empty");
-        role = deriveRole(adminRole, description);
+        role = _deriveRole(adminRole, description);
         // AccessControl roles have `DEFAULT_ADMIN_ROLE` (i.e., `bytes32(0)`)
         // as their `adminRole` by default. No account in AccessControlRegistry
         // can possibly have that role, which means all initialized roles will
         // have non-default admin roles, and vice versa.
         if (getRoleAdmin(role) == DEFAULT_ADMIN_ROLE) {
-            if (adminRole == deriveRootRole(_msgSender())) {
+            if (adminRole == _deriveRootRole(_msgSender())) {
                 initializeManager(_msgSender());
             }
             _setRoleAdmin(role, adminRole);
@@ -89,30 +96,25 @@ contract AccessControlRegistry is
         grantRole(role, _msgSender());
     }
 
-    /// @notice Derives the root role of the manager
-    /// @param manager Manager address
-    /// @return rootRole Root role
-    function deriveRootRole(address manager)
-        public
-        pure
-        override
-        returns (bytes32 rootRole)
+    /// @dev See Context.sol
+    function _msgSender()
+        internal
+        view
+        virtual
+        override(Context, ERC2771Context)
+        returns (address)
     {
-        rootRole = _deriveRootRole(manager);
+        return ERC2771Context._msgSender();
     }
 
-    /// @notice Derives the role using its admin role and description
-    /// @dev This implies that roles adminned by the same role cannot have the
-    /// same description
-    /// @param adminRole Admin role
-    /// @param description Human-readable description of the role
-    /// @return role Role
-    function deriveRole(bytes32 adminRole, string calldata description)
-        public
-        pure
-        override
-        returns (bytes32 role)
+    /// @dev See Context.sol
+    function _msgData()
+        internal
+        view
+        virtual
+        override(Context, ERC2771Context)
+        returns (bytes calldata)
     {
-        role = _deriveRole(adminRole, description);
+        return ERC2771Context._msgData();
     }
 }

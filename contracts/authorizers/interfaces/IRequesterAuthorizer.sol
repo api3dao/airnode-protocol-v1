@@ -1,90 +1,98 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./IAuthorizerV0.sol";
-
-interface IRequesterAuthorizer is IAuthorizerV0 {
-    event ExtendedWhitelistExpiration(
+interface IRequesterAuthorizer {
+    event ExtendedAuthorizationExpiration(
         address indexed airnode,
-        bytes32 endpointId,
         address indexed requester,
-        address indexed sender,
-        uint256 expiration
+        uint32 expirationTimestamp,
+        address sender
     );
 
-    event SetWhitelistExpiration(
+    event SetAuthorizationExpiration(
         address indexed airnode,
-        bytes32 endpointId,
         address indexed requester,
-        address indexed sender,
-        uint256 expiration
+        uint32 expirationTimestamp,
+        address sender
     );
 
-    event SetIndefiniteWhitelistStatus(
+    event SetIndefiniteAuthorizationStatus(
         address indexed airnode,
-        bytes32 endpointId,
         address indexed requester,
-        address indexed sender,
         bool status,
-        uint192 indefiniteWhitelistCount
+        uint224 indefiniteAuthorizationCount,
+        address sender
     );
 
-    event RevokedIndefiniteWhitelistStatus(
+    event RevokedIndefiniteAuthorizationStatus(
         address indexed airnode,
-        bytes32 endpointId,
         address indexed requester,
-        address indexed setter,
-        address sender,
-        uint192 indefiniteWhitelistCount
+        address setter,
+        uint224 indefiniteAuthorizationCount,
+        address sender
     );
 
-    function extendWhitelistExpiration(
+    function extendAuthorizerExpiration(
         address airnode,
-        bytes32 endpointId,
         address requester,
-        uint64 expirationTimestamp
+        uint32 expirationTimestamp
     ) external;
 
-    function setWhitelistExpiration(
+    function setAuthorizationExpiration(
         address airnode,
-        bytes32 endpointId,
         address requester,
-        uint64 expirationTimestamp
+        uint32 expirationTimestamp
     ) external;
 
-    function setIndefiniteWhitelistStatus(
+    function setIndefiniteAuthorizationStatus(
         address airnode,
-        bytes32 endpointId,
         address requester,
         bool status
     ) external;
 
-    function revokeIndefiniteWhitelistStatus(
+    function revokeIndefiniteAuthorizationStatus(
         address airnode,
-        bytes32 endpointId,
         address requester,
         address setter
     ) external;
 
-    function airnodeToEndpointIdToRequesterToWhitelistStatus(
+    function isAuthorized(
         address airnode,
-        bytes32 endpointId,
+        address requester
+    ) external view returns (bool);
+
+    // solhint-disable-next-line func-name-mixedcase
+    function AUTHORIZATION_EXPIRATION_EXTENDER_ROLE_DESCRIPTION()
+        external
+        view
+        returns (string memory);
+
+    // solhint-disable-next-line func-name-mixedcase
+    function AUTHORIZATION_EXPIRATION_SETTER_ROLE_DESCRIPTION()
+        external
+        view
+        returns (string memory);
+
+    // solhint-disable-next-line func-name-mixedcase
+    function INDEFINITE_AUTHORIZER_ROLE_DESCRIPTION()
+        external
+        view
+        returns (string memory);
+
+    function airnodeToRequesterToAuthorizationStatus(
+        address airnode,
         address requester
     )
         external
         view
-        returns (uint64 expirationTimestamp, uint192 indefiniteWhitelistCount);
+        returns (
+            uint32 expirationTimestamp,
+            uint224 indefiniteAuthorizationCount
+        );
 
-    function airnodeToEndpointIdToRequesterToSetterToIndefiniteWhitelistStatus(
+    function airnodeToRequesterToSetterToIndefiniteAuthorizationStatus(
         address airnode,
-        bytes32 endpointId,
         address requester,
         address setter
-    ) external view returns (bool indefiniteWhitelistStatus);
-
-    function isAuthorized(
-        address airnode,
-        bytes32 endpointId,
-        address requester
-    ) external view returns (bool);
+    ) external view returns (bool indefiniteAuthorizationStatus);
 }

@@ -1,128 +1,233 @@
-const hre = require('hardhat');
+const { ethers } = require('hardhat');
+const helpers = require('@nomicfoundation/hardhat-network-helpers');
 const { expect } = require('chai');
 const testUtils = require('../test-utils');
 
 describe('AirnodeProtocol', function () {
-  let roles;
-  let airnodeProtocol, airnodeRequester;
-  let airnodeAddress, airnodeWallet, airnodeSponsorWallet;
-  let relayerAddress, relayerWallet, relayerSponsorWallet;
-  let endpointId, templateParameters, templateId, requestParameters;
-
-  async function deriveExpectedRequestId(fulfillFunctionId) {
-    return hre.ethers.utils.keccak256(
-      hre.ethers.utils.solidityPack(
-        ['uint256', 'address', 'address', 'uint256', 'address', 'bytes32', 'bytes', 'address', 'bytes4'],
-        [
-          (await hre.ethers.provider.getNetwork()).chainId,
-          airnodeProtocol.address,
-          airnodeRequester.address,
-          (await airnodeProtocol.requesterToRequestCount(airnodeRequester.address)).add(1),
-          airnodeAddress,
-          templateId,
-          requestParameters,
-          roles.sponsor.address,
-          fulfillFunctionId,
-        ]
-      )
+  async function makeRequestAndPrepareFulfillment(
+    airnodeProtocol,
+    airnodeRequester,
+    airnode,
+    endpointOrTemplateId,
+    requestParameters,
+    sponsorAddress,
+    fulfillFunctionId,
+    airnodeSponsorWalletAddress
+  ) {
+    const requestId = await testUtils.deriveRequestId(
+      airnodeProtocol,
+      airnodeRequester.address,
+      airnode.address,
+      endpointOrTemplateId,
+      requestParameters,
+      sponsorAddress,
+      fulfillFunctionId
     );
+    await airnodeRequester.makeRequest(
+      airnode.address,
+      endpointOrTemplateId,
+      requestParameters,
+      sponsorAddress,
+      fulfillFunctionId
+    );
+    const timestamp = await helpers.time.latest();
+    const signature = await testUtils.signRrpFulfillment(airnode, requestId, timestamp, airnodeSponsorWalletAddress);
+    return { requestId, timestamp, signature };
   }
 
-  async function deriveExpectedRelayedRequestId(fulfillFunctionId) {
-    return hre.ethers.utils.keccak256(
-      hre.ethers.utils.solidityPack(
-        ['uint256', 'address', 'address', 'uint256', 'address', 'bytes32', 'bytes', 'address', 'address', 'bytes4'],
-        [
-          (await hre.ethers.provider.getNetwork()).chainId,
-          airnodeProtocol.address,
-          airnodeRequester.address,
-          (await airnodeProtocol.requesterToRequestCount(airnodeRequester.address)).add(1),
-          airnodeAddress,
-          templateId,
-          requestParameters,
-          relayerAddress,
-          roles.sponsor.address,
-          fulfillFunctionId,
-        ]
-      )
+  async function makeRelayedRequestAndPrepareFulfillment(
+    airnodeProtocol,
+    airnodeRequester,
+    airnode,
+    endpointOrTemplateId,
+    requestParameters,
+    relayer,
+    sponsorAddress,
+    fulfillFunctionId,
+    relayerSponsorWalletAddress,
+    fulfillData
+  ) {
+    const requestId = await testUtils.deriveRelayedRequestId(
+      airnodeProtocol,
+      airnodeRequester.address,
+      airnode.address,
+      endpointOrTemplateId,
+      requestParameters,
+      relayer.address,
+      sponsorAddress,
+      fulfillFunctionId
     );
+    await airnodeRequester.makeRequestRelayed(
+      airnode.address,
+      endpointOrTemplateId,
+      requestParameters,
+      relayer.address,
+      sponsorAddress,
+      fulfillFunctionId
+    );
+    const timestamp = await helpers.time.latest();
+    const signature = await testUtils.signRrpRelayedFulfillment(
+      airnode,
+      requestId,
+      timestamp,
+      relayerSponsorWalletAddress,
+      fulfillData
+    );
+    const failSignature = await testUtils.signRrpRelayedFailure(
+      relayer,
+      requestId,
+      timestamp,
+      relayerSponsorWalletAddress
+    );
+    return { requestId, timestamp, signature, failSignature };
   }
 
-  beforeEach(async () => {
-    const accounts = await hre.ethers.getSigners();
-    roles = {
+  async function deploy() {
+    const accounts = await ethers.getSigners();
+    const roles = {
       deployer: accounts[0],
       sponsor: accounts[1],
       randomPerson: accounts[9],
     };
-    const airnodeProtocolFactory = await hre.ethers.getContractFactory('AirnodeProtocol', roles.deployer);
-    airnodeProtocol = await airnodeProtocolFactory.deploy();
-    const airnodeRequesterFactory = await hre.ethers.getContractFactory('MockAirnodeRequester', roles.deployer);
-    airnodeRequester = await airnodeRequesterFactory.deploy(airnodeProtocol.address);
-    const airnodeData = testUtils.generateRandomAirnodeWallet();
-    airnodeAddress = airnodeData.airnodeAddress;
-    const airnodeMnemonic = airnodeData.airnodeMnemonic;
-    airnodeWallet = hre.ethers.Wallet.fromMnemonic(airnodeMnemonic, "m/44'/60'/0'/0/0");
-    airnodeSponsorWallet = testUtils.deriveSponsorWallet(airnodeMnemonic, roles.sponsor.address, 1);
-    await roles.deployer.sendTransaction({
-      to: airnodeSponsorWallet.address,
-      value: hre.ethers.utils.parseEther('1'),
-    });
-    const relayerData = testUtils.generateRandomAirnodeWallet();
-    relayerAddress = relayerData.airnodeAddress;
-    relayerWallet = hre.ethers.Wallet.fromMnemonic(relayerData.airnodeMnemonic, "m/44'/60'/0'/0/0");
-    relayerSponsorWallet = testUtils.deriveSponsorWallet(relayerData.airnodeMnemonic, roles.sponsor.address, 2);
-    await roles.deployer.sendTransaction({
-      to: relayerSponsorWallet.address,
-      value: hre.ethers.utils.parseEther('1'),
-    });
-    endpointId = testUtils.generateRandomBytes32();
-    templateParameters = testUtils.generateRandomBytes();
-    templateId = hre.ethers.utils.keccak256(
-      hre.ethers.utils.solidityPack(['address', 'bytes32', 'bytes'], [airnodeAddress, endpointId, templateParameters])
+
+    const { airnodeMnemonic, airnodeXpub } = testUtils.generateRandomAirnodeWallet();
+    roles.airnode = ethers.Wallet.fromMnemonic(airnodeMnemonic);
+    roles.airnodeSponsorWallet = testUtils.deriveSponsorWallet(
+      airnodeMnemonic,
+      roles.sponsor.address,
+      testUtils.PROTOCOL_IDS.RRP
     );
-    requestParameters = testUtils.generateRandomBytes();
-  });
+    // Demonstrating how xpub can be used to derive the sponsor wallet address that needs to be funded
+    const airnodeSponsorWalletAddress = testUtils.deriveSponsorWalletAddress(
+      airnodeXpub,
+      roles.sponsor.address,
+      testUtils.PROTOCOL_IDS.RRP
+    );
+    await roles.deployer.sendTransaction({
+      to: airnodeSponsorWalletAddress,
+      value: ethers.utils.parseEther('1'),
+    });
+    const { airnodeMnemonic: relayerMnemonic, airnodeXpub: relayerXpub } = testUtils.generateRandomAirnodeWallet();
+    roles.relayer = ethers.Wallet.fromMnemonic(relayerMnemonic);
+    roles.relayerSponsorWallet = testUtils.deriveSponsorWallet(
+      relayerMnemonic,
+      roles.sponsor.address,
+      testUtils.PROTOCOL_IDS.RELAYED_RRP
+    );
+    const relayerSponsorWalletAddress = testUtils.deriveSponsorWalletAddress(
+      relayerXpub,
+      roles.sponsor.address,
+      testUtils.PROTOCOL_IDS.RELAYED_RRP
+    );
+    await roles.deployer.sendTransaction({
+      to: relayerSponsorWalletAddress,
+      value: ethers.utils.parseEther('1'),
+    });
+
+    const airnodeProtocolFactory = await ethers.getContractFactory('AirnodeProtocol', roles.deployer);
+    const airnodeProtocol = await airnodeProtocolFactory.deploy();
+    const airnodeRequesterFactory = await ethers.getContractFactory('MockAirnodeRequester', roles.deployer);
+    const airnodeRequester = await airnodeRequesterFactory.deploy(airnodeProtocol.address);
+
+    const endpointId = testUtils.generateRandomBytes32();
+    const templateParameters = testUtils.generateRandomBytes();
+    const templateId = ethers.utils.solidityKeccak256(
+      ['address', 'bytes32', 'bytes'],
+      [roles.airnode.address, endpointId, templateParameters]
+    );
+    const requestParameters = testUtils.generateRandomBytes();
+    const fulfillFunctionId = airnodeRequester.interface.getSighash('fulfillRequest');
+    const fulfillData = ethers.utils.defaultAbiCoder.encode(['uint256', 'string'], ['123456', 'hello']);
+    const errorMessage = 'Thing went wrong';
+
+    const request = await makeRequestAndPrepareFulfillment(
+      airnodeProtocol,
+      airnodeRequester,
+      roles.airnode,
+      templateId,
+      requestParameters,
+      roles.sponsor.address,
+      fulfillFunctionId,
+      roles.airnodeSponsorWallet.address
+    );
+    const relayedRequest = await makeRelayedRequestAndPrepareFulfillment(
+      airnodeProtocol,
+      airnodeRequester,
+      roles.airnode,
+      templateId,
+      requestParameters,
+      roles.relayer,
+      roles.sponsor.address,
+      fulfillFunctionId,
+      roles.relayerSponsorWallet.address,
+      fulfillData
+    );
+
+    return {
+      roles,
+      airnodeProtocol,
+      airnodeRequester,
+      templateId,
+      requestParameters,
+      fulfillFunctionId,
+      fulfillData,
+      errorMessage,
+      request,
+      relayedRequest,
+    };
+  }
 
   describe('makeRequest', function () {
     context('Airnode address is not zero', function () {
-      context('Template ID is not zero', function () {
+      context('Endpoint or template ID is not zero', function () {
         context('Parameters are not too long', function () {
           context('Sponsor address is not zero', function () {
             context('Function selector is not zero', function () {
               it('makes request', async function () {
-                const expectedRequestId = await deriveExpectedRequestId(
-                  airnodeRequester.interface.getSighash('fulfillRequest')
+                const { roles, airnodeProtocol, airnodeRequester, templateId, requestParameters, fulfillFunctionId } =
+                  await helpers.loadFixture(deploy);
+                const requestId = await testUtils.deriveRequestId(
+                  airnodeProtocol,
+                  airnodeRequester.address,
+                  roles.airnode.address,
+                  templateId,
+                  requestParameters,
+                  roles.sponsor.address,
+                  fulfillFunctionId
                 );
+                const requestCountBefore = await airnodeProtocol.requesterToRequestCount(airnodeRequester.address);
                 await expect(
                   airnodeRequester.makeRequest(
-                    airnodeAddress,
+                    roles.airnode.address,
                     templateId,
                     requestParameters,
                     roles.sponsor.address,
-                    airnodeRequester.interface.getSighash('fulfillRequest')
+                    fulfillFunctionId
                   )
                 )
                   .to.emit(airnodeProtocol, 'MadeRequest')
                   .withArgs(
-                    airnodeAddress,
-                    expectedRequestId,
+                    roles.airnode.address,
+                    requestId,
                     airnodeRequester.address,
-                    1,
+                    requestCountBefore.add(1),
                     templateId,
                     requestParameters,
                     roles.sponsor.address,
-                    airnodeRequester.interface.getSighash('fulfillRequest')
+                    fulfillFunctionId
                   );
-                expect(await airnodeProtocol.requesterToRequestCount(airnodeRequester.address)).to.equal(1);
-                expect(await airnodeProtocol.requestIsAwaitingFulfillment(expectedRequestId)).to.equal(true);
+                expect(await airnodeProtocol.requesterToRequestCount(airnodeRequester.address)).to.equal(
+                  requestCountBefore.add(1)
+                );
+                expect(await airnodeProtocol.requestIsAwaitingFulfillment(requestId)).to.equal(true);
               });
             });
             context('Function selector is zero', function () {
               it('reverts', async function () {
+                const { roles, airnodeRequester, templateId, requestParameters } = await helpers.loadFixture(deploy);
                 await expect(
                   airnodeRequester.makeRequest(
-                    airnodeAddress,
+                    roles.airnode.address,
                     templateId,
                     requestParameters,
                     roles.sponsor.address,
@@ -134,13 +239,15 @@ describe('AirnodeProtocol', function () {
           });
           context('Sponsor address is zero', function () {
             it('reverts', async function () {
+              const { roles, airnodeRequester, templateId, requestParameters, fulfillFunctionId } =
+                await helpers.loadFixture(deploy);
               await expect(
                 airnodeRequester.makeRequest(
-                  airnodeAddress,
+                  roles.airnode.address,
                   templateId,
                   requestParameters,
-                  hre.ethers.constants.AddressZero,
-                  airnodeRequester.interface.getSighash('fulfillRequest')
+                  ethers.constants.AddressZero,
+                  fulfillFunctionId
                 )
               ).to.be.revertedWith('Sponsor address zero');
             });
@@ -148,43 +255,46 @@ describe('AirnodeProtocol', function () {
         });
         context('Parameters are too long', function () {
           it('reverts', async function () {
+            const { roles, airnodeRequester, templateId, fulfillFunctionId } = await helpers.loadFixture(deploy);
             await expect(
               airnodeRequester.makeRequest(
-                airnodeAddress,
+                roles.airnode.address,
                 templateId,
                 `0x${'01'.repeat(4096 + 1)}`,
                 roles.sponsor.address,
-                airnodeRequester.interface.getSighash('fulfillRequest')
+                fulfillFunctionId
               )
             ).to.be.revertedWith('Parameters too long');
           });
         });
       });
-      context('Template ID is zero', function () {
+      context('Endpoint or template ID is zero', function () {
         it('reverts', async function () {
-          it('reverts', async function () {
-            await expect(
-              airnodeRequester.makeRequest(
-                airnodeAddress,
-                hre.ethers.constants.HashZero,
-                requestParameters,
-                roles.sponsor.address,
-                airnodeRequester.interface.getSighash('fulfillRequest')
-              )
-            ).to.be.revertedWith('Template ID zero');
-          });
+          const { roles, airnodeRequester, requestParameters, fulfillFunctionId } = await helpers.loadFixture(deploy);
+          await expect(
+            airnodeRequester.makeRequest(
+              roles.airnode.address,
+              ethers.constants.HashZero,
+              requestParameters,
+              roles.sponsor.address,
+              fulfillFunctionId
+            )
+          ).to.be.revertedWith('Endpoint or template ID zero');
         });
       });
     });
     context('Airnode address is zero', function () {
       it('reverts', async function () {
+        const { roles, airnodeRequester, templateId, requestParameters, fulfillFunctionId } = await helpers.loadFixture(
+          deploy
+        );
         await expect(
           airnodeRequester.makeRequest(
-            hre.ethers.constants.AddressZero,
+            ethers.constants.AddressZero,
             templateId,
             requestParameters,
             roles.sponsor.address,
-            airnodeRequester.interface.getSighash('fulfillRequest')
+            fulfillFunctionId
           )
         ).to.be.revertedWith('Airnode address zero');
       });
@@ -196,72 +306,52 @@ describe('AirnodeProtocol', function () {
       context('Signature is valid', function () {
         context('Fulfill function does not revert', function () {
           it('returns `true` and fulfills request', async function () {
-            const requestId = await deriveExpectedRequestId(airnodeRequester.interface.getSighash('fulfillRequest'));
-            await airnodeRequester.makeRequest(
-              airnodeAddress,
-              templateId,
-              requestParameters,
-              roles.sponsor.address,
-              airnodeRequester.interface.getSighash('fulfillRequest')
-            );
-            const timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-            const data = hre.ethers.utils.keccak256(
-              hre.ethers.utils.defaultAbiCoder.encode(['uint256', 'string'], ['123456', 'hello'])
-            );
-            const signature = await airnodeWallet.signMessage(
-              hre.ethers.utils.arrayify(
-                hre.ethers.utils.keccak256(
-                  hre.ethers.utils.solidityPack(
-                    ['bytes32', 'uint256', 'address'],
-                    [requestId, timestamp, airnodeSponsorWallet.address]
-                  )
-                )
-              )
-            );
+            const { roles, airnodeProtocol, airnodeRequester, fulfillFunctionId, fulfillData, request } =
+              await helpers.loadFixture(deploy);
             const staticCallResult = await airnodeProtocol
-              .connect(airnodeSponsorWallet)
+              .connect(roles.airnodeSponsorWallet)
               .callStatic.fulfillRequest(
-                requestId,
-                airnodeAddress,
+                request.requestId,
+                roles.airnode.address,
                 airnodeRequester.address,
-                airnodeRequester.interface.getSighash('fulfillRequest'),
-                timestamp,
-                data,
-                signature,
+                fulfillFunctionId,
+                request.timestamp,
+                fulfillData,
+                request.signature,
                 { gasLimit: 500000 }
               );
             expect(staticCallResult.callSuccess).to.equal(true);
             expect(staticCallResult.callData).to.equal('0x');
             await expect(
               airnodeProtocol
-                .connect(airnodeSponsorWallet)
+                .connect(roles.airnodeSponsorWallet)
                 .fulfillRequest(
-                  requestId,
-                  airnodeAddress,
+                  request.requestId,
+                  roles.airnode.address,
                   airnodeRequester.address,
-                  airnodeRequester.interface.getSighash('fulfillRequest'),
-                  timestamp,
-                  data,
-                  signature,
+                  fulfillFunctionId,
+                  request.timestamp,
+                  fulfillData,
+                  request.signature,
                   { gasLimit: 500000 }
                 )
             )
               .to.emit(airnodeProtocol, 'FulfilledRequest')
-              .withArgs(airnodeAddress, requestId, timestamp, data);
-            expect(await airnodeProtocol.requestIsAwaitingFulfillment(requestId)).to.equal(false);
-            expect(await airnodeRequester.requestIdToData(requestId)).to.equal(data);
+              .withArgs(roles.airnode.address, request.requestId, request.timestamp, fulfillData);
+            expect(await airnodeProtocol.requestIsAwaitingFulfillment(request.requestId)).to.equal(false);
+            expect(await airnodeRequester.requestIdToData(request.requestId)).to.equal(fulfillData);
             // Should revert the second fulfillment attempt
             await expect(
               airnodeProtocol
-                .connect(airnodeSponsorWallet)
+                .connect(roles.airnodeSponsorWallet)
                 .fulfillRequest(
-                  requestId,
-                  airnodeAddress,
+                  request.requestId,
+                  roles.airnode.address,
                   airnodeRequester.address,
-                  airnodeRequester.interface.getSighash('fulfillRequest'),
-                  timestamp,
-                  data,
-                  signature,
+                  fulfillFunctionId,
+                  request.timestamp,
+                  fulfillData,
+                  request.signature,
                   { gasLimit: 500000 }
                 )
             ).to.be.revertedWith('Invalid request fulfillment');
@@ -269,74 +359,63 @@ describe('AirnodeProtocol', function () {
         });
         context('Fulfill function reverts with string', function () {
           it('returns `false` with revert string and fails', async function () {
-            const requestId = await deriveExpectedRequestId(
-              airnodeRequester.interface.getSighash('fulfillRequestAlwaysReverts')
-            );
-            await airnodeRequester.makeRequest(
-              airnodeAddress,
+            const { roles, airnodeProtocol, airnodeRequester, templateId, requestParameters, fulfillData } =
+              await helpers.loadFixture(deploy);
+            const fulfillFunctionId = airnodeRequester.interface.getSighash('fulfillRequestAlwaysReverts');
+            const request = await makeRequestAndPrepareFulfillment(
+              airnodeProtocol,
+              airnodeRequester,
+              roles.airnode,
               templateId,
               requestParameters,
               roles.sponsor.address,
-              airnodeRequester.interface.getSighash('fulfillRequestAlwaysReverts')
-            );
-            const timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-            const data = hre.ethers.utils.keccak256(
-              hre.ethers.utils.defaultAbiCoder.encode(['uint256', 'string'], ['123456', 'hello'])
-            );
-            const signature = await airnodeWallet.signMessage(
-              hre.ethers.utils.arrayify(
-                hre.ethers.utils.keccak256(
-                  hre.ethers.utils.solidityPack(
-                    ['bytes32', 'uint256', 'address'],
-                    [requestId, timestamp, airnodeSponsorWallet.address]
-                  )
-                )
-              )
+              fulfillFunctionId,
+              roles.airnodeSponsorWallet.address
             );
             const staticCallResult = await airnodeProtocol
-              .connect(airnodeSponsorWallet)
+              .connect(roles.airnodeSponsorWallet)
               .callStatic.fulfillRequest(
-                requestId,
-                airnodeAddress,
+                request.requestId,
+                roles.airnode.address,
                 airnodeRequester.address,
-                airnodeRequester.interface.getSighash('fulfillRequestAlwaysReverts'),
-                timestamp,
-                data,
-                signature,
+                fulfillFunctionId,
+                request.timestamp,
+                fulfillData,
+                request.signature,
                 { gasLimit: 500000 }
               );
             expect(staticCallResult.callSuccess).to.equal(false);
             expect(testUtils.decodeRevertString(staticCallResult.callData)).to.equal('Always reverts');
             await expect(
               airnodeProtocol
-                .connect(airnodeSponsorWallet)
+                .connect(roles.airnodeSponsorWallet)
                 .fulfillRequest(
-                  requestId,
-                  airnodeAddress,
+                  request.requestId,
+                  roles.airnode.address,
                   airnodeRequester.address,
-                  airnodeRequester.interface.getSighash('fulfillRequestAlwaysReverts'),
-                  timestamp,
-                  data,
-                  signature,
+                  fulfillFunctionId,
+                  request.timestamp,
+                  fulfillData,
+                  request.signature,
                   { gasLimit: 500000 }
                 )
             )
               .to.emit(airnodeProtocol, 'FailedRequest')
-              .withArgs(airnodeAddress, requestId, timestamp, 'Fulfillment failed unexpectedly');
-            expect(await airnodeProtocol.requestIsAwaitingFulfillment(requestId)).to.equal(false);
-            expect(await airnodeRequester.requestIdToData(requestId)).to.equal('0x');
+              .withArgs(roles.airnode.address, request.requestId, request.timestamp, 'Fulfillment failed unexpectedly');
+            expect(await airnodeProtocol.requestIsAwaitingFulfillment(request.requestId)).to.equal(false);
+            expect(await airnodeRequester.requestIdToData(request.requestId)).to.equal('0x');
             // Should revert the second fulfillment attempt
             await expect(
               airnodeProtocol
-                .connect(airnodeSponsorWallet)
+                .connect(roles.airnodeSponsorWallet)
                 .fulfillRequest(
-                  requestId,
-                  airnodeAddress,
+                  request.requestId,
+                  roles.airnode.address,
                   airnodeRequester.address,
-                  airnodeRequester.interface.getSighash('fulfillRequestAlwaysReverts'),
-                  timestamp,
-                  data,
-                  signature,
+                  fulfillFunctionId,
+                  request.timestamp,
+                  fulfillData,
+                  request.signature,
                   { gasLimit: 500000 }
                 )
             ).to.be.revertedWith('Invalid request fulfillment');
@@ -344,74 +423,63 @@ describe('AirnodeProtocol', function () {
         });
         context('Fulfill function reverts without string', function () {
           it('returns `false` without revert string and fails', async function () {
-            const requestId = await deriveExpectedRequestId(
-              airnodeRequester.interface.getSighash('fulfillRequestAlwaysRevertsWithNoString')
-            );
-            await airnodeRequester.makeRequest(
-              airnodeAddress,
+            const { roles, airnodeProtocol, airnodeRequester, templateId, requestParameters, fulfillData } =
+              await helpers.loadFixture(deploy);
+            const fulfillFunctionId = airnodeRequester.interface.getSighash('fulfillRequestAlwaysRevertsWithNoString');
+            const request = await makeRequestAndPrepareFulfillment(
+              airnodeProtocol,
+              airnodeRequester,
+              roles.airnode,
               templateId,
               requestParameters,
               roles.sponsor.address,
-              airnodeRequester.interface.getSighash('fulfillRequestAlwaysRevertsWithNoString')
-            );
-            const timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-            const data = hre.ethers.utils.keccak256(
-              hre.ethers.utils.defaultAbiCoder.encode(['uint256', 'string'], ['123456', 'hello'])
-            );
-            const signature = await airnodeWallet.signMessage(
-              hre.ethers.utils.arrayify(
-                hre.ethers.utils.keccak256(
-                  hre.ethers.utils.solidityPack(
-                    ['bytes32', 'uint256', 'address'],
-                    [requestId, timestamp, airnodeSponsorWallet.address]
-                  )
-                )
-              )
+              fulfillFunctionId,
+              roles.airnodeSponsorWallet.address
             );
             const staticCallResult = await airnodeProtocol
-              .connect(airnodeSponsorWallet)
+              .connect(roles.airnodeSponsorWallet)
               .callStatic.fulfillRequest(
-                requestId,
-                airnodeAddress,
+                request.requestId,
+                roles.airnode.address,
                 airnodeRequester.address,
-                airnodeRequester.interface.getSighash('fulfillRequestAlwaysRevertsWithNoString'),
-                timestamp,
-                data,
-                signature,
+                fulfillFunctionId,
+                request.timestamp,
+                fulfillData,
+                request.signature,
                 { gasLimit: 500000 }
               );
             expect(staticCallResult.callSuccess).to.equal(false);
             expect(testUtils.decodeRevertString(staticCallResult.callData)).to.equal('No revert string');
             await expect(
               airnodeProtocol
-                .connect(airnodeSponsorWallet)
+                .connect(roles.airnodeSponsorWallet)
                 .fulfillRequest(
-                  requestId,
-                  airnodeAddress,
+                  request.requestId,
+                  roles.airnode.address,
                   airnodeRequester.address,
-                  airnodeRequester.interface.getSighash('fulfillRequestAlwaysRevertsWithNoString'),
-                  timestamp,
-                  data,
-                  signature,
+                  fulfillFunctionId,
+                  request.timestamp,
+                  fulfillData,
+                  request.signature,
                   { gasLimit: 500000 }
                 )
             )
               .to.emit(airnodeProtocol, 'FailedRequest')
-              .withArgs(airnodeAddress, requestId, timestamp, 'Fulfillment failed unexpectedly');
-            expect(await airnodeProtocol.requestIsAwaitingFulfillment(requestId)).to.equal(false);
-            expect(await airnodeRequester.requestIdToData(requestId)).to.equal('0x');
+              .withArgs(roles.airnode.address, request.requestId, request.timestamp, 'Fulfillment failed unexpectedly');
+            expect(await airnodeProtocol.requestIsAwaitingFulfillment(request.requestId)).to.equal(false);
+            expect(await airnodeRequester.requestIdToData(request.requestId)).to.equal('0x');
             // Should revert the second fulfillment attempt
             await expect(
               airnodeProtocol
-                .connect(airnodeSponsorWallet)
+                .connect(roles.airnodeSponsorWallet)
                 .fulfillRequest(
-                  requestId,
-                  airnodeAddress,
+                  request.requestId,
+                  roles.airnode.address,
                   airnodeRequester.address,
-                  airnodeRequester.interface.getSighash('fulfillRequestAlwaysRevertsWithNoString'),
-                  timestamp,
-                  data,
-                  signature,
+                  fulfillFunctionId,
+                  request.timestamp,
+                  fulfillData,
+                  request.signature,
                   { gasLimit: 500000 }
                 )
             ).to.be.revertedWith('Invalid request fulfillment');
@@ -419,74 +487,63 @@ describe('AirnodeProtocol', function () {
         });
         context('Fulfill function runs out of gas', function () {
           it('returns `false` without revert string and fails', async function () {
-            const requestId = await deriveExpectedRequestId(
-              airnodeRequester.interface.getSighash('fulfillRequestAlwaysRunsOutOfGas')
-            );
-            await airnodeRequester.makeRequest(
-              airnodeAddress,
+            const { roles, airnodeProtocol, airnodeRequester, templateId, requestParameters, fulfillData } =
+              await helpers.loadFixture(deploy);
+            const fulfillFunctionId = airnodeRequester.interface.getSighash('fulfillRequestAlwaysRunsOutOfGas');
+            const request = await makeRequestAndPrepareFulfillment(
+              airnodeProtocol,
+              airnodeRequester,
+              roles.airnode,
               templateId,
               requestParameters,
               roles.sponsor.address,
-              airnodeRequester.interface.getSighash('fulfillRequestAlwaysRunsOutOfGas')
-            );
-            const timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-            const data = hre.ethers.utils.keccak256(
-              hre.ethers.utils.defaultAbiCoder.encode(['uint256', 'string'], ['123456', 'hello'])
-            );
-            const signature = await airnodeWallet.signMessage(
-              hre.ethers.utils.arrayify(
-                hre.ethers.utils.keccak256(
-                  hre.ethers.utils.solidityPack(
-                    ['bytes32', 'uint256', 'address'],
-                    [requestId, timestamp, airnodeSponsorWallet.address]
-                  )
-                )
-              )
+              fulfillFunctionId,
+              roles.airnodeSponsorWallet.address
             );
             const staticCallResult = await airnodeProtocol
-              .connect(airnodeSponsorWallet)
+              .connect(roles.airnodeSponsorWallet)
               .callStatic.fulfillRequest(
-                requestId,
-                airnodeAddress,
+                request.requestId,
+                roles.airnode.address,
                 airnodeRequester.address,
-                airnodeRequester.interface.getSighash('fulfillRequestAlwaysRunsOutOfGas'),
-                timestamp,
-                data,
-                signature,
+                fulfillFunctionId,
+                request.timestamp,
+                fulfillData,
+                request.signature,
                 { gasLimit: 500000 }
               );
             expect(staticCallResult.callSuccess).to.equal(false);
             expect(testUtils.decodeRevertString(staticCallResult.callData)).to.equal('No revert string');
             await expect(
               airnodeProtocol
-                .connect(airnodeSponsorWallet)
+                .connect(roles.airnodeSponsorWallet)
                 .fulfillRequest(
-                  requestId,
-                  airnodeAddress,
+                  request.requestId,
+                  roles.airnode.address,
                   airnodeRequester.address,
-                  airnodeRequester.interface.getSighash('fulfillRequestAlwaysRunsOutOfGas'),
-                  timestamp,
-                  data,
-                  signature,
+                  fulfillFunctionId,
+                  request.timestamp,
+                  fulfillData,
+                  request.signature,
                   { gasLimit: 500000 }
                 )
             )
               .to.emit(airnodeProtocol, 'FailedRequest')
-              .withArgs(airnodeAddress, requestId, timestamp, 'Fulfillment failed unexpectedly');
-            expect(await airnodeProtocol.requestIsAwaitingFulfillment(requestId)).to.equal(false);
-            expect(await airnodeRequester.requestIdToData(requestId)).to.equal('0x');
+              .withArgs(roles.airnode.address, request.requestId, request.timestamp, 'Fulfillment failed unexpectedly');
+            expect(await airnodeProtocol.requestIsAwaitingFulfillment(request.requestId)).to.equal(false);
+            expect(await airnodeRequester.requestIdToData(request.requestId)).to.equal('0x');
             // Should revert the second fulfillment attempt
             await expect(
               airnodeProtocol
-                .connect(airnodeSponsorWallet)
+                .connect(roles.airnodeSponsorWallet)
                 .fulfillRequest(
-                  requestId,
-                  airnodeAddress,
+                  request.requestId,
+                  roles.airnode.address,
                   airnodeRequester.address,
-                  airnodeRequester.interface.getSighash('fulfillRequestAlwaysRunsOutOfGas'),
-                  timestamp,
-                  data,
-                  signature,
+                  fulfillFunctionId,
+                  request.timestamp,
+                  fulfillData,
+                  request.signature,
                   { gasLimit: 500000 }
                 )
             ).to.be.revertedWith('Invalid request fulfillment');
@@ -495,38 +552,24 @@ describe('AirnodeProtocol', function () {
       });
       context('Signature is not valid', function () {
         it('reverts', async function () {
-          const requestId = await deriveExpectedRequestId(airnodeRequester.interface.getSighash('fulfillRequest'));
-          await airnodeRequester.makeRequest(
-            airnodeAddress,
-            templateId,
-            requestParameters,
-            roles.sponsor.address,
-            airnodeRequester.interface.getSighash('fulfillRequest')
-          );
-          const timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-          const data = hre.ethers.utils.keccak256(
-            hre.ethers.utils.defaultAbiCoder.encode(['uint256', 'string'], ['123456', 'hello'])
-          );
-          const differentSignature = await airnodeWallet.signMessage(
-            hre.ethers.utils.arrayify(
-              hre.ethers.utils.keccak256(
-                hre.ethers.utils.solidityPack(
-                  ['bytes32', 'uint256', 'address'],
-                  [testUtils.generateRandomBytes32(), timestamp, airnodeSponsorWallet.address]
-                )
-              )
-            )
+          const { roles, airnodeProtocol, airnodeRequester, fulfillFunctionId, fulfillData, request } =
+            await helpers.loadFixture(deploy);
+          const differentSignature = await testUtils.signRrpFulfillment(
+            roles.airnode,
+            testUtils.generateRandomBytes32(),
+            request.timestamp,
+            roles.airnodeSponsorWallet.address
           );
           await expect(
             airnodeProtocol
-              .connect(airnodeSponsorWallet)
+              .connect(roles.airnodeSponsorWallet)
               .fulfillRequest(
-                requestId,
-                airnodeAddress,
+                request.requestId,
+                roles.airnode.address,
                 airnodeRequester.address,
-                airnodeRequester.interface.getSighash('fulfillRequest'),
-                timestamp,
-                data,
+                fulfillFunctionId,
+                request.timestamp,
+                fulfillData,
                 differentSignature,
                 { gasLimit: 500000 }
               )
@@ -534,14 +577,14 @@ describe('AirnodeProtocol', function () {
           const invalidSignature = '0x12345678';
           await expect(
             airnodeProtocol
-              .connect(airnodeSponsorWallet)
+              .connect(roles.airnodeSponsorWallet)
               .fulfillRequest(
-                requestId,
-                airnodeAddress,
+                request.requestId,
+                roles.airnode.address,
                 airnodeRequester.address,
-                airnodeRequester.interface.getSighash('fulfillRequest'),
-                timestamp,
-                data,
+                fulfillFunctionId,
+                request.timestamp,
+                fulfillData,
                 invalidSignature,
                 { gasLimit: 500000 }
               )
@@ -551,39 +594,19 @@ describe('AirnodeProtocol', function () {
     });
     context('Request ID is not correct', function () {
       it('reverts', async function () {
-        const requestId = await deriveExpectedRequestId(airnodeRequester.interface.getSighash('fulfillRequest'));
-        await airnodeRequester.makeRequest(
-          airnodeAddress,
-          templateId,
-          requestParameters,
-          roles.sponsor.address,
-          airnodeRequester.interface.getSighash('fulfillRequest')
-        );
-        const timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-        const data = hre.ethers.utils.keccak256(
-          hre.ethers.utils.defaultAbiCoder.encode(['uint256', 'string'], ['123456', 'hello'])
-        );
-        const signature = await airnodeWallet.signMessage(
-          hre.ethers.utils.arrayify(
-            hre.ethers.utils.keccak256(
-              hre.ethers.utils.solidityPack(
-                ['bytes32', 'uint256', 'address'],
-                [requestId, timestamp, airnodeSponsorWallet.address]
-              )
-            )
-          )
-        );
+        const { roles, airnodeProtocol, airnodeRequester, fulfillFunctionId, fulfillData, request } =
+          await helpers.loadFixture(deploy);
         await expect(
           airnodeProtocol
-            .connect(airnodeSponsorWallet)
+            .connect(roles.airnodeSponsorWallet)
             .fulfillRequest(
               testUtils.generateRandomBytes32(),
-              airnodeAddress,
+              roles.airnode.address,
               airnodeRequester.address,
-              airnodeRequester.interface.getSighash('fulfillRequest'),
-              timestamp,
-              data,
-              signature,
+              fulfillFunctionId,
+              request.timestamp,
+              fulfillData,
+              request.signature,
               { gasLimit: 500000 }
             )
         ).to.be.revertedWith('Invalid request fulfillment');
@@ -591,39 +614,19 @@ describe('AirnodeProtocol', function () {
     });
     context('Airnode address is not correct', function () {
       it('reverts', async function () {
-        const requestId = await deriveExpectedRequestId(airnodeRequester.interface.getSighash('fulfillRequest'));
-        await airnodeRequester.makeRequest(
-          airnodeAddress,
-          templateId,
-          requestParameters,
-          roles.sponsor.address,
-          airnodeRequester.interface.getSighash('fulfillRequest')
-        );
-        const timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-        const data = hre.ethers.utils.keccak256(
-          hre.ethers.utils.defaultAbiCoder.encode(['uint256', 'string'], ['123456', 'hello'])
-        );
-        const signature = await airnodeWallet.signMessage(
-          hre.ethers.utils.arrayify(
-            hre.ethers.utils.keccak256(
-              hre.ethers.utils.solidityPack(
-                ['bytes32', 'uint256', 'address'],
-                [requestId, timestamp, airnodeSponsorWallet.address]
-              )
-            )
-          )
-        );
+        const { roles, airnodeProtocol, airnodeRequester, fulfillFunctionId, fulfillData, request } =
+          await helpers.loadFixture(deploy);
         await expect(
           airnodeProtocol
-            .connect(airnodeSponsorWallet)
+            .connect(roles.airnodeSponsorWallet)
             .fulfillRequest(
-              requestId,
+              request.requestId,
               testUtils.generateRandomAddress(),
               airnodeRequester.address,
-              airnodeRequester.interface.getSighash('fulfillRequest'),
-              timestamp,
-              data,
-              signature,
+              fulfillFunctionId,
+              request.timestamp,
+              fulfillData,
+              request.signature,
               { gasLimit: 500000 }
             )
         ).to.be.revertedWith('Invalid request fulfillment');
@@ -631,39 +634,18 @@ describe('AirnodeProtocol', function () {
     });
     context('Requester address is not correct', function () {
       it('reverts', async function () {
-        const requestId = await deriveExpectedRequestId(airnodeRequester.interface.getSighash('fulfillRequest'));
-        await airnodeRequester.makeRequest(
-          airnodeAddress,
-          templateId,
-          requestParameters,
-          roles.sponsor.address,
-          airnodeRequester.interface.getSighash('fulfillRequest')
-        );
-        const timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-        const data = hre.ethers.utils.keccak256(
-          hre.ethers.utils.defaultAbiCoder.encode(['uint256', 'string'], ['123456', 'hello'])
-        );
-        const signature = await airnodeWallet.signMessage(
-          hre.ethers.utils.arrayify(
-            hre.ethers.utils.keccak256(
-              hre.ethers.utils.solidityPack(
-                ['bytes32', 'uint256', 'address'],
-                [requestId, timestamp, airnodeSponsorWallet.address]
-              )
-            )
-          )
-        );
+        const { roles, airnodeProtocol, fulfillFunctionId, fulfillData, request } = await helpers.loadFixture(deploy);
         await expect(
           airnodeProtocol
-            .connect(airnodeSponsorWallet)
+            .connect(roles.airnodeSponsorWallet)
             .fulfillRequest(
-              requestId,
-              airnodeAddress,
+              request.requestId,
+              roles.airnode.address,
               testUtils.generateRandomAddress(),
-              airnodeRequester.interface.getSighash('fulfillRequest'),
-              timestamp,
-              data,
-              signature,
+              fulfillFunctionId,
+              request.timestamp,
+              fulfillData,
+              request.signature,
               { gasLimit: 500000 }
             )
         ).to.be.revertedWith('Invalid request fulfillment');
@@ -671,39 +653,18 @@ describe('AirnodeProtocol', function () {
     });
     context('Fulfill function ID is not correct', function () {
       it('reverts', async function () {
-        const requestId = await deriveExpectedRequestId(airnodeRequester.interface.getSighash('fulfillRequest'));
-        await airnodeRequester.makeRequest(
-          airnodeAddress,
-          templateId,
-          requestParameters,
-          roles.sponsor.address,
-          airnodeRequester.interface.getSighash('fulfillRequest')
-        );
-        const timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-        const data = hre.ethers.utils.keccak256(
-          hre.ethers.utils.defaultAbiCoder.encode(['uint256', 'string'], ['123456', 'hello'])
-        );
-        const signature = await airnodeWallet.signMessage(
-          hre.ethers.utils.arrayify(
-            hre.ethers.utils.keccak256(
-              hre.ethers.utils.solidityPack(
-                ['bytes32', 'uint256', 'address'],
-                [requestId, timestamp, airnodeSponsorWallet.address]
-              )
-            )
-          )
-        );
+        const { roles, airnodeProtocol, airnodeRequester, fulfillData, request } = await helpers.loadFixture(deploy);
         await expect(
           airnodeProtocol
-            .connect(airnodeSponsorWallet)
+            .connect(roles.airnodeSponsorWallet)
             .fulfillRequest(
-              requestId,
-              airnodeAddress,
+              request.requestId,
+              roles.airnode.address,
               airnodeRequester.address,
               airnodeRequester.interface.getSighash('fulfillRequestAlwaysReverts'),
-              timestamp,
-              data,
-              signature,
+              request.timestamp,
+              fulfillData,
+              request.signature,
               { gasLimit: 500000 }
             )
         ).to.be.revertedWith('Invalid request fulfillment');
@@ -715,54 +676,36 @@ describe('AirnodeProtocol', function () {
     context('Fulfillment parameters are correct', function () {
       context('Signature is valid', function () {
         it('fails request with an error message', async function () {
-          const requestId = await deriveExpectedRequestId(airnodeRequester.interface.getSighash('fulfillRequest'));
-          await airnodeRequester.makeRequest(
-            airnodeAddress,
-            templateId,
-            requestParameters,
-            roles.sponsor.address,
-            airnodeRequester.interface.getSighash('fulfillRequest')
-          );
-          const timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-          const errorMessage = 'Thing went wrong';
-          const signature = await airnodeWallet.signMessage(
-            hre.ethers.utils.arrayify(
-              hre.ethers.utils.keccak256(
-                hre.ethers.utils.solidityPack(
-                  ['bytes32', 'uint256', 'address'],
-                  [requestId, timestamp, airnodeSponsorWallet.address]
-                )
-              )
-            )
-          );
+          const { roles, airnodeProtocol, airnodeRequester, fulfillFunctionId, errorMessage, request } =
+            await helpers.loadFixture(deploy);
           await expect(
             airnodeProtocol
-              .connect(airnodeSponsorWallet)
+              .connect(roles.airnodeSponsorWallet)
               .failRequest(
-                requestId,
-                airnodeAddress,
+                request.requestId,
+                roles.airnode.address,
                 airnodeRequester.address,
-                airnodeRequester.interface.getSighash('fulfillRequest'),
-                timestamp,
+                fulfillFunctionId,
+                request.timestamp,
                 errorMessage,
-                signature,
+                request.signature,
                 { gasLimit: 500000 }
               )
           )
             .to.emit(airnodeProtocol, 'FailedRequest')
-            .withArgs(airnodeAddress, requestId, timestamp, errorMessage);
+            .withArgs(roles.airnode.address, request.requestId, request.timestamp, errorMessage);
           // Should revert the second failure attempt
           await expect(
             airnodeProtocol
-              .connect(airnodeSponsorWallet)
+              .connect(roles.airnodeSponsorWallet)
               .failRequest(
-                requestId,
-                airnodeAddress,
+                request.requestId,
+                roles.airnode.address,
                 airnodeRequester.address,
-                airnodeRequester.interface.getSighash('fulfillRequest'),
-                timestamp,
+                fulfillFunctionId,
+                request.timestamp,
                 errorMessage,
-                signature,
+                request.signature,
                 { gasLimit: 500000 }
               )
           ).to.be.revertedWith('Invalid request fulfillment');
@@ -770,35 +713,23 @@ describe('AirnodeProtocol', function () {
       });
       context('Signature is not valid', function () {
         it('reverts', async function () {
-          const requestId = await deriveExpectedRequestId(airnodeRequester.interface.getSighash('fulfillRequest'));
-          await airnodeRequester.makeRequest(
-            airnodeAddress,
-            templateId,
-            requestParameters,
-            roles.sponsor.address,
-            airnodeRequester.interface.getSighash('fulfillRequest')
-          );
-          const timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-          const errorMessage = 'Thing went wrong';
-          const differentSignature = await airnodeWallet.signMessage(
-            hre.ethers.utils.arrayify(
-              hre.ethers.utils.keccak256(
-                hre.ethers.utils.solidityPack(
-                  ['bytes32', 'uint256', 'address'],
-                  [testUtils.generateRandomBytes32(), timestamp, airnodeSponsorWallet.address]
-                )
-              )
-            )
+          const { roles, airnodeProtocol, airnodeRequester, fulfillFunctionId, errorMessage, request } =
+            await helpers.loadFixture(deploy);
+          const differentSignature = await testUtils.signRrpFulfillment(
+            roles.airnode,
+            testUtils.generateRandomBytes32(),
+            request.timestamp,
+            roles.airnodeSponsorWallet.address
           );
           await expect(
             airnodeProtocol
-              .connect(airnodeSponsorWallet)
+              .connect(roles.airnodeSponsorWallet)
               .failRequest(
-                requestId,
-                airnodeAddress,
+                request.requestId,
+                roles.airnode.address,
                 airnodeRequester.address,
-                airnodeRequester.interface.getSighash('fulfillRequest'),
-                timestamp,
+                fulfillFunctionId,
+                request.timestamp,
                 errorMessage,
                 differentSignature,
                 { gasLimit: 500000 }
@@ -807,13 +738,13 @@ describe('AirnodeProtocol', function () {
           const invalidSignature = '0x12345678';
           await expect(
             airnodeProtocol
-              .connect(airnodeSponsorWallet)
+              .connect(roles.airnodeSponsorWallet)
               .failRequest(
-                requestId,
-                airnodeAddress,
+                request.requestId,
+                roles.airnode.address,
                 airnodeRequester.address,
-                airnodeRequester.interface.getSighash('fulfillRequest'),
-                timestamp,
+                fulfillFunctionId,
+                request.timestamp,
                 errorMessage,
                 invalidSignature,
                 { gasLimit: 500000 }
@@ -824,37 +755,19 @@ describe('AirnodeProtocol', function () {
     });
     context('Request ID is not correct', function () {
       it('reverts', async function () {
-        const requestId = await deriveExpectedRequestId(airnodeRequester.interface.getSighash('fulfillRequest'));
-        await airnodeRequester.makeRequest(
-          airnodeAddress,
-          templateId,
-          requestParameters,
-          roles.sponsor.address,
-          airnodeRequester.interface.getSighash('fulfillRequest')
-        );
-        const timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-        const errorMessage = 'Thing went wrong';
-        const signature = await airnodeWallet.signMessage(
-          hre.ethers.utils.arrayify(
-            hre.ethers.utils.keccak256(
-              hre.ethers.utils.solidityPack(
-                ['bytes32', 'uint256', 'address'],
-                [requestId, timestamp, airnodeSponsorWallet.address]
-              )
-            )
-          )
-        );
+        const { roles, airnodeProtocol, airnodeRequester, fulfillFunctionId, errorMessage, request } =
+          await helpers.loadFixture(deploy);
         await expect(
           airnodeProtocol
-            .connect(airnodeSponsorWallet)
+            .connect(roles.airnodeSponsorWallet)
             .failRequest(
               testUtils.generateRandomBytes32(),
-              airnodeAddress,
+              roles.airnode.address,
               airnodeRequester.address,
-              airnodeRequester.interface.getSighash('fulfillRequest'),
-              timestamp,
+              fulfillFunctionId,
+              request.timestamp,
               errorMessage,
-              signature,
+              request.signature,
               { gasLimit: 500000 }
             )
         ).to.be.revertedWith('Invalid request fulfillment');
@@ -862,37 +775,19 @@ describe('AirnodeProtocol', function () {
     });
     context('Airnode address is not correct', function () {
       it('reverts', async function () {
-        const requestId = await deriveExpectedRequestId(airnodeRequester.interface.getSighash('fulfillRequest'));
-        await airnodeRequester.makeRequest(
-          airnodeAddress,
-          templateId,
-          requestParameters,
-          roles.sponsor.address,
-          airnodeRequester.interface.getSighash('fulfillRequest')
-        );
-        const timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-        const errorMessage = 'Thing went wrong';
-        const signature = await airnodeWallet.signMessage(
-          hre.ethers.utils.arrayify(
-            hre.ethers.utils.keccak256(
-              hre.ethers.utils.solidityPack(
-                ['bytes32', 'uint256', 'address'],
-                [requestId, timestamp, airnodeSponsorWallet.address]
-              )
-            )
-          )
-        );
+        const { roles, airnodeProtocol, airnodeRequester, fulfillFunctionId, errorMessage, request } =
+          await helpers.loadFixture(deploy);
         await expect(
           airnodeProtocol
-            .connect(airnodeSponsorWallet)
+            .connect(roles.airnodeSponsorWallet)
             .failRequest(
-              requestId,
+              request.requestId,
               testUtils.generateRandomAddress(),
               airnodeRequester.address,
-              airnodeRequester.interface.getSighash('fulfillRequest'),
-              timestamp,
+              fulfillFunctionId,
+              request.timestamp,
               errorMessage,
-              signature,
+              request.signature,
               { gasLimit: 500000 }
             )
         ).to.be.revertedWith('Invalid request fulfillment');
@@ -900,37 +795,18 @@ describe('AirnodeProtocol', function () {
     });
     context('Requester address is not correct', function () {
       it('reverts', async function () {
-        const requestId = await deriveExpectedRequestId(airnodeRequester.interface.getSighash('fulfillRequest'));
-        await airnodeRequester.makeRequest(
-          airnodeAddress,
-          templateId,
-          requestParameters,
-          roles.sponsor.address,
-          airnodeRequester.interface.getSighash('fulfillRequest')
-        );
-        const timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-        const errorMessage = 'Thing went wrong';
-        const signature = await airnodeWallet.signMessage(
-          hre.ethers.utils.arrayify(
-            hre.ethers.utils.keccak256(
-              hre.ethers.utils.solidityPack(
-                ['bytes32', 'uint256', 'address'],
-                [requestId, timestamp, airnodeSponsorWallet.address]
-              )
-            )
-          )
-        );
+        const { roles, airnodeProtocol, fulfillFunctionId, errorMessage, request } = await helpers.loadFixture(deploy);
         await expect(
           airnodeProtocol
-            .connect(airnodeSponsorWallet)
+            .connect(roles.airnodeSponsorWallet)
             .failRequest(
-              requestId,
-              airnodeAddress,
+              request.requestId,
+              roles.airnode.address,
               testUtils.generateRandomAddress(),
-              airnodeRequester.interface.getSighash('fulfillRequest'),
-              timestamp,
+              fulfillFunctionId,
+              request.timestamp,
               errorMessage,
-              signature,
+              request.signature,
               { gasLimit: 500000 }
             )
         ).to.be.revertedWith('Invalid request fulfillment');
@@ -938,37 +814,18 @@ describe('AirnodeProtocol', function () {
     });
     context('Fulfill function ID is not correct', function () {
       it('reverts', async function () {
-        const requestId = await deriveExpectedRequestId(airnodeRequester.interface.getSighash('fulfillRequest'));
-        await airnodeRequester.makeRequest(
-          airnodeAddress,
-          templateId,
-          requestParameters,
-          roles.sponsor.address,
-          airnodeRequester.interface.getSighash('fulfillRequest')
-        );
-        const timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-        const errorMessage = 'Thing went wrong';
-        const signature = await airnodeWallet.signMessage(
-          hre.ethers.utils.arrayify(
-            hre.ethers.utils.keccak256(
-              hre.ethers.utils.solidityPack(
-                ['bytes32', 'uint256', 'address'],
-                [requestId, timestamp, airnodeSponsorWallet.address]
-              )
-            )
-          )
-        );
+        const { roles, airnodeProtocol, airnodeRequester, errorMessage, request } = await helpers.loadFixture(deploy);
         await expect(
           airnodeProtocol
-            .connect(airnodeSponsorWallet)
+            .connect(roles.airnodeSponsorWallet)
             .failRequest(
-              requestId,
-              airnodeAddress,
+              request.requestId,
+              roles.airnode.address,
               airnodeRequester.address,
               airnodeRequester.interface.getSighash('fulfillRequestAlwaysReverts'),
-              timestamp,
+              request.timestamp,
               errorMessage,
-              signature,
+              request.signature,
               { gasLimit: 500000 }
             )
         ).to.be.revertedWith('Invalid request fulfillment');
@@ -978,49 +835,62 @@ describe('AirnodeProtocol', function () {
 
   describe('makeRequestRelayed', function () {
     context('Airnode address is not zero', function () {
-      context('Template ID is not zero', function () {
+      context('Endpoint or template ID is not zero', function () {
         context('Parameters are not too long', function () {
           context('Relayer address is not zero', function () {
             context('Sponsor address is not zero', function () {
               context('Function selector is not zero', function () {
                 it('makes relayed request', async function () {
-                  const expectedRequestId = await deriveExpectedRelayedRequestId(
-                    airnodeRequester.interface.getSighash('fulfillRequest')
+                  const { roles, airnodeProtocol, airnodeRequester, templateId, requestParameters, fulfillFunctionId } =
+                    await helpers.loadFixture(deploy);
+                  const requestId = await testUtils.deriveRelayedRequestId(
+                    airnodeProtocol,
+                    airnodeRequester.address,
+                    roles.airnode.address,
+                    templateId,
+                    requestParameters,
+                    roles.relayer.address,
+                    roles.sponsor.address,
+                    fulfillFunctionId
                   );
+                  const requestCountBefore = await airnodeProtocol.requesterToRequestCount(airnodeRequester.address);
                   await expect(
                     airnodeRequester.makeRequestRelayed(
-                      airnodeAddress,
+                      roles.airnode.address,
                       templateId,
                       requestParameters,
-                      relayerAddress,
+                      roles.relayer.address,
                       roles.sponsor.address,
-                      airnodeRequester.interface.getSighash('fulfillRequest')
+                      fulfillFunctionId
                     )
                   )
                     .to.emit(airnodeProtocol, 'MadeRequestRelayed')
                     .withArgs(
-                      relayerAddress,
-                      expectedRequestId,
-                      airnodeAddress,
+                      roles.relayer.address,
+                      requestId,
+                      roles.airnode.address,
                       airnodeRequester.address,
-                      1,
+                      requestCountBefore.add(1),
                       templateId,
                       requestParameters,
                       roles.sponsor.address,
-                      airnodeRequester.interface.getSighash('fulfillRequest')
+                      fulfillFunctionId
                     );
-                  expect(await airnodeProtocol.requesterToRequestCount(airnodeRequester.address)).to.equal(1);
-                  expect(await airnodeProtocol.requestIsAwaitingFulfillment(expectedRequestId)).to.equal(true);
+                  expect(await airnodeProtocol.requesterToRequestCount(airnodeRequester.address)).to.equal(
+                    requestCountBefore.add(1)
+                  );
+                  expect(await airnodeProtocol.requestIsAwaitingFulfillment(requestId)).to.equal(true);
                 });
               });
               context('Function selector is zero', function () {
                 it('reverts', async function () {
+                  const { roles, airnodeRequester, templateId, requestParameters } = await helpers.loadFixture(deploy);
                   await expect(
                     airnodeRequester.makeRequestRelayed(
-                      airnodeAddress,
+                      roles.airnode.address,
                       templateId,
                       requestParameters,
-                      relayerAddress,
+                      roles.relayer.address,
                       roles.sponsor.address,
                       '0x00000000'
                     )
@@ -1030,14 +900,16 @@ describe('AirnodeProtocol', function () {
             });
             context('Sponsor address is zero', function () {
               it('reverts', async function () {
+                const { roles, airnodeRequester, templateId, requestParameters, fulfillFunctionId } =
+                  await helpers.loadFixture(deploy);
                 await expect(
                   airnodeRequester.makeRequestRelayed(
-                    airnodeAddress,
+                    roles.airnode.address,
                     templateId,
                     requestParameters,
-                    relayerAddress,
-                    hre.ethers.constants.AddressZero,
-                    airnodeRequester.interface.getSighash('fulfillRequest')
+                    roles.relayer.address,
+                    ethers.constants.AddressZero,
+                    fulfillFunctionId
                   )
                 ).to.be.revertedWith('Sponsor address zero');
               });
@@ -1045,14 +917,16 @@ describe('AirnodeProtocol', function () {
           });
           context('Relayer address is zero', function () {
             it('reverts', async function () {
+              const { roles, airnodeRequester, templateId, requestParameters, fulfillFunctionId } =
+                await helpers.loadFixture(deploy);
               await expect(
                 airnodeRequester.makeRequestRelayed(
-                  airnodeAddress,
+                  roles.airnode.address,
                   templateId,
                   requestParameters,
-                  hre.ethers.constants.AddressZero,
+                  ethers.constants.AddressZero,
                   roles.sponsor.address,
-                  airnodeRequester.interface.getSighash('fulfillRequest')
+                  fulfillFunctionId
                 )
               ).to.be.revertedWith('Relayer address zero');
             });
@@ -1060,44 +934,49 @@ describe('AirnodeProtocol', function () {
         });
         context('Parameters are too long', function () {
           it('reverts', async function () {
+            const { roles, airnodeRequester, templateId, fulfillFunctionId } = await helpers.loadFixture(deploy);
             await expect(
               airnodeRequester.makeRequestRelayed(
-                airnodeAddress,
+                roles.airnode.address,
                 templateId,
                 `0x${'01'.repeat(4096 + 1)}`,
-                relayerAddress,
+                roles.relayer.address,
                 roles.sponsor.address,
-                airnodeRequester.interface.getSighash('fulfillRequest')
+                fulfillFunctionId
               )
             ).to.be.revertedWith('Parameters too long');
           });
         });
       });
-      context('Template ID is zero', function () {
+      context('Endpoint or template ID is zero', function () {
         it('reverts', async function () {
+          const { roles, airnodeRequester, requestParameters, fulfillFunctionId } = await helpers.loadFixture(deploy);
           await expect(
             airnodeRequester.makeRequestRelayed(
-              airnodeAddress,
-              hre.ethers.constants.HashZero,
+              roles.airnode.address,
+              ethers.constants.HashZero,
               requestParameters,
-              relayerAddress,
+              roles.relayer.address,
               roles.sponsor.address,
-              airnodeRequester.interface.getSighash('fulfillRequest')
+              fulfillFunctionId
             )
-          ).to.be.revertedWith('Template ID zero');
+          ).to.be.revertedWith('Endpoint or template ID zero');
         });
       });
     });
     context('Airnode address is zero', function () {
       it('reverts', async function () {
+        const { roles, airnodeRequester, templateId, requestParameters, fulfillFunctionId } = await helpers.loadFixture(
+          deploy
+        );
         await expect(
           airnodeRequester.makeRequestRelayed(
-            hre.ethers.constants.AddressZero,
+            ethers.constants.AddressZero,
             templateId,
             requestParameters,
-            relayerAddress,
+            roles.relayer.address,
             roles.sponsor.address,
-            airnodeRequester.interface.getSighash('fulfillRequest')
+            fulfillFunctionId
           )
         ).to.be.revertedWith('Airnode address zero');
       });
@@ -1109,78 +988,61 @@ describe('AirnodeProtocol', function () {
       context('Signature is valid', function () {
         context('Fulfill function does not revert', function () {
           it('returns `true` and fulfills request', async function () {
-            const requestId = await deriveExpectedRelayedRequestId(
-              airnodeRequester.interface.getSighash('fulfillRequest')
-            );
-            await airnodeRequester.makeRequestRelayed(
-              airnodeAddress,
-              templateId,
-              requestParameters,
-              relayerAddress,
-              roles.sponsor.address,
-              airnodeRequester.interface.getSighash('fulfillRequest')
-            );
-            const timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-            const data = hre.ethers.utils.keccak256(
-              hre.ethers.utils.defaultAbiCoder.encode(['uint256', 'string'], ['123456', 'hello'])
-            );
-            const signature = await airnodeWallet.signMessage(
-              hre.ethers.utils.arrayify(
-                hre.ethers.utils.keccak256(
-                  hre.ethers.utils.solidityPack(
-                    ['bytes32', 'uint256', 'address', 'bytes'],
-                    [requestId, timestamp, relayerSponsorWallet.address, data]
-                  )
-                )
-              )
-            );
+            const { roles, airnodeProtocol, airnodeRequester, fulfillFunctionId, fulfillData, relayedRequest } =
+              await helpers.loadFixture(deploy);
             const staticCallResult = await airnodeProtocol
-              .connect(relayerSponsorWallet)
+              .connect(roles.relayerSponsorWallet)
               .callStatic.fulfillRequestRelayed(
-                requestId,
-                airnodeAddress,
+                relayedRequest.requestId,
+                roles.airnode.address,
                 airnodeRequester.address,
-                relayerAddress,
-                airnodeRequester.interface.getSighash('fulfillRequest'),
-                timestamp,
-                data,
-                signature,
+                roles.relayer.address,
+                fulfillFunctionId,
+                relayedRequest.timestamp,
+                fulfillData,
+                relayedRequest.signature,
                 { gasLimit: 500000 }
               );
             expect(staticCallResult.callSuccess).to.equal(true);
             expect(staticCallResult.callData).to.equal('0x');
             await expect(
               airnodeProtocol
-                .connect(relayerSponsorWallet)
+                .connect(roles.relayerSponsorWallet)
                 .fulfillRequestRelayed(
-                  requestId,
-                  airnodeAddress,
+                  relayedRequest.requestId,
+                  roles.airnode.address,
                   airnodeRequester.address,
-                  relayerAddress,
-                  airnodeRequester.interface.getSighash('fulfillRequest'),
-                  timestamp,
-                  data,
-                  signature,
+                  roles.relayer.address,
+                  fulfillFunctionId,
+                  relayedRequest.timestamp,
+                  fulfillData,
+                  relayedRequest.signature,
                   { gasLimit: 500000 }
                 )
             )
               .to.emit(airnodeProtocol, 'FulfilledRequestRelayed')
-              .withArgs(relayerAddress, requestId, airnodeAddress, timestamp, data);
-            expect(await airnodeProtocol.requestIsAwaitingFulfillment(requestId)).to.equal(false);
-            expect(await airnodeRequester.requestIdToData(requestId)).to.equal(data);
+              .withArgs(
+                roles.relayer.address,
+                relayedRequest.requestId,
+                roles.airnode.address,
+                relayedRequest.timestamp,
+                fulfillData
+              );
+            expect(await airnodeProtocol.requestIsAwaitingFulfillment(relayedRequest.requestId)).to.equal(false);
+            expect(await airnodeRequester.requestIdToData(relayedRequest.requestId)).to.equal(fulfillData);
             // Should revert the second fulfillment attempt
             await expect(
               airnodeProtocol
-                .connect(relayerSponsorWallet)
+                .connect(roles.relayerSponsorWallet)
                 .fulfillRequestRelayed(
-                  requestId,
-                  airnodeAddress,
+                  relayedRequest.requestId,
+                  roles.airnode.address,
                   airnodeRequester.address,
-                  relayerAddress,
-                  airnodeRequester.interface.getSighash('fulfillRequest'),
-                  timestamp,
-                  data,
-                  signature,
+                  roles.relayer.address,
+                  fulfillFunctionId,
+                  relayedRequest.timestamp,
+                  fulfillData,
+                  relayedRequest.signature,
                   { gasLimit: 500000 }
                 )
             ).to.be.revertedWith('Invalid request fulfillment');
@@ -1188,78 +1050,74 @@ describe('AirnodeProtocol', function () {
         });
         context('Fulfill function reverts with string', function () {
           it('returns `false` with revert string and fails', async function () {
-            const requestId = await deriveExpectedRelayedRequestId(
-              airnodeRequester.interface.getSighash('fulfillRequestAlwaysReverts')
-            );
-            await airnodeRequester.makeRequestRelayed(
-              airnodeAddress,
+            const { roles, airnodeProtocol, airnodeRequester, templateId, requestParameters, fulfillData } =
+              await helpers.loadFixture(deploy);
+            const fulfillFunctionId = airnodeRequester.interface.getSighash('fulfillRequestAlwaysReverts');
+            const relayedRequest = await makeRelayedRequestAndPrepareFulfillment(
+              airnodeProtocol,
+              airnodeRequester,
+              roles.airnode,
               templateId,
               requestParameters,
-              relayerAddress,
+              roles.relayer,
               roles.sponsor.address,
-              airnodeRequester.interface.getSighash('fulfillRequestAlwaysReverts')
-            );
-            const timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-            const data = hre.ethers.utils.keccak256(
-              hre.ethers.utils.defaultAbiCoder.encode(['uint256', 'string'], ['123456', 'hello'])
-            );
-            const signature = await airnodeWallet.signMessage(
-              hre.ethers.utils.arrayify(
-                hre.ethers.utils.keccak256(
-                  hre.ethers.utils.solidityPack(
-                    ['bytes32', 'uint256', 'address', 'bytes'],
-                    [requestId, timestamp, relayerSponsorWallet.address, data]
-                  )
-                )
-              )
+              fulfillFunctionId,
+              roles.relayerSponsorWallet.address,
+              fulfillData
             );
             const staticCallResult = await airnodeProtocol
-              .connect(relayerSponsorWallet)
+              .connect(roles.relayerSponsorWallet)
               .callStatic.fulfillRequestRelayed(
-                requestId,
-                airnodeAddress,
+                relayedRequest.requestId,
+                roles.airnode.address,
                 airnodeRequester.address,
-                relayerAddress,
-                airnodeRequester.interface.getSighash('fulfillRequestAlwaysReverts'),
-                timestamp,
-                data,
-                signature,
+                roles.relayer.address,
+                fulfillFunctionId,
+                relayedRequest.timestamp,
+                fulfillData,
+                relayedRequest.signature,
                 { gasLimit: 500000 }
               );
             expect(staticCallResult.callSuccess).to.equal(false);
             expect(testUtils.decodeRevertString(staticCallResult.callData)).to.equal('Always reverts');
             await expect(
               airnodeProtocol
-                .connect(relayerSponsorWallet)
+                .connect(roles.relayerSponsorWallet)
                 .fulfillRequestRelayed(
-                  requestId,
-                  airnodeAddress,
+                  relayedRequest.requestId,
+                  roles.airnode.address,
                   airnodeRequester.address,
-                  relayerAddress,
+                  roles.relayer.address,
                   airnodeRequester.interface.getSighash('fulfillRequestAlwaysReverts'),
-                  timestamp,
-                  data,
-                  signature,
+                  relayedRequest.timestamp,
+                  fulfillData,
+                  relayedRequest.signature,
                   { gasLimit: 500000 }
                 )
             )
               .to.emit(airnodeProtocol, 'FailedRequestRelayed')
-              .withArgs(relayerAddress, requestId, airnodeAddress, timestamp, 'Fulfillment failed unexpectedly');
-            expect(await airnodeProtocol.requestIsAwaitingFulfillment(requestId)).to.equal(false);
-            expect(await airnodeRequester.requestIdToData(requestId)).to.equal('0x');
+              .withArgs(
+                roles.relayer.address,
+                relayedRequest.requestId,
+                roles.airnode.address,
+                relayedRequest.timestamp,
+                'Fulfillment failed unexpectedly'
+              );
+            expect(await airnodeProtocol.requestIsAwaitingFulfillment(relayedRequest.requestId)).to.equal(false);
+            expect(await airnodeRequester.requestIdToData(relayedRequest.requestId)).to.equal('0x');
             // Should revert the second fulfillment attempt
             await expect(
               airnodeProtocol
-                .connect(relayerSponsorWallet)
+                .connect(roles.relayerSponsorWallet)
                 .fulfillRequestRelayed(
-                  requestId,
-                  airnodeAddress,
+                  relayedRequest.requestId,
+                  roles.airnode.address,
                   airnodeRequester.address,
-                  relayerAddress,
+                  roles.relayer.address,
                   airnodeRequester.interface.getSighash('fulfillRequestAlwaysReverts'),
-                  timestamp,
-                  data,
-                  signature,
+                  relayedRequest.timestamp,
+                  fulfillData,
+                  relayedRequest.signature,
                   { gasLimit: 500000 }
                 )
             ).to.be.revertedWith('Invalid request fulfillment');
@@ -1267,78 +1125,74 @@ describe('AirnodeProtocol', function () {
         });
         context('Fulfill function reverts without string', function () {
           it('returns `false` without revert string and fails', async function () {
-            const requestId = await deriveExpectedRelayedRequestId(
-              airnodeRequester.interface.getSighash('fulfillRequestAlwaysRevertsWithNoString')
-            );
-            await airnodeRequester.makeRequestRelayed(
-              airnodeAddress,
+            const { roles, airnodeProtocol, airnodeRequester, templateId, requestParameters, fulfillData } =
+              await helpers.loadFixture(deploy);
+            const fulfillFunctionId = airnodeRequester.interface.getSighash('fulfillRequestAlwaysRevertsWithNoString');
+            const relayedRequest = await makeRelayedRequestAndPrepareFulfillment(
+              airnodeProtocol,
+              airnodeRequester,
+              roles.airnode,
               templateId,
               requestParameters,
-              relayerAddress,
+              roles.relayer,
               roles.sponsor.address,
-              airnodeRequester.interface.getSighash('fulfillRequestAlwaysRevertsWithNoString')
-            );
-            const timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-            const data = hre.ethers.utils.keccak256(
-              hre.ethers.utils.defaultAbiCoder.encode(['uint256', 'string'], ['123456', 'hello'])
-            );
-            const signature = await airnodeWallet.signMessage(
-              hre.ethers.utils.arrayify(
-                hre.ethers.utils.keccak256(
-                  hre.ethers.utils.solidityPack(
-                    ['bytes32', 'uint256', 'address', 'bytes'],
-                    [requestId, timestamp, relayerSponsorWallet.address, data]
-                  )
-                )
-              )
+              fulfillFunctionId,
+              roles.relayerSponsorWallet.address,
+              fulfillData
             );
             const staticCallResult = await airnodeProtocol
-              .connect(relayerSponsorWallet)
+              .connect(roles.relayerSponsorWallet)
               .callStatic.fulfillRequestRelayed(
-                requestId,
-                airnodeAddress,
+                relayedRequest.requestId,
+                roles.airnode.address,
                 airnodeRequester.address,
-                relayerAddress,
-                airnodeRequester.interface.getSighash('fulfillRequestAlwaysRevertsWithNoString'),
-                timestamp,
-                data,
-                signature,
+                roles.relayer.address,
+                fulfillFunctionId,
+                relayedRequest.timestamp,
+                fulfillData,
+                relayedRequest.signature,
                 { gasLimit: 500000 }
               );
             expect(staticCallResult.callSuccess).to.equal(false);
             expect(testUtils.decodeRevertString(staticCallResult.callData)).to.equal('No revert string');
             await expect(
               airnodeProtocol
-                .connect(relayerSponsorWallet)
+                .connect(roles.relayerSponsorWallet)
                 .fulfillRequestRelayed(
-                  requestId,
-                  airnodeAddress,
+                  relayedRequest.requestId,
+                  roles.airnode.address,
                   airnodeRequester.address,
-                  relayerAddress,
-                  airnodeRequester.interface.getSighash('fulfillRequestAlwaysRevertsWithNoString'),
-                  timestamp,
-                  data,
-                  signature,
+                  roles.relayer.address,
+                  fulfillFunctionId,
+                  relayedRequest.timestamp,
+                  fulfillData,
+                  relayedRequest.signature,
                   { gasLimit: 500000 }
                 )
             )
               .to.emit(airnodeProtocol, 'FailedRequestRelayed')
-              .withArgs(relayerAddress, requestId, airnodeAddress, timestamp, 'Fulfillment failed unexpectedly');
-            expect(await airnodeProtocol.requestIsAwaitingFulfillment(requestId)).to.equal(false);
-            expect(await airnodeRequester.requestIdToData(requestId)).to.equal('0x');
+              .withArgs(
+                roles.relayer.address,
+                relayedRequest.requestId,
+                roles.airnode.address,
+                relayedRequest.timestamp,
+                'Fulfillment failed unexpectedly'
+              );
+            expect(await airnodeProtocol.requestIsAwaitingFulfillment(relayedRequest.requestId)).to.equal(false);
+            expect(await airnodeRequester.requestIdToData(relayedRequest.requestId)).to.equal('0x');
             // Should revert the second fulfillment attempt
             await expect(
               airnodeProtocol
-                .connect(relayerSponsorWallet)
+                .connect(roles.relayerSponsorWallet)
                 .fulfillRequestRelayed(
-                  requestId,
-                  airnodeAddress,
+                  relayedRequest.requestId,
+                  roles.airnode.address,
                   airnodeRequester.address,
-                  relayerAddress,
-                  airnodeRequester.interface.getSighash('fulfillRequestAlwaysRevertsWithNoString'),
-                  timestamp,
-                  data,
-                  signature,
+                  roles.relayer.address,
+                  fulfillFunctionId,
+                  relayedRequest.timestamp,
+                  fulfillData,
+                  relayedRequest.signature,
                   { gasLimit: 500000 }
                 )
             ).to.be.revertedWith('Invalid request fulfillment');
@@ -1346,78 +1200,74 @@ describe('AirnodeProtocol', function () {
         });
         context('Fulfill function runs out of gas', function () {
           it('returns `false` without revert string and fails', async function () {
-            const requestId = await deriveExpectedRelayedRequestId(
-              airnodeRequester.interface.getSighash('fulfillRequestAlwaysRunsOutOfGas')
-            );
-            await airnodeRequester.makeRequestRelayed(
-              airnodeAddress,
+            const { roles, airnodeProtocol, airnodeRequester, templateId, requestParameters, fulfillData } =
+              await helpers.loadFixture(deploy);
+            const fulfillFunctionId = airnodeRequester.interface.getSighash('fulfillRequestAlwaysRunsOutOfGas');
+            const relayedRequest = await makeRelayedRequestAndPrepareFulfillment(
+              airnodeProtocol,
+              airnodeRequester,
+              roles.airnode,
               templateId,
               requestParameters,
-              relayerAddress,
+              roles.relayer,
               roles.sponsor.address,
-              airnodeRequester.interface.getSighash('fulfillRequestAlwaysRunsOutOfGas')
-            );
-            const timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-            const data = hre.ethers.utils.keccak256(
-              hre.ethers.utils.defaultAbiCoder.encode(['uint256', 'string'], ['123456', 'hello'])
-            );
-            const signature = await airnodeWallet.signMessage(
-              hre.ethers.utils.arrayify(
-                hre.ethers.utils.keccak256(
-                  hre.ethers.utils.solidityPack(
-                    ['bytes32', 'uint256', 'address', 'bytes'],
-                    [requestId, timestamp, relayerSponsorWallet.address, data]
-                  )
-                )
-              )
+              fulfillFunctionId,
+              roles.relayerSponsorWallet.address,
+              fulfillData
             );
             const staticCallResult = await airnodeProtocol
-              .connect(relayerSponsorWallet)
+              .connect(roles.relayerSponsorWallet)
               .callStatic.fulfillRequestRelayed(
-                requestId,
-                airnodeAddress,
+                relayedRequest.requestId,
+                roles.airnode.address,
                 airnodeRequester.address,
-                relayerAddress,
-                airnodeRequester.interface.getSighash('fulfillRequestAlwaysRunsOutOfGas'),
-                timestamp,
-                data,
-                signature,
+                roles.relayer.address,
+                fulfillFunctionId,
+                relayedRequest.timestamp,
+                fulfillData,
+                relayedRequest.signature,
                 { gasLimit: 500000 }
               );
             expect(staticCallResult.callSuccess).to.equal(false);
             expect(testUtils.decodeRevertString(staticCallResult.callData)).to.equal('No revert string');
             await expect(
               airnodeProtocol
-                .connect(relayerSponsorWallet)
+                .connect(roles.relayerSponsorWallet)
                 .fulfillRequestRelayed(
-                  requestId,
-                  airnodeAddress,
+                  relayedRequest.requestId,
+                  roles.airnode.address,
                   airnodeRequester.address,
-                  relayerAddress,
-                  airnodeRequester.interface.getSighash('fulfillRequestAlwaysRunsOutOfGas'),
-                  timestamp,
-                  data,
-                  signature,
+                  roles.relayer.address,
+                  fulfillFunctionId,
+                  relayedRequest.timestamp,
+                  fulfillData,
+                  relayedRequest.signature,
                   { gasLimit: 500000 }
                 )
             )
               .to.emit(airnodeProtocol, 'FailedRequestRelayed')
-              .withArgs(relayerAddress, requestId, airnodeAddress, timestamp, 'Fulfillment failed unexpectedly');
-            expect(await airnodeProtocol.requestIsAwaitingFulfillment(requestId)).to.equal(false);
-            expect(await airnodeRequester.requestIdToData(requestId)).to.equal('0x');
+              .withArgs(
+                roles.relayer.address,
+                relayedRequest.requestId,
+                roles.airnode.address,
+                relayedRequest.timestamp,
+                'Fulfillment failed unexpectedly'
+              );
+            expect(await airnodeProtocol.requestIsAwaitingFulfillment(relayedRequest.requestId)).to.equal(false);
+            expect(await airnodeRequester.requestIdToData(relayedRequest.requestId)).to.equal('0x');
             // Should revert the second fulfillment attempt
             await expect(
               airnodeProtocol
-                .connect(relayerSponsorWallet)
+                .connect(roles.relayerSponsorWallet)
                 .fulfillRequestRelayed(
-                  requestId,
-                  airnodeAddress,
+                  relayedRequest.requestId,
+                  roles.airnode.address,
                   airnodeRequester.address,
-                  relayerAddress,
-                  airnodeRequester.interface.getSighash('fulfillRequestAlwaysRunsOutOfGas'),
-                  timestamp,
-                  data,
-                  signature,
+                  roles.relayer.address,
+                  fulfillFunctionId,
+                  relayedRequest.timestamp,
+                  fulfillData,
+                  relayedRequest.signature,
                   { gasLimit: 500000 }
                 )
             ).to.be.revertedWith('Invalid request fulfillment');
@@ -1426,42 +1276,26 @@ describe('AirnodeProtocol', function () {
       });
       context('Signature is not valid', function () {
         it('reverts', async function () {
-          const requestId = await deriveExpectedRelayedRequestId(
-            airnodeRequester.interface.getSighash('fulfillRequest')
-          );
-          await airnodeRequester.makeRequestRelayed(
-            airnodeAddress,
-            templateId,
-            requestParameters,
-            relayerAddress,
-            roles.sponsor.address,
-            airnodeRequester.interface.getSighash('fulfillRequest')
-          );
-          const timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-          const data = hre.ethers.utils.keccak256(
-            hre.ethers.utils.defaultAbiCoder.encode(['uint256', 'string'], ['123456', 'hello'])
-          );
-          const differentSignature = await airnodeWallet.signMessage(
-            hre.ethers.utils.arrayify(
-              hre.ethers.utils.keccak256(
-                hre.ethers.utils.solidityPack(
-                  ['bytes32', 'uint256', 'address', 'bytes'],
-                  [testUtils.generateRandomBytes32(), timestamp, relayerSponsorWallet.address, data]
-                )
-              )
-            )
+          const { roles, airnodeProtocol, airnodeRequester, fulfillFunctionId, fulfillData, relayedRequest } =
+            await helpers.loadFixture(deploy);
+          const differentSignature = await testUtils.signRrpRelayedFulfillment(
+            roles.airnode,
+            testUtils.generateRandomBytes32(),
+            relayedRequest.timestamp,
+            roles.relayerSponsorWallet.address,
+            fulfillData
           );
           await expect(
             airnodeProtocol
-              .connect(relayerSponsorWallet)
+              .connect(roles.relayerSponsorWallet)
               .fulfillRequestRelayed(
-                requestId,
-                airnodeAddress,
+                relayedRequest.requestId,
+                roles.airnode.address,
                 airnodeRequester.address,
-                relayerAddress,
-                airnodeRequester.interface.getSighash('fulfillRequest'),
-                timestamp,
-                data,
+                roles.relayer.address,
+                fulfillFunctionId,
+                relayedRequest.timestamp,
+                fulfillData,
                 differentSignature,
                 { gasLimit: 500000 }
               )
@@ -1469,15 +1303,15 @@ describe('AirnodeProtocol', function () {
           const invalidSignature = '0x12345678';
           await expect(
             airnodeProtocol
-              .connect(relayerSponsorWallet)
+              .connect(roles.relayerSponsorWallet)
               .fulfillRequestRelayed(
-                requestId,
-                airnodeAddress,
+                relayedRequest.requestId,
+                roles.airnode.address,
                 airnodeRequester.address,
-                relayerAddress,
-                airnodeRequester.interface.getSighash('fulfillRequest'),
-                timestamp,
-                data,
+                roles.relayer.address,
+                fulfillFunctionId,
+                relayedRequest.timestamp,
+                fulfillData,
                 invalidSignature,
                 { gasLimit: 500000 }
               )
@@ -1487,41 +1321,20 @@ describe('AirnodeProtocol', function () {
     });
     context('Request ID is not correct', function () {
       it('reverts', async function () {
-        const requestId = await deriveExpectedRelayedRequestId(airnodeRequester.interface.getSighash('fulfillRequest'));
-        await airnodeRequester.makeRequestRelayed(
-          airnodeAddress,
-          templateId,
-          requestParameters,
-          relayerAddress,
-          roles.sponsor.address,
-          airnodeRequester.interface.getSighash('fulfillRequest')
-        );
-        const timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-        const data = hre.ethers.utils.keccak256(
-          hre.ethers.utils.defaultAbiCoder.encode(['uint256', 'string'], ['123456', 'hello'])
-        );
-        const signature = await airnodeWallet.signMessage(
-          hre.ethers.utils.arrayify(
-            hre.ethers.utils.keccak256(
-              hre.ethers.utils.solidityPack(
-                ['bytes32', 'uint256', 'address', 'bytes'],
-                [requestId, timestamp, relayerSponsorWallet.address, data]
-              )
-            )
-          )
-        );
+        const { roles, airnodeProtocol, airnodeRequester, fulfillFunctionId, fulfillData, relayedRequest } =
+          await helpers.loadFixture(deploy);
         await expect(
           airnodeProtocol
-            .connect(relayerSponsorWallet)
+            .connect(roles.relayerSponsorWallet)
             .fulfillRequestRelayed(
               testUtils.generateRandomBytes32(),
-              airnodeAddress,
+              roles.airnode.address,
               airnodeRequester.address,
-              relayerAddress,
-              airnodeRequester.interface.getSighash('fulfillRequest'),
-              timestamp,
-              data,
-              signature,
+              roles.relayer.address,
+              fulfillFunctionId,
+              relayedRequest.timestamp,
+              fulfillData,
+              relayedRequest.signature,
               { gasLimit: 500000 }
             )
         ).to.be.revertedWith('Invalid request fulfillment');
@@ -1529,41 +1342,20 @@ describe('AirnodeProtocol', function () {
     });
     context('Airnode address is not correct', function () {
       it('reverts', async function () {
-        const requestId = await deriveExpectedRelayedRequestId(airnodeRequester.interface.getSighash('fulfillRequest'));
-        await airnodeRequester.makeRequestRelayed(
-          airnodeAddress,
-          templateId,
-          requestParameters,
-          relayerAddress,
-          roles.sponsor.address,
-          airnodeRequester.interface.getSighash('fulfillRequest')
-        );
-        const timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-        const data = hre.ethers.utils.keccak256(
-          hre.ethers.utils.defaultAbiCoder.encode(['uint256', 'string'], ['123456', 'hello'])
-        );
-        const signature = await airnodeWallet.signMessage(
-          hre.ethers.utils.arrayify(
-            hre.ethers.utils.keccak256(
-              hre.ethers.utils.solidityPack(
-                ['bytes32', 'uint256', 'address', 'bytes'],
-                [requestId, timestamp, relayerSponsorWallet.address, data]
-              )
-            )
-          )
-        );
+        const { roles, airnodeProtocol, airnodeRequester, fulfillFunctionId, fulfillData, relayedRequest } =
+          await helpers.loadFixture(deploy);
         await expect(
           airnodeProtocol
-            .connect(relayerSponsorWallet)
+            .connect(roles.relayerSponsorWallet)
             .fulfillRequestRelayed(
-              requestId,
+              relayedRequest.requestId,
               testUtils.generateRandomAddress(),
               airnodeRequester.address,
-              relayerAddress,
-              airnodeRequester.interface.getSighash('fulfillRequest'),
-              timestamp,
-              data,
-              signature,
+              roles.relayer.address,
+              fulfillFunctionId,
+              relayedRequest.timestamp,
+              fulfillData,
+              relayedRequest.signature,
               { gasLimit: 500000 }
             )
         ).to.be.revertedWith('Invalid request fulfillment');
@@ -1571,41 +1363,21 @@ describe('AirnodeProtocol', function () {
     });
     context('Requester address is not correct', function () {
       it('reverts', async function () {
-        const requestId = await deriveExpectedRelayedRequestId(airnodeRequester.interface.getSighash('fulfillRequest'));
-        await airnodeRequester.makeRequestRelayed(
-          airnodeAddress,
-          templateId,
-          requestParameters,
-          relayerAddress,
-          roles.sponsor.address,
-          airnodeRequester.interface.getSighash('fulfillRequest')
-        );
-        const timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-        const data = hre.ethers.utils.keccak256(
-          hre.ethers.utils.defaultAbiCoder.encode(['uint256', 'string'], ['123456', 'hello'])
-        );
-        const signature = await airnodeWallet.signMessage(
-          hre.ethers.utils.arrayify(
-            hre.ethers.utils.keccak256(
-              hre.ethers.utils.solidityPack(
-                ['bytes32', 'uint256', 'address', 'bytes'],
-                [requestId, timestamp, relayerSponsorWallet.address, data]
-              )
-            )
-          )
+        const { roles, airnodeProtocol, fulfillFunctionId, fulfillData, relayedRequest } = await helpers.loadFixture(
+          deploy
         );
         await expect(
           airnodeProtocol
-            .connect(relayerSponsorWallet)
+            .connect(roles.relayerSponsorWallet)
             .fulfillRequestRelayed(
-              requestId,
-              airnodeAddress,
+              relayedRequest.requestId,
+              roles.airnode.address,
               testUtils.generateRandomAddress(),
-              relayerAddress,
-              airnodeRequester.interface.getSighash('fulfillRequest'),
-              timestamp,
-              data,
-              signature,
+              roles.relayer.address,
+              fulfillFunctionId,
+              relayedRequest.timestamp,
+              fulfillData,
+              relayedRequest.signature,
               { gasLimit: 500000 }
             )
         ).to.be.revertedWith('Invalid request fulfillment');
@@ -1613,41 +1385,20 @@ describe('AirnodeProtocol', function () {
     });
     context('Relayer address is not correct', function () {
       it('reverts', async function () {
-        const requestId = await deriveExpectedRelayedRequestId(airnodeRequester.interface.getSighash('fulfillRequest'));
-        await airnodeRequester.makeRequestRelayed(
-          airnodeAddress,
-          templateId,
-          requestParameters,
-          relayerAddress,
-          roles.sponsor.address,
-          airnodeRequester.interface.getSighash('fulfillRequest')
-        );
-        const timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-        const data = hre.ethers.utils.keccak256(
-          hre.ethers.utils.defaultAbiCoder.encode(['uint256', 'string'], ['123456', 'hello'])
-        );
-        const signature = await airnodeWallet.signMessage(
-          hre.ethers.utils.arrayify(
-            hre.ethers.utils.keccak256(
-              hre.ethers.utils.solidityPack(
-                ['bytes32', 'uint256', 'address', 'bytes'],
-                [requestId, timestamp, relayerSponsorWallet.address, data]
-              )
-            )
-          )
-        );
+        const { roles, airnodeProtocol, airnodeRequester, fulfillFunctionId, fulfillData, relayedRequest } =
+          await helpers.loadFixture(deploy);
         await expect(
           airnodeProtocol
-            .connect(relayerSponsorWallet)
+            .connect(roles.relayerSponsorWallet)
             .fulfillRequestRelayed(
-              requestId,
-              airnodeAddress,
+              relayedRequest.requestId,
+              roles.airnode.address,
               airnodeRequester.address,
               testUtils.generateRandomAddress(),
-              airnodeRequester.interface.getSighash('fulfillRequest'),
-              timestamp,
-              data,
-              signature,
+              fulfillFunctionId,
+              relayedRequest.timestamp,
+              fulfillData,
+              relayedRequest.signature,
               { gasLimit: 500000 }
             )
         ).to.be.revertedWith('Invalid request fulfillment');
@@ -1655,41 +1406,21 @@ describe('AirnodeProtocol', function () {
     });
     context('Fulfill function ID is not correct', function () {
       it('reverts', async function () {
-        const requestId = await deriveExpectedRelayedRequestId(airnodeRequester.interface.getSighash('fulfillRequest'));
-        await airnodeRequester.makeRequestRelayed(
-          airnodeAddress,
-          templateId,
-          requestParameters,
-          relayerAddress,
-          roles.sponsor.address,
-          airnodeRequester.interface.getSighash('fulfillRequest')
-        );
-        const timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-        const data = hre.ethers.utils.keccak256(
-          hre.ethers.utils.defaultAbiCoder.encode(['uint256', 'string'], ['123456', 'hello'])
-        );
-        const signature = await airnodeWallet.signMessage(
-          hre.ethers.utils.arrayify(
-            hre.ethers.utils.keccak256(
-              hre.ethers.utils.solidityPack(
-                ['bytes32', 'uint256', 'address', 'bytes'],
-                [requestId, timestamp, relayerSponsorWallet.address, data]
-              )
-            )
-          )
+        const { roles, airnodeProtocol, airnodeRequester, fulfillData, relayedRequest } = await helpers.loadFixture(
+          deploy
         );
         await expect(
           airnodeProtocol
-            .connect(relayerSponsorWallet)
+            .connect(roles.relayerSponsorWallet)
             .fulfillRequestRelayed(
-              requestId,
-              airnodeAddress,
+              relayedRequest.requestId,
+              roles.airnode.address,
               airnodeRequester.address,
-              relayerAddress,
+              roles.relayer.address,
               airnodeRequester.interface.getSighash('fulfillRequestAlwaysReverts'),
-              timestamp,
-              data,
-              signature,
+              relayedRequest.timestamp,
+              fulfillData,
+              relayedRequest.signature,
               { gasLimit: 500000 }
             )
         ).to.be.revertedWith('Invalid request fulfillment');
@@ -1701,59 +1432,44 @@ describe('AirnodeProtocol', function () {
     context('Fulfillment parameters are correct', function () {
       context('Signature is valid', function () {
         it('fails request with an error message', async function () {
-          const requestId = await deriveExpectedRelayedRequestId(
-            airnodeRequester.interface.getSighash('fulfillRequest')
-          );
-          await airnodeRequester.makeRequestRelayed(
-            airnodeAddress,
-            templateId,
-            requestParameters,
-            relayerAddress,
-            roles.sponsor.address,
-            airnodeRequester.interface.getSighash('fulfillRequest')
-          );
-          const timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-          const errorMessage = 'Thing went wrong';
-          const signature = await relayerWallet.signMessage(
-            hre.ethers.utils.arrayify(
-              hre.ethers.utils.keccak256(
-                hre.ethers.utils.solidityPack(
-                  ['bytes32', 'uint256', 'address'],
-                  [requestId, timestamp, relayerSponsorWallet.address]
-                )
-              )
-            )
-          );
+          const { roles, airnodeProtocol, airnodeRequester, fulfillFunctionId, errorMessage, relayedRequest } =
+            await helpers.loadFixture(deploy);
           await expect(
             airnodeProtocol
-              .connect(relayerSponsorWallet)
+              .connect(roles.relayerSponsorWallet)
               .failRequestRelayed(
-                requestId,
-                airnodeAddress,
+                relayedRequest.requestId,
+                roles.airnode.address,
                 airnodeRequester.address,
-                relayerAddress,
-                airnodeRequester.interface.getSighash('fulfillRequest'),
-                timestamp,
+                roles.relayer.address,
+                fulfillFunctionId,
+                relayedRequest.timestamp,
                 errorMessage,
-                signature,
+                relayedRequest.failSignature,
                 { gasLimit: 500000 }
               )
           )
             .to.emit(airnodeProtocol, 'FailedRequestRelayed')
-            .withArgs(relayerAddress, requestId, airnodeAddress, timestamp, errorMessage);
+            .withArgs(
+              roles.relayer.address,
+              relayedRequest.requestId,
+              roles.airnode.address,
+              relayedRequest.timestamp,
+              errorMessage
+            );
           // Should revert the second failure attempt
           await expect(
             airnodeProtocol
-              .connect(relayerSponsorWallet)
+              .connect(roles.relayerSponsorWallet)
               .failRequestRelayed(
-                requestId,
-                airnodeAddress,
+                relayedRequest.requestId,
+                roles.airnode.address,
                 airnodeRequester.address,
-                relayerAddress,
-                airnodeRequester.interface.getSighash('fulfillRequest'),
-                timestamp,
+                roles.relayer.address,
+                fulfillFunctionId,
+                relayedRequest.timestamp,
                 errorMessage,
-                signature,
+                relayedRequest.failSignature,
                 { gasLimit: 500000 }
               )
           ).to.be.revertedWith('Invalid request fulfillment');
@@ -1761,39 +1477,24 @@ describe('AirnodeProtocol', function () {
       });
       context('Signature is not valid', function () {
         it('reverts', async function () {
-          const requestId = await deriveExpectedRelayedRequestId(
-            airnodeRequester.interface.getSighash('fulfillRequest')
-          );
-          await airnodeRequester.makeRequestRelayed(
-            airnodeAddress,
-            templateId,
-            requestParameters,
-            relayerAddress,
-            roles.sponsor.address,
-            airnodeRequester.interface.getSighash('fulfillRequest')
-          );
-          const timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-          const errorMessage = 'Thing went wrong';
-          const differentSignature = await airnodeWallet.signMessage(
-            hre.ethers.utils.arrayify(
-              hre.ethers.utils.keccak256(
-                hre.ethers.utils.solidityPack(
-                  ['bytes32', 'uint256', 'address'],
-                  [testUtils.generateRandomBytes32(), timestamp, relayerSponsorWallet.address]
-                )
-              )
-            )
+          const { roles, airnodeProtocol, airnodeRequester, fulfillFunctionId, errorMessage, relayedRequest } =
+            await helpers.loadFixture(deploy);
+          const differentSignature = await testUtils.signRrpRelayedFailure(
+            roles.relayer,
+            testUtils.generateRandomBytes32(),
+            relayedRequest.timestamp,
+            roles.relayerSponsorWallet.address
           );
           await expect(
             airnodeProtocol
-              .connect(relayerSponsorWallet)
+              .connect(roles.relayerSponsorWallet)
               .failRequestRelayed(
-                requestId,
-                airnodeAddress,
+                relayedRequest.requestId,
+                roles.airnode.address,
                 airnodeRequester.address,
-                relayerAddress,
-                airnodeRequester.interface.getSighash('fulfillRequest'),
-                timestamp,
+                roles.relayer.address,
+                fulfillFunctionId,
+                relayedRequest.timestamp,
                 errorMessage,
                 differentSignature,
                 { gasLimit: 500000 }
@@ -1802,14 +1503,14 @@ describe('AirnodeProtocol', function () {
           const invalidSignature = '0x12345678';
           await expect(
             airnodeProtocol
-              .connect(relayerSponsorWallet)
+              .connect(roles.relayerSponsorWallet)
               .failRequestRelayed(
-                requestId,
-                airnodeAddress,
+                relayedRequest.requestId,
+                roles.airnode.address,
                 airnodeRequester.address,
-                relayerAddress,
-                airnodeRequester.interface.getSighash('fulfillRequest'),
-                timestamp,
+                roles.relayer.address,
+                fulfillFunctionId,
+                relayedRequest.timestamp,
                 errorMessage,
                 invalidSignature,
                 { gasLimit: 500000 }
@@ -1820,39 +1521,20 @@ describe('AirnodeProtocol', function () {
     });
     context('Request ID is not correct', function () {
       it('reverts', async function () {
-        const requestId = await deriveExpectedRelayedRequestId(airnodeRequester.interface.getSighash('fulfillRequest'));
-        await airnodeRequester.makeRequestRelayed(
-          airnodeAddress,
-          templateId,
-          requestParameters,
-          relayerAddress,
-          roles.sponsor.address,
-          airnodeRequester.interface.getSighash('fulfillRequest')
-        );
-        const timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-        const errorMessage = 'Thing went wrong';
-        const signature = await airnodeWallet.signMessage(
-          hre.ethers.utils.arrayify(
-            hre.ethers.utils.keccak256(
-              hre.ethers.utils.solidityPack(
-                ['bytes32', 'uint256', 'address'],
-                [requestId, timestamp, relayerSponsorWallet.address]
-              )
-            )
-          )
-        );
+        const { roles, airnodeProtocol, airnodeRequester, fulfillFunctionId, errorMessage, relayedRequest } =
+          await helpers.loadFixture(deploy);
         await expect(
           airnodeProtocol
-            .connect(relayerSponsorWallet)
+            .connect(roles.relayerSponsorWallet)
             .failRequestRelayed(
               testUtils.generateRandomBytes32(),
-              airnodeAddress,
+              roles.airnode.address,
               airnodeRequester.address,
-              relayerAddress,
-              airnodeRequester.interface.getSighash('fulfillRequest'),
-              timestamp,
+              roles.relayer.address,
+              fulfillFunctionId,
+              relayedRequest.timestamp,
               errorMessage,
-              signature,
+              relayedRequest.failSignature,
               { gasLimit: 500000 }
             )
         ).to.be.revertedWith('Invalid request fulfillment');
@@ -1860,39 +1542,20 @@ describe('AirnodeProtocol', function () {
     });
     context('Airnode address is not correct', function () {
       it('reverts', async function () {
-        const requestId = await deriveExpectedRelayedRequestId(airnodeRequester.interface.getSighash('fulfillRequest'));
-        await airnodeRequester.makeRequestRelayed(
-          airnodeAddress,
-          templateId,
-          requestParameters,
-          relayerAddress,
-          roles.sponsor.address,
-          airnodeRequester.interface.getSighash('fulfillRequest')
-        );
-        const timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-        const errorMessage = 'Thing went wrong';
-        const signature = await airnodeWallet.signMessage(
-          hre.ethers.utils.arrayify(
-            hre.ethers.utils.keccak256(
-              hre.ethers.utils.solidityPack(
-                ['bytes32', 'uint256', 'address'],
-                [requestId, timestamp, relayerSponsorWallet.address]
-              )
-            )
-          )
-        );
+        const { roles, airnodeProtocol, airnodeRequester, fulfillFunctionId, errorMessage, relayedRequest } =
+          await helpers.loadFixture(deploy);
         await expect(
           airnodeProtocol
-            .connect(relayerSponsorWallet)
+            .connect(roles.relayerSponsorWallet)
             .failRequestRelayed(
-              requestId,
+              relayedRequest.requestId,
               testUtils.generateRandomAddress(),
               airnodeRequester.address,
-              relayerAddress,
-              airnodeRequester.interface.getSighash('fulfillRequest'),
-              timestamp,
+              roles.relayer.address,
+              fulfillFunctionId,
+              relayedRequest.timestamp,
               errorMessage,
-              signature,
+              relayedRequest.failSignature,
               { gasLimit: 500000 }
             )
         ).to.be.revertedWith('Invalid request fulfillment');
@@ -1900,39 +1563,21 @@ describe('AirnodeProtocol', function () {
     });
     context('Requester address is not correct', function () {
       it('reverts', async function () {
-        const requestId = await deriveExpectedRelayedRequestId(airnodeRequester.interface.getSighash('fulfillRequest'));
-        await airnodeRequester.makeRequestRelayed(
-          airnodeAddress,
-          templateId,
-          requestParameters,
-          relayerAddress,
-          roles.sponsor.address,
-          airnodeRequester.interface.getSighash('fulfillRequest')
-        );
-        const timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-        const errorMessage = 'Thing went wrong';
-        const signature = await airnodeWallet.signMessage(
-          hre.ethers.utils.arrayify(
-            hre.ethers.utils.keccak256(
-              hre.ethers.utils.solidityPack(
-                ['bytes32', 'uint256', 'address'],
-                [requestId, timestamp, relayerSponsorWallet.address]
-              )
-            )
-          )
+        const { roles, airnodeProtocol, fulfillFunctionId, errorMessage, relayedRequest } = await helpers.loadFixture(
+          deploy
         );
         await expect(
           airnodeProtocol
-            .connect(relayerSponsorWallet)
+            .connect(roles.relayerSponsorWallet)
             .failRequestRelayed(
-              requestId,
-              airnodeAddress,
+              relayedRequest.requestId,
+              roles.airnode.address,
               testUtils.generateRandomAddress(),
-              relayerAddress,
-              airnodeRequester.interface.getSighash('fulfillRequest'),
-              timestamp,
+              roles.relayer.address,
+              fulfillFunctionId,
+              relayedRequest.timestamp,
               errorMessage,
-              signature,
+              relayedRequest.failSignature,
               { gasLimit: 500000 }
             )
         ).to.be.revertedWith('Invalid request fulfillment');
@@ -1940,39 +1585,20 @@ describe('AirnodeProtocol', function () {
     });
     context('Relayer address is not correct', function () {
       it('reverts', async function () {
-        const requestId = await deriveExpectedRelayedRequestId(airnodeRequester.interface.getSighash('fulfillRequest'));
-        await airnodeRequester.makeRequestRelayed(
-          airnodeAddress,
-          templateId,
-          requestParameters,
-          relayerAddress,
-          roles.sponsor.address,
-          airnodeRequester.interface.getSighash('fulfillRequest')
-        );
-        const timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-        const errorMessage = 'Thing went wrong';
-        const signature = await airnodeWallet.signMessage(
-          hre.ethers.utils.arrayify(
-            hre.ethers.utils.keccak256(
-              hre.ethers.utils.solidityPack(
-                ['bytes32', 'uint256', 'address'],
-                [requestId, timestamp, relayerSponsorWallet.address]
-              )
-            )
-          )
-        );
+        const { roles, airnodeProtocol, airnodeRequester, fulfillFunctionId, errorMessage, relayedRequest } =
+          await helpers.loadFixture(deploy);
         await expect(
           airnodeProtocol
-            .connect(relayerSponsorWallet)
+            .connect(roles.relayerSponsorWallet)
             .failRequestRelayed(
-              requestId,
-              airnodeAddress,
+              relayedRequest.requestId,
+              roles.airnode.address,
               airnodeRequester.address,
               testUtils.generateRandomAddress(),
-              airnodeRequester.interface.getSighash('fulfillRequest'),
-              timestamp,
+              fulfillFunctionId,
+              relayedRequest.timestamp,
               errorMessage,
-              signature,
+              relayedRequest.failSignature,
               { gasLimit: 500000 }
             )
         ).to.be.revertedWith('Invalid request fulfillment');
@@ -1980,39 +1606,21 @@ describe('AirnodeProtocol', function () {
     });
     context('Fulfill function ID is not correct', function () {
       it('reverts', async function () {
-        const requestId = await deriveExpectedRelayedRequestId(airnodeRequester.interface.getSighash('fulfillRequest'));
-        await airnodeRequester.makeRequestRelayed(
-          airnodeAddress,
-          templateId,
-          requestParameters,
-          relayerAddress,
-          roles.sponsor.address,
-          airnodeRequester.interface.getSighash('fulfillRequest')
-        );
-        const timestamp = await testUtils.getCurrentTimestamp(hre.ethers.provider);
-        const errorMessage = 'Thing went wrong';
-        const signature = await airnodeWallet.signMessage(
-          hre.ethers.utils.arrayify(
-            hre.ethers.utils.keccak256(
-              hre.ethers.utils.solidityPack(
-                ['bytes32', 'uint256', 'address'],
-                [requestId, timestamp, relayerSponsorWallet.address]
-              )
-            )
-          )
+        const { roles, airnodeProtocol, airnodeRequester, errorMessage, relayedRequest } = await helpers.loadFixture(
+          deploy
         );
         await expect(
           airnodeProtocol
-            .connect(relayerSponsorWallet)
+            .connect(roles.relayerSponsorWallet)
             .failRequestRelayed(
-              requestId,
-              airnodeAddress,
+              relayedRequest.requestId,
+              roles.airnode.address,
               airnodeRequester.address,
-              relayerAddress,
+              roles.relayer.address,
               airnodeRequester.interface.getSighash('fulfillRequestAlwaysReverts'),
-              timestamp,
+              relayedRequest.timestamp,
               errorMessage,
-              signature,
+              relayedRequest.failSignature,
               { gasLimit: 500000 }
             )
         ).to.be.revertedWith('Invalid request fulfillment');

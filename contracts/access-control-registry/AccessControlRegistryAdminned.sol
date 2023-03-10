@@ -1,19 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/utils/Multicall.sol";
+import "../utils/SelfMulticall.sol";
 import "./RoleDeriver.sol";
-import "./AccessControlRegistryUser.sol";
 import "./interfaces/IAccessControlRegistryAdminned.sol";
+import "./interfaces/IAccessControlRegistry.sol";
 
 /// @title Contract to be inherited by contracts whose adminship functionality
 /// will be implemented using AccessControlRegistry
 contract AccessControlRegistryAdminned is
-    Multicall,
+    SelfMulticall,
     RoleDeriver,
-    AccessControlRegistryUser,
     IAccessControlRegistryAdminned
 {
+    /// @notice AccessControlRegistry contract address
+    address public immutable override accessControlRegistry;
+
     /// @notice Admin role description
     string public override adminRoleDescription;
 
@@ -29,11 +31,13 @@ contract AccessControlRegistryAdminned is
     constructor(
         address _accessControlRegistry,
         string memory _adminRoleDescription
-    ) AccessControlRegistryUser(_accessControlRegistry) {
+    ) {
+        require(_accessControlRegistry != address(0), "ACR address zero");
         require(
             bytes(_adminRoleDescription).length > 0,
             "Admin role description empty"
         );
+        accessControlRegistry = _accessControlRegistry;
         adminRoleDescription = _adminRoleDescription;
         adminRoleDescriptionHash = keccak256(
             abi.encodePacked(_adminRoleDescription)
@@ -43,11 +47,9 @@ contract AccessControlRegistryAdminned is
     /// @notice Derives the admin role for the specific manager address
     /// @param manager Manager address
     /// @return adminRole Admin role
-    function _deriveAdminRole(address manager)
-        internal
-        view
-        returns (bytes32 adminRole)
-    {
+    function _deriveAdminRole(
+        address manager
+    ) internal view returns (bytes32 adminRole) {
         adminRole = _deriveRole(
             _deriveRootRole(manager),
             adminRoleDescriptionHash

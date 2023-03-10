@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.9;
+pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./interfaces/IWithdrawalUtils.sol";
@@ -28,19 +28,22 @@ contract WithdrawalUtils is IWithdrawalUtils {
     mapping(address => uint256) public override sponsorToBalance;
 
     /// @notice Number of withdrawal requests the sponsor made
-    /// @dev This can be used to calculate the ID of the next withdrawal
-    /// request the sponsor will make
     mapping(address => uint256) public override sponsorToWithdrawalRequestCount;
 
     mapping(bytes32 => bytes32) private withdrawalRequestIdToParameters;
 
-    /// @notice Called by a sponsor to request a withdrawal
+    /// @notice Called by a sponsor to request a withdrawal. In response, the
+    /// Airnode/relayer is expected to deposit the funds at this contract by
+    /// calling `fulfillWithdrawal()`, and then the sponsor will have to call
+    /// `claimBalance()` to have the funds sent to itself. For sponsor to be
+    /// able to receive funds this way, it has to be an EOA or a contract that
+    /// has an appropriate payable fallback function.
     /// @param airnodeOrRelayer Airnode/relayer address
     /// @param protocolId Protocol ID
-    function requestWithdrawal(address airnodeOrRelayer, uint256 protocolId)
-        external
-        override
-    {
+    function requestWithdrawal(
+        address airnodeOrRelayer,
+        uint256 protocolId
+    ) external override {
         require(airnodeOrRelayer != address(0), "Airnode/relayer address zero");
         require(protocolId != 0, "Protocol ID zero");
         bytes32 withdrawalRequestId = keccak256(
@@ -83,11 +86,13 @@ contract WithdrawalUtils is IWithdrawalUtils {
                 ),
             "Invalid withdrawal fulfillment"
         );
-        require(
-            timestamp + 1 hours > block.timestamp &&
-                timestamp < block.timestamp + 15 minutes,
-            "Timestamp not valid"
-        );
+        unchecked {
+            require(
+                timestamp + 1 hours > block.timestamp &&
+                    timestamp < block.timestamp + 1 hours,
+                "Timestamp not valid"
+            );
+        }
         require(
             (
                 keccak256(
@@ -117,7 +122,8 @@ contract WithdrawalUtils is IWithdrawalUtils {
         require(sponsorBalance != 0, "Sender balance zero");
         sponsorToBalance[msg.sender] = 0;
         emit ClaimedBalance(msg.sender, sponsorBalance);
-        (bool success, ) = msg.sender.call{value: sponsorBalance}(""); // solhint-disable-line avoid-low-level-calls
+        // solhint-disable-next-line avoid-low-level-calls
+        (bool success, ) = msg.sender.call{value: sponsorBalance}("");
         require(success, "Transfer failed");
     }
 
@@ -126,12 +132,9 @@ contract WithdrawalUtils is IWithdrawalUtils {
     /// @param withdrawalRequestId Withdrawal request ID
     /// @return isAwaitingFulfillment If the withdrawal request is awaiting
     /// fulfillment
-    function withdrawalRequestIsAwaitingFulfillment(bytes32 withdrawalRequestId)
-        external
-        view
-        override
-        returns (bool)
-    {
+    function withdrawalRequestIsAwaitingFulfillment(
+        bytes32 withdrawalRequestId
+    ) external view override returns (bool) {
         return
             withdrawalRequestIdToParameters[withdrawalRequestId] != bytes32(0);
     }

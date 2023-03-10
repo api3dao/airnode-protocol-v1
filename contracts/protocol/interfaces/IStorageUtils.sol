@@ -12,7 +12,7 @@ interface IStorageUtils {
         bytes32 indexed subscriptionId,
         uint256 chainId,
         address airnode,
-        bytes32 templateId,
+        bytes32 endpointOrTemplateId,
         bytes parameters,
         bytes conditions,
         address relayer,
@@ -21,14 +21,15 @@ interface IStorageUtils {
         bytes4 fulfillFunctionId
     );
 
-    function storeTemplate(bytes32 endpointId, bytes calldata parameters)
-        external
-        returns (bytes32 templateId);
+    function storeTemplate(
+        bytes32 endpointId,
+        bytes calldata parameters
+    ) external returns (bytes32 templateId);
 
     function storeSubscription(
         uint256 chainId,
         address airnode,
-        bytes32 templateId,
+        bytes32 endpointOrTemplateId,
         bytes calldata parameters,
         bytes calldata conditions,
         address relayer,
@@ -40,18 +41,19 @@ interface IStorageUtils {
     // solhint-disable-next-line func-name-mixedcase
     function MAXIMUM_PARAMETER_LENGTH() external view returns (uint256);
 
-    function templates(bytes32 templateId)
-        external
-        view
-        returns (bytes32 endpointId, bytes memory parameters);
+    function templates(
+        bytes32 templateId
+    ) external view returns (bytes32 endpointId, bytes memory parameters);
 
-    function subscriptions(bytes32 subscriptionId)
+    function subscriptions(
+        bytes32 subscriptionId
+    )
         external
         view
         returns (
             uint256 chainId,
             address airnode,
-            bytes32 templateId,
+            bytes32 endpointOrTemplateId,
             bytes memory parameters,
             bytes memory conditions,
             address relayer,

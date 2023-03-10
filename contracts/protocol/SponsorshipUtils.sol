@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.9;
+pragma solidity 0.8.17;
 
 import "./interfaces/ISponsorshipUtils.sol";
 
@@ -29,16 +29,13 @@ contract SponsorshipUtils is ISponsorshipUtils {
 
     /// @notice Called by the sponsor to set the sponsorship status of an RRP
     /// requester
-    /// @dev This applies for both regular and relayed RRP requests.
-    /// In all contracts, we use the "set" verb to refer to setting a value
-    /// without considering its previous value, and emitting an event whether
-    /// a state change has occurred or not.
+    /// @dev This applies to both regular and relayed RRP requests
     /// @param requester RRP requester address
     /// @param status Sponsorship status
-    function setRrpSponsorshipStatus(address requester, bool status)
-        external
-        override
-    {
+    function setRrpSponsorshipStatus(
+        address requester,
+        bool status
+    ) external override {
         require(requester != address(0), "Requester address zero");
         sponsorToRequesterToRrpSponsorshipStatus[msg.sender][
             requester
@@ -50,10 +47,10 @@ contract SponsorshipUtils is ISponsorshipUtils {
     /// subscription
     /// @param subscriptionId Subscription ID
     /// @param status Sponsorship status
-    function setPspSponsorshipStatus(bytes32 subscriptionId, bool status)
-        external
-        override
-    {
+    function setPspSponsorshipStatus(
+        bytes32 subscriptionId,
+        bool status
+    ) external override {
         require(subscriptionId != bytes32(0), "Subscription ID zero");
         sponsorToSubscriptionIdToPspSponsorshipStatus[msg.sender][
             subscriptionId

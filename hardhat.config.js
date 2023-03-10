@@ -1,8 +1,8 @@
-require('@nomiclabs/hardhat-waffle');
+require('@nomicfoundation/hardhat-toolbox');
 require('@nomiclabs/hardhat-etherscan');
 require('solidity-coverage');
-require('hardhat-gas-reporter');
 require('hardhat-deploy');
+require('hardhat-gas-reporter');
 
 const fs = require('fs');
 let credentials = require('./credentials.example.json');
@@ -25,7 +25,7 @@ module.exports = {
     tests: process.env.EXTENDED_TEST ? './extended-test' : './test',
   },
   solidity: {
-    version: '0.8.9',
+    version: '0.8.17',
     settings: {
       optimizer: {
         enabled: true,

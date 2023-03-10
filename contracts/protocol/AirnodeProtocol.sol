@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.9;
+pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "../utils/ExtendedSelfMulticall.sol";
 import "./StorageUtils.sol";
 import "./SponsorshipUtils.sol";
 import "./WithdrawalUtils.sol";
-import "../utils/ExtendedMulticall.sol";
 import "./interfaces/IAirnodeProtocol.sol";
 
 /// @title Airnode request–response protocol (RRP) and its relayed version
@@ -14,44 +14,43 @@ import "./interfaces/IAirnodeProtocol.sol";
 /// The relayed version allows the requester to specify an Airnode that will
 /// sign the fulfillment data and a relayer that will report the signed
 /// fulfillment.
-/// @dev This contract inherits Multicall for Airnodes to be able to make batch
-/// static calls to read sponsorship states, and template and subscription
-/// details.
-/// StorageUtils, SponsorshipUtils and WithdrawalUtils also implement some
-/// auxiliary functionality for PSP.
+/// @dev StorageUtils, SponsorshipUtils and WithdrawalUtils also implement some
+/// auxiliary functionality for PSP
 contract AirnodeProtocol is
+    ExtendedSelfMulticall,
     StorageUtils,
     SponsorshipUtils,
     WithdrawalUtils,
-    ExtendedMulticall,
     IAirnodeProtocol
 {
     using ECDSA for bytes32;
 
-    /// @notice Number of requests the requester made
-    /// @dev This can be used to calculate the ID of the next request that the
-    /// requester will make
+    /// @notice Number of requests the requester has made
     mapping(address => uint256) public override requesterToRequestCount;
 
     mapping(bytes32 => bytes32) private requestIdToFulfillmentParameters;
 
     /// @notice Called by the requester to make a request
-    /// @param templateId Template ID
-    /// @param parameters Parameters provided by the requester in addition to
-    /// the parameters in the template
+    /// @dev It is the responsibility of the respective Airnode to resolve if
+    /// `endpointOrTemplateId` is an endpoint ID or a template ID
+    /// @param endpointOrTemplateId Endpoint or template ID
+    /// @param parameters Parameters
     /// @param sponsor Sponsor address
     /// @param fulfillFunctionId Selector of the function to be called for
     /// fulfillment
     /// @return requestId Request ID
     function makeRequest(
         address airnode,
-        bytes32 templateId,
+        bytes32 endpointOrTemplateId,
         bytes calldata parameters,
         address sponsor,
         bytes4 fulfillFunctionId
     ) external override returns (bytes32 requestId) {
         require(airnode != address(0), "Airnode address zero");
-        require(templateId != bytes32(0), "Template ID zero");
+        require(
+            endpointOrTemplateId != bytes32(0),
+            "Endpoint or template ID zero"
+        );
         require(
             parameters.length <= MAXIMUM_PARAMETER_LENGTH,
             "Parameters too long"
@@ -66,7 +65,7 @@ contract AirnodeProtocol is
                 msg.sender,
                 requesterRequestCount,
                 airnode,
-                templateId,
+                endpointOrTemplateId,
                 parameters,
                 sponsor,
                 fulfillFunctionId
@@ -80,7 +79,7 @@ contract AirnodeProtocol is
             requestId,
             msg.sender,
             requesterRequestCount,
-            templateId,
+            endpointOrTemplateId,
             parameters,
             sponsor,
             fulfillFunctionId
@@ -100,8 +99,6 @@ contract AirnodeProtocol is
     /// there is no contract deployed at `fulfillAddress`.
     /// If `callSuccess` is `false`, `callData` can be decoded to retrieve the
     /// revert string.
-    /// This function emits its event after an untrusted low-level call,
-    /// meaning that the log indices of these events may be off.
     /// @param requestId Request ID
     /// @param airnode Airnode address
     /// @param requester Requester address
@@ -137,7 +134,8 @@ contract AirnodeProtocol is
             "Signature mismatch"
         );
         delete requestIdToFulfillmentParameters[requestId];
-        (callSuccess, callData) = requester.call( // solhint-disable-line avoid-low-level-calls
+        // solhint-disable-next-line avoid-low-level-calls
+        (callSuccess, callData) = requester.call(
             abi.encodeWithSelector(
                 fulfillFunctionId,
                 requestId,
@@ -162,7 +160,7 @@ contract AirnodeProtocol is
     /// cannot be fulfilled
     /// @dev The Airnode should fall back to this if a request cannot be
     /// fulfilled because of an error, including the static call to `fulfill()`
-    /// returning `false` for `callSuccess`.
+    /// returning `false` for `callSuccess`
     /// @param requestId Request ID
     /// @param airnode Airnode address
     /// @param requester Requester address
@@ -200,11 +198,10 @@ contract AirnodeProtocol is
 
     /// @notice Called by the requester to make a request to be fulfilled by a
     /// relayer
-    /// @dev The relayer address indexed in the relayed protocol logs because
-    /// it will be the relayer that will be listening to these logs
-    /// @param templateId Template ID
-    /// @param parameters Parameters provided by the requester in addition to
-    /// the parameters in the template
+    /// @dev The relayer address is indexed in the relayed protocol logs
+    /// because it will be the relayer that will be listening to these logs
+    /// @param endpointOrTemplateId Endpoint or template ID
+    /// @param parameters Parameters
     /// @param relayer Relayer address
     /// @param sponsor Sponsor address
     /// @param fulfillFunctionId Selector of the function to be called for
@@ -212,14 +209,17 @@ contract AirnodeProtocol is
     /// @return requestId Request ID
     function makeRequestRelayed(
         address airnode,
-        bytes32 templateId,
+        bytes32 endpointOrTemplateId,
         bytes calldata parameters,
         address relayer,
         address sponsor,
         bytes4 fulfillFunctionId
     ) external override returns (bytes32 requestId) {
         require(airnode != address(0), "Airnode address zero");
-        require(templateId != bytes32(0), "Template ID zero");
+        require(
+            endpointOrTemplateId != bytes32(0),
+            "Endpoint or template ID zero"
+        );
         require(
             parameters.length <= MAXIMUM_PARAMETER_LENGTH,
             "Parameters too long"
@@ -235,7 +235,7 @@ contract AirnodeProtocol is
                 msg.sender,
                 requesterRequestCount,
                 airnode,
-                templateId,
+                endpointOrTemplateId,
                 parameters,
                 relayer,
                 sponsor,
@@ -251,7 +251,7 @@ contract AirnodeProtocol is
             airnode,
             msg.sender,
             requesterRequestCount,
-            templateId,
+            endpointOrTemplateId,
             parameters,
             sponsor,
             fulfillFunctionId
@@ -301,7 +301,8 @@ contract AirnodeProtocol is
             "Signature mismatch"
         );
         delete requestIdToFulfillmentParameters[requestId];
-        (callSuccess, callData) = requester.call( // solhint-disable-line avoid-low-level-calls
+        // solhint-disable-next-line avoid-low-level-calls
+        (callSuccess, callData) = requester.call(
             abi.encodeWithSelector(
                 fulfillFunctionId,
                 requestId,
@@ -331,7 +332,7 @@ contract AirnodeProtocol is
 
     /// @notice Called by the relayer using the sponsor wallet if the request
     /// cannot be fulfilled
-    /// @dev Since failure may also include problems at the Airnode end (such
+    /// @dev Since failure may also include problems at the Airnode-end (such
     /// as it being unavailable), we are content with a signature from the
     /// relayer to validate failures. This is acceptable because explicit
     /// failures are mainly for easy debugging of issues, and the requester
@@ -385,12 +386,9 @@ contract AirnodeProtocol is
     /// called back `failRequest()`/`failRequestRelayed()` instead.
     /// @param requestId Request ID
     /// @return If the request is awaiting fulfillment
-    function requestIsAwaitingFulfillment(bytes32 requestId)
-        external
-        view
-        override
-        returns (bool)
-    {
+    function requestIsAwaitingFulfillment(
+        bytes32 requestId
+    ) external view override returns (bool) {
         return requestIdToFulfillmentParameters[requestId] != bytes32(0);
     }
 }

@@ -1,0 +1,18 @@
+name: test
+
+on: [push]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '18'
+      - name: Install dependencies
+        run: yarn
+      - name: Lint
+        run: yarn lint
+      - name: Run unit tests
+        run: yarn test

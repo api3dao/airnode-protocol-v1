@@ -20,8 +20,10 @@ interface IWithdrawalUtils {
 
     event ClaimedBalance(address indexed sponsor, uint256 amount);
 
-    function requestWithdrawal(address airnodeOrRelayer, uint256 protocolId)
-        external;
+    function requestWithdrawal(
+        address airnodeOrRelayer,
+        uint256 protocolId
+    ) external;
 
     function fulfillWithdrawal(
         bytes32 withdrawalRequestId,
@@ -34,15 +36,13 @@ interface IWithdrawalUtils {
 
     function claimBalance() external;
 
-    function withdrawalRequestIsAwaitingFulfillment(bytes32 withdrawalRequestId)
-        external
-        view
-        returns (bool);
+    function withdrawalRequestIsAwaitingFulfillment(
+        bytes32 withdrawalRequestId
+    ) external view returns (bool);
 
     function sponsorToBalance(address sponsor) external view returns (uint256);
 
-    function sponsorToWithdrawalRequestCount(address sponsor)
-        external
-        view
-        returns (uint256);
+    function sponsorToWithdrawalRequestCount(
+        address sponsor
+    ) external view returns (uint256);
 }

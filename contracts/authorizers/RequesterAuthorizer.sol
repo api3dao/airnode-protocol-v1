@@ -1,232 +1,209 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "../whitelist/Whitelist.sol";
 import "./interfaces/IRequesterAuthorizer.sol";
 
-/// @title Abstract contract to be inherited by Authorizer contracts that
-/// temporarily or permanently whitelist requesters for Airnode–endpoint pairs
-abstract contract RequesterAuthorizer is Whitelist, IRequesterAuthorizer {
-    /// @notice Extends the expiration of the temporary whitelist of
-    /// `requester` for the `airnode`–`endpointId` pair and emits an event
+/// @title Abstract contract that temporarily or indefinitely authorizes
+/// requesters for Airnodes
+/// @dev Airnodes can be configured to use multiple Authorizers, and one of
+/// them returning `true` means the request should be responded to. The Airnode
+/// operator is expected to communicate the required information to the users
+/// through off-chain channels.
+abstract contract RequesterAuthorizer is IRequesterAuthorizer {
+    struct AuthorizationStatus {
+        uint32 expirationTimestamp;
+        uint224 indefiniteAuthorizationCount;
+    }
+
+    /// @notice Authorization expiration extender role description
+    string
+        public constant
+        override AUTHORIZATION_EXPIRATION_EXTENDER_ROLE_DESCRIPTION =
+        "Authorization expiration extender";
+
+    /// @notice Authorization expiration setter role description
+    string
+        public constant
+        override AUTHORIZATION_EXPIRATION_SETTER_ROLE_DESCRIPTION =
+        "Authorization expiration setter";
+
+    /// @notice Indefinite authorizer role description
+    string public constant override INDEFINITE_AUTHORIZER_ROLE_DESCRIPTION =
+        "Indefinite authorizer";
+
+    mapping(address => mapping(address => AuthorizationStatus))
+        public
+        override airnodeToRequesterToAuthorizationStatus;
+
+    mapping(address => mapping(address => mapping(address => bool)))
+        public
+        override airnodeToRequesterToSetterToIndefiniteAuthorizationStatus;
+
+    /// @notice Extends the expiration of the temporary authorization of
+    /// the requester` for the Airnode
     /// @param airnode Airnode address
-    /// @param endpointId Endpoint ID (allowed to be `bytes32(0)`)
     /// @param requester Requester address
-    /// @param expirationTimestamp Timestamp at which the temporary whitelist
-    /// will expire
-    function _extendWhitelistExpirationAndEmit(
+    /// @param expirationTimestamp Timestamp at which the temporary
+    /// authorization will expire
+    function _extendAuthorizationExpiration(
         address airnode,
-        bytes32 endpointId,
         address requester,
-        uint64 expirationTimestamp
+        uint32 expirationTimestamp
     ) internal {
         require(airnode != address(0), "Airnode address zero");
         require(requester != address(0), "Requester address zero");
-        _extendWhitelistExpiration(
-            deriveServiceId(airnode, endpointId),
-            requester,
-            expirationTimestamp
+        require(
+            expirationTimestamp >
+                airnodeToRequesterToAuthorizationStatus[airnode][requester]
+                    .expirationTimestamp,
+            "Does not extend expiration"
         );
-        emit ExtendedWhitelistExpiration(
+        airnodeToRequesterToAuthorizationStatus[airnode][requester]
+            .expirationTimestamp = expirationTimestamp;
+        emit ExtendedAuthorizationExpiration(
             airnode,
-            endpointId,
             requester,
-            msg.sender,
-            expirationTimestamp
+            expirationTimestamp,
+            _msgSender()
         );
     }
 
-    /// @notice Sets the expiration of the temporary whitelist of `requester`
-    /// for the `airnode`–`endpointId` pair and emits an event
-    /// @dev Unlike `_extendWhitelistExpiration()`, this can hasten expiration
+    /// @notice Sets the expiration of the temporary authorization of
+    /// the requester for  the Airnode
+    /// @dev Unlike `_extendAuthorizerExpiration()`, this can hasten expiration
     /// @param airnode Airnode address
-    /// @param endpointId Endpoint ID (allowed to be `bytes32(0)`)
     /// @param requester Requester address
-    /// @param expirationTimestamp Timestamp at which the temporary whitelist
-    /// will expire
-    function _setWhitelistExpirationAndEmit(
+    /// @param expirationTimestamp Timestamp at which the temporary
+    /// authorization will expire
+    function _setAuthorizationExpiration(
         address airnode,
-        bytes32 endpointId,
         address requester,
-        uint64 expirationTimestamp
+        uint32 expirationTimestamp
     ) internal {
         require(airnode != address(0), "Airnode address zero");
         require(requester != address(0), "Requester address zero");
-        _setWhitelistExpiration(
-            deriveServiceId(airnode, endpointId),
-            requester,
-            expirationTimestamp
-        );
-        emit SetWhitelistExpiration(
+        airnodeToRequesterToAuthorizationStatus[airnode][requester]
+            .expirationTimestamp = expirationTimestamp;
+        emit SetAuthorizationExpiration(
             airnode,
-            endpointId,
             requester,
-            msg.sender,
-            expirationTimestamp
+            expirationTimestamp,
+            _msgSender()
         );
     }
 
-    /// @notice Sets the indefinite whitelist status of `requester` for the
-    /// `airnode`–`endpointId` pair and emits an event
-    /// @dev Emits the event even if it does not change the state.
+    /// @notice Sets the indefinite authorization status of the requester for
+    /// the Airnode
+    /// @dev Emits the event even if it does not change the state
     /// @param airnode Airnode address
-    /// @param endpointId Endpoint ID (allowed to be `bytes32(0)`)
     /// @param requester Requester address
-    /// @param status Indefinite whitelist status
-    function _setIndefiniteWhitelistStatusAndEmit(
+    /// @param status Indefinite authorization status
+    function _setIndefiniteAuthorizationStatus(
         address airnode,
-        bytes32 endpointId,
         address requester,
         bool status
     ) internal {
         require(airnode != address(0), "Airnode address zero");
         require(requester != address(0), "Requester address zero");
-        uint192 indefiniteWhitelistCount = _setIndefiniteWhitelistStatus(
-            deriveServiceId(airnode, endpointId),
-            requester,
-            status
-        );
-        emit SetIndefiniteWhitelistStatus(
+        uint224 indefiniteAuthorizationCount = airnodeToRequesterToAuthorizationStatus[
+                airnode
+            ][requester].indefiniteAuthorizationCount;
+        if (
+            status &&
+            !airnodeToRequesterToSetterToIndefiniteAuthorizationStatus[airnode][
+                requester
+            ][_msgSender()]
+        ) {
+            airnodeToRequesterToSetterToIndefiniteAuthorizationStatus[airnode][
+                requester
+            ][_msgSender()] = true;
+            unchecked {
+                indefiniteAuthorizationCount++;
+            }
+            airnodeToRequesterToAuthorizationStatus[airnode][requester]
+                .indefiniteAuthorizationCount = indefiniteAuthorizationCount;
+        } else if (
+            !status &&
+            airnodeToRequesterToSetterToIndefiniteAuthorizationStatus[airnode][
+                requester
+            ][_msgSender()]
+        ) {
+            airnodeToRequesterToSetterToIndefiniteAuthorizationStatus[airnode][
+                requester
+            ][_msgSender()] = false;
+            unchecked {
+                indefiniteAuthorizationCount--;
+            }
+            airnodeToRequesterToAuthorizationStatus[airnode][requester]
+                .indefiniteAuthorizationCount = indefiniteAuthorizationCount;
+        }
+        emit SetIndefiniteAuthorizationStatus(
             airnode,
-            endpointId,
             requester,
-            msg.sender,
             status,
-            indefiniteWhitelistCount
+            indefiniteAuthorizationCount,
+            _msgSender()
         );
     }
 
-    /// @notice Revokes the indefinite whitelist status granted to `requester`
-    /// for the `airnode`–`endpointId` pair by a specific account and emits an
-    /// event
+    /// @notice Revokes the indefinite authorization status granted to the
+    /// requester for the Airnode by a specific account
     /// @dev Only emits the event if it changes the state
     /// @param airnode Airnode address
-    /// @param endpointId Endpoint ID (allowed to be `bytes32(0)`)
     /// @param requester Requester address
-    /// @param setter Setter of the indefinite whitelist status
-    function _revokeIndefiniteWhitelistStatusAndEmit(
+    /// @param setter Setter of the indefinite authorization status
+    function _revokeIndefiniteAuthorizationStatus(
         address airnode,
-        bytes32 endpointId,
         address requester,
         address setter
     ) internal {
         require(airnode != address(0), "Airnode address zero");
         require(requester != address(0), "Requester address zero");
         require(setter != address(0), "Setter address zero");
-        (
-            bool revoked,
-            uint192 indefiniteWhitelistCount
-        ) = _revokeIndefiniteWhitelistStatus(
-                deriveServiceId(airnode, endpointId),
-                requester,
-                setter
-            );
-        if (revoked) {
-            emit RevokedIndefiniteWhitelistStatus(
+        uint224 indefiniteAuthorizationCount = airnodeToRequesterToAuthorizationStatus[
+                airnode
+            ][requester].indefiniteAuthorizationCount;
+        if (
+            airnodeToRequesterToSetterToIndefiniteAuthorizationStatus[airnode][
+                requester
+            ][setter]
+        ) {
+            airnodeToRequesterToSetterToIndefiniteAuthorizationStatus[airnode][
+                requester
+            ][setter] = false;
+            unchecked {
+                indefiniteAuthorizationCount--;
+            }
+            airnodeToRequesterToAuthorizationStatus[airnode][requester]
+                .indefiniteAuthorizationCount = indefiniteAuthorizationCount;
+            emit RevokedIndefiniteAuthorizationStatus(
                 airnode,
-                endpointId,
                 requester,
                 setter,
-                msg.sender,
-                indefiniteWhitelistCount
+                indefiniteAuthorizationCount,
+                _msgSender()
             );
         }
     }
 
-    /// @notice Verifies the authorization status of a request
+    /// @notice Verifies the authorization status of the requester for the
+    /// Airnode
     /// @param airnode Airnode address
-    /// @param endpointId Endpoint ID
     /// @param requester Requester address
     /// @return Authorization status of the request
     function isAuthorized(
         address airnode,
-        bytes32 endpointId,
         address requester
-    ) external view override returns (bool) {
-        return
-            userIsWhitelisted(deriveServiceId(airnode, endpointId), requester);
-    }
-
-    /// @notice Verifies the authorization status of a request
-    /// @dev This method has redundant arguments because V0 authorizer
-    /// contracts have to have the same interface and potential authorizer
-    /// contracts may require to access the arguments that are redundant here
-    /// @param requestId Request ID
-    /// @param airnode Airnode address
-    /// @param endpointId Endpoint ID
-    /// @param sponsor Sponsor address
-    /// @param requester Requester address
-    /// @return Authorization status of the request
-    function isAuthorizedV0(
-        bytes32 requestId, // solhint-disable-line no-unused-vars
-        address airnode,
-        bytes32 endpointId,
-        address sponsor, // solhint-disable-line no-unused-vars
-        address requester
-    ) external view override returns (bool) {
-        return
-            userIsWhitelisted(deriveServiceId(airnode, endpointId), requester);
-    }
-
-    /// @notice Returns the whitelist status of `requester` for the
-    /// `airnode`–`endpointId` pair
-    /// @param airnode Airnode address
-    /// @param endpointId Endpoint ID
-    /// @param requester Requester address
-    /// @return expirationTimestamp Timestamp at which the temporary whitelist
-    /// will expire
-    /// @return indefiniteWhitelistCount Number of times `requester` was
-    /// whitelisted indefinitely for the `airnode`–`endpointId` pair
-    function airnodeToEndpointIdToRequesterToWhitelistStatus(
-        address airnode,
-        bytes32 endpointId,
-        address requester
-    )
-        external
-        view
-        override
-        returns (uint64 expirationTimestamp, uint192 indefiniteWhitelistCount)
-    {
-        WhitelistStatus
-            storage whitelistStatus = serviceIdToUserToWhitelistStatus[
-                deriveServiceId(airnode, endpointId)
+    ) public view override returns (bool) {
+        AuthorizationStatus
+            storage authorizationStatus = airnodeToRequesterToAuthorizationStatus[
+                airnode
             ][requester];
-        expirationTimestamp = whitelistStatus.expirationTimestamp;
-        indefiniteWhitelistCount = whitelistStatus.indefiniteWhitelistCount;
+        return
+            authorizationStatus.indefiniteAuthorizationCount > 0 ||
+            authorizationStatus.expirationTimestamp > block.timestamp;
     }
 
-    /// @notice Returns if an account has indefinitely whitelisted `requester`
-    /// for the `airnode`–`endpointId` pair
-    /// @param airnode Airnode address
-    /// @param endpointId Endpoint ID
-    /// @param requester Requester address
-    /// @param setter Address of the account that has potentially whitelisted
-    /// `requester` for the `airnode`–`endpointId` pair indefinitely
-    /// @return indefiniteWhitelistStatus If `setter` has indefinitely
-    /// whitelisted `requester` for the `airnode`–`endpointId` pair
-    function airnodeToEndpointIdToRequesterToSetterToIndefiniteWhitelistStatus(
-        address airnode,
-        bytes32 endpointId,
-        address requester,
-        address setter
-    ) external view override returns (bool indefiniteWhitelistStatus) {
-        indefiniteWhitelistStatus = serviceIdToUserToSetterToIndefiniteWhitelistStatus[
-            deriveServiceId(airnode, endpointId)
-        ][requester][setter];
-    }
-
-    /// @notice Called privately to derive a service ID out of the Airnode
-    /// address and the endpoint ID
-    /// @dev This is done to re-use the more general Whitelist contract for
-    /// the specific case of Airnode–endpoint pairs
-    /// @param airnode Airnode address
-    /// @param endpointId Endpoint ID
-    /// @return serviceId Service ID
-    function deriveServiceId(address airnode, bytes32 endpointId)
-        private
-        pure
-        returns (bytes32 serviceId)
-    {
-        serviceId = keccak256(abi.encodePacked(airnode, endpointId));
-    }
+    /// @dev See Context.sol
+    function _msgSender() internal view virtual returns (address sender);
 }

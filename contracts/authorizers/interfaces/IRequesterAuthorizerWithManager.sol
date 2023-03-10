@@ -1,10 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "../../whitelist/interfaces/IWhitelistRolesWithManager.sol";
+import "../../access-control-registry/interfaces/IAccessControlRegistryAdminnedWithManager.sol";
 import "./IRequesterAuthorizer.sol";
 
 interface IRequesterAuthorizerWithManager is
-    IWhitelistRolesWithManager,
+    IAccessControlRegistryAdminnedWithManager,
     IRequesterAuthorizer
-{}
+{
+    function authorizationExpirationExtenderRole()
+        external
+        view
+        returns (bytes32);
+
+    function authorizationExpirationSetterRole()
+        external
+        view
+        returns (bytes32);
+
+    function indefiniteAuthorizerRole() external view returns (bytes32);
+}

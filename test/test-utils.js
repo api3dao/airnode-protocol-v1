@@ -1,5 +1,14 @@
 const { ethers } = require('hardhat');
 
+const PROTOCOL_IDS = {
+  RRP: '1',
+  PSP: '2',
+  RELAYED_RRP: '3',
+  RELAYED_PSP: '4',
+  AIRSEEKER: '5',
+  AIRKEEPER: '12345',
+};
+
 function deriveWalletPathFromSponsorAddress(sponsorAddress, protocolId) {
   const sponsorAddressBN = ethers.BigNumber.from(sponsorAddress);
   const paths = [];
@@ -14,8 +23,8 @@ module.exports = {
   generateRandomAirnodeWallet: () => {
     const airnodeWallet = ethers.Wallet.createRandom();
     const airnodeMnemonic = airnodeWallet.mnemonic.phrase;
-    const airnodeHdNode = ethers.utils.HDNode.fromMnemonic(airnodeMnemonic).derivePath("m/44'/60'/0'");
-    const airnodeXpub = airnodeHdNode.neuter().extendedKey;
+    const hdNode = ethers.utils.HDNode.fromMnemonic(airnodeMnemonic).derivePath("m/44'/60'/0'");
+    const airnodeXpub = hdNode.neuter().extendedKey;
     return { airnodeAddress: airnodeWallet.address, airnodeMnemonic, airnodeXpub };
   },
   generateRandomAddress: () => {
@@ -40,13 +49,6 @@ module.exports = {
       `m/44'/60'/0'/${deriveWalletPathFromSponsorAddress(sponsorAddress, protocolId)}`
     ).connect(ethers.provider);
   },
-  deriveSponsorshipId: (scheme, parameters) => {
-    if (scheme === 'Requester') {
-      return ethers.utils.keccak256(ethers.utils.solidityPack(['uint256', 'address'], [1, parameters.requester]));
-    } else {
-      throw new Error('Invalid sponsorship scheme');
-    }
-  },
   getCurrentTimestamp: async (provider) => {
     return (await provider.getBlock()).timestamp;
   },
@@ -58,5 +60,170 @@ module.exports = {
     } catch {
       return 'No revert string';
     }
+  },
+  deriveRootRole: (managerAddress) => {
+    return ethers.utils.solidityKeccak256(['address'], [managerAddress]);
+  },
+  deriveRole: (adminRole, roleDescription) => {
+    return ethers.utils.solidityKeccak256(
+      ['bytes32', 'bytes32'],
+      [adminRole, ethers.utils.solidityKeccak256(['string'], [roleDescription])]
+    );
+  },
+  expiringMetaTxDomain: async (expiringMetaTxForwarder) => {
+    return {
+      name: 'ExpiringMetaTxForwarder',
+      version: '1.0.0',
+      chainId: (await expiringMetaTxForwarder.provider.getNetwork()).chainId,
+      verifyingContract: expiringMetaTxForwarder.address,
+    };
+  },
+  expiringMetaTxTypes: () => {
+    return {
+      ExpiringMetaTx: [
+        { name: 'from', type: 'address' },
+        { name: 'to', type: 'address' },
+        { name: 'data', type: 'bytes' },
+        { name: 'expirationTimestamp', type: 'uint256' },
+      ],
+    };
+  },
+  PROTOCOL_IDS,
+  deriveRequestId: async (
+    airnodeProtocol,
+    airnodeRequesterAddress,
+    airnodeAddress,
+    endpointOrTemplateId,
+    requestParameters,
+    sponsorAddress,
+    fulfillFunctionId
+  ) => {
+    return ethers.utils.solidityKeccak256(
+      ['uint256', 'address', 'address', 'uint256', 'address', 'bytes32', 'bytes', 'address', 'bytes4'],
+      [
+        (await airnodeProtocol.provider.getNetwork()).chainId,
+        airnodeProtocol.address,
+        airnodeRequesterAddress,
+        (await airnodeProtocol.requesterToRequestCount(airnodeRequesterAddress)).add(1),
+        airnodeAddress,
+        endpointOrTemplateId,
+        requestParameters,
+        sponsorAddress,
+        fulfillFunctionId,
+      ]
+    );
+  },
+  deriveRelayedRequestId: async (
+    airnodeProtocol,
+    airnodeRequesterAddress,
+    airnodeAddress,
+    endpointOrTemplateId,
+    requestParameters,
+    relayerAddress,
+    sponsorAddress,
+    fulfillFunctionId
+  ) => {
+    return ethers.utils.solidityKeccak256(
+      ['uint256', 'address', 'address', 'uint256', 'address', 'bytes32', 'bytes', 'address', 'address', 'bytes4'],
+      [
+        (await airnodeProtocol.provider.getNetwork()).chainId,
+        airnodeProtocol.address,
+        airnodeRequesterAddress,
+        (await airnodeProtocol.requesterToRequestCount(airnodeRequesterAddress)).add(1),
+        airnodeAddress,
+        endpointOrTemplateId,
+        requestParameters,
+        relayerAddress,
+        sponsorAddress,
+        fulfillFunctionId,
+      ]
+    );
+  },
+  signRrpFulfillment: async (airnode, requestId, timestamp, airnodeSponsorWalletAddress) => {
+    return await airnode.signMessage(
+      ethers.utils.arrayify(
+        ethers.utils.solidityKeccak256(
+          ['bytes32', 'uint256', 'address'],
+          [requestId, timestamp, airnodeSponsorWalletAddress]
+        )
+      )
+    );
+  },
+  signRrpRelayedFulfillment: async (airnode, requestId, timestamp, relayerSponsorWalletAddress, fulfillData) => {
+    return await airnode.signMessage(
+      ethers.utils.arrayify(
+        ethers.utils.solidityKeccak256(
+          ['bytes32', 'uint256', 'address', 'bytes'],
+          [requestId, timestamp, relayerSponsorWalletAddress, fulfillData]
+        )
+      )
+    );
+  },
+  signRrpRelayedFailure: async (relayer, requestId, timestamp, relayerSponsorWalletAddress) => {
+    return await relayer.signMessage(
+      ethers.utils.arrayify(
+        ethers.utils.solidityKeccak256(
+          ['bytes32', 'uint256', 'address'],
+          [requestId, timestamp, relayerSponsorWalletAddress]
+        )
+      )
+    );
+  },
+  signPspFulfillment: async (airnode, subscriptionId, timestamp, airnodeSponsorWalletAddress) => {
+    return await airnode.signMessage(
+      ethers.utils.arrayify(
+        ethers.utils.solidityKeccak256(
+          ['bytes32', 'uint256', 'address'],
+          [subscriptionId, timestamp, airnodeSponsorWalletAddress]
+        )
+      )
+    );
+  },
+  signPspRelayedFulfillment: async (airnode, subscriptionId, timestamp, relayerSponsorWalletAddress, fulfillData) => {
+    return await airnode.signMessage(
+      ethers.utils.arrayify(
+        ethers.utils.solidityKeccak256(
+          ['bytes32', 'uint256', 'address', 'bytes'],
+          [subscriptionId, timestamp, relayerSponsorWalletAddress, fulfillData]
+        )
+      )
+    );
+  },
+  signData: async (airnode, templateId, timestamp, data) => {
+    return await airnode.signMessage(
+      ethers.utils.arrayify(
+        ethers.utils.solidityKeccak256(['bytes32', 'uint256', 'bytes'], [templateId, timestamp, data])
+      )
+    );
+  },
+  signOevData: async (
+    dapiServer,
+    oevProxyAddress,
+    dataFeedId,
+    updateId,
+    timestamp,
+    data,
+    searcherAddress,
+    bidAmount,
+    airnode,
+    templateId
+  ) => {
+    const oevUpdateHash = ethers.utils.solidityKeccak256(
+      ['uint256', 'address', 'address', 'bytes32', 'bytes32', 'uint256', 'bytes', 'address', 'uint256'],
+      [
+        (await dapiServer.provider.getNetwork()).chainId,
+        dapiServer.address,
+        oevProxyAddress,
+        dataFeedId,
+        updateId,
+        timestamp,
+        data,
+        searcherAddress,
+        bidAmount,
+      ]
+    );
+    return await airnode.signMessage(
+      ethers.utils.arrayify(ethers.utils.solidityKeccak256(['bytes32', 'bytes32'], [oevUpdateHash, templateId]))
+    );
   },
 };

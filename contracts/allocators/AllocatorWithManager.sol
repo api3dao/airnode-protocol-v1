@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.9;
+pragma solidity 0.8.17;
 
+import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 import "../access-control-registry/AccessControlRegistryAdminnedWithManager.sol";
-import "../access-control-registry/RoleDeriver.sol";
-import "../access-control-registry/interfaces/IAccessControlRegistry.sol";
 import "./Allocator.sol";
 import "./interfaces/IAllocatorWithManager.sol";
 
-/// @title Contract that the manager can use to temporarily allocate
-/// subscription slots for Airnodes
+/// @title Contract that Airnode operators can use to temporarily
+/// allocate subscription slots for Airnodes
 contract AllocatorWithManager is
-    RoleDeriver,
+    ERC2771Context,
     AccessControlRegistryAdminnedWithManager,
     Allocator,
     IAllocatorWithManager
@@ -26,6 +25,7 @@ contract AllocatorWithManager is
         string memory _adminRoleDescription,
         address _manager
     )
+        ERC2771Context(_accessControlRegistry)
         AccessControlRegistryAdminnedWithManager(
             _accessControlRegistry,
             _adminRoleDescription,
@@ -34,7 +34,7 @@ contract AllocatorWithManager is
     {
         slotSetterRole = _deriveRole(
             adminRole,
-            SLOT_SETTER_ROLE_DESCRIPTION_HASH
+            keccak256(abi.encodePacked(SLOT_SETTER_ROLE_DESCRIPTION))
         );
     }
 
@@ -48,45 +48,51 @@ contract AllocatorWithManager is
         address airnode,
         uint256 slotIndex,
         bytes32 subscriptionId,
-        uint64 expirationTimestamp
+        uint32 expirationTimestamp
     ) external override {
         require(
-            hasSlotSetterRoleOrIsManager(msg.sender),
+            hasSlotSetterRoleOrIsManager(_msgSender()),
             "Sender cannot set slot"
         );
         _setSlot(airnode, slotIndex, subscriptionId, expirationTimestamp);
     }
 
-    /// @notice Returns if the setter of the slot can still set slots
-    /// @param airnode Airnode address
-    /// @param slotIndex Index of the subscription slot that was set
-    /// @return If the setter of the slot can still set slots
-    function setterOfSlotIsCanStillSet(address airnode, uint256 slotIndex)
-        public
-        view
-        override(Allocator, IAllocator)
-        returns (bool)
-    {
-        return
-            hasSlotSetterRoleOrIsManager(
-                airnodeToSlotIndexToSlot[airnode][slotIndex].setter
-            );
-    }
-
     /// @notice Returns if the account has the slot setter role or is the
     /// manager
     /// @param account Account address
-    function hasSlotSetterRoleOrIsManager(address account)
-        public
-        view
-        override
-        returns (bool)
-    {
+    function hasSlotSetterRoleOrIsManager(
+        address account
+    ) public view override returns (bool) {
         return
             manager == account ||
             IAccessControlRegistry(accessControlRegistry).hasRole(
                 slotSetterRole,
                 account
             );
+    }
+
+    function slotCanBeResetByAccount(
+        address airnode,
+        uint256 slotIndex,
+        address account
+    ) public view override(IAllocator, Allocator) returns (bool) {
+        Slot storage slot = airnodeToSlotIndexToSlot[airnode][slotIndex];
+        return
+            slot.setter == account ||
+            slot.expirationTimestamp <= block.timestamp ||
+            !hasSlotSetterRoleOrIsManager(
+                airnodeToSlotIndexToSlot[airnode][slotIndex].setter
+            );
+    }
+
+    /// @dev See Context.sol
+    function _msgSender()
+        internal
+        view
+        virtual
+        override(Allocator, ERC2771Context)
+        returns (address)
+    {
+        return ERC2771Context._msgSender();
     }
 }
