@@ -3,7 +3,7 @@ require('@nomiclabs/hardhat-etherscan');
 require('solidity-coverage');
 require('hardhat-deploy');
 require('hardhat-gas-reporter');
-const api3Chains = require('@api3/chains/src');
+const api3Chains = require('@api3/chains');
 require('dotenv').config();
 
 const { apiKey: etherscanApiKey, customChains: etherscanCustomChains } = api3Chains.hardhatEtherscan();

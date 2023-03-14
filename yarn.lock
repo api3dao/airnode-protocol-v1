@@ -2,10 +2,10 @@
 # yarn lockfile v1
 
 
-"@api3/chains@^1.1.2":
-  version "1.1.2"
-  resolved "https://registry.yarnpkg.com/@api3/chains/-/chains-1.1.2.tgz#43ad8e03d406270561df92844a3f5a6abda058c3"
-  integrity sha512-pRxG/Vjjdo43817t704CoPj/aFNoCmEPhVGd7F5VMLMqEXHjUegMNfgwVWEjKm3khWpdbj21aHhX/r71VhXUVQ==
+"@api3/chains@^1.2.0":
+  version "1.2.0"
+  resolved "https://registry.yarnpkg.com/@api3/chains/-/chains-1.2.0.tgz#3e3e83d9682396cea59ab6448ed772e620c4b6b0"
+  integrity sha512-P49+XShat+CmXwmekFiyA+AGTl+qD9M92RByUVZpFznayDg3vvD7vs7OkaRLmQkgbL5Qwn4Owqk6Cnj/i2CN2g==
 
 "@api3/promise-utils@^0.3.0":
   version "0.3.0"
