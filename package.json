@@ -27,10 +27,13 @@
     "test:extended": "EXTENDED_TEST=TRUE hardhat test --parallel",
     "test:coverage": "hardhat coverage",
     "test:gas": "REPORT_GAS=TRUE hardhat test",
+    "verify-local": "hardhat run scripts/verify-local.js",
+    "verify-local:network": "hardhat run scripts/verify-local.js --network $NETWORK",
     "write-env-file-example": "yarn node scripts/write-env-file-example"
   },
   "devDependencies": {
     "@api3/chains": "^1.1.2",
+    "@api3/promise-utils": "^0.3.0",
     "@ethersproject/abi": "^5.4.7",
     "@ethersproject/providers": "^5.4.7",
     "@nomicfoundation/hardhat-chai-matchers": "^1.0.0",

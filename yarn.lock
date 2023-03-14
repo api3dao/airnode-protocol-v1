@@ -7,6 +7,11 @@
   resolved "https://registry.yarnpkg.com/@api3/chains/-/chains-1.1.2.tgz#43ad8e03d406270561df92844a3f5a6abda058c3"
   integrity sha512-pRxG/Vjjdo43817t704CoPj/aFNoCmEPhVGd7F5VMLMqEXHjUegMNfgwVWEjKm3khWpdbj21aHhX/r71VhXUVQ==
 
+"@api3/promise-utils@^0.3.0":
+  version "0.3.0"
+  resolved "https://registry.yarnpkg.com/@api3/promise-utils/-/promise-utils-0.3.0.tgz#e7ebf92bfd8c1d39983321fc5445070c51fce176"
+  integrity sha512-fH3CzEcsCQjoX6BZ5M+3yRIXZ2zz4/nFdzKUB4wvn3KjvvzvroHFZrzhbKa4mB9E4AS0xnou1AXhlrnN5Fcy+A==
+
 "@babel/code-frame@^7.0.0":
   version "7.18.6"
   resolved "https://registry.yarnpkg.com/@babel/code-frame/-/code-frame-7.18.6.tgz#3b25d38c89600baa2dcc219edfa88a74eb2c427a"
