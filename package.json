@@ -1,7 +1,7 @@
 {
   "name": "@api3/airnode-protocol-v1",
   "license": "MIT",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "private": false,
   "main": "dist/src/index",
   "files": [
@@ -10,11 +10,10 @@
     "deployments/references.json"
   ],
   "scripts": {
-    "build": "yarn clean && yarn build:contracts && yarn build:tsc",
+    "build": "yarn clean && yarn build:contracts && yarn build:contract-types && yarn build:tsc",
     "build:contracts": "hardhat compile",
-    "build:tsc": "yarn build:contract-dts && yarn build:copy-contract-dts && tsc -p tsconfig.build.json",
-    "build:contract-dts": "yarn typechain --target ethers-v5 --out-dir ./src/contracts \"./artifacts/contracts/**/!(*.dbg).json\"",
-    "build:copy-contract-dts": "copyfiles -u 1 \"src/contracts/**/*.d.ts\" dist/src",
+    "build:contract-types": "yarn typechain --target ethers-v5 --out-dir ./src/contracts \"./artifacts/contracts/**/!(*.dbg).json\"",
+    "build:tsc": "tsc -p tsconfig.build.json",
     "clean": "rimraf -rf ./dist *.tgz src/contracts artifacts cache",
     "deploy:deterministic": "DETERMINISTIC=true hardhat deploy --network $NETWORK",
     "deploy:undeterministic": "hardhat deploy --network $NETWORK",
