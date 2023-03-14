@@ -2,6 +2,16 @@
 # yarn lockfile v1
 
 
+"@api3/chains@^1.1.2":
+  version "1.1.2"
+  resolved "https://registry.yarnpkg.com/@api3/chains/-/chains-1.1.2.tgz#43ad8e03d406270561df92844a3f5a6abda058c3"
+  integrity sha512-pRxG/Vjjdo43817t704CoPj/aFNoCmEPhVGd7F5VMLMqEXHjUegMNfgwVWEjKm3khWpdbj21aHhX/r71VhXUVQ==
+
+"@api3/promise-utils@^0.3.0":
+  version "0.3.0"
+  resolved "https://registry.yarnpkg.com/@api3/promise-utils/-/promise-utils-0.3.0.tgz#e7ebf92bfd8c1d39983321fc5445070c51fce176"
+  integrity sha512-fH3CzEcsCQjoX6BZ5M+3yRIXZ2zz4/nFdzKUB4wvn3KjvvzvroHFZrzhbKa4mB9E4AS0xnou1AXhlrnN5Fcy+A==
+
 "@babel/code-frame@^7.0.0":
   version "7.18.6"
   resolved "https://registry.yarnpkg.com/@babel/code-frame/-/code-frame-7.18.6.tgz#3b25d38c89600baa2dcc219edfa88a74eb2c427a"
@@ -1834,6 +1844,11 @@ doctrine@^3.0.0:
   integrity sha512-yS+Q5i3hBf7GBkd4KG8a7eBNNWNGLTaEwwYWUijIYM7zrlYDM0BFXHjjPWlWZ1Rg7UaddZeIDmi9jF3HmqiQ2w==
   dependencies:
     esutils "^2.0.2"
+
+dotenv@^16.0.3:
+  version "16.0.3"
+  resolved "https://registry.yarnpkg.com/dotenv/-/dotenv-16.0.3.tgz#115aec42bac5053db3c456db30cc243a5a836a07"
+  integrity sha512-7GO6HghkA5fYG9TYnNxi14/7K9f5occMlp3zXAuSxn7CKCxt9xbNWG7yF8hTCSUchlfWSe3uLmlPfigevRItzQ==
 
 ecc-jsbn@~0.1.1:
   version "0.1.2"
