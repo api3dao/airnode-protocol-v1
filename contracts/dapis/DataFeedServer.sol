@@ -51,12 +51,11 @@ contract DataFeedServer is ExtendedSelfMulticall, Median, IDataFeedServer {
         );
         beaconSetId = deriveBeaconSetId(beaconIds);
         DataFeed storage beaconSet = _dataFeeds[beaconSetId];
-        require(
-            updatedTimestamp > beaconSet.timestamp,
-            "Does not update timestamp"
-        );
-        if (beaconSet.timestamp != 0) {
-            require(updatedValue != beaconSet.value, "Does not update value");
+        if (beaconSet.timestamp == updatedTimestamp) {
+            require(
+                beaconSet.value != updatedValue,
+                "Does not update Beacon set"
+            );
         }
         _dataFeeds[beaconSetId] = DataFeed({
             value: updatedValue,
@@ -117,14 +116,10 @@ contract DataFeedServer is ExtendedSelfMulticall, Median, IDataFeedServer {
         returns (int224 updatedBeaconValue)
     {
         updatedBeaconValue = decodeFulfillmentData(data);
-        DataFeed storage beacon = _dataFeeds[beaconId];
-        require(timestamp > beacon.timestamp, "Does not update timestamp");
-        if (beacon.timestamp != 0) {
-            require(
-                updatedBeaconValue != beacon.value,
-                "Does not update value"
-            );
-        }
+        require(
+            timestamp > _dataFeeds[beaconId].timestamp,
+            "Does not update timestamp"
+        );
         _dataFeeds[beaconId] = DataFeed({
             value: updatedBeaconValue,
             timestamp: uint32(timestamp)
