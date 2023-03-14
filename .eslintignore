@@ -9,7 +9,10 @@ coverage.json
 gas_report
 contracts
 
-**/credentials.json
+# We no longer use `credentials.json`. Nevertheless, keep it in here in case
+# someone forgot to remove it and accidentally pushes it.
+credentials.json
+.env
 
 dist
 
