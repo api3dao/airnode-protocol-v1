@@ -3,7 +3,7 @@
   "license": "MIT",
   "version": "1.2.1",
   "private": false,
-  "main": "dist/index",
+  "main": "dist/src/index",
   "files": [
     "contracts",
     "dist",
