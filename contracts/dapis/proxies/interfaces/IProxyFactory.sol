@@ -50,5 +50,5 @@ interface IProxyFactory {
         bytes calldata metadata
     ) external returns (address proxyAddress);
 
-    function dapiServer() external view returns (address);
+    function api3ServerV1() external view returns (address);
 }
