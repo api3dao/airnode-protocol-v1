@@ -113,11 +113,11 @@ contract ProxyFactory is IProxyFactory {
         );
     }
 
-    /// @notice Predicts the address of the data feed proxy
+    /// @notice Computes the address of the data feed proxy
     /// @param dataFeedId Data feed ID
     /// @param metadata Metadata associated with the proxy
     /// @return proxyAddress Proxy address
-    function predictDataFeedProxyAddress(
+    function computeDataFeedProxyAddress(
         bytes32 dataFeedId,
         bytes calldata metadata
     ) external view override returns (address proxyAddress) {
@@ -133,11 +133,11 @@ contract ProxyFactory is IProxyFactory {
         );
     }
 
-    /// @notice Predicts the address of the dAPI proxy
+    /// @notice Computes the address of the dAPI proxy
     /// @param dapiName dAPI name
     /// @param metadata Metadata associated with the proxy
     /// @return proxyAddress Proxy address
-    function predictDapiProxyAddress(
+    function computeDapiProxyAddress(
         bytes32 dapiName,
         bytes calldata metadata
     ) external view override returns (address proxyAddress) {
@@ -156,12 +156,12 @@ contract ProxyFactory is IProxyFactory {
         );
     }
 
-    /// @notice Predicts the address of the data feed proxy with OEV support
+    /// @notice Computes the address of the data feed proxy with OEV support
     /// @param dataFeedId Data feed ID
     /// @param oevBeneficiary OEV beneficiary
     /// @param metadata Metadata associated with the proxy
     /// @return proxyAddress Proxy address
-    function predictDataFeedProxyWithOevAddress(
+    function computeDataFeedProxyWithOevAddress(
         bytes32 dataFeedId,
         address oevBeneficiary,
         bytes calldata metadata
@@ -179,12 +179,12 @@ contract ProxyFactory is IProxyFactory {
         );
     }
 
-    /// @notice Predicts the address of the dAPI proxy with OEV support
+    /// @notice Computes the address of the dAPI proxy with OEV support
     /// @param dapiName dAPI name
     /// @param oevBeneficiary OEV beneficiary
     /// @param metadata Metadata associated with the proxy
     /// @return proxyAddress Proxy address
-    function predictDapiProxyWithOevAddress(
+    function computeDapiProxyWithOevAddress(
         bytes32 dapiName,
         address oevBeneficiary,
         bytes calldata metadata

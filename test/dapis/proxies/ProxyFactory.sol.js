@@ -343,9 +343,9 @@ describe('ProxyFactory', function () {
     });
   });
 
-  describe('predictDataFeedProxyAddress', function () {
+  describe('computeDataFeedProxyAddress', function () {
     context('Data feed ID is not zero', function () {
-      it('predicts data feed proxy address', async function () {
+      it('computes data feed proxy address', async function () {
         const { api3ServerV1, proxyFactory, beaconId } = await helpers.loadFixture(deploy);
         // Precompute the proxy address
         const DataFeedProxy = await artifacts.readArtifact('DataFeedProxy');
@@ -363,23 +363,23 @@ describe('ProxyFactory', function () {
           ethers.utils.keccak256(metadata),
           ethers.utils.keccak256(initcode)
         );
-        expect(await proxyFactory.predictDataFeedProxyAddress(beaconId, metadata)).to.be.equal(proxyAddress);
+        expect(await proxyFactory.computeDataFeedProxyAddress(beaconId, metadata)).to.be.equal(proxyAddress);
       });
     });
     context('Data feed ID is zero', function () {
       it('reverts', async function () {
         const { proxyFactory } = await helpers.loadFixture(deploy);
         const metadata = testUtils.generateRandomBytes();
-        await expect(proxyFactory.predictDataFeedProxyAddress(ethers.constants.HashZero, metadata)).to.be.revertedWith(
+        await expect(proxyFactory.computeDataFeedProxyAddress(ethers.constants.HashZero, metadata)).to.be.revertedWith(
           'Data feed ID zero'
         );
       });
     });
   });
 
-  describe('predictDapiProxyAddress', function () {
+  describe('computeDapiProxyAddress', function () {
     context('dAPI name is not zero', function () {
-      it('predicts dAPI proxy address', async function () {
+      it('computes dAPI proxy address', async function () {
         const { api3ServerV1, proxyFactory, dapiName, dapiNameHash } = await helpers.loadFixture(deploy);
         // Precompute the proxy address
         const DapiProxy = await artifacts.readArtifact('DapiProxy');
@@ -397,24 +397,24 @@ describe('ProxyFactory', function () {
           ethers.utils.keccak256(metadata),
           ethers.utils.keccak256(initcode)
         );
-        expect(await proxyFactory.predictDapiProxyAddress(dapiName, metadata)).to.be.equal(proxyAddress);
+        expect(await proxyFactory.computeDapiProxyAddress(dapiName, metadata)).to.be.equal(proxyAddress);
       });
     });
     context('dAPI name is zero', function () {
       it('reverts', async function () {
         const { proxyFactory } = await helpers.loadFixture(deploy);
         const metadata = testUtils.generateRandomBytes();
-        await expect(proxyFactory.predictDapiProxyAddress(ethers.constants.HashZero, metadata)).to.be.revertedWith(
+        await expect(proxyFactory.computeDapiProxyAddress(ethers.constants.HashZero, metadata)).to.be.revertedWith(
           'dAPI name zero'
         );
       });
     });
   });
 
-  describe('predictDataFeedProxyWithOevAddress', function () {
+  describe('computeDataFeedProxyWithOevAddress', function () {
     context('Data feed ID is not zero', function () {
       context('OEV beneficiary is not zero', function () {
-        it('predicts data feed proxy address', async function () {
+        it('computes data feed proxy address', async function () {
           const { roles, api3ServerV1, proxyFactory, beaconId } = await helpers.loadFixture(deploy);
           // Precompute the proxy address
           const DataFeedProxyWithOev = await artifacts.readArtifact('DataFeedProxyWithOev');
@@ -436,7 +436,7 @@ describe('ProxyFactory', function () {
             ethers.utils.keccak256(initcode)
           );
           expect(
-            await proxyFactory.predictDataFeedProxyWithOevAddress(beaconId, roles.oevBeneficiary.address, metadata)
+            await proxyFactory.computeDataFeedProxyWithOevAddress(beaconId, roles.oevBeneficiary.address, metadata)
           ).to.be.equal(proxyAddress);
         });
       });
@@ -445,7 +445,7 @@ describe('ProxyFactory', function () {
           const { proxyFactory, beaconId } = await helpers.loadFixture(deploy);
           const metadata = testUtils.generateRandomBytes();
           await expect(
-            proxyFactory.predictDataFeedProxyWithOevAddress(beaconId, ethers.constants.AddressZero, metadata)
+            proxyFactory.computeDataFeedProxyWithOevAddress(beaconId, ethers.constants.AddressZero, metadata)
           ).to.be.revertedWith('OEV beneficiary zero');
         });
       });
@@ -455,7 +455,7 @@ describe('ProxyFactory', function () {
         const { roles, proxyFactory } = await helpers.loadFixture(deploy);
         const metadata = testUtils.generateRandomBytes();
         await expect(
-          proxyFactory.predictDataFeedProxyWithOevAddress(
+          proxyFactory.computeDataFeedProxyWithOevAddress(
             ethers.constants.HashZero,
             roles.oevBeneficiary.address,
             metadata
@@ -465,10 +465,10 @@ describe('ProxyFactory', function () {
     });
   });
 
-  describe('predictDapiProxyWithOevAddress', function () {
+  describe('computeDapiProxyWithOevAddress', function () {
     context('Data feed ID is not zero', function () {
       context('OEV beneficiary is not zero', function () {
-        it('predicts data feed proxy address', async function () {
+        it('computes data feed proxy address', async function () {
           const { roles, api3ServerV1, proxyFactory, dapiName, dapiNameHash } = await helpers.loadFixture(deploy);
           // Precompute the proxy address
           const DapiProxyWithOev = await artifacts.readArtifact('DapiProxyWithOev');
@@ -490,7 +490,7 @@ describe('ProxyFactory', function () {
             ethers.utils.keccak256(initcode)
           );
           expect(
-            await proxyFactory.predictDapiProxyWithOevAddress(dapiName, roles.oevBeneficiary.address, metadata)
+            await proxyFactory.computeDapiProxyWithOevAddress(dapiName, roles.oevBeneficiary.address, metadata)
           ).to.be.equal(proxyAddress);
         });
       });
@@ -499,7 +499,7 @@ describe('ProxyFactory', function () {
           const { proxyFactory, beaconId } = await helpers.loadFixture(deploy);
           const metadata = testUtils.generateRandomBytes();
           await expect(
-            proxyFactory.predictDapiProxyWithOevAddress(beaconId, ethers.constants.AddressZero, metadata)
+            proxyFactory.computeDapiProxyWithOevAddress(beaconId, ethers.constants.AddressZero, metadata)
           ).to.be.revertedWith('OEV beneficiary zero');
         });
       });
@@ -509,7 +509,7 @@ describe('ProxyFactory', function () {
         const { roles, proxyFactory } = await helpers.loadFixture(deploy);
         const metadata = testUtils.generateRandomBytes();
         await expect(
-          proxyFactory.predictDapiProxyWithOevAddress(ethers.constants.HashZero, roles.oevBeneficiary.address, metadata)
+          proxyFactory.computeDapiProxyWithOevAddress(ethers.constants.HashZero, roles.oevBeneficiary.address, metadata)
         ).to.be.revertedWith('dAPI name zero');
       });
     });
