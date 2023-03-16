@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./IDataFeedServer.sol";
+import "../../interfaces/IDataFeedServer.sol";
 
 interface IBeaconSetUpdatesWithPsp is IDataFeedServer {
     function conditionPspBeaconSetUpdate(
