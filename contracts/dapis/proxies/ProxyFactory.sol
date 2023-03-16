@@ -6,6 +6,7 @@ import "./DapiProxy.sol";
 import "./DataFeedProxyWithOev.sol";
 import "./DapiProxyWithOev.sol";
 import "./interfaces/IProxyFactory.sol";
+import "@openzeppelin/contracts/utils/Create2.sol";
 
 /// @title Contract factory that deterministically deploys proxies that read
 /// data feeds (Beacons or Beacon sets) or dAPIs, along with optional OEV
@@ -109,6 +110,99 @@ contract ProxyFactory is IProxyFactory {
             dapiName,
             oevBeneficiary,
             metadata
+        );
+    }
+
+    /// @notice Computes the address of the data feed proxy
+    /// @param dataFeedId Data feed ID
+    /// @param metadata Metadata associated with the proxy
+    /// @return proxyAddress Proxy address
+    function computeDataFeedProxyAddress(
+        bytes32 dataFeedId,
+        bytes calldata metadata
+    ) external view override returns (address proxyAddress) {
+        require(dataFeedId != bytes32(0), "Data feed ID zero");
+        proxyAddress = Create2.computeAddress(
+            keccak256(metadata),
+            keccak256(
+                abi.encodePacked(
+                    type(DataFeedProxy).creationCode,
+                    abi.encode(api3ServerV1, dataFeedId)
+                )
+            )
+        );
+    }
+
+    /// @notice Computes the address of the dAPI proxy
+    /// @param dapiName dAPI name
+    /// @param metadata Metadata associated with the proxy
+    /// @return proxyAddress Proxy address
+    function computeDapiProxyAddress(
+        bytes32 dapiName,
+        bytes calldata metadata
+    ) external view override returns (address proxyAddress) {
+        require(dapiName != bytes32(0), "dAPI name zero");
+        proxyAddress = Create2.computeAddress(
+            keccak256(metadata),
+            keccak256(
+                abi.encodePacked(
+                    type(DapiProxy).creationCode,
+                    abi.encode(
+                        api3ServerV1,
+                        keccak256(abi.encodePacked(dapiName))
+                    )
+                )
+            )
+        );
+    }
+
+    /// @notice Computes the address of the data feed proxy with OEV support
+    /// @param dataFeedId Data feed ID
+    /// @param oevBeneficiary OEV beneficiary
+    /// @param metadata Metadata associated with the proxy
+    /// @return proxyAddress Proxy address
+    function computeDataFeedProxyWithOevAddress(
+        bytes32 dataFeedId,
+        address oevBeneficiary,
+        bytes calldata metadata
+    ) external view override returns (address proxyAddress) {
+        require(dataFeedId != bytes32(0), "Data feed ID zero");
+        require(oevBeneficiary != address(0), "OEV beneficiary zero");
+        proxyAddress = Create2.computeAddress(
+            keccak256(metadata),
+            keccak256(
+                abi.encodePacked(
+                    type(DataFeedProxyWithOev).creationCode,
+                    abi.encode(api3ServerV1, dataFeedId, oevBeneficiary)
+                )
+            )
+        );
+    }
+
+    /// @notice Computes the address of the dAPI proxy with OEV support
+    /// @param dapiName dAPI name
+    /// @param oevBeneficiary OEV beneficiary
+    /// @param metadata Metadata associated with the proxy
+    /// @return proxyAddress Proxy address
+    function computeDapiProxyWithOevAddress(
+        bytes32 dapiName,
+        address oevBeneficiary,
+        bytes calldata metadata
+    ) external view override returns (address proxyAddress) {
+        require(dapiName != bytes32(0), "dAPI name zero");
+        require(oevBeneficiary != address(0), "OEV beneficiary zero");
+        proxyAddress = Create2.computeAddress(
+            keccak256(metadata),
+            keccak256(
+                abi.encodePacked(
+                    type(DapiProxyWithOev).creationCode,
+                    abi.encode(
+                        api3ServerV1,
+                        keccak256(abi.encodePacked(dapiName)),
+                        oevBeneficiary
+                    )
+                )
+            )
         );
     }
 }

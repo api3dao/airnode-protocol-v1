@@ -342,4 +342,176 @@ describe('ProxyFactory', function () {
       });
     });
   });
+
+  describe('computeDataFeedProxyAddress', function () {
+    context('Data feed ID is not zero', function () {
+      it('computes data feed proxy address', async function () {
+        const { api3ServerV1, proxyFactory, beaconId } = await helpers.loadFixture(deploy);
+        // Precompute the proxy address
+        const DataFeedProxy = await artifacts.readArtifact('DataFeedProxy');
+        const initcode = ethers.utils.solidityPack(
+          ['bytes', 'bytes'],
+          [
+            DataFeedProxy.bytecode,
+            ethers.utils.defaultAbiCoder.encode(['address', 'bytes32'], [api3ServerV1.address, beaconId]),
+          ]
+        );
+        // metadata includes information like coverage policy ID, etc.
+        const metadata = testUtils.generateRandomBytes();
+        const proxyAddress = ethers.utils.getCreate2Address(
+          proxyFactory.address,
+          ethers.utils.keccak256(metadata),
+          ethers.utils.keccak256(initcode)
+        );
+        expect(await proxyFactory.computeDataFeedProxyAddress(beaconId, metadata)).to.be.equal(proxyAddress);
+      });
+    });
+    context('Data feed ID is zero', function () {
+      it('reverts', async function () {
+        const { proxyFactory } = await helpers.loadFixture(deploy);
+        const metadata = testUtils.generateRandomBytes();
+        await expect(proxyFactory.computeDataFeedProxyAddress(ethers.constants.HashZero, metadata)).to.be.revertedWith(
+          'Data feed ID zero'
+        );
+      });
+    });
+  });
+
+  describe('computeDapiProxyAddress', function () {
+    context('dAPI name is not zero', function () {
+      it('computes dAPI proxy address', async function () {
+        const { api3ServerV1, proxyFactory, dapiName, dapiNameHash } = await helpers.loadFixture(deploy);
+        // Precompute the proxy address
+        const DapiProxy = await artifacts.readArtifact('DapiProxy');
+        const initcode = ethers.utils.solidityPack(
+          ['bytes', 'bytes'],
+          [
+            DapiProxy.bytecode,
+            ethers.utils.defaultAbiCoder.encode(['address', 'bytes32'], [api3ServerV1.address, dapiNameHash]),
+          ]
+        );
+        // metadata includes information like coverage policy ID, etc.
+        const metadata = testUtils.generateRandomBytes();
+        const proxyAddress = ethers.utils.getCreate2Address(
+          proxyFactory.address,
+          ethers.utils.keccak256(metadata),
+          ethers.utils.keccak256(initcode)
+        );
+        expect(await proxyFactory.computeDapiProxyAddress(dapiName, metadata)).to.be.equal(proxyAddress);
+      });
+    });
+    context('dAPI name is zero', function () {
+      it('reverts', async function () {
+        const { proxyFactory } = await helpers.loadFixture(deploy);
+        const metadata = testUtils.generateRandomBytes();
+        await expect(proxyFactory.computeDapiProxyAddress(ethers.constants.HashZero, metadata)).to.be.revertedWith(
+          'dAPI name zero'
+        );
+      });
+    });
+  });
+
+  describe('computeDataFeedProxyWithOevAddress', function () {
+    context('Data feed ID is not zero', function () {
+      context('OEV beneficiary is not zero', function () {
+        it('computes data feed proxy address', async function () {
+          const { roles, api3ServerV1, proxyFactory, beaconId } = await helpers.loadFixture(deploy);
+          // Precompute the proxy address
+          const DataFeedProxyWithOev = await artifacts.readArtifact('DataFeedProxyWithOev');
+          const initcode = ethers.utils.solidityPack(
+            ['bytes', 'bytes'],
+            [
+              DataFeedProxyWithOev.bytecode,
+              ethers.utils.defaultAbiCoder.encode(
+                ['address', 'bytes32', 'address'],
+                [api3ServerV1.address, beaconId, roles.oevBeneficiary.address]
+              ),
+            ]
+          );
+          // metadata includes information like coverage policy ID, etc.
+          const metadata = testUtils.generateRandomBytes();
+          const proxyAddress = ethers.utils.getCreate2Address(
+            proxyFactory.address,
+            ethers.utils.keccak256(metadata),
+            ethers.utils.keccak256(initcode)
+          );
+          expect(
+            await proxyFactory.computeDataFeedProxyWithOevAddress(beaconId, roles.oevBeneficiary.address, metadata)
+          ).to.be.equal(proxyAddress);
+        });
+      });
+      context('OEV beneficiary is zero', function () {
+        it('reverts', async function () {
+          const { proxyFactory, beaconId } = await helpers.loadFixture(deploy);
+          const metadata = testUtils.generateRandomBytes();
+          await expect(
+            proxyFactory.computeDataFeedProxyWithOevAddress(beaconId, ethers.constants.AddressZero, metadata)
+          ).to.be.revertedWith('OEV beneficiary zero');
+        });
+      });
+    });
+    context('Data feed ID is zero', function () {
+      it('reverts', async function () {
+        const { roles, proxyFactory } = await helpers.loadFixture(deploy);
+        const metadata = testUtils.generateRandomBytes();
+        await expect(
+          proxyFactory.computeDataFeedProxyWithOevAddress(
+            ethers.constants.HashZero,
+            roles.oevBeneficiary.address,
+            metadata
+          )
+        ).to.be.revertedWith('Data feed ID zero');
+      });
+    });
+  });
+
+  describe('computeDapiProxyWithOevAddress', function () {
+    context('Data feed ID is not zero', function () {
+      context('OEV beneficiary is not zero', function () {
+        it('computes data feed proxy address', async function () {
+          const { roles, api3ServerV1, proxyFactory, dapiName, dapiNameHash } = await helpers.loadFixture(deploy);
+          // Precompute the proxy address
+          const DapiProxyWithOev = await artifacts.readArtifact('DapiProxyWithOev');
+          const initcode = ethers.utils.solidityPack(
+            ['bytes', 'bytes'],
+            [
+              DapiProxyWithOev.bytecode,
+              ethers.utils.defaultAbiCoder.encode(
+                ['address', 'bytes32', 'address'],
+                [api3ServerV1.address, dapiNameHash, roles.oevBeneficiary.address]
+              ),
+            ]
+          );
+          // metadata includes information like coverage policy ID, etc.
+          const metadata = testUtils.generateRandomBytes();
+          const proxyAddress = ethers.utils.getCreate2Address(
+            proxyFactory.address,
+            ethers.utils.keccak256(metadata),
+            ethers.utils.keccak256(initcode)
+          );
+          expect(
+            await proxyFactory.computeDapiProxyWithOevAddress(dapiName, roles.oevBeneficiary.address, metadata)
+          ).to.be.equal(proxyAddress);
+        });
+      });
+      context('OEV beneficiary is zero', function () {
+        it('reverts', async function () {
+          const { proxyFactory, beaconId } = await helpers.loadFixture(deploy);
+          const metadata = testUtils.generateRandomBytes();
+          await expect(
+            proxyFactory.computeDapiProxyWithOevAddress(beaconId, ethers.constants.AddressZero, metadata)
+          ).to.be.revertedWith('OEV beneficiary zero');
+        });
+      });
+    });
+    context('Data feed ID is zero', function () {
+      it('reverts', async function () {
+        const { roles, proxyFactory } = await helpers.loadFixture(deploy);
+        const metadata = testUtils.generateRandomBytes();
+        await expect(
+          proxyFactory.computeDapiProxyWithOevAddress(ethers.constants.HashZero, roles.oevBeneficiary.address, metadata)
+        ).to.be.revertedWith('dAPI name zero');
+      });
+    });
+  });
 });

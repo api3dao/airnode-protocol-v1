@@ -50,5 +50,27 @@ interface IProxyFactory {
         bytes calldata metadata
     ) external returns (address proxyAddress);
 
+    function computeDataFeedProxyAddress(
+        bytes32 dataFeedId,
+        bytes calldata metadata
+    ) external view returns (address proxyAddress);
+
+    function computeDapiProxyAddress(
+        bytes32 dapiName,
+        bytes calldata metadata
+    ) external view returns (address proxyAddress);
+
+    function computeDataFeedProxyWithOevAddress(
+        bytes32 dataFeedId,
+        address oevBeneficiary,
+        bytes calldata metadata
+    ) external view returns (address proxyAddress);
+
+    function computeDapiProxyWithOevAddress(
+        bytes32 dapiName,
+        address oevBeneficiary,
+        bytes calldata metadata
+    ) external view returns (address proxyAddress);
+
     function api3ServerV1() external view returns (address);
 }
