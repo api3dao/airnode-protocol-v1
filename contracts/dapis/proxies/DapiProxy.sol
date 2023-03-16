@@ -5,7 +5,7 @@ import "./interfaces/IDapiProxy.sol";
 import "../interfaces/IApi3ServerV1.sol";
 
 /// @title An immutable proxy contract that is used to read a specific dAPI of
-/// a specific DapiServer contract
+/// a specific Api3ServerV1 contract
 /// @notice In an effort to reduce the bytecode of this contract, its
 /// constructor arguments are validated by ProxyFactory, rather than
 /// internally. If you intend to deploy this contract without using
@@ -26,15 +26,15 @@ import "../interfaces/IApi3ServerV1.sol";
 /// off-chain value that is being reported, similar to `value`. Both should
 /// only be trusted as much as the Airnode(s) that report them.
 contract DapiProxy is IDapiProxy {
-    /// @notice DapiServer address
-    address public immutable override dapiServer;
+    /// @notice Api3ServerV1 address
+    address public immutable override api3ServerV1;
     /// @notice Hash of the dAPI name
     bytes32 public immutable override dapiNameHash;
 
-    /// @param _dapiServer DapiServer address
+    /// @param _api3ServerV1 Api3ServerV1 address
     /// @param _dapiNameHash Hash of the dAPI name
-    constructor(address _dapiServer, bytes32 _dapiNameHash) {
-        dapiServer = _dapiServer;
+    constructor(address _api3ServerV1, bytes32 _dapiNameHash) {
+        api3ServerV1 = _api3ServerV1;
         dapiNameHash = _dapiNameHash;
     }
 
@@ -48,7 +48,7 @@ contract DapiProxy is IDapiProxy {
         override
         returns (int224 value, uint32 timestamp)
     {
-        (value, timestamp) = IApi3ServerV1(dapiServer)
+        (value, timestamp) = IApi3ServerV1(api3ServerV1)
             .readDataFeedWithDapiNameHash(dapiNameHash);
     }
 }

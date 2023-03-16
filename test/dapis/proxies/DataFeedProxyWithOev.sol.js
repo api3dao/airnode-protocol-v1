@@ -13,14 +13,14 @@ describe('DataFeedProxyWithOev', function () {
       airnode: accounts[3],
       oevBeneficiary: accounts[4],
     };
-    const dapiServerAdminRoleDescription = 'DapiServer admin';
+    const api3ServerV1AdminRoleDescription = 'Api3ServerV1 admin';
 
     const accessControlRegistryFactory = await ethers.getContractFactory('AccessControlRegistry', roles.deployer);
     const accessControlRegistry = await accessControlRegistryFactory.deploy();
-    const dapiServerFactory = await ethers.getContractFactory('Api3ServerV1', roles.deployer);
-    const dapiServer = await dapiServerFactory.deploy(
+    const api3ServerV1Factory = await ethers.getContractFactory('Api3ServerV1', roles.deployer);
+    const api3ServerV1 = await api3ServerV1Factory.deploy(
       accessControlRegistry.address,
-      dapiServerAdminRoleDescription,
+      api3ServerV1AdminRoleDescription,
       roles.manager.address
     );
 
@@ -37,18 +37,18 @@ describe('DataFeedProxyWithOev', function () {
     const beaconTimestamp = await helpers.time.latest();
     const data = ethers.utils.defaultAbiCoder.encode(['int256'], [beaconValue]);
     const signature = await testUtils.signData(roles.airnode, templateId, beaconTimestamp, data);
-    await dapiServer.updateBeaconWithSignedData(roles.airnode.address, templateId, beaconTimestamp, data, signature);
+    await api3ServerV1.updateBeaconWithSignedData(roles.airnode.address, templateId, beaconTimestamp, data, signature);
 
     const dataFeedProxyWithOevFactory = await ethers.getContractFactory('DataFeedProxyWithOev', roles.deployer);
     const dataFeedProxyWithOev = await dataFeedProxyWithOevFactory.deploy(
-      dapiServer.address,
+      api3ServerV1.address,
       beaconId,
       roles.oevBeneficiary.address
     );
 
     return {
       roles,
-      dapiServer,
+      api3ServerV1,
       dataFeedProxyWithOev,
       beaconId,
       beaconValue,
@@ -58,8 +58,8 @@ describe('DataFeedProxyWithOev', function () {
 
   describe('constructor', function () {
     it('constructs', async function () {
-      const { roles, dapiServer, dataFeedProxyWithOev, beaconId } = await helpers.loadFixture(deploy);
-      expect(await dataFeedProxyWithOev.dapiServer()).to.equal(dapiServer.address);
+      const { roles, api3ServerV1, dataFeedProxyWithOev, beaconId } = await helpers.loadFixture(deploy);
+      expect(await dataFeedProxyWithOev.api3ServerV1()).to.equal(api3ServerV1.address);
       expect(await dataFeedProxyWithOev.dataFeedId()).to.equal(beaconId);
       expect(await dataFeedProxyWithOev.oevBeneficiary()).to.equal(roles.oevBeneficiary.address);
     });
@@ -76,10 +76,10 @@ describe('DataFeedProxyWithOev', function () {
     });
     context('Data feed is not initialized', function () {
       it('reverts', async function () {
-        const { roles, dapiServer } = await helpers.loadFixture(deploy);
+        const { roles, api3ServerV1 } = await helpers.loadFixture(deploy);
         const dataFeedProxyWithOevFactory = await ethers.getContractFactory('DataFeedProxyWithOev', roles.deployer);
         const dataFeedProxyWithOev = await dataFeedProxyWithOevFactory.deploy(
-          dapiServer.address,
+          api3ServerV1.address,
           testUtils.generateRandomBytes32(),
           roles.oevBeneficiary.address
         );

@@ -13,20 +13,20 @@ describe('ProxyFactory', function () {
       airnode: accounts[3],
       oevBeneficiary: accounts[4],
     };
-    const dapiServerAdminRoleDescription = 'DapiServer admin';
+    const api3ServerV1AdminRoleDescription = 'Api3ServerV1 admin';
     const dapiName = ethers.utils.formatBytes32String('My dAPI');
     const dapiNameHash = ethers.utils.solidityKeccak256(['bytes32'], [dapiName]);
 
     const accessControlRegistryFactory = await ethers.getContractFactory('AccessControlRegistry', roles.deployer);
     const accessControlRegistry = await accessControlRegistryFactory.deploy();
-    const dapiServerFactory = await ethers.getContractFactory('Api3ServerV1', roles.deployer);
-    const dapiServer = await dapiServerFactory.deploy(
+    const api3ServerV1Factory = await ethers.getContractFactory('Api3ServerV1', roles.deployer);
+    const api3ServerV1 = await api3ServerV1Factory.deploy(
       accessControlRegistry.address,
-      dapiServerAdminRoleDescription,
+      api3ServerV1AdminRoleDescription,
       roles.manager.address
     );
     const proxyFactoryFactory = await ethers.getContractFactory('ProxyFactory', roles.deployer);
-    const proxyFactory = await proxyFactoryFactory.deploy(dapiServer.address);
+    const proxyFactory = await proxyFactoryFactory.deploy(api3ServerV1.address);
 
     const endpointId = testUtils.generateRandomBytes32();
     const templateParameters = testUtils.generateRandomBytes();
@@ -36,17 +36,17 @@ describe('ProxyFactory', function () {
     const beaconId = ethers.utils.keccak256(
       ethers.utils.solidityPack(['address', 'bytes32'], [roles.airnode.address, templateId])
     );
-    await dapiServer.connect(roles.manager).setDapiName(dapiName, beaconId);
+    await api3ServerV1.connect(roles.manager).setDapiName(dapiName, beaconId);
 
     const beaconValue = 123;
     const beaconTimestamp = await helpers.time.latest();
     const data = ethers.utils.defaultAbiCoder.encode(['int256'], [beaconValue]);
     const signature = await testUtils.signData(roles.airnode, templateId, beaconTimestamp, data);
-    await dapiServer.updateBeaconWithSignedData(roles.airnode.address, templateId, beaconTimestamp, data, signature);
+    await api3ServerV1.updateBeaconWithSignedData(roles.airnode.address, templateId, beaconTimestamp, data, signature);
 
     return {
       roles,
-      dapiServer,
+      api3ServerV1,
       proxyFactory,
       dapiName,
       dapiNameHash,
@@ -57,18 +57,18 @@ describe('ProxyFactory', function () {
   }
 
   describe('constructor', function () {
-    context('DapiServer addres is not zero', function () {
+    context('Api3ServerV1 addres is not zero', function () {
       it('constructs', async function () {
-        const { dapiServer, proxyFactory } = await helpers.loadFixture(deploy);
-        expect(await proxyFactory.dapiServer()).to.equal(dapiServer.address);
+        const { api3ServerV1, proxyFactory } = await helpers.loadFixture(deploy);
+        expect(await proxyFactory.api3ServerV1()).to.equal(api3ServerV1.address);
       });
     });
-    context('DapiServer addres is zero', function () {
+    context('Api3ServerV1 addres is zero', function () {
       it('reverts', async function () {
         const { roles } = await helpers.loadFixture(deploy);
         const proxyFactoryFactory = await ethers.getContractFactory('ProxyFactory', roles.deployer);
         await expect(proxyFactoryFactory.deploy(ethers.constants.AddressZero)).to.be.revertedWith(
-          'DapiServer address zero'
+          'Api3ServerV1 address zero'
         );
       });
     });
@@ -77,7 +77,7 @@ describe('ProxyFactory', function () {
   describe('deployDataFeedProxy', function () {
     context('Data feed ID is not zero', function () {
       it('deploys data feed proxy', async function () {
-        const { roles, dapiServer, proxyFactory, beaconId, beaconValue, beaconTimestamp } = await helpers.loadFixture(
+        const { roles, api3ServerV1, proxyFactory, beaconId, beaconValue, beaconTimestamp } = await helpers.loadFixture(
           deploy
         );
         // Precompute the proxy address
@@ -86,7 +86,7 @@ describe('ProxyFactory', function () {
           ['bytes', 'bytes'],
           [
             DataFeedProxy.bytecode,
-            ethers.utils.defaultAbiCoder.encode(['address', 'bytes32'], [dapiServer.address, beaconId]),
+            ethers.utils.defaultAbiCoder.encode(['address', 'bytes32'], [api3ServerV1.address, beaconId]),
           ]
         );
         // metadata includes information like coverage policy ID, etc.
@@ -106,14 +106,14 @@ describe('ProxyFactory', function () {
 
         // Confirm that the bytecode is the same
         const dataFeedProxyFactory = await ethers.getContractFactory('DataFeedProxy', roles.deployer);
-        const eoaDeployedDataFeedProxy = await dataFeedProxyFactory.deploy(dapiServer.address, beaconId);
+        const eoaDeployedDataFeedProxy = await dataFeedProxyFactory.deploy(api3ServerV1.address, beaconId);
         expect(await ethers.provider.getCode(proxyAddress)).to.equal(
           await ethers.provider.getCode(eoaDeployedDataFeedProxy.address)
         );
 
         // Test the deployed contract
         const dataFeedProxy = new ethers.Contract(proxyAddress, DataFeedProxy.abi, ethers.provider);
-        expect(await dataFeedProxy.dapiServer()).to.equal(dapiServer.address);
+        expect(await dataFeedProxy.api3ServerV1()).to.equal(api3ServerV1.address);
         expect(await dataFeedProxy.dataFeedId()).to.equal(beaconId);
         const beacon = await dataFeedProxy.read();
         expect(beacon.value).to.equal(beaconValue);
@@ -134,7 +134,7 @@ describe('ProxyFactory', function () {
   describe('deployDapiProxy', function () {
     context('dAPI name is not zero', function () {
       it('deploys dAPI proxy', async function () {
-        const { roles, dapiServer, proxyFactory, dapiName, dapiNameHash, beaconValue, beaconTimestamp } =
+        const { roles, api3ServerV1, proxyFactory, dapiName, dapiNameHash, beaconValue, beaconTimestamp } =
           await helpers.loadFixture(deploy);
         // Precompute the proxy address
         const DapiProxy = await artifacts.readArtifact('DapiProxy');
@@ -142,7 +142,7 @@ describe('ProxyFactory', function () {
           ['bytes', 'bytes'],
           [
             DapiProxy.bytecode,
-            ethers.utils.defaultAbiCoder.encode(['address', 'bytes32'], [dapiServer.address, dapiNameHash]),
+            ethers.utils.defaultAbiCoder.encode(['address', 'bytes32'], [api3ServerV1.address, dapiNameHash]),
           ]
         );
         // metadata includes information like coverage policy ID, etc.
@@ -162,14 +162,14 @@ describe('ProxyFactory', function () {
 
         // Confirm that the bytecode is the same
         const dapiProxyFactory = await ethers.getContractFactory('DapiProxy', roles.deployer);
-        const eoaDeployedDapiProxy = await dapiProxyFactory.deploy(dapiServer.address, dapiNameHash);
+        const eoaDeployedDapiProxy = await dapiProxyFactory.deploy(api3ServerV1.address, dapiNameHash);
         expect(await ethers.provider.getCode(proxyAddress)).to.equal(
           await ethers.provider.getCode(eoaDeployedDapiProxy.address)
         );
 
         // Test the deployed contract
         const dapiProxy = new ethers.Contract(proxyAddress, DapiProxy.abi, ethers.provider);
-        expect(await dapiProxy.dapiServer()).to.equal(dapiServer.address);
+        expect(await dapiProxy.api3ServerV1()).to.equal(api3ServerV1.address);
         expect(await dapiProxy.dapiNameHash()).to.equal(ethers.utils.solidityKeccak256(['bytes32'], [dapiName]));
         const dapi = await dapiProxy.read();
         expect(dapi.value).to.equal(beaconValue);
@@ -191,9 +191,8 @@ describe('ProxyFactory', function () {
     context('Data feed ID is not zero', function () {
       context('OEV beneficiary is not zero', function () {
         it('deploys data feed proxy', async function () {
-          const { roles, dapiServer, proxyFactory, beaconId, beaconValue, beaconTimestamp } = await helpers.loadFixture(
-            deploy
-          );
+          const { roles, api3ServerV1, proxyFactory, beaconId, beaconValue, beaconTimestamp } =
+            await helpers.loadFixture(deploy);
           // Precompute the proxy address
           const DataFeedProxyWithOev = await artifacts.readArtifact('DataFeedProxyWithOev');
           const initcode = ethers.utils.solidityPack(
@@ -202,7 +201,7 @@ describe('ProxyFactory', function () {
               DataFeedProxyWithOev.bytecode,
               ethers.utils.defaultAbiCoder.encode(
                 ['address', 'bytes32', 'address'],
-                [dapiServer.address, beaconId, roles.oevBeneficiary.address]
+                [api3ServerV1.address, beaconId, roles.oevBeneficiary.address]
               ),
             ]
           );
@@ -226,7 +225,7 @@ describe('ProxyFactory', function () {
           // Confirm that the bytecode is the same
           const dataFeedProxyFactory = await ethers.getContractFactory('DataFeedProxyWithOev', roles.deployer);
           const eoaDeployedDataFeedProxyWithOev = await dataFeedProxyFactory.deploy(
-            dapiServer.address,
+            api3ServerV1.address,
             beaconId,
             roles.oevBeneficiary.address
           );
@@ -236,7 +235,7 @@ describe('ProxyFactory', function () {
 
           // Test the deployed contract
           const dataFeedProxyWithOev = new ethers.Contract(proxyAddress, DataFeedProxyWithOev.abi, ethers.provider);
-          expect(await dataFeedProxyWithOev.dapiServer()).to.equal(dapiServer.address);
+          expect(await dataFeedProxyWithOev.api3ServerV1()).to.equal(api3ServerV1.address);
           expect(await dataFeedProxyWithOev.dataFeedId()).to.equal(beaconId);
           expect(await dataFeedProxyWithOev.oevBeneficiary()).to.equal(roles.oevBeneficiary.address);
           const beacon = await dataFeedProxyWithOev.read();
@@ -269,7 +268,7 @@ describe('ProxyFactory', function () {
     context('Data feed ID is not zero', function () {
       context('OEV beneficiary is not zero', function () {
         it('deploys data feed proxy', async function () {
-          const { roles, dapiServer, proxyFactory, dapiName, dapiNameHash, beaconValue, beaconTimestamp } =
+          const { roles, api3ServerV1, proxyFactory, dapiName, dapiNameHash, beaconValue, beaconTimestamp } =
             await helpers.loadFixture(deploy);
           // Precompute the proxy address
           const DapiProxyWithOev = await artifacts.readArtifact('DapiProxyWithOev');
@@ -279,7 +278,7 @@ describe('ProxyFactory', function () {
               DapiProxyWithOev.bytecode,
               ethers.utils.defaultAbiCoder.encode(
                 ['address', 'bytes32', 'address'],
-                [dapiServer.address, dapiNameHash, roles.oevBeneficiary.address]
+                [api3ServerV1.address, dapiNameHash, roles.oevBeneficiary.address]
               ),
             ]
           );
@@ -303,7 +302,7 @@ describe('ProxyFactory', function () {
           // Confirm that the bytecode is the same
           const dataFeedProxyFactory = await ethers.getContractFactory('DapiProxyWithOev', roles.deployer);
           const eoaDeployedDapiProxyWithOev = await dataFeedProxyFactory.deploy(
-            dapiServer.address,
+            api3ServerV1.address,
             dapiNameHash,
             roles.oevBeneficiary.address
           );
@@ -313,7 +312,7 @@ describe('ProxyFactory', function () {
 
           // Test the deployed contract
           const dapiProxyWithOev = new ethers.Contract(proxyAddress, DapiProxyWithOev.abi, ethers.provider);
-          expect(await dapiProxyWithOev.dapiServer()).to.equal(dapiServer.address);
+          expect(await dapiProxyWithOev.api3ServerV1()).to.equal(api3ServerV1.address);
           expect(await dapiProxyWithOev.dapiNameHash()).to.equal(
             ethers.utils.solidityKeccak256(['bytes32'], [dapiName])
           );
