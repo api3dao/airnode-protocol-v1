@@ -1,7 +1,7 @@
 const { ethers } = require('hardhat');
 const helpers = require('@nomicfoundation/hardhat-network-helpers');
 const { expect } = require('chai');
-const testUtils = require('../test-utils');
+const testUtils = require('../../test-utils');
 
 describe('DataFeedServerFull', function () {
   const HUNDRED_PERCENT = 1e8;

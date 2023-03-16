@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import "./DataFeedServer.sol";
+import "../DataFeedServer.sol";
 import "./interfaces/IBeaconUpdatesWithRrp.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "../protocol/interfaces/IAirnodeProtocol.sol";
+import "../../protocol/interfaces/IAirnodeProtocol.sol";
 
 /// @title Contract that updates Beacons using regular and relayed RRP
 contract BeaconUpdatesWithRrp is DataFeedServer, IBeaconUpdatesWithRrp {

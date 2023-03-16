@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import "../Api3ServerV1.sol";
+import "../../Api3ServerV1.sol";
 import "../BeaconUpdatesWithRrp.sol";
 import "../DataFeedUpdatesWithPsp.sol";
 

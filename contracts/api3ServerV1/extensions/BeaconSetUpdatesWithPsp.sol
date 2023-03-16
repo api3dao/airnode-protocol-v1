@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import "./DataFeedServer.sol";
+import "../DataFeedServer.sol";
 import "./interfaces/IDataFeedUpdatesWithPsp.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 

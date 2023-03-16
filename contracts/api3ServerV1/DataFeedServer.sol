@@ -2,7 +2,7 @@
 pragma solidity 0.8.17;
 
 import "../utils/ExtendedSelfMulticall.sol";
-import "./Median.sol";
+import "./aggregation/Median.sol";
 import "./interfaces/IDataFeedServer.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
