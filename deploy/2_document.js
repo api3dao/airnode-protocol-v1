@@ -20,6 +20,23 @@ module.exports = async () => {
       references[contractName][hre.config.networks[network].chainId] = deployment.address;
     }
   }
+  const deploymentBlockNumbers = { chainNames: references.chainNames };
+  for (const contractName of contractNames) {
+    deploymentBlockNumbers[contractName] = {};
+    for (const network of networks) {
+      const deployment = JSON.parse(fs.readFileSync(path.join('deployments', network, `${contractName}.json`), 'utf8'));
+      if (deployment.receipt) {
+        deploymentBlockNumbers[contractName][hre.config.networks[network].chainId] = deployment.receipt.blockNumber;
+      } else {
+        deploymentBlockNumbers[contractName][hre.config.networks[network].chainId] = 'MISSING';
+      }
+    }
+  }
+
   fs.writeFileSync(path.join('deployments', 'references.json'), JSON.stringify(references, null, 2));
+  fs.writeFileSync(
+    path.join('deployments', 'deployment-block-numbers.json'),
+    JSON.stringify(deploymentBlockNumbers, null, 2)
+  );
 };
 module.exports.tags = ['document'];

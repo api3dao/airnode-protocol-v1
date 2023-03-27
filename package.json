@@ -7,7 +7,8 @@
   "files": [
     "contracts",
     "dist",
-    "deployments/references.json"
+    "deployments/references.json",
+    "deployments/deployment-block-numbers.json"
   ],
   "scripts": {
     "build": "yarn clean && yarn build:contracts && yarn build:contract-types && yarn build:tsc",
