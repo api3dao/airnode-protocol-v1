@@ -8,6 +8,9 @@ coverage
 coverage.json
 gas_report
 
+artifacts-zk
+cache-zk
+
 # We no longer use `credentials.json`. Nevertheless, keep it in here in case
 # someone forgot to remove it and accidentally pushes it.
 credentials.json
