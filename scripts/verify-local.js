@@ -29,7 +29,9 @@ const verifyDeployedBytecode = (deployedBytecode, generatedBytecode, contractNam
 async function main() {
   let networkNames = fs
     .readdirSync(path.join('deployments'), { withFileTypes: true })
-    .filter((item) => item.isDirectory())
+    .filter((item) => {
+      return item.isDirectory() && !['zksync-goerli-testnet', 'zksync'].includes(item.name);
+    })
     .map((item) => item.name);
 
   // If the network is supported, only verify the network passed as the argument
