@@ -105,7 +105,15 @@ describe('ProxyFactoryZkSync', function () {
           zkSyncUtils.bytecodeHashes.DataFeedProxy,
           ethers.utils.defaultAbiCoder.encode(['address', 'bytes32'], [api3ServerV1.address, beaconId])
         );
-
+        // Confirm that `computeCreate2Address()` implementation is correct
+        expect(proxyAddress).to.equal(
+          zkSync.utils.create2Address(
+            proxyFactory.address,
+            zkSyncUtils.bytecodeHashes.DataFeedProxy,
+            ethers.utils.keccak256(metadata),
+            ethers.utils.defaultAbiCoder.encode(['address', 'bytes32'], [api3ServerV1.address, beaconId])
+          )
+        );
         expect(await proxyFactory.computeDataFeedProxyAddress(beaconId, metadata)).to.be.equal(proxyAddress);
       });
     });
@@ -132,6 +140,15 @@ describe('ProxyFactoryZkSync', function () {
           ethers.utils.keccak256(metadata),
           zkSyncUtils.bytecodeHashes.DapiProxy,
           ethers.utils.defaultAbiCoder.encode(['address', 'bytes32'], [api3ServerV1.address, dapiNameHash])
+        );
+        // Confirm that `computeCreate2Address()` implementation is correct
+        expect(proxyAddress).to.equal(
+          zkSync.utils.create2Address(
+            proxyFactory.address,
+            zkSyncUtils.bytecodeHashes.DapiProxy,
+            ethers.utils.keccak256(metadata),
+            ethers.utils.defaultAbiCoder.encode(['address', 'bytes32'], [api3ServerV1.address, dapiNameHash])
+          )
         );
         expect(await proxyFactory.computeDapiProxyAddress(dapiName, metadata)).to.be.equal(proxyAddress);
       });
@@ -162,6 +179,18 @@ describe('ProxyFactoryZkSync', function () {
             ethers.utils.defaultAbiCoder.encode(
               ['address', 'bytes32', 'address'],
               [api3ServerV1.address, beaconId, roles.oevBeneficiary.address]
+            )
+          );
+          // Confirm that `computeCreate2Address()` implementation is correct
+          expect(proxyAddress).to.equal(
+            zkSync.utils.create2Address(
+              proxyFactory.address,
+              zkSyncUtils.bytecodeHashes.DataFeedProxyWithOev,
+              ethers.utils.keccak256(metadata),
+              ethers.utils.defaultAbiCoder.encode(
+                ['address', 'bytes32', 'address'],
+                [api3ServerV1.address, beaconId, roles.oevBeneficiary.address]
+              )
             )
           );
           expect(
@@ -209,6 +238,18 @@ describe('ProxyFactoryZkSync', function () {
             ethers.utils.defaultAbiCoder.encode(
               ['address', 'bytes32', 'address'],
               [api3ServerV1.address, dapiNameHash, roles.oevBeneficiary.address]
+            )
+          );
+          // Confirm that `computeCreate2Address()` implementation is correct
+          expect(proxyAddress).to.equal(
+            zkSync.utils.create2Address(
+              proxyFactory.address,
+              zkSyncUtils.bytecodeHashes.DapiProxyWithOev,
+              ethers.utils.keccak256(metadata),
+              ethers.utils.defaultAbiCoder.encode(
+                ['address', 'bytes32', 'address'],
+                [api3ServerV1.address, dapiNameHash, roles.oevBeneficiary.address]
+              )
             )
           );
           expect(
