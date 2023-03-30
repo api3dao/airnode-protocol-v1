@@ -14,5 +14,7 @@ jobs:
         run: yarn
       - name: Lint
         run: yarn lint
+      - name: Build zksync artifacts
+        run: yarn build:contracts:zksync
       - name: Run unit tests
         run: yarn test
