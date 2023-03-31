@@ -11,8 +11,8 @@
     "deployments/deployment-block-numbers.json"
   ],
   "scripts": {
-    "build": "yarn clean && yarn build:contracts && yarn build:contract-types && yarn build:tsc",
-    "build:contracts": "hardhat compile",
+    "build": "yarn clean && yarn build:contracts:zksync && yarn build:contract-types && yarn build:tsc",
+    "build:contracts:zksync": "hardhat compile --network zksync",
     "build:contract-types": "yarn typechain --target ethers-v5 --out-dir ./src/contracts \"./artifacts/contracts/**/!(*.dbg).json\"",
     "build:tsc": "tsc -p tsconfig.build.json",
     "clean": "rimraf -rf ./dist *.tgz src/contracts artifacts cache",
