@@ -41,8 +41,8 @@ module.exports = async ({ getUnnamedAccounts, deployments }) => {
   ]);
   log(`Deployed Api3ServerV1 at ${api3ServerV1.address}`);
 
-  const ProxyFactory = await deployer.loadArtifact('ProxyFactory');
-  const proxyFactory = await deployer.deploy(ProxyFactory, [api3ServerV1.address]);
-  log(`Deployed ProxyFactory at ${proxyFactory.address}`);
+  const ProxyFactoryZkSync = await deployer.loadArtifact('ProxyFactoryZkSync');
+  const proxyFactoryZkSync = await deployer.deploy(ProxyFactoryZkSync, [api3ServerV1.address]);
+  log(`Deployed ProxyFactoryZkSync at ${proxyFactoryZkSync.address}`);
 };
 module.exports.tags = ['deploy'];
