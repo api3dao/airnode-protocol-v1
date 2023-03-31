@@ -28,6 +28,13 @@ yarn test:coverage
 yarn test:gas
 ```
 
+## Important note about zkSync
+
+The ProxyFactory deployed on the zkSync networks is a modified version ([ProxyFactoryZkSync](https://github.com/api3dao/airnode-protocol-v1/blob/deploy-zksync-reference/contracts/api3-server-v1/proxies/ProxyFactoryZkSync.sol)) that handles the difference in CREATE2 address computation.
+This package exports the address of these deployments under the name ProxyFactory to keep the interface uniform.
+The proxy address computation methods of `@api3/contracts` also handle the difference, so if you use `@api3/contracts` and the ProxyFactory contract's proxy address computation methods, you can treat zkSync as any other network.
+However, if you have your own proxy address derivation implementation, be aware that you will need to make an exception for zkSync.
+
 ## Solidity versions
 
 The current form of the repo is tested with Solidity version `0.8.17`. The complete contracts to be deployed are locked
