@@ -3,11 +3,9 @@ pragma solidity ^0.8.0;
 
 import "../access-control-registry/AccessControlRegistryAdminnedWithManager.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "@openzeppelin/contracts/utils/Address.sol";
 
 contract OrderPayable is AccessControlRegistryAdminnedWithManager {
     using ECDSA for bytes32;
-    using Address for address;
 
     event PaidForOrder(
         bytes32 indexed orderId,
