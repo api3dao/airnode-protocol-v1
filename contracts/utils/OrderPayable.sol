@@ -91,7 +91,13 @@ contract OrderPayable is AccessControlRegistryAdminnedWithManager {
         require(
             (
                 keccak256(
-                    abi.encodePacked(orderId, expirationTimestamp, msg.value)
+                    abi.encodePacked(
+                        block.chainid,
+                        address(this),
+                        orderId,
+                        expirationTimestamp,
+                        msg.value
+                    )
                 ).toEthSignedMessageHash()
             ).recover(signature) == orderSigner,
             "Signature mismatch"
@@ -119,6 +125,8 @@ contract OrderPayable is AccessControlRegistryAdminnedWithManager {
             (
                 keccak256(
                     abi.encodePacked(
+                        block.chainid,
+                        address(this),
                         orderId,
                         expirationTimestamp,
                         msg.sender,
