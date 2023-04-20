@@ -10,12 +10,14 @@ contract FunderLite {
     uint256 public immutable highThreshold;
 
     // Deployed normally (is not cloned) to reduce gas cost of funding calls
-    // Do not validate variables to reduce bytecode
     constructor(
         address _recipient,
         uint256 _lowThreshold,
         uint256 _highThreshold
     ) {
+        require(_recipient != address(0)); // solhint-disable-line reason-string
+        require(_lowThreshold <= _highThreshold); // solhint-disable-line reason-string
+        require(_highThreshold != 0); // solhint-disable-line reason-string
         recipient = _recipient;
         lowThreshold = _lowThreshold;
         highThreshold = _highThreshold;
