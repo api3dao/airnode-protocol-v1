@@ -31,14 +31,14 @@ describe.only('OrderPayable', function () {
     };
   }
 
-  describe.only('constructor', function () {
+  describe('constructor', function () {
     it('constructor', async function () {
       const { roles, orderPayable } = await helpers.loadFixture(deploy);
       expect(await orderPayable.manager()).to.equal(roles.manager.address);
     });
   });
 
-  describe.only('payForOrder', function () {
+  describe('payForOrder', function () {
     context('Order signer valid', function () {
       context('Order Id not zero', function () {
         context('Order not expired', function () {
@@ -212,7 +212,7 @@ describe.only('OrderPayable', function () {
     });
   });
 
-  describe.only('withdraw', function () {
+  describe('withdraw', function () {
     context('Caller is manager or withdrawer', function () {
       it('emits Withdrew event and transfers balance to recipient', async function () {
         const { roles, orderPayable } = await deploy();
