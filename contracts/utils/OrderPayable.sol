@@ -44,12 +44,13 @@ contract OrderPayable is AccessControlRegistryAdminnedWithManager {
         );
     }
 
-    function payForOrder(
-        bytes32 orderId,
-        uint256 expirationTimestamp,
-        address orderSigner,
-        bytes calldata signature
-    ) external payable {
+    function payForOrder(bytes calldata encodedData) external payable {
+        (
+            bytes32 orderId,
+            uint256 expirationTimestamp,
+            address orderSigner,
+            bytes memory signature
+        ) = abi.decode(encodedData, (bytes32, uint256, address, bytes));
         require(orderId != bytes32(0), "Order ID zero");
         require(expirationTimestamp > block.timestamp, "Order expired");
         require(
