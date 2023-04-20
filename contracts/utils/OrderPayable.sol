@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 /// @title Contract used to pay for orders denoted in the native currency
 /// @notice OrderPayable is managed by an account that designates order signers
 /// and withdrawers. Only orders for which a signature is issued for by an
-/// order signed can be paid for. Order signers have to be EOAs to be able to
+/// order signer can be paid for. Order signers have to be EOAs to be able to
 /// issue ERC191 signatures. The manager is responsible with reverting unwanted
 /// signatures (for example, if a compromised order signer issues an
 /// underpriced order and the order is paid for, the manager should revoke the
