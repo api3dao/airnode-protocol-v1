@@ -23,27 +23,6 @@ contract OrderPayable is AccessControlRegistryAdminnedWithManager {
 
     mapping(bytes32 => bool) public orderIdToPaymentStatus;
 
-    modifier onlyValidOrderParameters(
-        bytes32 orderId,
-        uint256 expirationTimestamp,
-        address orderSigner,
-        uint256 paymentAmount
-    ) {
-        require(orderId != bytes32(0), "Order ID zero");
-        require(expirationTimestamp > block.timestamp, "Order expired");
-        require(
-            orderSigner == manager ||
-                IAccessControlRegistry(accessControlRegistry).hasRole(
-                    orderSignerRole,
-                    orderSigner
-                ),
-            "Invalid order signer"
-        );
-        require(paymentAmount > 0, "Payment amount zero");
-        require(!orderIdToPaymentStatus[orderId], "Order already paid for");
-        _;
-    }
-
     constructor(
         address _accessControlRegistry,
         string memory _adminRoleDescription,
@@ -70,16 +49,19 @@ contract OrderPayable is AccessControlRegistryAdminnedWithManager {
         uint256 expirationTimestamp,
         address orderSigner,
         bytes calldata signature
-    )
-        external
-        payable
-        onlyValidOrderParameters(
-            orderId,
-            expirationTimestamp,
-            orderSigner,
-            msg.value
-        )
-    {
+    ) external payable {
+        require(orderId != bytes32(0), "Order ID zero");
+        require(expirationTimestamp > block.timestamp, "Order expired");
+        require(
+            orderSigner == manager ||
+                IAccessControlRegistry(accessControlRegistry).hasRole(
+                    orderSignerRole,
+                    orderSigner
+                ),
+            "Invalid order signer"
+        );
+        require(msg.value > 0, "Payment amount zero");
+        require(!orderIdToPaymentStatus[orderId], "Order already paid for");
         require(
             (
                 keccak256(
