@@ -2,12 +2,13 @@
 pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "./SelfMulticall.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 // I wanted to build this in a way that you can also use it to fund 100 sponsor
 // wallets that each power a single self-funded Beacon.
 // Use FunderFactory to deploy.
-contract Funder is Ownable {
+contract Funder is Ownable, SelfMulticall {
     // Making this immutable would be nice. However, I foresee that we will
     // want to update this and having to transfer funds to do so will be very
     // annoying/error-prone.
