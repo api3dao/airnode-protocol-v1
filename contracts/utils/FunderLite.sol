@@ -31,13 +31,17 @@ contract FunderLite {
     function fund() external {
         uint256 recipientBalance = recipient.balance;
         require(recipientBalance <= lowThreshold, "Balance not low enough");
-        uint256 topUpAmount = highThreshold - recipientBalance <
-            address(this).balance
-            ? highThreshold - recipientBalance
-            : address(this).balance;
-        require(topUpAmount != 0, "Top up amount zero");
+        uint256 amountNeededToTopUp;
+        unchecked {
+            amountNeededToTopUp = highThreshold - recipientBalance;
+        }
+        uint256 balance = address(this).balance;
+        uint256 amount = amountNeededToTopUp <= balance
+            ? amountNeededToTopUp
+            : balance;
+        require(amount != 0, "Amount zero");
         // Emit event
-        (bool success, ) = recipient.call{value: topUpAmount}("");
+        (bool success, ) = recipient.call{value: amount}("");
         require(success, "Transfer unsuccessful");
     }
 }
