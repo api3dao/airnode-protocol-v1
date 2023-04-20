@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "./SelfMulticall.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 // I wanted to build this in a way that you can also use it to fund 100 sponsor
 // wallets that each power a single self-funded Beacon.
 // Use FunderFactory to deploy.
-contract Funder is Ownable, SelfMulticall {
+contract Funder is SelfMulticall {
+    address public owner;
     // Making this immutable would be nice. However, I foresee that we will
     // want to update this and having to transfer funds to do so will be very
     // annoying/error-prone.
@@ -17,7 +17,6 @@ contract Funder is Ownable, SelfMulticall {
     // This contract is intended to be cloned so the constructor makes the
     // implementation unusable
     constructor() {
-        _transferOwnership(address(0));
         root = bytes32(uint256(1));
     }
 
@@ -33,22 +32,17 @@ contract Funder is Ownable, SelfMulticall {
 
     // `initialOwner` can be `address(0)` to make the root immutable and not
     // allow funds to be withdrawn
-    function initialize(address initialOwner, bytes32 initialRoot) external {
+    function initialize(address _owner, bytes32 _root) external {
         require(root == bytes32(0), "Cannot initialize");
-        _transferOwnership(initialOwner);
-        root = initialRoot;
-        // Emit event
-    }
-
-    function setRoot(bytes32 _root) external onlyOwner {
-        require(_root != bytes32(0), "Root zero");
+        owner = _owner;
         root = _root;
         // Emit event
     }
 
     // I figure we may want to skim without disturbing its operation so I added
     // `amount`
-    function withdraw(address recipient, uint256 amount) external onlyOwner {
+    function withdraw(address recipient, uint256 amount) external {
+        require(msg.sender == owner, "Sender not owner");
         require(recipient != address(0), "Recipient address zero");
         require(amount != 0, "Amount zero");
         require(address(this).balance >= amount, "Insufficient balance");
