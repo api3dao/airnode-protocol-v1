@@ -263,7 +263,7 @@ describe.only('OrderPayable', function () {
           const timestamp = await helpers.time.latest();
           const expirationTimestamp = timestamp + 60;
           const paymentAmount = ethers.utils.parseEther("1");
-          const orderSignerAddress = roles.randomPerson.address;
+          const orderSignerAddress = roles.manager.address;
   
           const network = await orderPayable.provider.getNetwork();
           const chainId = network.chainId;
