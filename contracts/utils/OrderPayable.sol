@@ -1,27 +1,26 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity 0.8.17;
 
 import "../access-control-registry/AccessControlRegistryAdminnedWithManager.sol";
+import "./interfaces/IOrderPayable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-contract OrderPayable is AccessControlRegistryAdminnedWithManager {
+contract OrderPayable is
+    AccessControlRegistryAdminnedWithManager,
+    IOrderPayable
+{
     using ECDSA for bytes32;
 
-    event PaidForOrder(
-        bytes32 indexed orderId,
-        uint256 expirationTimestamp,
-        address orderSigner,
-        uint256 amount
-    );
+    string public constant override ORDER_SIGNER_ROLE_DESCRIPTION =
+        "Order signer";
 
-    event Withdrew(address recipient, uint256 amount);
+    string public constant override WITHDRAWER_ROLE_DESCRIPTION = "Withdrawer";
 
-    string public constant ORDER_SIGNER_ROLE_DESCRIPTION = "Order signer";
-    string public constant WITHDRAWER_ROLE_DESCRIPTION = "Withdrawer";
-    bytes32 public immutable orderSignerRole;
-    bytes32 public immutable withdrawerRole;
+    bytes32 public immutable override orderSignerRole;
 
-    mapping(bytes32 => bool) public orderIdToPaymentStatus;
+    bytes32 public immutable override withdrawerRole;
+
+    mapping(bytes32 => bool) public override orderIdToPaymentStatus;
 
     constructor(
         address _accessControlRegistry,
@@ -44,7 +43,7 @@ contract OrderPayable is AccessControlRegistryAdminnedWithManager {
         );
     }
 
-    function payForOrder(bytes calldata encodedData) external payable {
+    function payForOrder(bytes calldata encodedData) external payable override {
         (
             bytes32 orderId,
             uint256 expirationTimestamp,
@@ -85,7 +84,9 @@ contract OrderPayable is AccessControlRegistryAdminnedWithManager {
     // is the manager and it calls this function to withdraw to itself, the
     // funds will get stuck because OwnableCallForwarder doesn't have a sweep
     // function
-    function withdraw(address recipient) external {
+    function withdraw(
+        address recipient
+    ) external override returns (uint256 amount) {
         require(
             msg.sender == manager ||
                 IAccessControlRegistry(accessControlRegistry).hasRole(
@@ -94,9 +95,9 @@ contract OrderPayable is AccessControlRegistryAdminnedWithManager {
                 ),
             "Sender cannot withdraw"
         );
-        uint256 balance = address(this).balance;
-        emit Withdrew(recipient, balance);
-        (bool success, ) = recipient.call{value: balance}("");
+        amount = address(this).balance;
+        emit Withdrew(recipient, amount);
+        (bool success, ) = recipient.call{value: amount}("");
         require(success, "Transfer unsuccessful");
     }
 }
