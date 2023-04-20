@@ -14,14 +14,6 @@ contract OrderPayable is AccessControlRegistryAdminnedWithManager {
         uint256 amount
     );
 
-    event PaidInvoice(
-        bytes32 indexed orderId,
-        uint256 expirationTimestamp,
-        address orderSigner,
-        address invoicePayer,
-        uint256 amount
-    );
-
     event Withdrew(address recipient, uint256 amount);
 
     string public constant ORDER_SIGNER_ROLE_DESCRIPTION = "Order signer";
@@ -104,46 +96,6 @@ contract OrderPayable is AccessControlRegistryAdminnedWithManager {
         );
         orderIdToPaymentStatus[orderId] = true;
         emit PaidForOrder(orderId, expirationTimestamp, orderSigner, msg.value);
-    }
-
-    function payInvoice(
-        bytes32 orderId,
-        uint256 expirationTimestamp,
-        address orderSigner,
-        bytes calldata signature
-    )
-        external
-        payable
-        onlyValidOrderParameters(
-            orderId,
-            expirationTimestamp,
-            orderSigner,
-            msg.value
-        )
-    {
-        require(
-            (
-                keccak256(
-                    abi.encodePacked(
-                        block.chainid,
-                        address(this),
-                        orderId,
-                        expirationTimestamp,
-                        msg.sender,
-                        msg.value
-                    )
-                ).toEthSignedMessageHash()
-            ).recover(signature) == orderSigner,
-            "Signature mismatch"
-        );
-        orderIdToPaymentStatus[orderId] = true;
-        emit PaidInvoice(
-            orderId,
-            expirationTimestamp,
-            orderSigner,
-            msg.sender,
-            msg.value
-        );
     }
 
     // We need the recipient to be specified because if OwnableCallForwarder
