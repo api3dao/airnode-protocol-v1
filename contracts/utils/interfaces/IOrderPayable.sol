@@ -6,7 +6,8 @@ interface IOrderPayable {
         bytes32 indexed orderId,
         uint256 expirationTimestamp,
         address orderSigner,
-        uint256 amount
+        uint256 amount,
+        address sender
     );
 
     event Withdrew(address recipient, uint256 amount);
