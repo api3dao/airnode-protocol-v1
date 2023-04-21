@@ -19,7 +19,7 @@ describe.only('OrderPayable', function () {
     const accessControlRegistry = await AccessControlRegistry.deploy();
     await accessControlRegistry.deployed();
 
-    adminRoleDescription = 'OrderPayable admin';
+    const adminRoleDescription = 'OrderPayable admin';
 
     const OrderPayable = await ethers.getContractFactory('OrderPayable', roles.deployer);
     const orderPayable = await OrderPayable.deploy(
