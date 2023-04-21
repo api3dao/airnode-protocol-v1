@@ -3,7 +3,7 @@ const helpers = require('@nomicfoundation/hardhat-network-helpers');
 const { expect } = require('chai');
 const testUtils = require('../test-utils');
 
-describe.only('OrderPayable', function () {
+describe('OrderPayable', function () {
   async function deploy() {
     const accounts = await ethers.getSigners();
     const roles = {
