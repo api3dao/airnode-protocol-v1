@@ -55,21 +55,22 @@ describe.only('OrderPayable', function () {
                   const orderSignerAddress = roles.manager.address;
 
                   const network = await orderPayable.provider.getNetwork();
-                  const chainId = network.chainId;                  
-                  
-                  const hash = ethers.utils.keccak256(
-                    ethers.utils.defaultAbiCoder.encode(
-                      ["uint256", "address", "bytes32", "uint256", "uint256"],
-                      [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
-                    ));
-                  const ethSignedHash = ethers.utils.hashMessage(ethers.utils.arrayify(hash));
-                  const signature = await roles.manager.signMessage(ethers.utils.arrayify(ethSignedHash));
+                  const chainId = network.chainId;
+
+                  const hashedMessage = ethers.utils.solidityKeccak256(
+                    ["uint256", "address", "bytes32", "uint256", "uint256"],
+                    [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
+                  );
+                    
+                  const hash = ethers.utils.arrayify(hashedMessage);
+
+                  const signature = await roles.manager.signMessage(ethers.utils.arrayify(hash));
                   
                   const encodedData = ethers.utils.defaultAbiCoder.encode(
                     ["bytes32", "uint256", "address", "bytes"],
                     [orderId, expirationTimestamp, orderSignerAddress, signature]
                   );
-                  
+
                   await expect(orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount }))
                     .to.emit(orderPayable, "PaidForOrder")
                     .withArgs(orderId, expirationTimestamp, orderSignerAddress, paymentAmount, roles.manager.address);
@@ -90,13 +91,14 @@ describe.only('OrderPayable', function () {
                     const network = await orderPayable.provider.getNetwork();
                     const chainId = network.chainId;                   
 
-                    const hash = ethers.utils.keccak256(
-                      ethers.utils.defaultAbiCoder.encode(
-                          ["uint256", "address", "bytes32", "uint256", "uint256"],
-                          [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
-                      ));
-                    const ethSignedHash = ethers.utils.hashMessage(ethers.utils.arrayify(hash));
-                    const signature = await roles.orderSigner.signMessage(ethers.utils.arrayify(ethSignedHash));
+                    const hashedMessage = ethers.utils.solidityKeccak256(
+                      ["uint256", "address", "bytes32", "uint256", "uint256"],
+                      [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
+                    );
+                      
+                    const hash = ethers.utils.arrayify(hashedMessage);
+  
+                    const signature = await roles.orderSigner.signMessage(ethers.utils.arrayify(hash));
                     
                     const encodedData = ethers.utils.defaultAbiCoder.encode(
                     ["bytes32", "uint256", "address", "bytes"],
@@ -124,13 +126,14 @@ describe.only('OrderPayable', function () {
                 const network = await orderPayable.provider.getNetwork();
                 const chainId = network.chainId;                   
 
-                const hash = ethers.utils.keccak256(
-                  ethers.utils.defaultAbiCoder.encode(
-                      ["uint256", "address", "bytes32", "uint256", "uint256"],
-                      [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
-                  ));
-                const ethSignedHash = ethers.utils.hashMessage(ethers.utils.arrayify(hash));
-                const signature = await roles.orderSigner.signMessage(ethers.utils.arrayify(ethSignedHash));
+                const hashedMessage = ethers.utils.solidityKeccak256(
+                  ["uint256", "address", "bytes32", "uint256", "uint256"],
+                  [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
+                );
+                  
+                const hash = ethers.utils.arrayify(hashedMessage);
+
+                const signature = await roles.manager.signMessage(ethers.utils.arrayify(hash));
                 
                 const encodedData = ethers.utils.defaultAbiCoder.encode(
                 ["bytes32", "uint256", "address", "bytes"],
@@ -157,13 +160,14 @@ describe.only('OrderPayable', function () {
                 const network = await orderPayable.provider.getNetwork();
                 const chainId = network.chainId;                   
 
-                const hash = ethers.utils.keccak256(
-                  ethers.utils.defaultAbiCoder.encode(
-                      ["uint256", "address", "bytes32", "uint256", "uint256"],
-                      [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
-                  ));
-                const ethSignedHash = ethers.utils.hashMessage(ethers.utils.arrayify(hash));
-                const signature = await roles.orderSigner.signMessage(ethers.utils.arrayify(ethSignedHash));
+                const hashedMessage = ethers.utils.solidityKeccak256(
+                  ["uint256", "address", "bytes32", "uint256", "uint256"],
+                  [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
+                );
+                  
+                const hash = ethers.utils.arrayify(hashedMessage);
+
+                const signature = await roles.manager.signMessage(ethers.utils.arrayify(hash));
                 
                 const encodedData = ethers.utils.defaultAbiCoder.encode(
                 ["bytes32", "uint256", "address", "bytes"],
@@ -190,13 +194,14 @@ describe.only('OrderPayable', function () {
             const network = await orderPayable.provider.getNetwork();
             const chainId = network.chainId;                   
 
-            const hash = ethers.utils.keccak256(
-              ethers.utils.defaultAbiCoder.encode(
-                  ["uint256", "address", "bytes32", "uint256", "uint256"],
-                  [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
-              ));
-            const ethSignedHash = ethers.utils.hashMessage(ethers.utils.arrayify(hash));
-            const signature = await roles.orderSigner.signMessage(ethers.utils.arrayify(ethSignedHash));
+            const hashedMessage = ethers.utils.solidityKeccak256(
+              ["uint256", "address", "bytes32", "uint256", "uint256"],
+              [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
+            );
+              
+            const hash = ethers.utils.arrayify(hashedMessage);
+
+            const signature = await roles.manager.signMessage(ethers.utils.arrayify(hash));
             
             const encodedData = ethers.utils.defaultAbiCoder.encode(
             ["bytes32", "uint256", "address", "bytes"],
@@ -226,13 +231,14 @@ describe.only('OrderPayable', function () {
         const network = await orderPayable.provider.getNetwork();
         const chainId = network.chainId;
 
-        const hash = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(
-            ["uint256", "address", "bytes32", "uint256", "uint256"],
-            [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
-          )
+        const hashedMessage = ethers.utils.solidityKeccak256(
+          ["uint256", "address", "bytes32", "uint256", "uint256"],
+          [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
         );
-        const ethSignedHash = ethers.utils.hashMessage(ethers.utils.arrayify(hash));
-        const signature = await roles.manager.signMessage(ethers.utils.arrayify(ethSignedHash));
+          
+        const hash = ethers.utils.arrayify(hashedMessage);
+
+        const signature = await roles.manager.signMessage(ethers.utils.arrayify(hash));
 
         const encodedData = ethers.utils.defaultAbiCoder.encode(
           ["bytes32", "uint256", "address", "bytes"],
@@ -268,13 +274,14 @@ describe.only('OrderPayable', function () {
           const network = await orderPayable.provider.getNetwork();
           const chainId = network.chainId;
   
-          const hash = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(
-              ["uint256", "address", "bytes32", "uint256", "uint256"],
-              [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
-            )
+          const hashedMessage = ethers.utils.solidityKeccak256(
+            ["uint256", "address", "bytes32", "uint256", "uint256"],
+            [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
           );
-          const ethSignedHash = ethers.utils.hashMessage(ethers.utils.arrayify(hash));
-          const signature = await roles.manager.signMessage(ethers.utils.arrayify(ethSignedHash));
+            
+          const hash = ethers.utils.arrayify(hashedMessage);
+
+          const signature = await roles.manager.signMessage(ethers.utils.arrayify(hash));
   
           const encodedData = ethers.utils.defaultAbiCoder.encode(
             ["bytes32", "uint256", "address", "bytes"],
