@@ -34,11 +34,15 @@ describe('ExternalMulticall', function () {
             ];
             const values = [0, 0, 0];
             const totalValue = values.reduce((a, b) => a + b, 0);
-            const returndata = await externalMulticall.callStatic.externalMulticall(targets, data, values, { value: totalValue });
+            const returndata = await externalMulticall.callStatic.externalMulticall(targets, data, values, {
+              value: totalValue,
+            });
             expect(ethers.utils.defaultAbiCoder.decode(['int256'], returndata[0])[0]).to.equal(-1);
             expect(ethers.utils.defaultAbiCoder.decode(['int256'], returndata[1])[0]).to.equal(-2);
             expect(ethers.utils.defaultAbiCoder.decode(['int256'], returndata[2])[0]).to.equal(-3);
-            await expect(externalMulticall.externalMulticall(targets, data, values, { value: totalValue })).to.not.be.reverted;
+            await expect(
+              externalMulticall.externalMulticall(targets, data, values, { value: totalValue })
+            ).to.not.be.reverted;
             expect(await multicallTarget.argumentHistory()).to.deep.equal([1, 2, 3]);
           });
         });
@@ -54,9 +58,9 @@ describe('ExternalMulticall', function () {
               ];
               const values = [0, 0, 0];
               const totalValue = values.reduce((a, b) => a + b, 0);
-              await expect(externalMulticall.externalMulticall(targets, data, values, { value: totalValue })).to.be.revertedWith(
-                'Reverted with string'
-              );
+              await expect(
+                externalMulticall.externalMulticall(targets, data, values, { value: totalValue })
+              ).to.be.revertedWith('Reverted with string');
             });
           });
           context('Call reverts with custom error', function () {
@@ -70,10 +74,9 @@ describe('ExternalMulticall', function () {
               ];
               const values = [0, 0, 0];
               const totalValue = values.reduce((a, b) => a + b, 0);
-              await expect(externalMulticall.externalMulticall(targets, data, values, { value: totalValue })).to.be.revertedWithCustomError(
-                multicallTarget,
-                'MyError'
-              );
+              await expect(
+                externalMulticall.externalMulticall(targets, data, values, { value: totalValue })
+              ).to.be.revertedWithCustomError(multicallTarget, 'MyError');
             });
           });
           context('Call reverts with no data', function () {
@@ -87,9 +90,9 @@ describe('ExternalMulticall', function () {
               ];
               const values = [0, 0, 0];
               const totalValue = values.reduce((a, b) => a + b, 0);
-              await expect(externalMulticall.externalMulticall(targets, data, values, { value: totalValue })).to.be.revertedWith(
-                'Multicall: No revert string'
-              );
+              await expect(
+                externalMulticall.externalMulticall(targets, data, values, { value: totalValue })
+              ).to.be.revertedWith('Multicall: No revert string');
             });
           });
         });
@@ -105,9 +108,9 @@ describe('ExternalMulticall', function () {
           ];
           const values = [0, 0, 0];
           const totalValue = values.reduce((a, b) => a + b, 0);
-          await expect(externalMulticall.externalMulticall(targets, data, values, { value: totalValue })).to.be.revertedWith(
-            'Multicall target not contract'
-          );
+          await expect(
+            externalMulticall.externalMulticall(targets, data, values, { value: totalValue })
+          ).to.be.revertedWith('Multicall target not contract');
         });
       });
     });
@@ -121,9 +124,9 @@ describe('ExternalMulticall', function () {
         ];
         const values = [0, 0, 0];
         const totalValue = values.reduce((a, b) => a + b, 0);
-        await expect(externalMulticall.externalMulticall(targets, data, values, { value: totalValue })).to.be.revertedWith(
-          'Parameter length mismatch'
-        );
+        await expect(
+          externalMulticall.externalMulticall(targets, data, values, { value: totalValue })
+        ).to.be.revertedWith('Parameter length mismatch');
       });
     });
   });
@@ -142,12 +145,19 @@ describe('ExternalMulticall', function () {
             ];
             const values = [0, 0, 0];
             const totalValue = values.reduce((a, b) => a + b, 0);
-            const { successes, returndata } = await externalMulticall.callStatic.tryExternalMulticall(targets, data, values, { value: totalValue });
+            const { successes, returndata } = await externalMulticall.callStatic.tryExternalMulticall(
+              targets,
+              data,
+              values,
+              { value: totalValue }
+            );
             expect(successes).to.deep.equal([true, true, true]);
             expect(ethers.utils.defaultAbiCoder.decode(['int256'], returndata[0])[0]).to.equal(-1);
             expect(ethers.utils.defaultAbiCoder.decode(['int256'], returndata[1])[0]).to.equal(-2);
             expect(ethers.utils.defaultAbiCoder.decode(['int256'], returndata[2])[0]).to.equal(-3);
-            await expect(externalMulticall.tryExternalMulticall(targets, data, values, { value: totalValue })).to.not.be.reverted;
+            await expect(
+              externalMulticall.tryExternalMulticall(targets, data, values, { value: totalValue })
+            ).to.not.be.reverted;
             expect(await multicallTarget.argumentHistory()).to.deep.equal([1, 2, 3]);
           });
         });
@@ -163,12 +173,19 @@ describe('ExternalMulticall', function () {
               ];
               const values = [0, 0, 0];
               const totalValue = values.reduce((a, b) => a + b, 0);
-              const { successes, returndata } = await externalMulticall.callStatic.tryExternalMulticall(targets, data, values, { value: totalValue });
+              const { successes, returndata } = await externalMulticall.callStatic.tryExternalMulticall(
+                targets,
+                data,
+                values,
+                { value: totalValue }
+              );
               expect(successes).to.deep.equal([true, false, true]);
               expect(ethers.utils.defaultAbiCoder.decode(['int256'], returndata[0])[0]).to.equal(-1);
               expect(testUtils.decodeRevertString(returndata[1])).to.equal('Reverted with string');
               expect(ethers.utils.defaultAbiCoder.decode(['int256'], returndata[2])[0]).to.equal(-3);
-              await expect(externalMulticall.tryExternalMulticall(targets, data, values, { value: totalValue })).to.not.be.reverted;
+              await expect(
+                externalMulticall.tryExternalMulticall(targets, data, values, { value: totalValue })
+              ).to.not.be.reverted;
               expect(await multicallTarget.argumentHistory()).to.deep.equal([1, 3]);
             });
           });
@@ -183,11 +200,18 @@ describe('ExternalMulticall', function () {
               ];
               const values = [0, 0, 0];
               const totalValue = values.reduce((a, b) => a + b, 0);
-              const { successes, returndata } = await externalMulticall.callStatic.tryExternalMulticall(targets, data, values, { value: totalValue });
+              const { successes, returndata } = await externalMulticall.callStatic.tryExternalMulticall(
+                targets,
+                data,
+                values,
+                { value: totalValue }
+              );
               expect(successes).to.deep.equal([true, false, true]);
               expect(ethers.utils.defaultAbiCoder.decode(['int256'], returndata[0])[0]).to.equal(-1);
               expect(ethers.utils.defaultAbiCoder.decode(['int256'], returndata[2])[0]).to.equal(-3);
-              await expect(externalMulticall.tryExternalMulticall(targets, data, values, { value: totalValue })).to.not.be.reverted;
+              await expect(
+                externalMulticall.tryExternalMulticall(targets, data, values, { value: totalValue })
+              ).to.not.be.reverted;
               expect(await multicallTarget.argumentHistory()).to.deep.equal([1, 3]);
             });
           });
@@ -202,12 +226,19 @@ describe('ExternalMulticall', function () {
               ];
               const values = [0, 0, 0];
               const totalValue = values.reduce((a, b) => a + b, 0);
-              const { successes, returndata } = await externalMulticall.callStatic.tryExternalMulticall(targets, data, values, { value: totalValue });
+              const { successes, returndata } = await externalMulticall.callStatic.tryExternalMulticall(
+                targets,
+                data,
+                values,
+                { value: totalValue }
+              );
               expect(successes).to.deep.equal([true, false, true]);
               expect(ethers.utils.defaultAbiCoder.decode(['int256'], returndata[0])[0]).to.equal(-1);
               expect(returndata[1]).to.equal('0x');
               expect(ethers.utils.defaultAbiCoder.decode(['int256'], returndata[2])[0]).to.equal(-3);
-              await expect(externalMulticall.tryExternalMulticall(targets, data, values, { value: totalValue })).to.not.be.reverted;
+              await expect(
+                externalMulticall.tryExternalMulticall(targets, data, values, { value: totalValue })
+              ).to.not.be.reverted;
               expect(await multicallTarget.argumentHistory()).to.deep.equal([1, 3]);
             });
           });
@@ -224,12 +255,19 @@ describe('ExternalMulticall', function () {
           ];
           const values = [0, 0, 0];
           const totalValue = values.reduce((a, b) => a + b, 0);
-          const { successes, returndata } = await externalMulticall.callStatic.tryExternalMulticall(targets, data, values, { value: totalValue });
+          const { successes, returndata } = await externalMulticall.callStatic.tryExternalMulticall(
+            targets,
+            data,
+            values,
+            { value: totalValue }
+          );
           expect(successes).to.deep.equal([true, false, true]);
           expect(ethers.utils.defaultAbiCoder.decode(['int256'], returndata[0])[0]).to.equal(-1);
           expect(testUtils.decodeRevertString(returndata[1])).to.equal('Multicall target not contract');
           expect(ethers.utils.defaultAbiCoder.decode(['int256'], returndata[2])[0]).to.equal(-3);
-          await expect(externalMulticall.tryExternalMulticall(targets, data, values, { value: totalValue })).to.not.be.reverted;
+          await expect(
+            externalMulticall.tryExternalMulticall(targets, data, values, { value: totalValue })
+          ).to.not.be.reverted;
           expect(await multicallTarget.argumentHistory()).to.deep.equal([1, 3]);
         });
       });
@@ -244,9 +282,9 @@ describe('ExternalMulticall', function () {
         ];
         const values = [0, 0, 0];
         const totalValue = values.reduce((a, b) => a + b, 0);
-        await expect(externalMulticall.tryExternalMulticall(targets, data, values, { value: totalValue })).to.be.revertedWith(
-          'Parameter length mismatch'
-        );
+        await expect(
+          externalMulticall.tryExternalMulticall(targets, data, values, { value: totalValue })
+        ).to.be.revertedWith('Parameter length mismatch');
       });
     });
   });

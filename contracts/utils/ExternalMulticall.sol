@@ -33,7 +33,7 @@ abstract contract ExternalMulticall is IExternalMulticall {
         uint256 callCount = targets.length;
         require(callCount == data.length, "Parameter length mismatch");
         uint256 value = 0;
-        for(uint256 i = 0; i < callCount;){
+        for (uint256 i = 0; i < callCount; ) {
             value += values[i];
             unchecked {
                 ++i;
@@ -48,7 +48,9 @@ abstract contract ExternalMulticall is IExternalMulticall {
             );
             bool success;
             // solhint-disable-next-line avoid-low-level-calls
-            (success, returndata[ind]) = targets[ind].call{value: values[ind]}(data[ind]);
+            (success, returndata[ind]) = targets[ind].call{value: values[ind]}(
+                data[ind]
+            );
             if (!success) {
                 bytes memory returndataWithRevertData = returndata[ind];
                 // Adapted from OpenZeppelin's Address.sol
@@ -91,7 +93,7 @@ abstract contract ExternalMulticall is IExternalMulticall {
         uint256 callCount = targets.length;
         require(callCount == data.length, "Parameter length mismatch");
         uint256 value = 0;
-        for(uint256 i = 0; i < callCount;){
+        for (uint256 i = 0; i < callCount; ) {
             value += values[i];
             unchecked {
                 ++i;
@@ -103,9 +105,9 @@ abstract contract ExternalMulticall is IExternalMulticall {
         for (uint256 ind = 0; ind < callCount; ) {
             if (targets[ind].code.length > 0) {
                 // solhint-disable-next-line avoid-low-level-calls
-                (successes[ind], returndata[ind]) = targets[ind].call{value: values[ind]}(
-                    data[ind]
-                );
+                (successes[ind], returndata[ind]) = targets[ind].call{
+                    value: values[ind]
+                }(data[ind]);
             } else {
                 returndata[ind] = abi.encodeWithSignature(
                     "Error(string)",

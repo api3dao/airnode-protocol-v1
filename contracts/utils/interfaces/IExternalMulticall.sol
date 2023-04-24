@@ -12,5 +12,8 @@ interface IExternalMulticall {
         address[] calldata targets,
         bytes[] calldata data,
         uint256[] calldata values
-    ) external payable returns (bool[] memory success, bytes[] memory returndata);
+    )
+        external
+        payable
+        returns (bool[] memory success, bytes[] memory returndata);
 }
