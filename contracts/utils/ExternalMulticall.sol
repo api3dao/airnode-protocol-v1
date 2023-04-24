@@ -27,10 +27,19 @@ abstract contract ExternalMulticall is IExternalMulticall {
     /// @return returndata Array of returndata of batched calls
     function externalMulticall(
         address[] calldata targets,
-        bytes[] calldata data
-    ) public virtual override returns (bytes[] memory returndata) {
+        bytes[] calldata data,
+        uint256[] calldata values
+    ) public payable virtual override returns (bytes[] memory returndata) {
         uint256 callCount = targets.length;
         require(callCount == data.length, "Parameter length mismatch");
+        uint256 value = 0;
+        for(uint256 i = 0; i < callCount;){
+            value += values[i];
+            unchecked {
+                ++i;
+            }
+        }
+        require(msg.value >= value, "Insufficient value");
         returndata = new bytes[](callCount);
         for (uint256 ind = 0; ind < callCount; ) {
             require(
@@ -39,7 +48,7 @@ abstract contract ExternalMulticall is IExternalMulticall {
             );
             bool success;
             // solhint-disable-next-line avoid-low-level-calls
-            (success, returndata[ind]) = targets[ind].call(data[ind]);
+            (success, returndata[ind]) = targets[ind].call{value: values[ind]}(data[ind]);
             if (!success) {
                 bytes memory returndataWithRevertData = returndata[ind];
                 // Adapted from OpenZeppelin's Address.sol
@@ -70,21 +79,31 @@ abstract contract ExternalMulticall is IExternalMulticall {
     /// @return returndata Array of returndata of batched calls
     function tryExternalMulticall(
         address[] calldata targets,
-        bytes[] calldata data
+        bytes[] calldata data,
+        uint256[] calldata values
     )
         public
+        payable
         virtual
         override
         returns (bool[] memory successes, bytes[] memory returndata)
     {
         uint256 callCount = targets.length;
         require(callCount == data.length, "Parameter length mismatch");
+        uint256 value = 0;
+        for(uint256 i = 0; i < callCount;){
+            value += values[i];
+            unchecked {
+                ++i;
+            }
+        }
+        require(msg.value >= value, "Insufficient value");
         successes = new bool[](callCount);
         returndata = new bytes[](callCount);
         for (uint256 ind = 0; ind < callCount; ) {
             if (targets[ind].code.length > 0) {
                 // solhint-disable-next-line avoid-low-level-calls
-                (successes[ind], returndata[ind]) = targets[ind].call(
+                (successes[ind], returndata[ind]) = targets[ind].call{value: values[ind]}(
                     data[ind]
                 );
             } else {
