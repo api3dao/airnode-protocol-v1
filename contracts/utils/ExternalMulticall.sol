@@ -31,7 +31,10 @@ abstract contract ExternalMulticall is IExternalMulticall {
         uint256[] calldata values
     ) public payable virtual override returns (bytes[] memory returndata) {
         uint256 callCount = targets.length;
-        require(callCount == data.length, "Parameter length mismatch");
+        require(
+            callCount == data.length && callCount == values.length,
+            "Parameter length mismatch"
+        );
         uint256 value = 0;
         for (uint256 i = 0; i < callCount; ) {
             value += values[i];
@@ -91,7 +94,10 @@ abstract contract ExternalMulticall is IExternalMulticall {
         returns (bool[] memory successes, bytes[] memory returndata)
     {
         uint256 callCount = targets.length;
-        require(callCount == data.length, "Parameter length mismatch");
+        require(
+            callCount == data.length && callCount == values.length,
+            "Parameter length mismatch"
+        );
         uint256 value = 0;
         for (uint256 i = 0; i < callCount; ) {
             value += values[i];
