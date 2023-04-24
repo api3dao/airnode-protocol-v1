@@ -25,17 +25,12 @@ contract FunderV2 is SelfMulticall {
         // Emit event
     }
 
-    function withdraw(
-        address owner,
-        bytes32 root,
-        address recipient,
-        uint256 amount
-    ) public {
-        require(msg.sender == owner, "Sender not owner");
+    // Called by the owner
+    function withdraw(bytes32 root, address recipient, uint256 amount) public {
         require(recipient != address(0), "Recipient address zero");
         require(amount != 0, "Amount zero");
         address payable funderDepository = ownerToRootToFunderDepositoryAddress[
-            owner
+            msg.sender
         ][root];
         require(funderDepository != address(0), "No such FunderDepository");
         require(funderDepository.balance >= amount, "Insufficient balance");
@@ -45,16 +40,11 @@ contract FunderV2 is SelfMulticall {
 
     // fund() calls will keep withdrawing from FunderDepositoryV2 so it may be difficult to
     // withdraw the entire balance. I provided a convenience function for that.
-    function withdrawAll(
-        address owner,
-        bytes32 root,
-        address recipient
-    ) external {
+    function withdrawAll(bytes32 root, address recipient) external {
         withdraw(
-            owner,
             root,
             recipient,
-            ownerToRootToFunderDepositoryAddress[owner][root].balance
+            ownerToRootToFunderDepositoryAddress[msg.sender][root].balance
         );
     }
 
