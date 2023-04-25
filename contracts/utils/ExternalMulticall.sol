@@ -24,9 +24,51 @@ abstract contract ExternalMulticall is IExternalMulticall {
     /// of the batched calls reverts
     /// @param targets Array of target addresses of batched calls
     /// @param data Array of calldata of batched calls
-    /// @param values Array of values to be sent with each call
     /// @return returndata Array of returndata of batched calls
     function externalMulticall(
+        address[] calldata targets,
+        bytes[] calldata data
+    ) public virtual override returns (bytes[] memory returndata) {
+        uint256 callCount = targets.length;
+        require(callCount == data.length, "Parameter length mismatch");
+        returndata = new bytes[](callCount);
+        for (uint256 ind = 0; ind < callCount; ) {
+            require(
+                targets[ind].code.length > 0,
+                "Multicall target not contract"
+            );
+            bool success;
+            // solhint-disable-next-line avoid-low-level-calls
+            (success, returndata[ind]) = targets[ind].call(data[ind]);
+            if (!success) {
+                bytes memory returndataWithRevertData = returndata[ind];
+                // Adapted from OpenZeppelin's Address.sol
+                if (returndataWithRevertData.length > 0) {
+                    // solhint-disable-next-line no-inline-assembly
+                    assembly {
+                        let returndata_size := mload(returndataWithRevertData)
+                        revert(
+                            add(32, returndataWithRevertData),
+                            returndata_size
+                        )
+                    }
+                } else {
+                    revert("Multicall: No revert string");
+                }
+            }
+            unchecked {
+                ind++;
+            }
+        }
+    }
+
+    /// @notice Batches calls to external contracts and reverts as soon as one
+    /// of the batched calls reverts
+    /// @param targets Array of target addresses of batched calls
+    /// @param data Array of calldata of batched calls
+    /// @param values Array of values to be sent with each call
+    /// @return returndata Array of returndata of batched calls
+    function externalMulticallWithValue(
         address[] calldata targets,
         bytes[] calldata data,
         uint256[] calldata values

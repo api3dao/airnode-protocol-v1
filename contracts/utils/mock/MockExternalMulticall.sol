@@ -10,11 +10,19 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract MockExternalMulticall is ExternalMulticall, Ownable {
     function externalMulticall(
         address[] calldata targets,
+        bytes[] calldata data
+    ) public virtual override returns (bytes[] memory returndata) {
+        // _checkOwner();
+        return super.externalMulticall(targets, data);
+    }
+
+    function externalMulticallWithValue(
+        address[] calldata targets,
         bytes[] calldata data,
         uint256[] calldata values
     ) public payable virtual override returns (bytes[] memory returndata) {
         // _checkOwner();
-        return super.externalMulticall(targets, data, values);
+        return super.externalMulticallWithValue(targets, data, values);
     }
 
     function tryExternalMulticall(

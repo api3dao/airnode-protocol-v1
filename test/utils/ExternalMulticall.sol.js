@@ -33,16 +33,112 @@ describe('ExternalMulticall', function () {
               multicallTarget.interface.encodeFunctionData('convertsPositiveArgumentToNegative', [2]),
               multicallTarget.interface.encodeFunctionData('convertsPositiveArgumentToNegative', [3]),
             ];
+            const returndata = await externalMulticall.callStatic.externalMulticall(targets, data);
+            expect(ethers.utils.defaultAbiCoder.decode(['int256'], returndata[0])[0]).to.equal(-1);
+            expect(ethers.utils.defaultAbiCoder.decode(['int256'], returndata[1])[0]).to.equal(-2);
+            expect(ethers.utils.defaultAbiCoder.decode(['int256'], returndata[2])[0]).to.equal(-3);
+            await expect(externalMulticall.externalMulticall(targets, data)).to.not.be.reverted;
+            expect(await multicallTarget.argumentHistory()).to.deep.equal([1, 2, 3]);
+          });
+        });
+        context('One of the calls reverts', function () {
+          context('Call reverts with string', function () {
+            it('multicall reverts by bubbling up the revert string', async function () {
+              const { externalMulticall, multicallTarget } = await helpers.loadFixture(deploy);
+              const targets = [multicallTarget.address, multicallTarget.address, multicallTarget.address];
+              const data = [
+                multicallTarget.interface.encodeFunctionData('convertsPositiveArgumentToNegative', [1]),
+                multicallTarget.interface.encodeFunctionData('alwaysRevertsWithString', [1, -1]),
+                multicallTarget.interface.encodeFunctionData('convertsPositiveArgumentToNegative', [3]),
+              ];
+              await expect(externalMulticall.externalMulticall(targets, data)).to.be.revertedWith(
+                'Reverted with string'
+              );
+            });
+          });
+          context('Call reverts with custom error', function () {
+            it('multicall reverts by bubbling up the custom error', async function () {
+              const { externalMulticall, multicallTarget } = await helpers.loadFixture(deploy);
+              const targets = [multicallTarget.address, multicallTarget.address, multicallTarget.address];
+              const data = [
+                multicallTarget.interface.encodeFunctionData('convertsPositiveArgumentToNegative', [1]),
+                multicallTarget.interface.encodeFunctionData('alwaysRevertsWithCustomError', [1, -1]),
+                multicallTarget.interface.encodeFunctionData('convertsPositiveArgumentToNegative', [3]),
+              ];
+              await expect(externalMulticall.externalMulticall(targets, data)).to.be.revertedWithCustomError(
+                multicallTarget,
+                'MyError'
+              );
+            });
+          });
+          context('Call reverts with no data', function () {
+            it('multicall reverts with no data', async function () {
+              const { externalMulticall, multicallTarget } = await helpers.loadFixture(deploy);
+              const targets = [multicallTarget.address, multicallTarget.address, multicallTarget.address];
+              const data = [
+                multicallTarget.interface.encodeFunctionData('convertsPositiveArgumentToNegative', [1]),
+                multicallTarget.interface.encodeFunctionData('alwaysRevertsWithNoData', [1, -1]),
+                multicallTarget.interface.encodeFunctionData('convertsPositiveArgumentToNegative', [3]),
+              ];
+              await expect(externalMulticall.externalMulticall(targets, data)).to.be.revertedWith(
+                'Multicall: No revert string'
+              );
+            });
+          });
+        });
+      });
+      context('One of the calls is to a non-contract account', function () {
+        it('multicall reverts', async function () {
+          const { roles, externalMulticall, multicallTarget } = await helpers.loadFixture(deploy);
+          const targets = [multicallTarget.address, roles.deployer.address, multicallTarget.address];
+          const data = [
+            multicallTarget.interface.encodeFunctionData('convertsPositiveArgumentToNegative', [1]),
+            '0x',
+            multicallTarget.interface.encodeFunctionData('convertsPositiveArgumentToNegative', [3]),
+          ];
+          await expect(externalMulticall.externalMulticall(targets, data)).to.be.revertedWith(
+            'Multicall target not contract'
+          );
+        });
+      });
+    });
+    context('Parameter lengths do not match', function () {
+      it('multicall reverts', async function () {
+        const { externalMulticall, multicallTarget } = await helpers.loadFixture(deploy);
+        const targets = [multicallTarget.address, multicallTarget.address, multicallTarget.address];
+        const data = [
+          multicallTarget.interface.encodeFunctionData('convertsPositiveArgumentToNegative', [1]),
+          multicallTarget.interface.encodeFunctionData('convertsPositiveArgumentToNegative', [3]),
+        ];
+        await expect(externalMulticall.externalMulticall(targets, data)).to.be.revertedWith(
+          'Parameter length mismatch'
+        );
+      });
+    });
+  });
+
+  describe('externalMulticallWithValue', function () {
+    context('Parameter lengths match', function () {
+      context('None of the calls is to a non-contract account', function () {
+        context('None of the calls reverts', function () {
+          it('multicall does not revert', async function () {
+            const { externalMulticall, multicallTarget } = await helpers.loadFixture(deploy);
+            const targets = [multicallTarget.address, multicallTarget.address, multicallTarget.address];
+            const data = [
+              multicallTarget.interface.encodeFunctionData('convertsPositiveArgumentToNegative', [1]),
+              multicallTarget.interface.encodeFunctionData('convertsPositiveArgumentToNegative', [2]),
+              multicallTarget.interface.encodeFunctionData('convertsPositiveArgumentToNegative', [3]),
+            ];
             const values = [100, 200, 300];
             const totalValue = values.reduce((a, b) => a + b, 0);
-            const returndata = await externalMulticall.callStatic.externalMulticall(targets, data, values, {
+            const returndata = await externalMulticall.callStatic.externalMulticallWithValue(targets, data, values, {
               value: totalValue,
             });
             expect(ethers.utils.defaultAbiCoder.decode(['int256'], returndata[0])[0]).to.equal(-1);
             expect(ethers.utils.defaultAbiCoder.decode(['int256'], returndata[1])[0]).to.equal(-2);
             expect(ethers.utils.defaultAbiCoder.decode(['int256'], returndata[2])[0]).to.equal(-3);
             await expect(
-              externalMulticall.externalMulticall(targets, data, values, { value: totalValue })
+              externalMulticall.externalMulticallWithValue(targets, data, values, { value: totalValue })
             ).to.not.be.reverted;
             expect(await multicallTarget.argumentHistory()).to.deep.equal([1, 2, 3]);
             const etherReceiverBalance = await ethers.provider.getBalance(multicallTarget.address);
@@ -64,14 +160,14 @@ describe('ExternalMulticall', function () {
             ];
             const values = [100, 200, 300];
             const totalValue = values.reduce((a, b) => a + b, 0);
-            const returndata = await externalMulticall.callStatic.externalMulticall(targets, data, values, {
+            const returndata = await externalMulticall.callStatic.externalMulticallWithValue(targets, data, values, {
               value: totalValue,
             });
             expect(ethers.utils.defaultAbiCoder.decode(['int256'], returndata[0])[0]).to.equal(-1);
             expect(ethers.utils.defaultAbiCoder.decode(['int256'], returndata[1])[0]).to.equal(-2);
             expect(ethers.utils.defaultAbiCoder.decode(['int256'], returndata[2])[0]).to.equal(-3);
             await expect(
-              externalMulticall.externalMulticall(targets, data, values, { value: totalValue })
+              externalMulticall.externalMulticallWithValue(targets, data, values, { value: totalValue })
             ).to.not.be.reverted;
             expect(await multicallTarget.argumentHistory()).to.deep.equal([1]);
             expect(await multicallTarget2.argumentHistory()).to.deep.equal([2]);
@@ -97,7 +193,7 @@ describe('ExternalMulticall', function () {
               const values = [0, 0, 0];
               const totalValue = values.reduce((a, b) => a + b, 0);
               await expect(
-                externalMulticall.externalMulticall(targets, data, values, { value: totalValue })
+                externalMulticall.externalMulticallWithValue(targets, data, values, { value: totalValue })
               ).to.be.revertedWith('Reverted with string');
             });
           });
@@ -113,7 +209,7 @@ describe('ExternalMulticall', function () {
               const values = [0, 0, 0];
               const totalValue = values.reduce((a, b) => a + b, 0);
               await expect(
-                externalMulticall.externalMulticall(targets, data, values, { value: totalValue })
+                externalMulticall.externalMulticallWithValue(targets, data, values, { value: totalValue })
               ).to.be.revertedWithCustomError(multicallTarget, 'MyError');
             });
           });
@@ -129,7 +225,7 @@ describe('ExternalMulticall', function () {
               const values = [0, 0, 0];
               const totalValue = values.reduce((a, b) => a + b, 0);
               await expect(
-                externalMulticall.externalMulticall(targets, data, values, { value: totalValue })
+                externalMulticall.externalMulticallWithValue(targets, data, values, { value: totalValue })
               ).to.be.revertedWith('Multicall: No revert string');
             });
           });
@@ -147,7 +243,7 @@ describe('ExternalMulticall', function () {
           const values = [0, 0, 0];
           const totalValue = values.reduce((a, b) => a + b, 0);
           await expect(
-            externalMulticall.externalMulticall(targets, data, values, { value: totalValue })
+            externalMulticall.externalMulticallWithValue(targets, data, values, { value: totalValue })
           ).to.be.revertedWith('Multicall target not contract');
         });
       });
@@ -163,7 +259,7 @@ describe('ExternalMulticall', function () {
         const values = [0, 0, 0];
         const totalValue = values.reduce((a, b) => a + b, 0);
         await expect(
-          externalMulticall.externalMulticall(targets, data, values, { value: totalValue })
+          externalMulticall.externalMulticallWithValue(targets, data, values, { value: totalValue })
         ).to.be.revertedWith('Parameter length mismatch');
       });
     });
