@@ -10,10 +10,6 @@ interface IExternalMulticall {
 
     function tryExternalMulticall(
         address[] calldata targets,
-        bytes[] calldata data,
-        uint256[] calldata values
-    )
-        external
-        payable
-        returns (bool[] memory success, bytes[] memory returndata);
+        bytes[] calldata data
+    ) external returns (bool[] memory success, bytes[] memory returndata);
 }

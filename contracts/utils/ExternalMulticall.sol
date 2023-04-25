@@ -81,41 +81,27 @@ abstract contract ExternalMulticall is IExternalMulticall {
     /// of the batched calls reverts
     /// @param targets Array of target addresses of batched calls
     /// @param data Array of calldata of batched calls
-    /// @param values Array of values to be sent with each call
     /// @return successes Array of success conditions of batched calls
     /// @return returndata Array of returndata of batched calls
     function tryExternalMulticall(
         address[] calldata targets,
-        bytes[] calldata data,
-        uint256[] calldata values
+        bytes[] calldata data
     )
         public
-        payable
         virtual
         override
         returns (bool[] memory successes, bytes[] memory returndata)
     {
         uint256 callCount = targets.length;
-        require(
-            callCount == data.length && callCount == values.length,
-            "Parameter length mismatch"
-        );
-        uint256 value = 0;
-        for (uint256 i = 0; i < callCount; ) {
-            value += values[i];
-            unchecked {
-                ++i;
-            }
-        }
-        require(msg.value >= value, "Insufficient value");
+        require(callCount == data.length, "Parameter length mismatch");
         successes = new bool[](callCount);
         returndata = new bytes[](callCount);
         for (uint256 ind = 0; ind < callCount; ) {
             if (targets[ind].code.length > 0) {
                 // solhint-disable-next-line avoid-low-level-calls
-                (successes[ind], returndata[ind]) = targets[ind].call{
-                    value: values[ind]
-                }(data[ind]);
+                (successes[ind], returndata[ind]) = targets[ind].call(
+                    data[ind]
+                );
             } else {
                 returndata[ind] = abi.encodeWithSignature(
                     "Error(string)",
