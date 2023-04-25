@@ -78,16 +78,11 @@ abstract contract ExternalMulticall is IExternalMulticall {
             callCount == data.length && callCount == values.length,
             "Parameter length mismatch"
         );
-        uint256 value = 0;
-        for (uint256 i = 0; i < callCount; ) {
-            value += values[i];
-            unchecked {
-                ++i;
-            }
-        }
-        require(msg.value >= value, "Insufficient value");
+        uint256 accumulatedValue = 0;
         returndata = new bytes[](callCount);
         for (uint256 ind = 0; ind < callCount; ) {
+            accumulatedValue += values[ind];
+            require(msg.value >= accumulatedValue, "Insufficient value");
             require(
                 targets[ind].code.length > 0,
                 "Multicall target not contract"
@@ -117,6 +112,7 @@ abstract contract ExternalMulticall is IExternalMulticall {
                 ind++;
             }
         }
+        require(msg.value == accumulatedValue, "Excess value");
     }
 
     /// @notice Batches calls to external contracts but does not revert if any
