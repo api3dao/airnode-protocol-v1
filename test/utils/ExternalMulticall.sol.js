@@ -49,9 +49,11 @@ describe('ExternalMulticall', function () {
             expect(etherReceiverBalance).to.equal(totalValue);
           });
         });
-        context('Calls multiple separate contracts', function (){
+        context('Calls multiple separate contracts', function () {
           it('multicall does not revert', async function () {
-            const { externalMulticall, multicallTarget, MockMulticallTargetFactory } = await helpers.loadFixture(deploy);
+            const { externalMulticall, multicallTarget, MockMulticallTargetFactory } = await helpers.loadFixture(
+              deploy
+            );
             const multicallTarget2 = await MockMulticallTargetFactory.deploy();
             const multicallTarget3 = await MockMulticallTargetFactory.deploy();
             const targets = [multicallTarget.address, multicallTarget2.address, multicallTarget3.address];
@@ -199,9 +201,11 @@ describe('ExternalMulticall', function () {
             expect(etherReceiverBalance).to.equal(totalValue);
           });
         });
-        context('Calls multiple separate contracts', function (){
+        context('Calls multiple separate contracts', function () {
           it('multicall does not revert', async function () {
-            const { externalMulticall, multicallTarget, MockMulticallTargetFactory } = await helpers.loadFixture(deploy);
+            const { externalMulticall, multicallTarget, MockMulticallTargetFactory } = await helpers.loadFixture(
+              deploy
+            );
             const multicallTarget2 = await MockMulticallTargetFactory.deploy();
             const multicallTarget3 = await MockMulticallTargetFactory.deploy();
             const targets = [multicallTarget.address, multicallTarget2.address, multicallTarget3.address];
