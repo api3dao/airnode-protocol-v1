@@ -217,10 +217,7 @@ describe('OrderPayable', function () {
         it('Target function reverts', async function () {
           const { roles, orderPayable } = await deploy();
 
-          const orderId = ethers.utils.hexZeroPad(
-            '0x0000000000000000000000000000000000000000000000000000000000000000',
-            32
-          );
+          const orderId = ethers.constants.HashZero;
           const timestamp = await helpers.time.latest();
           const expirationTimestamp = timestamp + 60;
           const paymentAmount = ethers.utils.parseEther('1');
