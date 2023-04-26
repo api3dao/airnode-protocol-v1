@@ -3,7 +3,7 @@ const helpers = require('@nomicfoundation/hardhat-network-helpers');
 const { expect } = require('chai');
 const testUtils = require('../test-utils');
 
-describe('OrderPayable', function () {
+describe.only('OrderPayable', function () {
   async function deploy() {
     const accounts = await ethers.getSigners();
     const roles = {
@@ -83,8 +83,7 @@ describe('OrderPayable', function () {
                   const paymentAmount = ethers.utils.parseEther('1');
                   const orderSignerAddress = roles.manager.address;
 
-                  const network = await orderPayable.provider.getNetwork();
-                  const chainId = network.chainId;
+                  const chainId = (await orderPayable.provider.getNetwork()).chainId;
 
                   const hashedMessage = ethers.utils.solidityKeccak256(
                     ['uint256', 'address', 'bytes32', 'uint256', 'uint256'],
@@ -117,8 +116,7 @@ describe('OrderPayable', function () {
                   const paymentAmount = ethers.utils.parseEther('1');
                   const orderSignerAddress = roles.manager.address;
 
-                  const network = await orderPayable.provider.getNetwork();
-                  const chainId = network.chainId;
+                  const chainId = (await orderPayable.provider.getNetwork()).chainId;
 
                   const hashedMessage = ethers.utils.solidityKeccak256(
                     ['uint256', 'address', 'bytes32', 'uint256', 'uint256'],
@@ -153,8 +151,7 @@ describe('OrderPayable', function () {
               const paymentAmount = ethers.utils.parseEther('0');
               const orderSignerAddress = roles.manager.address;
 
-              const network = await orderPayable.provider.getNetwork();
-              const chainId = network.chainId;
+              const chainId = (await orderPayable.provider.getNetwork()).chainId;
 
               const hashedMessage = ethers.utils.solidityKeccak256(
                 ['uint256', 'address', 'bytes32', 'uint256', 'uint256'],
@@ -188,8 +185,7 @@ describe('OrderPayable', function () {
             const paymentAmount = ethers.utils.parseEther('1');
             const orderSignerAddress = roles.manager.address;
 
-            const network = await orderPayable.provider.getNetwork();
-            const chainId = network.chainId;
+            const chainId = (await orderPayable.provider.getNetwork()).chainId;
 
             const hashedMessage = ethers.utils.solidityKeccak256(
               ['uint256', 'address', 'bytes32', 'uint256', 'uint256'],
@@ -223,8 +219,7 @@ describe('OrderPayable', function () {
           const paymentAmount = ethers.utils.parseEther('1');
           const orderSignerAddress = roles.manager.address;
 
-          const network = await orderPayable.provider.getNetwork();
-          const chainId = network.chainId;
+          const chainId = (await orderPayable.provider.getNetwork()).chainId;
 
           const hashedMessage = ethers.utils.solidityKeccak256(
             ['uint256', 'address', 'bytes32', 'uint256', 'uint256'],
@@ -261,8 +256,7 @@ describe('OrderPayable', function () {
         const paymentAmount = ethers.utils.parseEther('1');
         const orderSignerAddress = roles.manager.address;
 
-        const network = await orderPayable.provider.getNetwork();
-        const chainId = network.chainId;
+        const chainId = (await orderPayable.provider.getNetwork()).chainId;
 
         const hashedMessage = ethers.utils.solidityKeccak256(
           ['uint256', 'address', 'bytes32', 'uint256', 'uint256'],
@@ -304,8 +298,7 @@ describe('OrderPayable', function () {
         const paymentAmount = ethers.utils.parseEther('1');
         const orderSignerAddress = roles.manager.address;
 
-        const network = await orderPayable.provider.getNetwork();
-        const chainId = network.chainId;
+        const chainId = (await orderPayable.provider.getNetwork()).chainId;
 
         const hashedMessage = ethers.utils.solidityKeccak256(
           ['uint256', 'address', 'bytes32', 'uint256', 'uint256'],
