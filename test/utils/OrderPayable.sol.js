@@ -29,14 +29,41 @@ describe('OrderPayable', function () {
     return {
       roles,
       accessControlRegistry,
+      adminRoleDescription,
       orderPayable,
     };
   }
 
   describe('constructor', function () {
-    it('constructor', async function () {
-      const { roles, orderPayable } = await helpers.loadFixture(deploy);
+    it('constructs', async function () {
+      const { roles, orderPayable, accessControlRegistry, adminRoleDescription } = await helpers.loadFixture(deploy);
+      expect(await orderPayable.accessControlRegistry()).to.equal(accessControlRegistry.address);
+      expect(await orderPayable.adminRoleDescription()).to.equal(adminRoleDescription);
       expect(await orderPayable.manager()).to.equal(roles.manager.address);
+
+      const derivedRootRole = ethers.utils.keccak256(
+        ethers.utils.solidityPack(['address'], [await orderPayable.manager()])
+      );
+      const adminRoleDescriptionHash = ethers.utils.keccak256(
+        ethers.utils.solidityPack(['string'], [await orderPayable.adminRoleDescription()])
+      );
+      const derivedAdminRole = ethers.utils.keccak256(
+        ethers.utils.solidityPack(['bytes32', 'bytes32'], [derivedRootRole, adminRoleDescriptionHash])
+      );
+      const hashedSignerRoleDescription = ethers.utils.keccak256(
+        ethers.utils.solidityPack(['string'], [await orderPayable.ORDER_SIGNER_ROLE_DESCRIPTION()])
+      );
+      const derivedSignerRole = ethers.utils.keccak256(
+        ethers.utils.solidityPack(['bytes32', 'bytes32'], [derivedAdminRole, hashedSignerRoleDescription])
+      );
+      const hashedWithdrawerRoleDescription = ethers.utils.keccak256(
+        ethers.utils.solidityPack(['string'], [await orderPayable.WITHDRAWER_ROLE_DESCRIPTION()])
+      );
+      const derivedWithdrawerRole = ethers.utils.keccak256(
+        ethers.utils.solidityPack(['bytes32', 'bytes32'], [derivedAdminRole, hashedWithdrawerRoleDescription])
+      );
+      expect(await orderPayable.orderSignerRole()).to.equal(derivedSignerRole);
+      expect(await orderPayable.withdrawerRole()).to.equal(derivedWithdrawerRole);
     });
   });
 
