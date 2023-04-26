@@ -116,7 +116,7 @@ describe('OrderPayable', function () {
       ).to.be.revertedWith('ACR address zero');
     });
     it('reverts', async function () {
-      const { roles, accessControlRegistry, adminRoleDescription } = await helpers.loadFixture(deploy);
+      const { roles, accessControlRegistry } = await helpers.loadFixture(deploy);
 
       await expect(
         (
