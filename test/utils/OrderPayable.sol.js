@@ -73,7 +73,7 @@ describe('OrderPayable', function () {
         context('Order did not expired', function () {
           context('Payment amount is not zero', function () {
             context('Order did not paid before', function () {
-              context('Signitures match', function () {
+              context('Signatures match', function () {
                 it('pays for order', async function () {
                   const { roles, orderPayable } = await deploy();
 
@@ -106,7 +106,7 @@ describe('OrderPayable', function () {
                   expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(true);
                 });
               });
-              context('Signitures mismatch', function () {
+              context('Signatures mismatch', function () {
                 it('target function reverts', async function () {
                   const { roles, orderPayable } = await deploy();
 
