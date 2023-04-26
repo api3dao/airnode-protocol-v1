@@ -6,8 +6,6 @@ contract MockMulticallTarget {
 
     int256[] private _argumentHistory;
 
-    receive() external payable {}
-
     function alwaysRevertsWithString(
         int256 argPositive,
         int256 argNegative
