@@ -15,10 +15,12 @@ describe('OrderPayable', function () {
       randomPerson: accounts[9],
     };
 
+    const adminRoleDescription = 'OrderPayable admin';
+    const orderSignerDescription = 'Order signer';
+    const withdrawerDescription = 'Withdrawer';
+
     const AccessControlRegistry = await ethers.getContractFactory('AccessControlRegistry', roles.deployer);
     const accessControlRegistry = await AccessControlRegistry.deploy();
-
-    const adminRoleDescription = 'OrderPayable admin';
 
     const OrderPayable = await ethers.getContractFactory('OrderPayable', roles.deployer);
     const orderPayable = await OrderPayable.deploy(
@@ -26,8 +28,30 @@ describe('OrderPayable', function () {
       adminRoleDescription,
       roles.manager.address
     );
+
+    const rootRole = testUtils.deriveRootRole(roles.manager.address);
+    const adminRole = testUtils.deriveRole(rootRole, adminRoleDescription);
+    const orderSignerRole = testUtils.deriveRole(adminRole, orderSignerDescription);
+    const withdrawerRole = testUtils.deriveRole(adminRole, withdrawerDescription);
+
+    await accessControlRegistry.connect(roles.manager).initializeRoleAndGrantToSender(rootRole, adminRoleDescription);
+    await accessControlRegistry
+      .connect(roles.manager)
+      .initializeRoleAndGrantToSender(adminRole, orderSignerDescription);
+    await accessControlRegistry.connect(roles.manager).initializeRoleAndGrantToSender(adminRole, withdrawerDescription);
+
+    await accessControlRegistry.connect(roles.manager).grantRole(orderSignerRole, roles.orderSigner.address);
+    await accessControlRegistry.connect(roles.manager).grantRole(withdrawerRole, roles.withdrawer.address);
+
+    await accessControlRegistry.connect(roles.manager).renounceRole(adminRole, roles.manager.address);
+    await accessControlRegistry.connect(roles.manager).renounceRole(orderSignerRole, roles.manager.address);
+    await accessControlRegistry.connect(roles.manager).renounceRole(withdrawerRole, roles.manager.address);
+
     return {
       roles,
+      adminRole,
+      orderSignerRole,
+      withdrawerRole,
       accessControlRegistry,
       adminRoleDescription,
       orderPayable,
@@ -36,34 +60,13 @@ describe('OrderPayable', function () {
 
   describe('constructor', function () {
     it('constructs', async function () {
-      const { roles, orderPayable, accessControlRegistry, adminRoleDescription } = await helpers.loadFixture(deploy);
+      const { roles, orderSignerRole, withdrawerRole, orderPayable, accessControlRegistry, adminRoleDescription } =
+        await helpers.loadFixture(deploy);
       expect(await orderPayable.accessControlRegistry()).to.equal(accessControlRegistry.address);
       expect(await orderPayable.adminRoleDescription()).to.equal(adminRoleDescription);
       expect(await orderPayable.manager()).to.equal(roles.manager.address);
-
-      const derivedRootRole = ethers.utils.keccak256(
-        ethers.utils.solidityPack(['address'], [await orderPayable.manager()])
-      );
-      const adminRoleDescriptionHash = ethers.utils.keccak256(
-        ethers.utils.solidityPack(['string'], [await orderPayable.adminRoleDescription()])
-      );
-      const derivedAdminRole = ethers.utils.keccak256(
-        ethers.utils.solidityPack(['bytes32', 'bytes32'], [derivedRootRole, adminRoleDescriptionHash])
-      );
-      const hashedSignerRoleDescription = ethers.utils.keccak256(
-        ethers.utils.solidityPack(['string'], [await orderPayable.ORDER_SIGNER_ROLE_DESCRIPTION()])
-      );
-      const derivedSignerRole = ethers.utils.keccak256(
-        ethers.utils.solidityPack(['bytes32', 'bytes32'], [derivedAdminRole, hashedSignerRoleDescription])
-      );
-      const hashedWithdrawerRoleDescription = ethers.utils.keccak256(
-        ethers.utils.solidityPack(['string'], [await orderPayable.WITHDRAWER_ROLE_DESCRIPTION()])
-      );
-      const derivedWithdrawerRole = ethers.utils.keccak256(
-        ethers.utils.solidityPack(['bytes32', 'bytes32'], [derivedAdminRole, hashedWithdrawerRoleDescription])
-      );
-      expect(await orderPayable.orderSignerRole()).to.equal(derivedSignerRole);
-      expect(await orderPayable.withdrawerRole()).to.equal(derivedWithdrawerRole);
+      expect(await orderPayable.orderSignerRole()).to.equal(orderSignerRole);
+      expect(await orderPayable.withdrawerRole()).to.equal(withdrawerRole);
     });
   });
 
@@ -279,7 +282,7 @@ describe('OrderPayable', function () {
   });
 
   describe('withdraw', function () {
-    context('Caller is manager or withdrawer', function () {
+    context('Caller is manager', function () {
       it('emits Withdrew event and transfers balance to recipient', async function () {
         const { roles, orderPayable } = await deploy();
 
@@ -311,6 +314,48 @@ describe('OrderPayable', function () {
         const initialContractBalance = await ethers.provider.getBalance(orderPayable.address);
 
         await expect(orderPayable.connect(roles.manager).withdraw(roles.recipient.address))
+          .to.emit(orderPayable, 'Withdrew')
+          .withArgs(roles.recipient.address, initialContractBalance);
+
+        const finalRecipientBalance = await ethers.provider.getBalance(roles.recipient.address);
+        const finalContractBalance = await ethers.provider.getBalance(orderPayable.address);
+
+        expect(finalRecipientBalance).to.equal(initialRecipientBalance.add(initialContractBalance));
+        expect(finalContractBalance).to.equal(0);
+      });
+    });
+    context('Caller is withdrawer', function () {
+      it('emits Withdrew event and transfers balance to recipient', async function () {
+        const { roles, orderPayable } = await deploy();
+
+        const orderId = ethers.utils.id('testOrder');
+        const timestamp = await helpers.time.latest();
+        const expirationTimestamp = timestamp + 60;
+        const paymentAmount = ethers.utils.parseEther('1');
+        const orderSignerAddress = roles.manager.address;
+
+        const chainId = (await orderPayable.provider.getNetwork()).chainId;
+
+        const hashedMessage = ethers.utils.solidityKeccak256(
+          ['uint256', 'address', 'bytes32', 'uint256', 'uint256'],
+          [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
+        );
+
+        const hash = ethers.utils.arrayify(hashedMessage);
+
+        const signature = await roles.manager.signMessage(ethers.utils.arrayify(hash));
+
+        const encodedData = ethers.utils.defaultAbiCoder.encode(
+          ['bytes32', 'uint256', 'address', 'bytes'],
+          [orderId, expirationTimestamp, orderSignerAddress, signature]
+        );
+
+        await orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount });
+
+        const initialRecipientBalance = await ethers.provider.getBalance(roles.recipient.address);
+        const initialContractBalance = await ethers.provider.getBalance(orderPayable.address);
+
+        await expect(orderPayable.connect(roles.withdrawer).withdraw(roles.recipient.address))
           .to.emit(orderPayable, 'Withdrew')
           .withArgs(roles.recipient.address, initialContractBalance);
 
