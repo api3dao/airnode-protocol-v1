@@ -408,5 +408,48 @@ describe('OrderPayable', function () {
         expect(finalContractBalance).to.equal(initialContractBalance);
       });
     });
+    context('Recipient does not accept value', function () {
+      it('target function reverts', async function () {
+        const { roles, orderPayable, accessControlRegistry } = await deploy();
+
+        const orderId = ethers.utils.id('testOrder');
+        const timestamp = await helpers.time.latest();
+        const expirationTimestamp = timestamp + 60;
+        const paymentAmount = ethers.utils.parseEther('1');
+        const orderSignerAddress = roles.manager.address;
+
+        const chainId = (await orderPayable.provider.getNetwork()).chainId;
+
+        const hashedMessage = ethers.utils.solidityKeccak256(
+          ['uint256', 'address', 'bytes32', 'uint256', 'uint256'],
+          [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
+        );
+
+        const hash = ethers.utils.arrayify(hashedMessage);
+
+        const signature = await roles.manager.signMessage(ethers.utils.arrayify(hash));
+
+        const encodedData = ethers.utils.defaultAbiCoder.encode(
+          ['bytes32', 'uint256', 'address', 'bytes'],
+          [orderId, expirationTimestamp, orderSignerAddress, signature]
+        );
+
+        await orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount });
+
+        const initialRecipientBalance = await ethers.provider.getBalance(accessControlRegistry.address);
+        const initialContractBalance = await ethers.provider.getBalance(orderPayable.address);
+
+        await expect(orderPayable.connect(roles.withdrawer).withdraw(accessControlRegistry.address)).to.be.revertedWith(
+          'Transfer unsuccessful'
+        );
+
+        const finalRecipientBalance = await ethers.provider.getBalance(accessControlRegistry.address);
+        const finalContractBalance = await ethers.provider.getBalance(orderPayable.address);
+
+        expect(finalRecipientBalance).to.equal(initialRecipientBalance);
+        expect(finalContractBalance).to.equal(initialContractBalance);
+        expect(finalRecipientBalance).to.equal(0);
+      });
+    });
   });
 });
