@@ -58,6 +58,33 @@ describe('OrderPayable', function () {
     };
   }
 
+  async function createSignedOrderData({
+    orderSignerAddress,
+    roles,
+    orderPayable,
+    orderId,
+    expirationTimestamp,
+    paymentAmount,
+  }) {
+    const chainId = (await orderPayable.provider.getNetwork()).chainId;
+
+    const hashedMessage = ethers.utils.solidityKeccak256(
+      ['uint256', 'address', 'bytes32', 'uint256', 'uint256'],
+      [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
+    );
+
+    const hash = ethers.utils.arrayify(hashedMessage);
+
+    const signature = await roles.manager.signMessage(ethers.utils.arrayify(hash));
+
+    const encodedData = ethers.utils.defaultAbiCoder.encode(
+      ['bytes32', 'uint256', 'address', 'bytes'],
+      [orderId, expirationTimestamp, orderSignerAddress, signature]
+    );
+
+    return encodedData;
+  }
+
   describe('constructor', function () {
     it('constructs', async function () {
       const { roles, orderSignerRole, withdrawerRole, orderPayable, accessControlRegistry, adminRoleDescription } =
@@ -71,37 +98,31 @@ describe('OrderPayable', function () {
       expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.constants.Zero);
     });
     it('reverts', async function () {
-      const { roles, accessControlRegistry, adminRoleDescription } =
-        await helpers.loadFixture(deploy);
+      const { roles, accessControlRegistry, adminRoleDescription } = await helpers.loadFixture(deploy);
 
-        await expect(
-          (await ethers.getContractFactory('OrderPayable', roles.deployer)).deploy(
-            accessControlRegistry.address,
-            adminRoleDescription,
-            "0x0000000000000000000000000000000000000000")
-        ).to.be.revertedWith('Manager address zero');
+      await expect(
+        (
+          await ethers.getContractFactory('OrderPayable', roles.deployer)
+        ).deploy(accessControlRegistry.address, adminRoleDescription, '0x0000000000000000000000000000000000000000')
+      ).to.be.revertedWith('Manager address zero');
     });
     it('reverts', async function () {
-      const { roles, adminRoleDescription } =
-        await helpers.loadFixture(deploy);
+      const { roles, adminRoleDescription } = await helpers.loadFixture(deploy);
 
-        await expect(
-          (await ethers.getContractFactory('OrderPayable', roles.deployer)).deploy(
-            "0x0000000000000000000000000000000000000000",
-            adminRoleDescription,
-            roles.manager.address)
-        ).to.be.revertedWith('ACR address zero');
+      await expect(
+        (
+          await ethers.getContractFactory('OrderPayable', roles.deployer)
+        ).deploy('0x0000000000000000000000000000000000000000', adminRoleDescription, roles.manager.address)
+      ).to.be.revertedWith('ACR address zero');
     });
     it('reverts', async function () {
-      const { roles, accessControlRegistry, adminRoleDescription } =
-        await helpers.loadFixture(deploy);
+      const { roles, accessControlRegistry, adminRoleDescription } = await helpers.loadFixture(deploy);
 
-        await expect(
-          (await ethers.getContractFactory('OrderPayable', roles.deployer)).deploy(
-            accessControlRegistry.address,
-            "",
-            roles.manager.address)
-        ).to.be.revertedWith('Admin role description empty');
+      await expect(
+        (
+          await ethers.getContractFactory('OrderPayable', roles.deployer)
+        ).deploy(accessControlRegistry.address, '', roles.manager.address)
+      ).to.be.revertedWith('Admin role description empty');
     });
   });
 
@@ -121,21 +142,14 @@ describe('OrderPayable', function () {
                   const paymentAmount = ethers.utils.parseEther('1');
                   const orderSignerAddress = roles.manager.address;
 
-                  const chainId = (await orderPayable.provider.getNetwork()).chainId;
-
-                  const hashedMessage = ethers.utils.solidityKeccak256(
-                    ['uint256', 'address', 'bytes32', 'uint256', 'uint256'],
-                    [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
-                  );
-
-                  const hash = ethers.utils.arrayify(hashedMessage);
-
-                  const signature = await roles.manager.signMessage(ethers.utils.arrayify(hash));
-
-                  const encodedData = ethers.utils.defaultAbiCoder.encode(
-                    ['bytes32', 'uint256', 'address', 'bytes'],
-                    [orderId, expirationTimestamp, orderSignerAddress, signature]
-                  );
+                  const encodedData = await createSignedOrderData({
+                    orderSignerAddress,
+                    roles,
+                    orderPayable,
+                    orderId,
+                    expirationTimestamp,
+                    paymentAmount,
+                  });
 
                   await expect(orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount }))
                     .to.emit(orderPayable, 'PaidForOrder')
@@ -152,21 +166,14 @@ describe('OrderPayable', function () {
                   const paymentAmount = ethers.utils.parseEther('1');
                   const orderSignerAddress = roles.manager.address;
 
-                  const chainId = (await orderPayable.provider.getNetwork()).chainId;
-
-                  const hashedMessage = ethers.utils.solidityKeccak256(
-                    ['uint256', 'address', 'bytes32', 'uint256', 'uint256'],
-                    [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
-                  );
-
-                  const hash = ethers.utils.arrayify(hashedMessage);
-
-                  const signature = await roles.manager.signMessage(ethers.utils.arrayify(hash));
-
-                  const encodedData = ethers.utils.defaultAbiCoder.encode(
-                    ['bytes32', 'uint256', 'address', 'bytes'],
-                    [orderId, expirationTimestamp, orderSignerAddress, signature]
-                  );
+                  const encodedData = await createSignedOrderData({
+                    orderSignerAddress,
+                    roles,
+                    orderPayable,
+                    orderId,
+                    expirationTimestamp,
+                    paymentAmount,
+                  });
 
                   await expect(
                     orderPayable.connect(roles.orderSigner).payForOrder(encodedData, { value: paymentAmount })
@@ -227,21 +234,14 @@ describe('OrderPayable', function () {
                 const paymentAmount = ethers.utils.parseEther('1');
                 const orderSignerAddress = roles.manager.address;
 
-                const chainId = (await orderPayable.provider.getNetwork()).chainId;
-
-                const hashedMessage = ethers.utils.solidityKeccak256(
-                  ['uint256', 'address', 'bytes32', 'uint256', 'uint256'],
-                  [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
-                );
-
-                const hash = ethers.utils.arrayify(hashedMessage);
-
-                const signature = await roles.manager.signMessage(ethers.utils.arrayify(hash));
-
-                const encodedData = ethers.utils.defaultAbiCoder.encode(
-                  ['bytes32', 'uint256', 'address', 'bytes'],
-                  [orderId, expirationTimestamp, orderSignerAddress, signature]
-                );
+                const encodedData = await createSignedOrderData({
+                  orderSignerAddress,
+                  roles,
+                  orderPayable,
+                  orderId,
+                  expirationTimestamp,
+                  paymentAmount,
+                });
 
                 await expect(orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount }))
                   .to.emit(orderPayable, 'PaidForOrder')
@@ -266,21 +266,14 @@ describe('OrderPayable', function () {
               const paymentAmount = ethers.utils.parseEther('0');
               const orderSignerAddress = roles.manager.address;
 
-              const chainId = (await orderPayable.provider.getNetwork()).chainId;
-
-              const hashedMessage = ethers.utils.solidityKeccak256(
-                ['uint256', 'address', 'bytes32', 'uint256', 'uint256'],
-                [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
-              );
-
-              const hash = ethers.utils.arrayify(hashedMessage);
-
-              const signature = await roles.manager.signMessage(ethers.utils.arrayify(hash));
-
-              const encodedData = ethers.utils.defaultAbiCoder.encode(
-                ['bytes32', 'uint256', 'address', 'bytes'],
-                [orderId, expirationTimestamp, orderSignerAddress, signature]
-              );
+              const encodedData = await createSignedOrderData({
+                orderSignerAddress,
+                roles,
+                orderPayable,
+                orderId,
+                expirationTimestamp,
+                paymentAmount,
+              });
 
               await expect(
                 orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount })
@@ -300,21 +293,14 @@ describe('OrderPayable', function () {
             const paymentAmount = ethers.utils.parseEther('1');
             const orderSignerAddress = roles.manager.address;
 
-            const chainId = (await orderPayable.provider.getNetwork()).chainId;
-
-            const hashedMessage = ethers.utils.solidityKeccak256(
-              ['uint256', 'address', 'bytes32', 'uint256', 'uint256'],
-              [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
-            );
-
-            const hash = ethers.utils.arrayify(hashedMessage);
-
-            const signature = await roles.manager.signMessage(ethers.utils.arrayify(hash));
-
-            const encodedData = ethers.utils.defaultAbiCoder.encode(
-              ['bytes32', 'uint256', 'address', 'bytes'],
-              [orderId, expirationTimestamp, orderSignerAddress, signature]
-            );
+            const encodedData = await createSignedOrderData({
+              orderSignerAddress,
+              roles,
+              orderPayable,
+              orderId,
+              expirationTimestamp,
+              paymentAmount,
+            });
 
             await expect(
               orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount })
@@ -334,21 +320,14 @@ describe('OrderPayable', function () {
           const paymentAmount = ethers.utils.parseEther('1');
           const orderSignerAddress = roles.manager.address;
 
-          const chainId = (await orderPayable.provider.getNetwork()).chainId;
-
-          const hashedMessage = ethers.utils.solidityKeccak256(
-            ['uint256', 'address', 'bytes32', 'uint256', 'uint256'],
-            [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
-          );
-
-          const hash = ethers.utils.arrayify(hashedMessage);
-
-          const signature = await roles.manager.signMessage(ethers.utils.arrayify(hash));
-
-          const encodedData = ethers.utils.defaultAbiCoder.encode(
-            ['bytes32', 'uint256', 'address', 'bytes'],
-            [orderId, expirationTimestamp, orderSignerAddress, signature]
-          );
+          const encodedData = await createSignedOrderData({
+            orderSignerAddress,
+            roles,
+            orderPayable,
+            orderId,
+            expirationTimestamp,
+            paymentAmount,
+          });
 
           await expect(
             orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount })
@@ -404,21 +383,14 @@ describe('OrderPayable', function () {
         const paymentAmount = ethers.utils.parseEther('1');
         const orderSignerAddress = roles.manager.address;
 
-        const chainId = (await orderPayable.provider.getNetwork()).chainId;
-
-        const hashedMessage = ethers.utils.solidityKeccak256(
-          ['uint256', 'address', 'bytes32', 'uint256', 'uint256'],
-          [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
-        );
-
-        const hash = ethers.utils.arrayify(hashedMessage);
-
-        const signature = await roles.manager.signMessage(ethers.utils.arrayify(hash));
-
-        const encodedData = ethers.utils.defaultAbiCoder.encode(
-          ['bytes32', 'uint256', 'address', 'bytes'],
-          [orderId, expirationTimestamp, orderSignerAddress, signature]
-        );
+        const encodedData = await createSignedOrderData({
+          orderSignerAddress,
+          roles,
+          orderPayable,
+          orderId,
+          expirationTimestamp,
+          paymentAmount,
+        });
 
         await orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount });
 
@@ -446,21 +418,14 @@ describe('OrderPayable', function () {
         const paymentAmount = ethers.utils.parseEther('1');
         const orderSignerAddress = roles.manager.address;
 
-        const chainId = (await orderPayable.provider.getNetwork()).chainId;
-
-        const hashedMessage = ethers.utils.solidityKeccak256(
-          ['uint256', 'address', 'bytes32', 'uint256', 'uint256'],
-          [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
-        );
-
-        const hash = ethers.utils.arrayify(hashedMessage);
-
-        const signature = await roles.manager.signMessage(ethers.utils.arrayify(hash));
-
-        const encodedData = ethers.utils.defaultAbiCoder.encode(
-          ['bytes32', 'uint256', 'address', 'bytes'],
-          [orderId, expirationTimestamp, orderSignerAddress, signature]
-        );
+        const encodedData = await createSignedOrderData({
+          orderSignerAddress,
+          roles,
+          orderPayable,
+          orderId,
+          expirationTimestamp,
+          paymentAmount,
+        });
 
         await orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount });
 
@@ -488,21 +453,14 @@ describe('OrderPayable', function () {
         const paymentAmount = ethers.utils.parseEther('1');
         const orderSignerAddress = roles.manager.address;
 
-        const chainId = (await orderPayable.provider.getNetwork()).chainId;
-
-        const hashedMessage = ethers.utils.solidityKeccak256(
-          ['uint256', 'address', 'bytes32', 'uint256', 'uint256'],
-          [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
-        );
-
-        const hash = ethers.utils.arrayify(hashedMessage);
-
-        const signature = await roles.manager.signMessage(ethers.utils.arrayify(hash));
-
-        const encodedData = ethers.utils.defaultAbiCoder.encode(
-          ['bytes32', 'uint256', 'address', 'bytes'],
-          [orderId, expirationTimestamp, orderSignerAddress, signature]
-        );
+        const encodedData = await createSignedOrderData({
+          orderSignerAddress,
+          roles,
+          orderPayable,
+          orderId,
+          expirationTimestamp,
+          paymentAmount,
+        });
 
         await orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount });
 
@@ -530,21 +488,14 @@ describe('OrderPayable', function () {
         const paymentAmount = ethers.utils.parseEther('1');
         const orderSignerAddress = roles.manager.address;
 
-        const chainId = (await orderPayable.provider.getNetwork()).chainId;
-
-        const hashedMessage = ethers.utils.solidityKeccak256(
-          ['uint256', 'address', 'bytes32', 'uint256', 'uint256'],
-          [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
-        );
-
-        const hash = ethers.utils.arrayify(hashedMessage);
-
-        const signature = await roles.manager.signMessage(ethers.utils.arrayify(hash));
-
-        const encodedData = ethers.utils.defaultAbiCoder.encode(
-          ['bytes32', 'uint256', 'address', 'bytes'],
-          [orderId, expirationTimestamp, orderSignerAddress, signature]
-        );
+        const encodedData = await createSignedOrderData({
+          orderSignerAddress,
+          roles,
+          orderPayable,
+          orderId,
+          expirationTimestamp,
+          paymentAmount,
+        });
 
         await orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount });
 
