@@ -17,7 +17,6 @@ describe('OrderPayable', function () {
 
     const AccessControlRegistry = await ethers.getContractFactory('AccessControlRegistry', roles.deployer);
     const accessControlRegistry = await AccessControlRegistry.deploy();
-    await accessControlRegistry.deployed();
 
     const adminRoleDescription = 'OrderPayable admin';
 
@@ -27,7 +26,6 @@ describe('OrderPayable', function () {
       adminRoleDescription,
       roles.manager.address
     );
-    await orderPayable.deployed();
     return {
       roles,
       accessControlRegistry,
