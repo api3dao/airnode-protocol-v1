@@ -3,7 +3,7 @@ const helpers = require('@nomicfoundation/hardhat-network-helpers');
 const { expect } = require('chai');
 const testUtils = require('../test-utils');
 
-describe.only('OrderPayable', function () {
+describe('OrderPayable', function () {
   async function deploy() {
     const accounts = await ethers.getSigners();
     const roles = {
@@ -68,13 +68,13 @@ describe.only('OrderPayable', function () {
   });
 
   describe('payForOrder', function () {
-    context('Order signer valid', function () {
-      context('Order Id not zero', function () {
-        context('Order not expired', function () {
-          context('Payment amount not zero', function () {
-            context('Order didnt paid before', function () {
-              context('Signiture match', function () {
-                it('Pays for order', async function () {
+    context('Order signer is valid', function () {
+      context('Order id is not zero', function () {
+        context('Order did not expired', function () {
+          context('Payment amount is not zero', function () {
+            context('Order did not paid before', function () {
+              context('Signitures match', function () {
+                it('pays for order', async function () {
                   const { roles, orderPayable } = await deploy();
 
                   const orderId = testUtils.generateRandomBytes32();
@@ -106,8 +106,8 @@ describe.only('OrderPayable', function () {
                   expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(true);
                 });
               });
-              context('Signiture mismatch', function () {
-                it('Target function reverts', async function () {
+              context('Signitures mismatch', function () {
+                it('target function reverts', async function () {
                   const { roles, orderPayable } = await deploy();
 
                   const orderId = testUtils.generateRandomBytes32();
@@ -141,8 +141,8 @@ describe.only('OrderPayable', function () {
               });
             });
           });
-          context('Payment amount zero', function () {
-            it('Target function reverts', async function () {
+          context('Payment amount is zero', function () {
+            it('target function reverts', async function () {
               const { roles, orderPayable } = await deploy();
 
               const orderId = testUtils.generateRandomBytes32();
@@ -176,7 +176,7 @@ describe.only('OrderPayable', function () {
           });
         });
         context('Order expired', function () {
-          it('Target function reverts', async function () {
+          it('target function reverts', async function () {
             const { roles, orderPayable } = await deploy();
 
             const orderId = testUtils.generateRandomBytes32();
@@ -209,8 +209,8 @@ describe.only('OrderPayable', function () {
           });
         });
       });
-      context('Order Id zero', function () {
-        it('Target function reverts', async function () {
+      context('Order id is zero', function () {
+        it('target function reverts', async function () {
           const { roles, orderPayable } = await deploy();
 
           const orderId = ethers.constants.HashZero;
@@ -289,7 +289,7 @@ describe.only('OrderPayable', function () {
       });
     });
     context('Caller is not manager or withdrawer', function () {
-      it('Target function reverts', async function () {
+      it('target function reverts', async function () {
         const { roles, orderPayable } = await deploy();
 
         const orderId = ethers.utils.id('testOrder');
