@@ -243,6 +243,39 @@ describe('OrderPayable', function () {
         });
       });
     });
+    context('Order signer is invalid', function () {
+      it('target function reverts', async function () {
+        const { roles, orderPayable } = await deploy();
+
+        const orderId = testUtils.generateRandomBytes32();
+        const timestamp = await helpers.time.latest();
+        const expirationTimestamp = timestamp + 60;
+        const paymentAmount = ethers.utils.parseEther('1');
+        const orderSignerAddress = roles.randomPerson.address;
+
+        const chainId = (await orderPayable.provider.getNetwork()).chainId;
+
+        const hashedMessage = ethers.utils.solidityKeccak256(
+          ['uint256', 'address', 'bytes32', 'uint256', 'uint256'],
+          [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
+        );
+
+        const hash = ethers.utils.arrayify(hashedMessage);
+
+        const signature = await roles.randomPerson.signMessage(ethers.utils.arrayify(hash));
+
+        const encodedData = ethers.utils.defaultAbiCoder.encode(
+          ['bytes32', 'uint256', 'address', 'bytes'],
+          [orderId, expirationTimestamp, orderSignerAddress, signature]
+        );
+
+        await expect(
+          orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
+        ).to.be.revertedWith('Invalid order signer');
+        expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('0'));
+        expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(false);
+      });
+    });
   });
 
   describe('withdraw', function () {
