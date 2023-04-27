@@ -1,7 +1,6 @@
 const { ethers } = require('hardhat');
 const helpers = require('@nomicfoundation/hardhat-network-helpers');
 const { expect } = require('chai');
-const testUtils = require('../test-utils');
 
 describe('ExternalMulticallWithValue', function () {
   async function deploy() {
@@ -15,12 +14,15 @@ describe('ExternalMulticallWithValue', function () {
     );
     const externalMulticallWithValue = await ExternalMulticallWithValueFactory.deploy();
     const MockMulticallTargetFactory = await ethers.getContractFactory('MockMulticallTarget', roles.deployer);
-    const multicallTarget = await MockMulticallTargetFactory.deploy();
+    const multicallTargets = {
+      multicallTarget: await MockMulticallTargetFactory.deploy(),
+      multicallTarget1: await MockMulticallTargetFactory.deploy(),
+      multicallTarget2: await MockMulticallTargetFactory.deploy(),
+    };
     return {
       roles,
       externalMulticallWithValue,
-      multicallTarget,
-      MockMulticallTargetFactory,
+      multicallTargets,
     };
   }
 
@@ -31,7 +33,8 @@ describe('ExternalMulticallWithValue', function () {
           context('None of the calls reverts', function () {
             context('Call does not have any excess value', function () {
               it('multicall does not revert', async function () {
-                const { externalMulticallWithValue, multicallTarget } = await helpers.loadFixture(deploy);
+                const { externalMulticallWithValue, multicallTargets } = await helpers.loadFixture(deploy);
+                const multicallTarget = multicallTargets.multicallTarget;
                 const targets = [multicallTarget.address, multicallTarget.address, multicallTarget.address];
                 const data = [
                   multicallTarget.interface.encodeFunctionData('convertsPositiveArgumentToNegative', [1]),
@@ -61,15 +64,16 @@ describe('ExternalMulticallWithValue', function () {
             });
             context('Calls multiple separate contracts', function () {
               it('multicall does not revert', async function () {
-                const { externalMulticallWithValue, multicallTarget, MockMulticallTargetFactory } =
+                const { externalMulticallWithValue, multicallTargets, MockMulticallTargetFactory } =
                   await helpers.loadFixture(deploy);
-                const multicallTarget2 = await MockMulticallTargetFactory.deploy();
-                const multicallTarget3 = await MockMulticallTargetFactory.deploy();
-                const targets = [multicallTarget.address, multicallTarget2.address, multicallTarget3.address];
+                const multicallTarget = multicallTargets.multicallTarget;
+                const multicallTarget1 = multicallTargets.multicallTarget1;
+                const multicallTarget2 = multicallTargets.multicallTarget2;
+                const targets = [multicallTarget.address, multicallTarget1.address, multicallTarget2.address];
                 const data = [
                   multicallTarget.interface.encodeFunctionData('convertsPositiveArgumentToNegative', [1]),
-                  multicallTarget2.interface.encodeFunctionData('convertsPositiveArgumentToNegative', [2]),
-                  multicallTarget3.interface.encodeFunctionData('convertsPositiveArgumentToNegative', [3]),
+                  multicallTarget1.interface.encodeFunctionData('convertsPositiveArgumentToNegative', [2]),
+                  multicallTarget2.interface.encodeFunctionData('convertsPositiveArgumentToNegative', [3]),
                 ];
                 const values = [100, 200, 300];
                 const totalValue = values.reduce((a, b) => a + b, 0);
@@ -88,11 +92,11 @@ describe('ExternalMulticallWithValue', function () {
                   externalMulticallWithValue.externalMulticallWithValue(targets, data, values, { value: totalValue })
                 ).to.not.be.reverted;
                 expect(await multicallTarget.argumentHistory()).to.deep.equal([1]);
-                expect(await multicallTarget2.argumentHistory()).to.deep.equal([2]);
-                expect(await multicallTarget3.argumentHistory()).to.deep.equal([3]);
+                expect(await multicallTarget1.argumentHistory()).to.deep.equal([2]);
+                expect(await multicallTarget2.argumentHistory()).to.deep.equal([3]);
                 const etherReceiverBalance1 = await ethers.provider.getBalance(multicallTarget.address);
-                const etherReceiverBalance2 = await ethers.provider.getBalance(multicallTarget2.address);
-                const etherReceiverBalance3 = await ethers.provider.getBalance(multicallTarget3.address);
+                const etherReceiverBalance2 = await ethers.provider.getBalance(multicallTarget1.address);
+                const etherReceiverBalance3 = await ethers.provider.getBalance(multicallTarget2.address);
                 expect(etherReceiverBalance1).to.equal(100);
                 expect(etherReceiverBalance2).to.equal(200);
                 expect(etherReceiverBalance3).to.equal(300);
@@ -101,7 +105,8 @@ describe('ExternalMulticallWithValue', function () {
             context('One of the calls reverts', function () {
               context('Call reverts with string', function () {
                 it('multicall reverts by bubbling up the revert string', async function () {
-                  const { externalMulticallWithValue, multicallTarget } = await helpers.loadFixture(deploy);
+                  const { externalMulticallWithValue, multicallTargets } = await helpers.loadFixture(deploy);
+                  const multicallTarget = multicallTargets.multicallTarget;
                   const targets = [multicallTarget.address, multicallTarget.address, multicallTarget.address];
                   const data = [
                     multicallTarget.interface.encodeFunctionData('convertsPositiveArgumentToNegative', [1]),
@@ -117,7 +122,8 @@ describe('ExternalMulticallWithValue', function () {
               });
               context('Call reverts with custom error', function () {
                 it('multicall reverts by bubbling up the custom error', async function () {
-                  const { externalMulticallWithValue, multicallTarget } = await helpers.loadFixture(deploy);
+                  const { externalMulticallWithValue, multicallTargets } = await helpers.loadFixture(deploy);
+                  const multicallTarget = multicallTargets.multicallTarget;
                   const targets = [multicallTarget.address, multicallTarget.address, multicallTarget.address];
                   const data = [
                     multicallTarget.interface.encodeFunctionData('convertsPositiveArgumentToNegative', [1]),
@@ -133,7 +139,8 @@ describe('ExternalMulticallWithValue', function () {
               });
               context('Call reverts with no data', function () {
                 it('multicall reverts with no data', async function () {
-                  const { externalMulticallWithValue, multicallTarget } = await helpers.loadFixture(deploy);
+                  const { externalMulticallWithValue, multicallTargets } = await helpers.loadFixture(deploy);
+                  const multicallTarget = multicallTargets.multicallTarget;
                   const targets = [multicallTarget.address, multicallTarget.address, multicallTarget.address];
                   const data = [
                     multicallTarget.interface.encodeFunctionData('convertsPositiveArgumentToNegative', [1]),
@@ -152,7 +159,8 @@ describe('ExternalMulticallWithValue', function () {
         });
         context('Value sent with the call is insufficient', function () {
           it('multicall reverts', async function () {
-            const { externalMulticallWithValue, multicallTarget } = await helpers.loadFixture(deploy);
+            const { externalMulticallWithValue, multicallTargets } = await helpers.loadFixture(deploy);
+            const multicallTarget = multicallTargets.multicallTarget;
             const targets = [multicallTarget.address, multicallTarget.address, multicallTarget.address];
             const data = [
               multicallTarget.interface.encodeFunctionData('convertsPositiveArgumentToNegative', [1]),
@@ -167,7 +175,8 @@ describe('ExternalMulticallWithValue', function () {
         });
         context('One of the calls is to a non-contract account', function () {
           it('multicall reverts', async function () {
-            const { roles, externalMulticallWithValue, multicallTarget } = await helpers.loadFixture(deploy);
+            const { roles, externalMulticallWithValue, multicallTargets } = await helpers.loadFixture(deploy);
+            const multicallTarget = multicallTargets.multicallTarget;
             const targets = [multicallTarget.address, roles.deployer.address, multicallTarget.address];
             const data = [
               multicallTarget.interface.encodeFunctionData('convertsPositiveArgumentToNegative', [1]),
@@ -184,7 +193,8 @@ describe('ExternalMulticallWithValue', function () {
       });
       context('Parameter lengths do not match', function () {
         it('multicall reverts', async function () {
-          const { externalMulticallWithValue, multicallTarget } = await helpers.loadFixture(deploy);
+          const { externalMulticallWithValue, multicallTargets } = await helpers.loadFixture(deploy);
+          const multicallTarget = multicallTargets.multicallTarget;
           const targets = [multicallTarget.address, multicallTarget.address, multicallTarget.address];
           const data = [
             multicallTarget.interface.encodeFunctionData('convertsPositiveArgumentToNegative', [1]),
@@ -200,7 +210,8 @@ describe('ExternalMulticallWithValue', function () {
     });
     context('Call have excess value', function () {
       it('multicall reverts', async function () {
-        const { externalMulticallWithValue, multicallTarget } = await helpers.loadFixture(deploy);
+        const { externalMulticallWithValue, multicallTargets } = await helpers.loadFixture(deploy);
+        const multicallTarget = multicallTargets.multicallTarget;
         const targets = [multicallTarget.address, multicallTarget.address, multicallTarget.address];
         const data = [
           multicallTarget.interface.encodeFunctionData('convertsPositiveArgumentToNegative', [1]),
