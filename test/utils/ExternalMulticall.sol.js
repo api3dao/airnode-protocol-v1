@@ -11,14 +11,37 @@ describe('ExternalMulticall', function () {
     };
     const ExternalMulticallFactory = await ethers.getContractFactory('MockExternalMulticall', roles.deployer);
     const externalMulticall = await ExternalMulticallFactory.deploy();
+    const ExternalMulticallWithValueFactory = await ethers.getContractFactory(
+      'MockExternalMulticallWithValue',
+      roles.deployer
+    );
+    const externalMulticallWithValue = await ExternalMulticallWithValueFactory.deploy();
     const MockMulticallTargetFactory = await ethers.getContractFactory('MockMulticallTarget', roles.deployer);
     const multicallTarget = await MockMulticallTargetFactory.deploy();
     return {
       roles,
       externalMulticall,
       multicallTarget,
+      externalMulticallWithValue,
     };
   }
+
+  it.only('test multicall with value sender', async function () {
+    const { externalMulticallWithValue, multicallTarget, roles } = await helpers.loadFixture(deploy);
+    const targets = [multicallTarget.address];
+    const data = [multicallTarget.interface.encodeFunctionData('checkSender', [roles.deployer.address])];
+    console.log(
+      'Addresses in tests',
+      roles.deployer.address,
+      externalMulticallWithValue.address,
+      multicallTarget.address
+    );
+    await expect(
+      externalMulticallWithValue.externalMulticallWithValue(targets, data, [ethers.BigNumber.from(1000)], {
+        value: ethers.BigNumber.from(1000),
+      })
+    ).to.not.be.reverted;
+  });
 
   describe('externalMulticall', function () {
     context('Parameter lengths match', function () {

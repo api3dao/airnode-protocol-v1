@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
+import "hardhat/console.sol";
+
 contract MockMulticallTarget {
     error MyError(uint256 fieldAlways123, string fieldAlwaysFoo);
 
@@ -46,5 +48,10 @@ contract MockMulticallTarget {
             argumentHistoryInMemory[ind] = _argumentHistory[ind];
         }
         return argumentHistoryInMemory;
+    }
+
+    function checkSender(address expectedSender) external view {
+        console.log("MockMulticallTarget", msg.sender, expectedSender);
+        require(msg.sender == expectedSender, "Invalid sender");
     }
 }

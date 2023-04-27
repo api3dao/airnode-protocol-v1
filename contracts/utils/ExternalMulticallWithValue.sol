@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "./interfaces/IExternalMulticallWithValue.sol";
+import "hardhat/console.sol";
 
 /// @title Contract that enables calls to external contracts to be batched
 /// @notice This contract can be used for two use-cases: (1) In its current
@@ -46,6 +47,7 @@ abstract contract ExternalMulticallWithValue is IExternalMulticallWithValue {
                 "Multicall target not contract"
             );
             bool success;
+            console.log("ExternalMulticallWithValue sender", msg.sender);
             // solhint-disable-next-line avoid-low-level-calls
             (success, returndata[ind]) = targets[ind].call{value: values[ind]}(
                 data[ind]
