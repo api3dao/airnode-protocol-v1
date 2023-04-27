@@ -16,15 +16,6 @@ contract MockExternalMulticall is ExternalMulticall, Ownable {
         return super.externalMulticall(targets, data);
     }
 
-    function externalMulticallWithValue(
-        address[] calldata targets,
-        bytes[] calldata data,
-        uint256[] calldata values
-    ) public payable virtual override returns (bytes[] memory returndata) {
-        // _checkOwner();
-        return super.externalMulticallWithValue(targets, data, values);
-    }
-
     function tryExternalMulticall(
         address[] calldata targets,
         bytes[] calldata data

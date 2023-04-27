@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./interfaces/IExternalMulticall.sol";
+import "./interfaces/IExternalMulticallWithValue.sol";
 
 /// @title Contract that enables calls to external contracts to be batched
 /// @notice This contract can be used for two use-cases: (1) In its current
@@ -19,27 +19,37 @@ import "./interfaces/IExternalMulticall.sol";
 /// general solution to these attacks is overriding both multicall functions
 /// behind an access control mechanism, such as an `onlyOwner` modifier.
 /// Refer to MakerDAO's Multicall.sol for a similar implementation.
-abstract contract ExternalMulticall is IExternalMulticall {
+abstract contract ExternalMulticallWithValue is IExternalMulticallWithValue {
     /// @notice Batches calls to external contracts and reverts as soon as one
     /// of the batched calls reverts
     /// @param targets Array of target addresses of batched calls
     /// @param data Array of calldata of batched calls
+    /// @param values Array of values to be sent with each call
     /// @return returndata Array of returndata of batched calls
-    function externalMulticall(
+    function externalMulticallWithValue(
         address[] calldata targets,
-        bytes[] calldata data
-    ) public virtual override returns (bytes[] memory returndata) {
+        bytes[] calldata data,
+        uint256[] calldata values
+    ) public payable virtual override returns (bytes[] memory returndata) {
         uint256 callCount = targets.length;
-        require(callCount == data.length, "Parameter length mismatch");
+        require(
+            callCount == data.length && callCount == values.length,
+            "Parameter length mismatch"
+        );
+        uint256 accumulatedValue = 0;
         returndata = new bytes[](callCount);
         for (uint256 ind = 0; ind < callCount; ) {
+            accumulatedValue += values[ind];
+            require(msg.value >= accumulatedValue, "Insufficient value");
             require(
                 targets[ind].code.length > 0,
                 "Multicall target not contract"
             );
             bool success;
             // solhint-disable-next-line avoid-low-level-calls
-            (success, returndata[ind]) = targets[ind].call(data[ind]);
+            (success, returndata[ind]) = targets[ind].call{value: values[ind]}(
+                data[ind]
+            );
             if (!success) {
                 bytes memory returndataWithRevertData = returndata[ind];
                 // Adapted from OpenZeppelin's Address.sol
@@ -60,42 +70,6 @@ abstract contract ExternalMulticall is IExternalMulticall {
                 ind++;
             }
         }
-    }
-
-    /// @notice Batches calls to external contracts but does not revert if any
-    /// of the batched calls reverts
-    /// @param targets Array of target addresses of batched calls
-    /// @param data Array of calldata of batched calls
-    /// @return successes Array of success conditions of batched calls
-    /// @return returndata Array of returndata of batched calls
-    function tryExternalMulticall(
-        address[] calldata targets,
-        bytes[] calldata data
-    )
-        public
-        virtual
-        override
-        returns (bool[] memory successes, bytes[] memory returndata)
-    {
-        uint256 callCount = targets.length;
-        require(callCount == data.length, "Parameter length mismatch");
-        successes = new bool[](callCount);
-        returndata = new bytes[](callCount);
-        for (uint256 ind = 0; ind < callCount; ) {
-            if (targets[ind].code.length > 0) {
-                // solhint-disable-next-line avoid-low-level-calls
-                (successes[ind], returndata[ind]) = targets[ind].call(
-                    data[ind]
-                );
-            } else {
-                returndata[ind] = abi.encodeWithSignature(
-                    "Error(string)",
-                    "Multicall target not contract"
-                );
-            }
-            unchecked {
-                ind++;
-            }
-        }
+        require(msg.value == accumulatedValue, "Excess value");
     }
 }
