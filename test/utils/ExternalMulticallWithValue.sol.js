@@ -64,7 +64,7 @@ describe('ExternalMulticallWithValue', function () {
             });
             context('Calls multiple separate contracts', function () {
               it('multicall does not revert', async function () {
-                const { externalMulticallWithValue, multicallTargets, MockMulticallTargetFactory } =
+                const { externalMulticallWithValue, multicallTargets } =
                   await helpers.loadFixture(deploy);
                 const multicallTarget = multicallTargets.multicallTarget;
                 const multicallTarget1 = multicallTargets.multicallTarget1;
