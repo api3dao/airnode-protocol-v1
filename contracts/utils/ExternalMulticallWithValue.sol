@@ -3,28 +3,27 @@ pragma solidity ^0.8.0;
 
 import "./interfaces/IExternalMulticallWithValue.sol";
 
-/// @title Contract that enables calls to external contracts to be batched
+/// @title Contract that enables batched calls to external contracts with value
 /// @notice This contract can be used for two use-cases: (1) In its current
 /// state, it can be used to batch static calls to contracts that do not care
 /// about who the sender is, (2) after extending it, to interact with trusted
-/// contracts (see below for details). It implements two ways of batching, one
-/// requires none of the calls to revert and the other tolerates individual
-/// calls reverting.
+/// contracts (see below for details). It implements a way of batching with value,
+/// and requires none of the calls to revert.
 /// @dev As mentioned above, this contract can be used to interact with trusted
 /// contracts. Such interactions can leave this contract in a privileged
 /// position (e.g., ExternalMulticall may be left with a non-zero balance of an
 /// ERC20 token as a result of a transaction sent to it), which can be abused
 /// by an attacker afterwards. In addition, attackers can frontrun interactions
 /// to have the following interaction result in an unintended outcome. A
-/// general solution to these attacks is overriding both multicall functions
+/// general solution to these attacks is overriding the externalMulticallWithValue function
 /// behind an access control mechanism, such as an `onlyOwner` modifier.
 /// Refer to MakerDAO's Multicall.sol for a similar implementation.
 abstract contract ExternalMulticallWithValue is IExternalMulticallWithValue {
-    /// @notice Batches calls to external contracts and reverts as soon as one
+    /// @notice Batches calls to external contracts with value and reverts as soon as one
     /// of the batched calls reverts
     /// @param targets Array of target addresses of batched calls
     /// @param data Array of calldata of batched calls
-    /// @param values Array of values to be sent with each call
+    /// @param values Array of values to send with each call
     /// @return returndata Array of returndata of batched calls
     function externalMulticallWithValue(
         address[] calldata targets,
