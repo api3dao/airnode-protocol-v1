@@ -26,45 +26,41 @@ contract PrepaymentDepository is
 {
     using ECDSA for bytes32;
 
-    /// @notice Contract address of the ERC20 token that prepayments can be made in
-    address public immutable token;
-
     /// @notice Withdrawal signer role description
     string public constant override WITHDRAWAL_SIGNER_ROLE_DESCRIPTION =
         "Withdrawal signer";
-
     /// @notice User withdrawal limit increaser role description
     string
         public constant
         override USER_WITHDRAWAL_LIMIT_INCREASER_ROLE_DESCRIPTION =
         "User withdrawal limit increaser";
-
     /// @notice User withdrawal limit decreaser role description
     string
         public constant
         override USER_WITHDRAWAL_LIMIT_DECREASER_ROLE_DESCRIPTION =
         "User withdrawal limit decreaser";
-
     /// @notice Token claimer role description
     string public constant override TOKEN_CLAIMER_ROLE_DESCRIPTION =
         "Token claimer";
 
+    /// @notice Contract address of the ERC20 token that prepayments can be made in
+    address public immutable override token;
+
     /// @notice Withdrawal signer role
     bytes32 public immutable override withdrawalSignerRole;
-
     /// @notice User withdrawal limit increaser role
     bytes32 public immutable override userWithdrawalLimitIncreaserRole;
-
     /// @notice User withdrawal limit decreaser role
     bytes32 public immutable override userWithdrawalLimitDecreaserRole;
-
     /// @notice Token claimer role
     bytes32 public immutable override tokenClaimerRole;
 
     /// @notice Returns the withdrawal account address of the user
     mapping(address => address) public userToWithdrawalAccount;
+
     /// @notice Returns the withdrawal limit of the user
     mapping(address => uint256) public userToWithdrawalLimit;
+
     /// @notice Returns if a withdrawal with a hash is executed
     mapping(bytes32 => bool) public withdrawalWithHashIsExecuted;
 
