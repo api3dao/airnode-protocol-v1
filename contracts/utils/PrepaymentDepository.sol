@@ -61,7 +61,7 @@ contract PrepaymentDepository is
     /// @notice Returns the withdrawal limit of the user
     mapping(address => uint256) public userToWithdrawalLimit;
 
-    /// @notice Returns if a withdrawal with a hash is executed
+    /// @notice Returns if a withdrawal with the hash is executed
     mapping(bytes32 => bool) public withdrawalWithHashIsExecuted;
 
     /// @param _accessControlRegistry AccessControlRegistry contract address
