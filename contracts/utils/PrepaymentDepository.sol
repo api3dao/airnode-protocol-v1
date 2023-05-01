@@ -69,6 +69,7 @@ contract PrepaymentDepository is
     /// @param _manager Manager address
     /// @param _token Contract address of the ERC20 token that prepayments can
     /// be made in
+    /// @dev The ERC20 token contract must implement ERC2612
     constructor(
         address _accessControlRegistry,
         string memory _adminRoleDescription,
