@@ -2,7 +2,6 @@
 pragma solidity 0.8.17;
 
 interface IPrepaymentDepository {
-    event UpdatedSigner(address indexed depositor, address indexed signer);
     event IncreasedUserWithdrawalLimit(
         address indexed user,
         uint256 amount,
