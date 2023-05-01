@@ -2,11 +2,11 @@
 pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
+import "../access-control-registry/AccessControlRegistryAdminnedWithManager.sol";
+import "./interfaces/IPrepaymentDepository.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/draft-IERC20Permit.sol";
-import "../access-control-registry/AccessControlRegistryAdminnedWithManager.sol";
-import "./interfaces/IPrepaymentDepository.sol";
 
 /// @title Contract that enables micropayments to be prepaid in batch
 /// @notice `manager` represents the payment recipient, and its various
@@ -20,9 +20,9 @@ import "./interfaces/IPrepaymentDepository.sol";
 /// The `userWithdrawalLimitDecreaser` role can be granted to an EOA, as it
 /// cannot cause irreversible harm.
 contract PrepaymentDepository is
-    IPrepaymentDepository,
     ERC2771Context,
-    AccessControlRegistryAdminnedWithManager
+    AccessControlRegistryAdminnedWithManager,
+    IPrepaymentDepository
 {
     using ECDSA for bytes32;
 
