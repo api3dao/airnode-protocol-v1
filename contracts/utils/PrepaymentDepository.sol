@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/draft-IERC20Permit.sol";
-import "@api3/airnode-protocol-v1/contracts/access-control-registry/AccessControlRegistryAdminnedWithManager.sol";
+import "../access-control-registry/AccessControlRegistryAdminnedWithManager.sol";
 import "./interfaces/IPrepaymentDepository.sol";
 
 /// @title Contract that enables micropayments to be prepaid in batch
