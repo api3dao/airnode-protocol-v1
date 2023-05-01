@@ -26,20 +26,20 @@ contract PrepaymentDepository is
 {
     using ECDSA for bytes32;
 
-    /// @notice The address of the ERC20 token that this contract holds
+    /// @notice Contract address of the ERC20 token that prepayments can be made in
     address public immutable token;
 
     /// @notice Withdrawal signer role description
     string public constant override WITHDRAWAL_SIGNER_ROLE_DESCRIPTION =
         "Withdrawal signer";
 
-    /// @notice user withdrawal limit increaser role description
+    /// @notice User withdrawal limit increaser role description
     string
         public constant
         override USER_WITHDRAWAL_LIMIT_INCREASER_ROLE_DESCRIPTION =
         "User withdrawal limit increaser";
 
-    /// @notice user withdrawal limit decreaser role description
+    /// @notice User withdrawal limit decreaser role description
     string
         public constant
         override USER_WITHDRAWAL_LIMIT_DECREASER_ROLE_DESCRIPTION =
@@ -49,29 +49,30 @@ contract PrepaymentDepository is
     string public constant override TOKEN_CLAIMER_ROLE_DESCRIPTION =
         "Token claimer";
 
-    /// @notice Withdrawal Signer role
+    /// @notice Withdrawal signer role
     bytes32 public immutable override withdrawalSignerRole;
 
-    /// @notice user withdrawal limit increaser role
+    /// @notice User withdrawal limit increaser role
     bytes32 public immutable override userWithdrawalLimitIncreaserRole;
 
-    /// @notice user withdrawal limit decreaser role
+    /// @notice User withdrawal limit decreaser role
     bytes32 public immutable override userWithdrawalLimitDecreaserRole;
 
     /// @notice Token claimer role
     bytes32 public immutable override tokenClaimerRole;
 
-    /// @notice mapping of the user to the withdrawal account
+    /// @notice Returns the withdrawal account address of the user
     mapping(address => address) public userToWithdrawalAccount;
-    /// @notice mapping of the user to the withdrawal limit
+    /// @notice Returns the withdrawal limit of the user
     mapping(address => uint256) public userToWithdrawalLimit;
-    /// @notice mapping of the withdrawal hash to whether the withdrawal has been executed
+    /// @notice Returns if a withdrawal with a hash is executed
     mapping(bytes32 => bool) public withdrawalWithHashIsExecuted;
 
-    /// @param _accessControlRegistry The address of the AccessControlRegistry contract
-    /// @param _adminRoleDescription The description of the AdminRole
-    /// @param _manager The address of the manager
-    /// @param _token The address of the ERC20 token that this contract holds
+    /// @param _accessControlRegistry AccessControlRegistry contract address
+    /// @param _adminRoleDescription Admin role description
+    /// @param _manager Manager address
+    /// @param _token Contract address of the ERC20 token that prepayments can
+    /// be made in
     constructor(
         address _accessControlRegistry,
         string memory _adminRoleDescription,
@@ -105,11 +106,10 @@ contract PrepaymentDepository is
         );
     }
 
-    /// @notice Called by the user to set its withdrawal account
-    /// @dev If it was not set before, only the user can call this function
-    /// if it was set before, only the withdrawal account can call this function
-    /// @param user The address of the user
-    /// @param withdrawalAccount The address of the withdrawal account
+    /// @notice Called by the user that has not set a withdrawal account to set
+    /// one or called by a withdrawal account to set a new one
+    /// @param user User address
+    /// @param withdrawalAccount Withdrawal account address
     function setWithdrawalAccount(
         address user,
         address withdrawalAccount
@@ -125,11 +125,11 @@ contract PrepaymentDepository is
         userToWithdrawalAccount[user] = withdrawalAccount;
     }
 
-    /// @notice Called by the userWithdrawalLimitIncreaserRole or the manager
-    /// to increase the withdrawal limit for the user
-    /// @dev Will be used to revert faulty decreaseUserWithdrawalLimit() calls
-    /// @param user The address of the user
-    /// @param amount The amount to increase the withdrawal limit by
+    /// @notice Called to increase the withdrawal limit of the user
+    /// @dev This function is intended to be used to revert faulty
+    /// `decreaseUserWithdrawalLimit()` calls
+    /// @param user User address
+    /// @param amount Amount to increase the withdrawal limit by
     function increaseUserWithdrawalLimit(
         address user,
         uint256 amount
@@ -149,10 +149,9 @@ contract PrepaymentDepository is
         emit IncreasedUserWithdrawalLimit(user, amount, withdrawalLimit);
     }
 
-    /// @notice Called by the userWithdrawalLimitDecreaserRole or the manager
-    /// to decrease the withdrawal limit for the user
-    /// @param user The address of the user
-    /// @param amount The amount to decrease the withdrawal limit by
+    /// @notice Called to decrease the withdrawal limit of the user
+    /// @param user User address
+    /// @param amount Amount to decrease the withdrawal limit by
     function decreaseUserWithdrawalLimit(
         address user,
         uint256 amount
@@ -174,8 +173,8 @@ contract PrepaymentDepository is
         emit DecreasedUserWithdrawalLimit(user, amount, withdrawalLimit);
     }
 
-    /// @notice Called by the TokenClaimerRole or the manager to claim tokens
-    /// @param amount The amount of tokens to claim
+    /// @notice Called to claim tokens
+    /// @param amount Amount of tokens to claim
     function claim(uint256 amount) external {
         require(
             _msgSender() == manager ||
@@ -193,14 +192,14 @@ contract PrepaymentDepository is
         );
     }
 
-    /// @notice Called by the user to deposit tokens
-    /// on behalf of another user
-    /// @param user The address to deposit tokens on behalf of
-    /// @param amount The amount of tokens to deposit
-    /// @param deadline The deadline for the permit
-    /// @param v The v component of the signature
-    /// @param r The r component of the signature
-    /// @param s The s component of the signature
+    /// @notice Called to deposit tokens on behalf of a user
+    /// @dev Sender needs to have used ERC2612 to approve the transfer
+    /// @param user User address
+    /// @param amount Amount of tokens to deposit
+    /// @param deadline Deadline of the permit
+    /// @param v v component of the signature
+    /// @param r r component of the signature
+    /// @param s s component of the signature
     function deposit(
         address user,
         uint256 amount,
@@ -228,12 +227,11 @@ contract PrepaymentDepository is
         );
     }
 
-    /// @notice Called by a depositor to withdraw tokens
-    /// @param amount The amount of tokens to withdraw
-    /// @param expirationTimestamp The expiration timestamp of the signature
-    /// @param withdrawalSigner The address of the WithdrawalSignerRole or the manager
-    /// @param signature The signature of the withdrawal signed by
-    /// the WithdrawalSignerRole or the manager
+    /// @notice Called by a user to withdraw tokens
+    /// @param amount Amount of tokens to withdraw
+    /// @param expirationTimestamp Expiration timestamp of the signature
+    /// @param withdrawalSigner Address of the account that signed the withdrawal
+    /// @param signature Withdrawal signature
     function withdraw(
         uint256 amount,
         uint256 expirationTimestamp,
