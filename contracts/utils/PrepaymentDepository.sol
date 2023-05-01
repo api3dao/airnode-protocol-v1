@@ -109,7 +109,7 @@ contract PrepaymentDepository is
     function setWithdrawalAccount(
         address user,
         address withdrawalAccount
-    ) external {
+    ) external override {
         if (userToWithdrawalAccount[user] == address(0)) {
             require(_msgSender() == user, "Not user");
         } else {
@@ -129,7 +129,7 @@ contract PrepaymentDepository is
     function increaseUserWithdrawalLimit(
         address user,
         uint256 amount
-    ) external {
+    ) external override {
         require(
             _msgSender() == manager ||
                 IAccessControlRegistry(accessControlRegistry).hasRole(
@@ -151,7 +151,7 @@ contract PrepaymentDepository is
     function decreaseUserWithdrawalLimit(
         address user,
         uint256 amount
-    ) external {
+    ) external override {
         require(
             _msgSender() == manager ||
                 IAccessControlRegistry(accessControlRegistry).hasRole(
@@ -171,7 +171,7 @@ contract PrepaymentDepository is
 
     /// @notice Called to claim tokens
     /// @param amount Amount of tokens to claim
-    function claim(uint256 amount) external {
+    function claim(uint256 amount) external override {
         require(
             _msgSender() == manager ||
                 IAccessControlRegistry(accessControlRegistry).hasRole(
@@ -203,7 +203,7 @@ contract PrepaymentDepository is
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) external {
+    ) external override {
         require(user != address(0), "User address zero");
         require(amount != 0, "Amount zero");
         userToWithdrawalLimit[user] += amount;
@@ -233,7 +233,7 @@ contract PrepaymentDepository is
         uint256 expirationTimestamp,
         address withdrawalSigner,
         bytes calldata signature
-    ) external returns (address withdrawalAccount) {
+    ) external override returns (address withdrawalAccount) {
         require(amount != 0, "Amount zero");
         require(block.timestamp < expirationTimestamp, "Signature expired");
         require(

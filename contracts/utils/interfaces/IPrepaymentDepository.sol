@@ -29,6 +29,33 @@ interface IPrepaymentDepository {
         address withdrawalSigner
     );
 
+    function setWithdrawalAccount(
+        address user,
+        address withdrawalAccount
+    ) external;
+
+    function increaseUserWithdrawalLimit(address user, uint256 amount) external;
+
+    function decreaseUserWithdrawalLimit(address user, uint256 amount) external;
+
+    function claim(uint256 amount) external;
+
+    function deposit(
+        address user,
+        uint256 amount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external;
+
+    function withdraw(
+        uint256 amount,
+        uint256 expirationTimestamp,
+        address withdrawalSigner,
+        bytes calldata signature
+    ) external returns (address withdrawalAccount);
+
     // solhint-disable-next-line func-name-mixedcase
     function WITHDRAWAL_SIGNER_ROLE_DESCRIPTION()
         external
