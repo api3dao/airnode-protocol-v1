@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-interface IPrepaymentDepository {
+import "../../access-control-registry/interfaces/IAccessControlRegistryAdminnedWithManager.sol";
+
+interface IPrepaymentDepository is IAccessControlRegistryAdminnedWithManager {
     event IncreasedUserWithdrawalLimit(
         address indexed user,
         uint256 amount,
