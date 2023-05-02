@@ -90,7 +90,7 @@ describe('PrepaymentDepository', function () {
 
     const accessControlRegistryFactory = await ethers.getContractFactory('AccessControlRegistry', roles.deployer);
     const accessControlRegistry = await accessControlRegistryFactory.deploy();
-    const tokenFactory = await ethers.getContractFactory('MockToken', roles.deployer);
+    const tokenFactory = await ethers.getContractFactory('MockErc20PermitToken', roles.deployer);
     const token = await tokenFactory.deploy();
     const prepaymentRepositoryFactory = await ethers.getContractFactory('PrepaymentDepository', roles.deployer);
     const prepaymentDepository = await prepaymentRepositoryFactory.deploy(
