@@ -85,7 +85,6 @@ contract PrepaymentDepository is
     /// @param _manager Manager address
     /// @param _token Contract address of the ERC20 token that prepayments are
     /// made in
-    /// @dev ERC20 token contract must implement ERC2612
     constructor(
         address _accessControlRegistry,
         string memory _adminRoleDescription,
@@ -227,23 +226,14 @@ contract PrepaymentDepository is
     }
 
     /// @notice Called to deposit tokens on behalf of a user
-    /// @dev Sender needs to have used ERC2612 to approve the transfer
     /// @param user User address
     /// @param amount Amount of tokens to deposit
-    /// @param deadline Deadline of the permit
-    /// @param v v component of the signature
-    /// @param r r component of the signature
-    /// @param s s component of the signature
     /// @return withdrawalLimit Increased withdrawal limit
     function deposit(
         address user,
-        uint256 amount,
-        uint256 deadline,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
+        uint256 amount
     )
-        external
+        public
         override
         onlyNonZeroUserAddressAndAmount(user, amount)
         returns (uint256 withdrawalLimit)
@@ -251,6 +241,28 @@ contract PrepaymentDepository is
         withdrawalLimit = userToWithdrawalLimit[user] + amount;
         userToWithdrawalLimit[user] = withdrawalLimit;
         emit Deposited(user, amount, withdrawalLimit, msg.sender);
+        require(
+            IERC20(token).transferFrom(msg.sender, address(this), amount),
+            TRANSFER_UNSUCCESSFUL_REVERT_STRING
+        );
+    }
+
+    /// @notice Called to deposit tokens on behalf of a user using ERC2612
+    /// @param user User address
+    /// @param amount Amount of tokens to deposit
+    /// @param deadline Deadline of the permit
+    /// @param v v component of the signature
+    /// @param r r component of the signature
+    /// @param s s component of the signature
+    /// @return withdrawalLimit Increased withdrawal limit
+    function depositWithPermit(
+        address user,
+        uint256 amount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external override returns (uint256 withdrawalLimit) {
         IERC20Permit(token).permit(
             msg.sender,
             address(this),
@@ -260,10 +272,7 @@ contract PrepaymentDepository is
             r,
             s
         );
-        require(
-            IERC20(token).transferFrom(msg.sender, address(this), amount),
-            TRANSFER_UNSUCCESSFUL_REVERT_STRING
-        );
+        withdrawalLimit = deposit(user, amount);
     }
 
     /// @notice Called by a user to withdraw tokens
