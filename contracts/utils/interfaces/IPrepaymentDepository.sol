@@ -61,7 +61,7 @@ interface IPrepaymentDepository is IAccessControlRegistryAdminnedWithManager {
         uint256 amount
     ) external returns (uint256 withdrawalLimit);
 
-    function depositWithPermit(
+    function applyPermitAndDeposit(
         address user,
         uint256 amount,
         uint256 deadline,

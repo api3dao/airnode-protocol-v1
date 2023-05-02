@@ -252,7 +252,8 @@ contract PrepaymentDepository is
         );
     }
 
-    /// @notice Called to deposit tokens on behalf of a user using ERC2612
+    /// @notice Called to apply a ERC2612 permit and deposit tokens on behalf
+    /// of a user
     /// @param user User address
     /// @param amount Amount of tokens to deposit
     /// @param deadline Deadline of the permit
@@ -260,7 +261,7 @@ contract PrepaymentDepository is
     /// @param r r component of the signature
     /// @param s s component of the signature
     /// @return withdrawalLimit Increased withdrawal limit
-    function depositWithPermit(
+    function applyPermitAndDeposit(
         address user,
         uint256 amount,
         uint256 deadline,
