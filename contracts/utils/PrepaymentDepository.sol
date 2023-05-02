@@ -43,8 +43,6 @@ contract PrepaymentDepository is
 
     // We prefer revert strings over custom errors because not all chains and
     // block explorers support custom errors
-    string private constant USER_ADDRESS_ZERO_REVERT_STRING =
-        "User address zero";
     string private constant AMOUNT_ZERO_REVERT_STRING = "Amount zero";
     string private constant AMOUNT_EXCEEDS_LIMIT_REVERT_STRING =
         "Amount exceeds limit";
@@ -72,6 +70,15 @@ contract PrepaymentDepository is
 
     /// @notice Returns if the withdrawal with the hash is executed
     mapping(bytes32 => bool) public withdrawalWithHashIsExecuted;
+
+    /// @param user User address
+    /// @param amount Amount
+    /// @dev Reverts if user address or amount is zero
+    modifier onlyNonZeroUserAddressAndAmount(address user, uint256 amount) {
+        require(user != address(0), "User address zero");
+        require(amount != 0, AMOUNT_ZERO_REVERT_STRING);
+        _;
+    }
 
     /// @param _accessControlRegistry AccessControlRegistry contract address
     /// @param _adminRoleDescription Admin role description
@@ -140,7 +147,12 @@ contract PrepaymentDepository is
     function increaseUserWithdrawalLimit(
         address user,
         uint256 amount
-    ) external override returns (uint256 withdrawalLimit) {
+    )
+        external
+        override
+        onlyNonZeroUserAddressAndAmount(user, amount)
+        returns (uint256 withdrawalLimit)
+    {
         require(
             msg.sender == manager ||
                 IAccessControlRegistry(accessControlRegistry).hasRole(
@@ -149,8 +161,6 @@ contract PrepaymentDepository is
                 ),
             "Cannot increase withdrawal limit"
         );
-        require(user != address(0), USER_ADDRESS_ZERO_REVERT_STRING);
-        require(amount != 0, AMOUNT_ZERO_REVERT_STRING);
         withdrawalLimit = userToWithdrawalLimit[user] + amount;
         userToWithdrawalLimit[user] = withdrawalLimit;
         emit IncreasedUserWithdrawalLimit(
@@ -168,7 +178,12 @@ contract PrepaymentDepository is
     function decreaseUserWithdrawalLimit(
         address user,
         uint256 amount
-    ) external override returns (uint256 withdrawalLimit) {
+    )
+        external
+        override
+        onlyNonZeroUserAddressAndAmount(user, amount)
+        returns (uint256 withdrawalLimit)
+    {
         require(
             msg.sender == manager ||
                 IAccessControlRegistry(accessControlRegistry).hasRole(
@@ -177,8 +192,6 @@ contract PrepaymentDepository is
                 ),
             "Cannot decrease withdrawal limit"
         );
-        require(user != address(0), USER_ADDRESS_ZERO_REVERT_STRING);
-        require(amount != 0, AMOUNT_ZERO_REVERT_STRING);
         uint256 oldWithdrawalLimit = userToWithdrawalLimit[user];
         require(
             amount <= oldWithdrawalLimit,
@@ -229,9 +242,12 @@ contract PrepaymentDepository is
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) external override returns (uint256 withdrawalLimit) {
-        require(user != address(0), USER_ADDRESS_ZERO_REVERT_STRING);
-        require(amount != 0, AMOUNT_ZERO_REVERT_STRING);
+    )
+        external
+        override
+        onlyNonZeroUserAddressAndAmount(user, amount)
+        returns (uint256 withdrawalLimit)
+    {
         withdrawalLimit = userToWithdrawalLimit[user] + amount;
         userToWithdrawalLimit[user] = withdrawalLimit;
         emit Deposited(user, amount, withdrawalLimit, msg.sender);
