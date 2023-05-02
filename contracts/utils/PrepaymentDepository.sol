@@ -10,8 +10,8 @@ import "@openzeppelin/contracts/token/ERC20/extensions/draft-IERC20Permit.sol";
 /// @title Contract that enables micropayments to be prepaid in batch
 /// @notice `manager` represents the payment recipient, and its various
 /// privileges can be delegated to other accounts through respective roles.
-/// `manager`, `userWithdrawalLimitIncreaser` and `tokenClaimer` roles should
-/// only be granted to a multisig or an equivalently decentralized account.
+/// `manager`, `userWithdrawalLimitIncreaser` and `claimer` roles should only
+/// be granted to a multisig or an equivalently decentralized account.
 /// `withdrawalSigner` issues ERC191 signatures, and thus has to be an EOA. It
 /// being compromised poses a risk in proportion to the redundancy in user
 /// withdrawal limits. Have a `userWithdrawalLimitDecreaser` decrease user
@@ -41,9 +41,8 @@ contract PrepaymentDepository is
         public constant
         override USER_WITHDRAWAL_LIMIT_DECREASER_ROLE_DESCRIPTION =
         "User withdrawal limit decreaser";
-    /// @notice Token claimer role description
-    string public constant override TOKEN_CLAIMER_ROLE_DESCRIPTION =
-        "Token claimer";
+    /// @notice Claimer role description
+    string public constant override CLAIMER_ROLE_DESCRIPTION = "Claimer";
 
     // We prefer revert strings over custom errors because not all chains and
     // block explorers support custom errors
@@ -59,8 +58,8 @@ contract PrepaymentDepository is
     bytes32 public immutable override userWithdrawalLimitIncreaserRole;
     /// @notice User withdrawal limit decreaser role
     bytes32 public immutable override userWithdrawalLimitDecreaserRole;
-    /// @notice Token claimer role
-    bytes32 public immutable override tokenClaimerRole;
+    /// @notice Claimer role
+    bytes32 public immutable override claimerRole;
 
     /// @notice Contract address of the ERC20 token that prepayments can be
     /// made in
@@ -115,9 +114,9 @@ contract PrepaymentDepository is
             _deriveAdminRole(manager),
             USER_WITHDRAWAL_LIMIT_DECREASER_ROLE_DESCRIPTION
         );
-        tokenClaimerRole = _deriveRole(
+        claimerRole = _deriveRole(
             _deriveAdminRole(manager),
-            TOKEN_CLAIMER_ROLE_DESCRIPTION
+            CLAIMER_ROLE_DESCRIPTION
         );
     }
 
@@ -219,10 +218,10 @@ contract PrepaymentDepository is
         require(
             msg.sender == manager ||
                 IAccessControlRegistry(accessControlRegistry).hasRole(
-                    tokenClaimerRole,
+                    claimerRole,
                     msg.sender
                 ),
-            "Cannot claim tokens"
+            "Cannot claim"
         );
         emit Claimed(recipient, amount, msg.sender);
         require(

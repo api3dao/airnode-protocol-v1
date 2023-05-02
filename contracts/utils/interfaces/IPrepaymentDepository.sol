@@ -96,10 +96,7 @@ interface IPrepaymentDepository is IAccessControlRegistryAdminnedWithManager {
         returns (string memory);
 
     // solhint-disable-next-line func-name-mixedcase
-    function TOKEN_CLAIMER_ROLE_DESCRIPTION()
-        external
-        view
-        returns (string memory);
+    function CLAIMER_ROLE_DESCRIPTION() external view returns (string memory);
 
     function withdrawalSignerRole() external view returns (bytes32);
 
@@ -107,7 +104,7 @@ interface IPrepaymentDepository is IAccessControlRegistryAdminnedWithManager {
 
     function userWithdrawalLimitDecreaserRole() external view returns (bytes32);
 
-    function tokenClaimerRole() external view returns (bytes32);
+    function claimerRole() external view returns (bytes32);
 
     function token() external view returns (address);
 }
