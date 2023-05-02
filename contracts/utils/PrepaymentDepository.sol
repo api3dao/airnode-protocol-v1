@@ -207,8 +207,9 @@ contract PrepaymentDepository is
     }
 
     /// @notice Called to claim tokens
+    /// @param recipient Recipient address
     /// @param amount Amount of tokens to claim
-    function claim(uint256 amount) external override {
+    function claim(address recipient, uint256 amount) external override {
         require(
             msg.sender == manager ||
                 IAccessControlRegistry(accessControlRegistry).hasRole(
@@ -218,9 +219,9 @@ contract PrepaymentDepository is
             "Cannot claim tokens"
         );
         require(amount != 0, AMOUNT_ZERO_REVERT_STRING);
-        emit Claimed(amount, msg.sender);
+        emit Claimed(recipient, amount, msg.sender);
         require(
-            IERC20(token).transfer(msg.sender, amount),
+            IERC20(token).transfer(recipient, amount),
             TRANSFER_UNSUCCESSFUL_REVERT_STRING
         );
     }

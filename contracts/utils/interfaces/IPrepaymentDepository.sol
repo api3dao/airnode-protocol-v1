@@ -20,7 +20,7 @@ interface IPrepaymentDepository is IAccessControlRegistryAdminnedWithManager {
         address sender
     );
 
-    event Claimed(uint256 amount, address sender);
+    event Claimed(address recipient, uint256 amount, address sender);
 
     event Deposited(
         address indexed user,
@@ -54,7 +54,7 @@ interface IPrepaymentDepository is IAccessControlRegistryAdminnedWithManager {
         uint256 amount
     ) external returns (uint256 withdrawalLimit);
 
-    function claim(uint256 amount) external;
+    function claim(address recipient, uint256 amount) external;
 
     function deposit(
         address user,
