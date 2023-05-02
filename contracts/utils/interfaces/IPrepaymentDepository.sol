@@ -4,31 +4,39 @@ pragma solidity ^0.8.0;
 import "../../access-control-registry/interfaces/IAccessControlRegistryAdminnedWithManager.sol";
 
 interface IPrepaymentDepository is IAccessControlRegistryAdminnedWithManager {
+    event SetWithdrawalAccount(address indexed user, address withdrawalAccount);
+
     event IncreasedUserWithdrawalLimit(
         address indexed user,
         uint256 amount,
-        uint256 withdrawalLimit
+        uint256 withdrawalLimit,
+        address sender
     );
 
     event DecreasedUserWithdrawalLimit(
         address indexed user,
         uint256 amount,
-        uint256 withdrawalLimit
+        uint256 withdrawalLimit,
+        address sender
     );
 
-    event Claimed(uint256 amount);
+    event Claimed(uint256 amount, address sender);
 
     event Deposited(
-        address indexed depositor,
         address indexed user,
-        uint256 amount
+        uint256 amount,
+        uint256 withdrawalLimit,
+        address sender
     );
 
     event Withdrew(
         address indexed user,
         bytes32 indexed withdrawalHash,
         uint256 amount,
-        address withdrawalSigner
+        uint256 expirationTimestamp,
+        address withdrawalSigner,
+        address withdrawalAccount,
+        uint256 withdrawalLimit
     );
 
     function setWithdrawalAccount(

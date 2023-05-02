@@ -119,6 +119,7 @@ contract PrepaymentDepository is
             );
         }
         userToWithdrawalAccount[user] = withdrawalAccount;
+        emit SetWithdrawalAccount(user, withdrawalAccount);
     }
 
     /// @notice Called to increase the withdrawal limit of the user
@@ -143,7 +144,12 @@ contract PrepaymentDepository is
         require(amount != 0, "Amount zero");
         withdrawalLimit = userToWithdrawalLimit[user] + amount;
         userToWithdrawalLimit[user] = withdrawalLimit;
-        emit IncreasedUserWithdrawalLimit(user, amount, withdrawalLimit);
+        emit IncreasedUserWithdrawalLimit(
+            user,
+            amount,
+            withdrawalLimit,
+            msg.sender
+        );
     }
 
     /// @notice Called to decrease the withdrawal limit of the user
@@ -168,7 +174,12 @@ contract PrepaymentDepository is
         require(amount <= oldWithdrawalLimit, "Amount exceeds limit");
         withdrawalLimit = oldWithdrawalLimit - amount;
         userToWithdrawalLimit[user] = withdrawalLimit;
-        emit DecreasedUserWithdrawalLimit(user, amount, withdrawalLimit);
+        emit DecreasedUserWithdrawalLimit(
+            user,
+            amount,
+            withdrawalLimit,
+            msg.sender
+        );
     }
 
     /// @notice Called to claim tokens
@@ -183,7 +194,7 @@ contract PrepaymentDepository is
             "Cannot claim tokens"
         );
         require(amount != 0, "Amount zero");
-        emit Claimed(amount);
+        emit Claimed(amount, msg.sender);
         require(
             IERC20(token).transfer(msg.sender, amount),
             "Transfer unsuccessful"
@@ -211,7 +222,7 @@ contract PrepaymentDepository is
         require(amount != 0, "Amount zero");
         withdrawalLimit = userToWithdrawalLimit[user] + amount;
         userToWithdrawalLimit[user] = withdrawalLimit;
-        emit Deposited(msg.sender, user, amount);
+        emit Deposited(user, amount, withdrawalLimit, msg.sender);
         IERC20Permit(token).permit(
             msg.sender,
             address(this),
@@ -283,10 +294,13 @@ contract PrepaymentDepository is
         withdrawalLimit = oldWithdrawalLimit - amount;
         userToWithdrawalLimit[msg.sender] = withdrawalLimit;
         emit Withdrew(
-            withdrawalAccount,
+            msg.sender,
             withdrawalHash,
             amount,
-            withdrawalSigner
+            expirationTimestamp,
+            withdrawalSigner,
+            withdrawalAccount,
+            withdrawalLimit
         );
         require(
             IERC20(token).transfer(withdrawalAccount, amount),
