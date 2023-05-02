@@ -4,7 +4,10 @@ pragma solidity ^0.8.0;
 import "../../access-control-registry/interfaces/IAccessControlRegistryAdminnedWithManager.sol";
 
 interface IPrepaymentDepository is IAccessControlRegistryAdminnedWithManager {
-    event SetWithdrawalAccount(address indexed user, address withdrawalAccount);
+    event SetWithdrawalDestination(
+        address indexed user,
+        address withdrawalDestination
+    );
 
     event IncreasedUserWithdrawalLimit(
         address indexed user,
@@ -35,13 +38,13 @@ interface IPrepaymentDepository is IAccessControlRegistryAdminnedWithManager {
         uint256 amount,
         uint256 expirationTimestamp,
         address withdrawalSigner,
-        address withdrawalAccount,
+        address withdrawalDestination,
         uint256 withdrawalLimit
     );
 
-    function setWithdrawalAccount(
+    function setWithdrawalDestination(
         address user,
-        address withdrawalAccount
+        address withdrawalDestination
     ) external;
 
     function increaseUserWithdrawalLimit(
@@ -75,7 +78,7 @@ interface IPrepaymentDepository is IAccessControlRegistryAdminnedWithManager {
         uint256 expirationTimestamp,
         address withdrawalSigner,
         bytes calldata signature
-    ) external returns (address withdrawalAccount, uint256 withdrawalLimit);
+    ) external returns (address withdrawalDestination, uint256 withdrawalLimit);
 
     // solhint-disable-next-line func-name-mixedcase
     function WITHDRAWAL_SIGNER_ROLE_DESCRIPTION()

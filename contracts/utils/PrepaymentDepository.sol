@@ -65,8 +65,8 @@ contract PrepaymentDepository is
     /// made in
     address public immutable override token;
 
-    /// @notice Returns the withdrawal account address of the user
-    mapping(address => address) public userToWithdrawalAccount;
+    /// @notice Returns the withdrawal destination of the user
+    mapping(address => address) public userToWithdrawalDestination;
 
     /// @notice Returns the withdrawal limit of the user
     mapping(address => uint256) public userToWithdrawalLimit;
@@ -120,24 +120,24 @@ contract PrepaymentDepository is
         );
     }
 
-    /// @notice Called by the user that has not set a withdrawal account to set
-    /// a withdrawal account, or called by the withdrawal account of a user to
-    /// set a new withdrawal account
+    /// @notice Called by the user that has not set a withdrawal destination to
+    /// set a withdrawal destination, or called by the withdrawal destination
+    /// of a user to set a new withdrawal destination
     /// @param user User address
-    /// @param withdrawalAccount Withdrawal account address
-    function setWithdrawalAccount(
+    /// @param withdrawalDestination Withdrawal destination
+    function setWithdrawalDestination(
         address user,
-        address withdrawalAccount
+        address withdrawalDestination
     ) external override {
-        require(user != withdrawalAccount, "Same user and withdrawal account");
+        require(user != withdrawalDestination, "Same user and destination");
         require(
             (msg.sender == user &&
-                userToWithdrawalAccount[user] == address(0)) ||
-                (msg.sender == userToWithdrawalAccount[user]),
-            "Sender not withdrawal account"
+                userToWithdrawalDestination[user] == address(0)) ||
+                (msg.sender == userToWithdrawalDestination[user]),
+            "Sender not destination"
         );
-        userToWithdrawalAccount[user] = withdrawalAccount;
-        emit SetWithdrawalAccount(user, withdrawalAccount);
+        userToWithdrawalDestination[user] = withdrawalDestination;
+        emit SetWithdrawalDestination(user, withdrawalDestination);
     }
 
     /// @notice Called to increase the withdrawal limit of the user
@@ -284,9 +284,10 @@ contract PrepaymentDepository is
     /// @notice Called by a user to withdraw tokens
     /// @param amount Amount of tokens to withdraw
     /// @param expirationTimestamp Expiration timestamp of the signature
-    /// @param withdrawalSigner Address of the account that signed the withdrawal
+    /// @param withdrawalSigner Address of the account that signed the
+    /// withdrawal
     /// @param signature Withdrawal signature
-    /// @return withdrawalAccount Withdrawal account address
+    /// @return withdrawalDestination Withdrawal destination
     /// @return withdrawalLimit Decreased withdrawal limit
     function withdraw(
         uint256 amount,
@@ -296,7 +297,7 @@ contract PrepaymentDepository is
     )
         external
         override
-        returns (address withdrawalAccount, uint256 withdrawalLimit)
+        returns (address withdrawalDestination, uint256 withdrawalLimit)
     {
         require(amount != 0, AMOUNT_ZERO_REVERT_STRING);
         require(block.timestamp < expirationTimestamp, "Signature expired");
