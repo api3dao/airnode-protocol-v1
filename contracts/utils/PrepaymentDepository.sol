@@ -126,10 +126,11 @@ contract PrepaymentDepository is
     /// `decreaseUserWithdrawalLimit()` calls
     /// @param user User address
     /// @param amount Amount to increase the withdrawal limit by
+    /// @return withdrawalLimit Increased withdrawal limit
     function increaseUserWithdrawalLimit(
         address user,
         uint256 amount
-    ) external override {
+    ) external override returns (uint256 withdrawalLimit) {
         require(
             msg.sender == manager ||
                 IAccessControlRegistry(accessControlRegistry).hasRole(
@@ -140,7 +141,7 @@ contract PrepaymentDepository is
         );
         require(user != address(0), "User address zero");
         require(amount != 0, "Amount zero");
-        uint256 withdrawalLimit = userToWithdrawalLimit[user] + amount;
+        withdrawalLimit = userToWithdrawalLimit[user] + amount;
         userToWithdrawalLimit[user] = withdrawalLimit;
         emit IncreasedUserWithdrawalLimit(user, amount, withdrawalLimit);
     }
@@ -148,10 +149,11 @@ contract PrepaymentDepository is
     /// @notice Called to decrease the withdrawal limit of the user
     /// @param user User address
     /// @param amount Amount to decrease the withdrawal limit by
+    /// @return withdrawalLimit Decreased withdrawal limit
     function decreaseUserWithdrawalLimit(
         address user,
         uint256 amount
-    ) external override {
+    ) external override returns (uint256 withdrawalLimit) {
         require(
             msg.sender == manager ||
                 IAccessControlRegistry(accessControlRegistry).hasRole(
@@ -164,7 +166,7 @@ contract PrepaymentDepository is
         require(amount != 0, "Amount zero");
         uint256 oldWithdrawalLimit = userToWithdrawalLimit[user];
         require(amount <= oldWithdrawalLimit, "Amount exceeds limit");
-        uint256 withdrawalLimit = oldWithdrawalLimit - amount;
+        withdrawalLimit = oldWithdrawalLimit - amount;
         userToWithdrawalLimit[user] = withdrawalLimit;
         emit DecreasedUserWithdrawalLimit(user, amount, withdrawalLimit);
     }
@@ -196,6 +198,7 @@ contract PrepaymentDepository is
     /// @param v v component of the signature
     /// @param r r component of the signature
     /// @param s s component of the signature
+    /// @return withdrawalLimit Increased withdrawal limit
     function deposit(
         address user,
         uint256 amount,
@@ -203,10 +206,11 @@ contract PrepaymentDepository is
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) external override {
+    ) external override returns (uint256 withdrawalLimit) {
         require(user != address(0), "User address zero");
         require(amount != 0, "Amount zero");
-        userToWithdrawalLimit[user] += amount;
+        withdrawalLimit = userToWithdrawalLimit[user] + amount;
+        userToWithdrawalLimit[user] = withdrawalLimit;
         emit Deposited(msg.sender, user, amount);
         IERC20Permit(token).permit(
             msg.sender,
@@ -228,12 +232,18 @@ contract PrepaymentDepository is
     /// @param expirationTimestamp Expiration timestamp of the signature
     /// @param withdrawalSigner Address of the account that signed the withdrawal
     /// @param signature Withdrawal signature
+    /// @return withdrawalAccount Withdrawal account address
+    /// @return withdrawalLimit Decreased withdrawal limit
     function withdraw(
         uint256 amount,
         uint256 expirationTimestamp,
         address withdrawalSigner,
         bytes calldata signature
-    ) external override returns (address withdrawalAccount) {
+    )
+        external
+        override
+        returns (address withdrawalAccount, uint256 withdrawalLimit)
+    {
         require(amount != 0, "Amount zero");
         require(block.timestamp < expirationTimestamp, "Signature expired");
         require(
@@ -268,9 +278,10 @@ contract PrepaymentDepository is
             "Request already executed"
         );
         withdrawalWithHashIsExecuted[withdrawalHash] = true;
-        uint256 withdrawalLimit = userToWithdrawalLimit[msg.sender];
-        require(amount <= withdrawalLimit, "Amount exceeds limit");
-        userToWithdrawalLimit[msg.sender] = withdrawalLimit - amount;
+        uint256 oldWithdrawalLimit = userToWithdrawalLimit[msg.sender];
+        require(amount <= oldWithdrawalLimit, "Amount exceeds limit");
+        withdrawalLimit = oldWithdrawalLimit - amount;
+        userToWithdrawalLimit[msg.sender] = withdrawalLimit;
         emit Withdrew(
             withdrawalAccount,
             withdrawalHash,

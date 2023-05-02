@@ -36,9 +36,15 @@ interface IPrepaymentDepository is IAccessControlRegistryAdminnedWithManager {
         address withdrawalAccount
     ) external;
 
-    function increaseUserWithdrawalLimit(address user, uint256 amount) external;
+    function increaseUserWithdrawalLimit(
+        address user,
+        uint256 amount
+    ) external returns (uint256 withdrawalLimit);
 
-    function decreaseUserWithdrawalLimit(address user, uint256 amount) external;
+    function decreaseUserWithdrawalLimit(
+        address user,
+        uint256 amount
+    ) external returns (uint256 withdrawalLimit);
 
     function claim(uint256 amount) external;
 
@@ -49,14 +55,14 @@ interface IPrepaymentDepository is IAccessControlRegistryAdminnedWithManager {
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) external;
+    ) external returns (uint256 withdrawalLimit);
 
     function withdraw(
         uint256 amount,
         uint256 expirationTimestamp,
         address withdrawalSigner,
         bytes calldata signature
-    ) external returns (address withdrawalAccount);
+    ) external returns (address withdrawalAccount, uint256 withdrawalLimit);
 
     // solhint-disable-next-line func-name-mixedcase
     function WITHDRAWAL_SIGNER_ROLE_DESCRIPTION()
