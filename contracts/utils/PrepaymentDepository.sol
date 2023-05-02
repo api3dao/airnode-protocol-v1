@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 import "../access-control-registry/AccessControlRegistryAdminnedWithManager.sol";
 import "./interfaces/IPrepaymentDepository.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
@@ -20,7 +19,6 @@ import "@openzeppelin/contracts/token/ERC20/extensions/draft-IERC20Permit.sol";
 /// The `userWithdrawalLimitDecreaser` role can be granted to an EOA, as it
 /// cannot cause irreversible harm.
 contract PrepaymentDepository is
-    ERC2771Context,
     AccessControlRegistryAdminnedWithManager,
     IPrepaymentDepository
 {
@@ -76,7 +74,6 @@ contract PrepaymentDepository is
         address _manager,
         address _token
     )
-        ERC2771Context(_accessControlRegistry)
         AccessControlRegistryAdminnedWithManager(
             _accessControlRegistry,
             _adminRoleDescription,
@@ -112,10 +109,10 @@ contract PrepaymentDepository is
         address withdrawalAccount
     ) external override {
         if (userToWithdrawalAccount[user] == address(0)) {
-            require(_msgSender() == user, "Not user");
+            require(msg.sender == user, "Not user");
         } else {
             require(
-                _msgSender() == userToWithdrawalAccount[user],
+                msg.sender == userToWithdrawalAccount[user],
                 "Not withdrawal account"
             );
         }
@@ -132,10 +129,10 @@ contract PrepaymentDepository is
         uint256 amount
     ) external override {
         require(
-            _msgSender() == manager ||
+            msg.sender == manager ||
                 IAccessControlRegistry(accessControlRegistry).hasRole(
                     userWithdrawalLimitIncreaserRole,
-                    _msgSender()
+                    msg.sender
                 ),
             "Cannot increase withdrawal limit"
         );
@@ -154,10 +151,10 @@ contract PrepaymentDepository is
         uint256 amount
     ) external override {
         require(
-            _msgSender() == manager ||
+            msg.sender == manager ||
                 IAccessControlRegistry(accessControlRegistry).hasRole(
                     userWithdrawalLimitDecreaserRole,
-                    _msgSender()
+                    msg.sender
                 ),
             "Cannot decrease withdrawal limit"
         );
@@ -174,17 +171,17 @@ contract PrepaymentDepository is
     /// @param amount Amount of tokens to claim
     function claim(uint256 amount) external override {
         require(
-            _msgSender() == manager ||
+            msg.sender == manager ||
                 IAccessControlRegistry(accessControlRegistry).hasRole(
                     tokenClaimerRole,
-                    _msgSender()
+                    msg.sender
                 ),
             "Cannot claim tokens"
         );
         require(amount != 0, "Amount zero");
         emit Claimed(amount);
         require(
-            IERC20(token).transfer(_msgSender(), amount),
+            IERC20(token).transfer(msg.sender, amount),
             "Transfer unsuccessful"
         );
     }
@@ -208,9 +205,9 @@ contract PrepaymentDepository is
         require(user != address(0), "User address zero");
         require(amount != 0, "Amount zero");
         userToWithdrawalLimit[user] += amount;
-        emit Deposited(_msgSender(), user, amount);
+        emit Deposited(msg.sender, user, amount);
         IERC20Permit(token).permit(
-            _msgSender(),
+            msg.sender,
             address(this),
             amount,
             deadline,
@@ -219,7 +216,7 @@ contract PrepaymentDepository is
             s
         );
         require(
-            IERC20(token).transferFrom(_msgSender(), address(this), amount),
+            IERC20(token).transferFrom(msg.sender, address(this), amount),
             "Transfer unsuccessful"
         );
     }
@@ -238,23 +235,23 @@ contract PrepaymentDepository is
         require(amount != 0, "Amount zero");
         require(block.timestamp < expirationTimestamp, "Signature expired");
         require(
-            _msgSender() == manager ||
+            msg.sender == manager ||
                 IAccessControlRegistry(accessControlRegistry).hasRole(
                     withdrawalSignerRole,
                     withdrawalSigner
                 ),
             "Cannot sign withdrawal"
         );
-        if (userToWithdrawalAccount[_msgSender()] == address(0)) {
-            withdrawalAccount = _msgSender();
+        if (userToWithdrawalAccount[msg.sender] == address(0)) {
+            withdrawalAccount = msg.sender;
         } else {
-            withdrawalAccount = userToWithdrawalAccount[_msgSender()];
+            withdrawalAccount = userToWithdrawalAccount[msg.sender];
         }
         bytes32 withdrawalHash = keccak256(
             abi.encodePacked(
                 block.chainid,
                 address(this),
-                _msgSender(),
+                msg.sender,
                 amount,
                 expirationTimestamp
             )
@@ -269,9 +266,9 @@ contract PrepaymentDepository is
             "Request already executed"
         );
         withdrawalWithHashIsExecuted[withdrawalHash] = true;
-        uint256 withdrawalLimit = userToWithdrawalLimit[_msgSender()];
+        uint256 withdrawalLimit = userToWithdrawalLimit[msg.sender];
         require(amount <= withdrawalLimit, "Amount exceeds limit");
-        userToWithdrawalLimit[_msgSender()] = withdrawalLimit - amount;
+        userToWithdrawalLimit[msg.sender] = withdrawalLimit - amount;
         emit Withdrew(
             withdrawalAccount,
             withdrawalHash,
