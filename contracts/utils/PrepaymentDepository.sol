@@ -41,7 +41,8 @@ contract PrepaymentDepository is
     string public constant override TOKEN_CLAIMER_ROLE_DESCRIPTION =
         "Token claimer";
 
-    /// @notice Contract address of the ERC20 token that prepayments can be made in
+    /// @notice Contract address of the ERC20 token that prepayments can be
+    /// made in
     address public immutable override token;
 
     /// @notice Withdrawal signer role
