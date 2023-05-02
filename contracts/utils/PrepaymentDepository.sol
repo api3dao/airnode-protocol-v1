@@ -18,6 +18,10 @@ import "@openzeppelin/contracts/token/ERC20/extensions/draft-IERC20Permit.sol";
 /// withdrawal limits as necessary to mitigate this risk.
 /// The `userWithdrawalLimitDecreaser` role can be granted to an EOA, as it
 /// cannot cause irreversible harm.
+/// This contract accepts prepayments in an ERC20 token specified immutably
+/// during construction. Do not use tokens that are not fully ERC20-compliant.
+/// An optional `depositWithPermit()` function is added to provide ERC2612
+/// support.
 contract PrepaymentDepository is
     AccessControlRegistryAdminnedWithManager,
     IPrepaymentDepository
