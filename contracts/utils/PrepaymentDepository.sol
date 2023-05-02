@@ -111,11 +111,11 @@ contract PrepaymentDepository is
         address withdrawalAccount
     ) external override {
         if (userToWithdrawalAccount[user] == address(0)) {
-            require(msg.sender == user, "Not user");
+            require(msg.sender == user, "Sender not user");
         } else {
             require(
                 msg.sender == userToWithdrawalAccount[user],
-                "Not withdrawal account"
+                "Sender not withdrawal account"
             );
         }
         userToWithdrawalAccount[user] = withdrawalAccount;
