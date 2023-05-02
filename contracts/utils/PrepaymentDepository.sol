@@ -300,19 +300,6 @@ contract PrepaymentDepository is
     {
         require(amount != 0, AMOUNT_ZERO_REVERT_STRING);
         require(block.timestamp < expirationTimestamp, "Signature expired");
-        require(
-            msg.sender == manager ||
-                IAccessControlRegistry(accessControlRegistry).hasRole(
-                    withdrawalSignerRole,
-                    withdrawalSigner
-                ),
-            "Cannot sign withdrawal"
-        );
-        if (userToWithdrawalAccount[msg.sender] == address(0)) {
-            withdrawalAccount = msg.sender;
-        } else {
-            withdrawalAccount = userToWithdrawalAccount[msg.sender];
-        }
         bytes32 withdrawalHash = keccak256(
             abi.encodePacked(
                 block.chainid,
@@ -323,13 +310,21 @@ contract PrepaymentDepository is
             )
         );
         require(
+            !withdrawalWithHashIsExecuted[withdrawalHash],
+            "Request already executed"
+        );
+        require(
+            withdrawalSigner == manager ||
+                IAccessControlRegistry(accessControlRegistry).hasRole(
+                    withdrawalSignerRole,
+                    withdrawalSigner
+                ),
+            "Cannot sign withdrawal"
+        );
+        require(
             (withdrawalHash.toEthSignedMessageHash()).recover(signature) ==
                 withdrawalSigner,
             "Signature mismatch"
-        );
-        require(
-            !withdrawalWithHashIsExecuted[withdrawalHash],
-            "Request already executed"
         );
         withdrawalWithHashIsExecuted[withdrawalHash] = true;
         uint256 oldWithdrawalLimit = userToWithdrawalLimit[msg.sender];
@@ -339,17 +334,22 @@ contract PrepaymentDepository is
         );
         withdrawalLimit = oldWithdrawalLimit - amount;
         userToWithdrawalLimit[msg.sender] = withdrawalLimit;
+        if (userToWithdrawalDestination[msg.sender] == address(0)) {
+            withdrawalDestination = msg.sender;
+        } else {
+            withdrawalDestination = userToWithdrawalDestination[msg.sender];
+        }
         emit Withdrew(
             msg.sender,
             withdrawalHash,
             amount,
             expirationTimestamp,
             withdrawalSigner,
-            withdrawalAccount,
+            withdrawalDestination,
             withdrawalLimit
         );
         require(
-            IERC20(token).transfer(withdrawalAccount, amount),
+            IERC20(token).transfer(withdrawalDestination, amount),
             TRANSFER_UNSUCCESSFUL_REVERT_STRING
         );
     }
