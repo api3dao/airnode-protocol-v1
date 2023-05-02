@@ -41,6 +41,16 @@ contract PrepaymentDepository is
     string public constant override TOKEN_CLAIMER_ROLE_DESCRIPTION =
         "Token claimer";
 
+    // We prefer revert strings over custom errors because not all chains and
+    // block explorers support custom errors
+    string private constant USER_ADDRESS_ZERO_REVERT_STRING =
+        "User address zero";
+    string private constant AMOUNT_ZERO_REVERT_STRING = "Amount zero";
+    string private constant AMOUNT_EXCEEDS_LIMIT_REVERT_STRING =
+        "Amount exceeds limit";
+    string private constant TRANSFER_UNSUCCESSFUL_REVERT_STRING =
+        "Transfer unsuccessful";
+
     /// @notice Withdrawal signer role
     bytes32 public immutable override withdrawalSignerRole;
     /// @notice User withdrawal limit increaser role
@@ -139,8 +149,8 @@ contract PrepaymentDepository is
                 ),
             "Cannot increase withdrawal limit"
         );
-        require(user != address(0), "User address zero");
-        require(amount != 0, "Amount zero");
+        require(user != address(0), USER_ADDRESS_ZERO_REVERT_STRING);
+        require(amount != 0, AMOUNT_ZERO_REVERT_STRING);
         withdrawalLimit = userToWithdrawalLimit[user] + amount;
         userToWithdrawalLimit[user] = withdrawalLimit;
         emit IncreasedUserWithdrawalLimit(
@@ -167,10 +177,13 @@ contract PrepaymentDepository is
                 ),
             "Cannot decrease withdrawal limit"
         );
-        require(user != address(0), "User address zero");
-        require(amount != 0, "Amount zero");
+        require(user != address(0), USER_ADDRESS_ZERO_REVERT_STRING);
+        require(amount != 0, AMOUNT_ZERO_REVERT_STRING);
         uint256 oldWithdrawalLimit = userToWithdrawalLimit[user];
-        require(amount <= oldWithdrawalLimit, "Amount exceeds limit");
+        require(
+            amount <= oldWithdrawalLimit,
+            AMOUNT_EXCEEDS_LIMIT_REVERT_STRING
+        );
         withdrawalLimit = oldWithdrawalLimit - amount;
         userToWithdrawalLimit[user] = withdrawalLimit;
         emit DecreasedUserWithdrawalLimit(
@@ -192,11 +205,11 @@ contract PrepaymentDepository is
                 ),
             "Cannot claim tokens"
         );
-        require(amount != 0, "Amount zero");
+        require(amount != 0, AMOUNT_ZERO_REVERT_STRING);
         emit Claimed(amount, msg.sender);
         require(
             IERC20(token).transfer(msg.sender, amount),
-            "Transfer unsuccessful"
+            TRANSFER_UNSUCCESSFUL_REVERT_STRING
         );
     }
 
@@ -217,8 +230,8 @@ contract PrepaymentDepository is
         bytes32 r,
         bytes32 s
     ) external override returns (uint256 withdrawalLimit) {
-        require(user != address(0), "User address zero");
-        require(amount != 0, "Amount zero");
+        require(user != address(0), USER_ADDRESS_ZERO_REVERT_STRING);
+        require(amount != 0, AMOUNT_ZERO_REVERT_STRING);
         withdrawalLimit = userToWithdrawalLimit[user] + amount;
         userToWithdrawalLimit[user] = withdrawalLimit;
         emit Deposited(user, amount, withdrawalLimit, msg.sender);
@@ -233,7 +246,7 @@ contract PrepaymentDepository is
         );
         require(
             IERC20(token).transferFrom(msg.sender, address(this), amount),
-            "Transfer unsuccessful"
+            TRANSFER_UNSUCCESSFUL_REVERT_STRING
         );
     }
 
@@ -254,7 +267,7 @@ contract PrepaymentDepository is
         override
         returns (address withdrawalAccount, uint256 withdrawalLimit)
     {
-        require(amount != 0, "Amount zero");
+        require(amount != 0, AMOUNT_ZERO_REVERT_STRING);
         require(block.timestamp < expirationTimestamp, "Signature expired");
         require(
             msg.sender == manager ||
@@ -289,7 +302,10 @@ contract PrepaymentDepository is
         );
         withdrawalWithHashIsExecuted[withdrawalHash] = true;
         uint256 oldWithdrawalLimit = userToWithdrawalLimit[msg.sender];
-        require(amount <= oldWithdrawalLimit, "Amount exceeds limit");
+        require(
+            amount <= oldWithdrawalLimit,
+            AMOUNT_EXCEEDS_LIMIT_REVERT_STRING
+        );
         withdrawalLimit = oldWithdrawalLimit - amount;
         userToWithdrawalLimit[msg.sender] = withdrawalLimit;
         emit Withdrew(
@@ -303,7 +319,7 @@ contract PrepaymentDepository is
         );
         require(
             IERC20(token).transfer(withdrawalAccount, amount),
-            "Transfer unsuccessful"
+            TRANSFER_UNSUCCESSFUL_REVERT_STRING
         );
     }
 }
