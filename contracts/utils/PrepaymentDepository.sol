@@ -312,7 +312,7 @@ contract PrepaymentDepository is
         );
         require(
             !withdrawalWithHashIsExecuted[withdrawalHash],
-            "Request already executed"
+            "Withdrawal already executed"
         );
         require(
             withdrawalSigner == manager ||
