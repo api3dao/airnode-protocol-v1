@@ -574,6 +574,11 @@ describe('PrepaymentDepository', function () {
             const initialBalance = await token.balanceOf(prepaymentDepository.address);
             const expectedBalance = initialBalance.add(depositAmount);
             await token.connect(roles.randomPerson).approve(prepaymentDepository.address, depositAmount);
+            expect(
+              await prepaymentDepository
+                .connect(roles.randomPerson)
+                .callStatic.deposit(roles.user.address, depositAmount)
+            ).to.equal(expectedLimit);
             await expect(prepaymentDepository.connect(roles.randomPerson).deposit(roles.user.address, depositAmount))
               .to.emit(prepaymentDepository, 'Deposited')
               .withArgs(roles.user.address, depositAmount, expectedLimit, roles.randomPerson.address);
@@ -630,6 +635,11 @@ describe('PrepaymentDepository', function () {
           depositAmount,
           deadline
         );
+        expect(
+          await prepaymentDepository
+            .connect(roles.randomPerson)
+            .callStatic.applyPermitAndDeposit(roles.user.address, depositAmount, deadline, v, r, s)
+        ).to.equal(expectedLimit);
         await expect(
           prepaymentDepository
             .connect(roles.randomPerson)
@@ -687,6 +697,14 @@ describe('PrepaymentDepository', function () {
                         withdrawalAmount,
                         expirationTimestamp
                       );
+                      const {
+                        withdrawalDestination: returnedWithdrawalDestination,
+                        withdrawalLimit: returnedWithdrawalLimit,
+                      } = await prepaymentDepository
+                        .connect(roles.user)
+                        .callStatic.withdraw(withdrawalAmount, expirationTimestamp, roles.manager.address, signature);
+                      expect(returnedWithdrawalDestination).to.equal(roles.user.address);
+                      expect(returnedWithdrawalLimit).to.equal(expectedLimit);
                       await expect(
                         prepaymentDepository
                           .connect(roles.user)
@@ -751,6 +769,14 @@ describe('PrepaymentDepository', function () {
                         withdrawalAmount,
                         expirationTimestamp
                       );
+                      const {
+                        withdrawalDestination: returnedWithdrawalDestination,
+                        withdrawalLimit: returnedWithdrawalLimit,
+                      } = await prepaymentDepository
+                        .connect(roles.user)
+                        .callStatic.withdraw(withdrawalAmount, expirationTimestamp, roles.manager.address, signature);
+                      expect(returnedWithdrawalDestination).to.equal(roles.withdrawalDestination.address);
+                      expect(returnedWithdrawalLimit).to.equal(expectedLimit);
                       await expect(
                         prepaymentDepository
                           .connect(roles.user)
@@ -854,6 +880,19 @@ describe('PrepaymentDepository', function () {
                         withdrawalAmount,
                         expirationTimestamp
                       );
+                      const {
+                        withdrawalDestination: returnedWithdrawalDestination,
+                        withdrawalLimit: returnedWithdrawalLimit,
+                      } = await prepaymentDepository
+                        .connect(roles.user)
+                        .callStatic.withdraw(
+                          withdrawalAmount,
+                          expirationTimestamp,
+                          roles.withdrawalSigner.address,
+                          signature
+                        );
+                      expect(returnedWithdrawalDestination).to.equal(roles.user.address);
+                      expect(returnedWithdrawalLimit).to.equal(expectedLimit);
                       await expect(
                         prepaymentDepository
                           .connect(roles.user)
@@ -918,6 +957,19 @@ describe('PrepaymentDepository', function () {
                         withdrawalAmount,
                         expirationTimestamp
                       );
+                      const {
+                        withdrawalDestination: returnedWithdrawalDestination,
+                        withdrawalLimit: returnedWithdrawalLimit,
+                      } = await prepaymentDepository
+                        .connect(roles.user)
+                        .callStatic.withdraw(
+                          withdrawalAmount,
+                          expirationTimestamp,
+                          roles.withdrawalSigner.address,
+                          signature
+                        );
+                      expect(returnedWithdrawalDestination).to.equal(roles.withdrawalDestination.address);
+                      expect(returnedWithdrawalLimit).to.equal(expectedLimit);
                       await expect(
                         prepaymentDepository
                           .connect(roles.user)
