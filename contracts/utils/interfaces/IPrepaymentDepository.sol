@@ -82,8 +82,6 @@ interface IPrepaymentDepository is IAccessControlRegistryAdminnedWithManager {
         view
         returns (string memory);
 
-    function token() external view returns (address);
-
     function withdrawalSignerRole() external view returns (bytes32);
 
     function userWithdrawalLimitIncreaserRole() external view returns (bytes32);
@@ -91,4 +89,6 @@ interface IPrepaymentDepository is IAccessControlRegistryAdminnedWithManager {
     function userWithdrawalLimitDecreaserRole() external view returns (bytes32);
 
     function tokenClaimerRole() external view returns (bytes32);
+
+    function token() external view returns (address);
 }

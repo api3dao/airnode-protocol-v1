@@ -41,10 +41,6 @@ contract PrepaymentDepository is
     string public constant override TOKEN_CLAIMER_ROLE_DESCRIPTION =
         "Token claimer";
 
-    /// @notice Contract address of the ERC20 token that prepayments can be
-    /// made in
-    address public immutable override token;
-
     /// @notice Withdrawal signer role
     bytes32 public immutable override withdrawalSignerRole;
     /// @notice User withdrawal limit increaser role
@@ -53,6 +49,10 @@ contract PrepaymentDepository is
     bytes32 public immutable override userWithdrawalLimitDecreaserRole;
     /// @notice Token claimer role
     bytes32 public immutable override tokenClaimerRole;
+
+    /// @notice Contract address of the ERC20 token that prepayments can be
+    /// made in
+    address public immutable override token;
 
     /// @notice Returns the withdrawal account address of the user
     mapping(address => address) public userToWithdrawalAccount;
