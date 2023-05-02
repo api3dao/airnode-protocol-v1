@@ -60,15 +60,15 @@ contract PrepaymentDepository is
     /// @notice Returns the withdrawal limit of the user
     mapping(address => uint256) public userToWithdrawalLimit;
 
-    /// @notice Returns if a withdrawal with the hash is executed
+    /// @notice Returns if the withdrawal with the hash is executed
     mapping(bytes32 => bool) public withdrawalWithHashIsExecuted;
 
     /// @param _accessControlRegistry AccessControlRegistry contract address
     /// @param _adminRoleDescription Admin role description
     /// @param _manager Manager address
-    /// @param _token Contract address of the ERC20 token that prepayments can
-    /// be made in
-    /// @dev The ERC20 token contract must implement ERC2612
+    /// @param _token Contract address of the ERC20 token that prepayments are
+    /// made in
+    /// @dev ERC20 token contract must implement ERC2612
     constructor(
         address _accessControlRegistry,
         string memory _adminRoleDescription,
@@ -102,7 +102,8 @@ contract PrepaymentDepository is
     }
 
     /// @notice Called by the user that has not set a withdrawal account to set
-    /// one or called by a withdrawal account to set a new one
+    /// a withdrawal account, or called by the withdrawal account of a user to
+    /// set a new withdrawal account
     /// @param user User address
     /// @param withdrawalAccount Withdrawal account address
     function setWithdrawalAccount(
