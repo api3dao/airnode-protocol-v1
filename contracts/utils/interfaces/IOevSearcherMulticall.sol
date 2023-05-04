@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-interface IExternalMulticallWithValue {
+interface IOevSearcherMulticall {
     function externalMulticallWithValue(
         address[] calldata targets,
         bytes[] calldata data,

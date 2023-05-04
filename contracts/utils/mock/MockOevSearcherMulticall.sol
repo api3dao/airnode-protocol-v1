@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity 0.8.17;
 
-import "../ExternalMulticallWithValue.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "../OevSearcherMulticall.sol";
 
 // This contract overrides the multicall functions to demonstrate how they can
 // be extended to only allow the owner to execute multicalls. However, we
 // only do that in comments because we want to test the vanilla contract.
-contract MockExternalMulticallWithValue is ExternalMulticallWithValue, Ownable {
+contract MockOevSearcherMulticall is OevSearcherMulticall {
     function externalMulticallWithValue(
         address[] calldata targets,
         bytes[] calldata data,

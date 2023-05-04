@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity 0.8.17;
 
-import "./interfaces/IExternalMulticallWithValue.sol";
+import "./interfaces/IOevSearcherMulticall.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 /// @title Contract that enables batched calls to external contracts with value
 /// @notice This contract can be used for two use-cases: (1) In its current
@@ -11,25 +12,33 @@ import "./interfaces/IExternalMulticallWithValue.sol";
 /// and requires none of the calls to revert.
 /// @dev As mentioned above, this contract can be used to interact with trusted
 /// contracts. Such interactions can leave this contract in a privileged
-/// position (e.g., ExternalMulticall may be left with a non-zero balance of an
+/// position (e.g., OevSearcherMulticall may be left with a non-zero balance of an
 /// ERC20 token as a result of a transaction sent to it), which can be abused
 /// by an attacker afterwards. In addition, attackers can frontrun interactions
 /// to have the following interaction result in an unintended outcome. A
 /// general solution to these attacks is overriding the externalMulticallWithValue function
 /// behind an access control mechanism, such as an `onlyOwner` modifier.
 /// Refer to MakerDAO's Multicall.sol for a similar implementation.
-abstract contract ExternalMulticallWithValue is IExternalMulticallWithValue {
+contract OevSearcherMulticall is IOevSearcherMulticall, Ownable {
     /// @notice Batches calls to external contracts with value and reverts as soon as one
     /// of the batched calls reverts
     /// @param targets Array of target addresses of batched calls
     /// @param data Array of calldata of batched calls
     /// @param values Array of values to send with each call
+    /// @dev Can only be called by the contract owner
     /// @return returndata Array of returndata of batched calls
     function externalMulticallWithValue(
         address[] calldata targets,
         bytes[] calldata data,
         uint256[] calldata values
-    ) public payable virtual override returns (bytes[] memory returndata) {
+    )
+        public
+        payable
+        virtual
+        override
+        onlyOwner
+        returns (bytes[] memory returndata)
+    {
         uint256 callCount = targets.length;
         require(
             callCount == data.length && callCount == values.length,
@@ -70,5 +79,14 @@ abstract contract ExternalMulticallWithValue is IExternalMulticallWithValue {
             }
         }
         require(msg.value == accumulatedValue, "Excess value");
+    }
+
+    /// @notice Withdraws the entire balance held by the contract to the owner
+    /// @dev Can only be called by the contract owner
+    function withdrawBalance() external onlyOwner {
+        (bool sent, ) = payable(msg.sender).call{value: address(this).balance}(
+            ""
+        );
+        require(sent, "Failed to send Ether");
     }
 }
