@@ -25,5 +25,19 @@ module.exports = async ({ getUnnamedAccounts, deployments }) => {
     address: ProxyFactory.address,
     constructorArguments: [Api3ServerV1.address],
   });
+
+  if (hre.network.name === 'ethereum') {
+    const usdcAddress = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+    const PrepaymentDepository = await deployments.get('PrepaymentDepository');
+    await hre.run('verify:verify', {
+      address: PrepaymentDepository.address,
+      constructorArguments: [
+        AccessControlRegistry.address,
+        'PrepaymentDepository admin (OEV Relay)',
+        OwnableCallForwarder.address,
+        usdcAddress,
+      ],
+    });
+  }
 };
 module.exports.tags = ['verify'];
