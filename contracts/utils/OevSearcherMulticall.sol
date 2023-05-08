@@ -20,6 +20,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 /// behind an access control mechanism, such as an `onlyOwner` modifier.
 /// Refer to MakerDAO's Multicall.sol for a similar implementation.
 contract OevSearcherMulticall is IOevSearcherMulticall, Ownable {
+    receive() external payable {}
+
     /// @notice Batches calls to external contracts with value and reverts as soon as one
     /// of the batched calls reverts
     /// @param targets Array of target addresses of batched calls
@@ -31,14 +33,7 @@ contract OevSearcherMulticall is IOevSearcherMulticall, Ownable {
         address[] calldata targets,
         bytes[] calldata data,
         uint256[] calldata values
-    )
-        public
-        payable
-        virtual
-        override
-        onlyOwner
-        returns (bytes[] memory returndata)
-    {
+    ) public payable virtual onlyOwner returns (bytes[] memory returndata) {
         uint256 callCount = targets.length;
         require(
             callCount == data.length && callCount == values.length,
@@ -83,10 +78,10 @@ contract OevSearcherMulticall is IOevSearcherMulticall, Ownable {
 
     /// @notice Withdraws the entire balance held by the contract to the owner
     /// @dev Can only be called by the contract owner
-    function withdrawBalance() external onlyOwner {
-        (bool sent, ) = payable(msg.sender).call{value: address(this).balance}(
-            ""
-        );
-        require(sent, "Failed to send Ether");
+    function withdrawBalance() public virtual onlyOwner {
+        uint256 contractBalance = address(this).balance;
+        require(contractBalance > 0, "No funds to withdraw");
+        (bool sent, ) = payable(msg.sender).call{value: contractBalance}("");
+        require(sent, "Withdraw failed");
     }
 }

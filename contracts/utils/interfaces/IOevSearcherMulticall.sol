@@ -7,4 +7,6 @@ interface IOevSearcherMulticall {
         bytes[] calldata data,
         uint256[] calldata values
     ) external payable returns (bytes[] memory returndata);
+
+    function withdrawBalance() external;
 }
