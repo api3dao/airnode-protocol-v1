@@ -2,7 +2,7 @@ const { ethers } = require('hardhat');
 const helpers = require('@nomicfoundation/hardhat-network-helpers');
 const { expect } = require('chai');
 
-describe.only('OevSearcherMulticall', function () {
+describe('OevSearcherMulticall', function () {
   async function deploy() {
     const accounts = await ethers.getSigners();
     const roles = {
