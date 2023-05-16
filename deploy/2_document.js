@@ -13,6 +13,7 @@ module.exports = async () => {
     'Api3ServerV1',
     'ProxyFactory',
     'PrepaymentDepository',
+    'RequesterAuthorizerWithErc721',
   ];
   const references = {};
   references.chainNames = {};
@@ -25,6 +26,13 @@ module.exports = async () => {
       if (contractName === 'PrepaymentDepository' && network !== 'ethereum') {
         continue;
       }
+      if (
+        contractName === 'RequesterAuthorizerWithErc721' &&
+        network !== 'ethereum' &&
+        network !== 'ethereum-goerli-testnet'
+      ) {
+        continue;
+      }
       const deployment = JSON.parse(fs.readFileSync(path.join('deployments', network, `${contractName}.json`), 'utf8'));
       references[contractName][hre.config.networks[network].chainId] = deployment.address;
     }
@@ -34,6 +42,13 @@ module.exports = async () => {
     deploymentBlockNumbers[contractName] = {};
     for (const network of networks) {
       if (contractName === 'PrepaymentDepository' && network !== 'ethereum') {
+        continue;
+      }
+      if (
+        contractName === 'RequesterAuthorizerWithErc721' &&
+        network !== 'ethereum' &&
+        network !== 'ethereum-goerli-testnet'
+      ) {
         continue;
       }
       const deployment = JSON.parse(fs.readFileSync(path.join('deployments', network, `${contractName}.json`), 'utf8'));
