@@ -161,5 +161,9 @@
   },
   "PrepaymentDepository": {
     "1": 17173868
+  },
+  "RequesterAuthorizerWithErc721": {
+    "1": 17272385,
+    "5": 9010094
   }
 }
