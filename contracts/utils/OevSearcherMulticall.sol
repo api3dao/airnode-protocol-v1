@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import "./interfaces/IOevSearcherMulticall.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "./interfaces/IOevSearcherMulticall.sol";
 
 /// @title Contract that enables the owner OEV searcher to make batched calls
 /// to external, trusted accounts to facilitate value extraction
@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 /// allowed to receive funds in case this is required during value extraction.
 /// @dev OEV searchers that will be targeting the same contracts repeatedly are
 /// recommended to develop and use a more optimized version of this contract
-contract OevSearcherMulticall is IOevSearcherMulticall, Ownable {
+contract OevSearcherMulticall is Ownable, IOevSearcherMulticall {
     receive() external payable {}
 
     /// @notice Batches calls to external contracts with value and reverts as soon as one
