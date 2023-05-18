@@ -4,21 +4,13 @@ pragma solidity 0.8.17;
 import "./interfaces/IOevSearcherMulticall.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-/// @title Contract that enables batched calls to external contracts with value
-/// @notice This contract can be used for two use-cases: (1) In its current
-/// state, it can be used to batch static calls to contracts that do not care
-/// about who the sender is, (2) after extending it, to interact with trusted
-/// contracts (see below for details). It implements a way of batching with value,
-/// and requires none of the calls to revert.
-/// @dev As mentioned above, this contract can be used to interact with trusted
-/// contracts. Such interactions can leave this contract in a privileged
-/// position (e.g., OevSearcherMulticall may be left with a non-zero balance of an
-/// ERC20 token as a result of a transaction sent to it), which can be abused
-/// by an attacker afterwards. In addition, attackers can frontrun interactions
-/// to have the following interaction result in an unintended outcome. A
-/// general solution to these attacks is overriding the externalMulticallWithValue function
-/// behind an access control mechanism, such as an `onlyOwner` modifier.
-/// Refer to MakerDAO's Multicall.sol for a similar implementation.
+/// @title Contract that enables an OEV searcher to make batched calls to
+/// external, trusted accounts to facilitate value extraction
+/// @notice Any of the batched calls failing will result in the transaction to
+/// be reverted. Batched calls are allowed to send values. The contract is
+/// allowed to receive funds in case this is required during value extraction.
+/// @dev OEV searchers that will be targeting the same contracts repeatedly are
+/// recommended to develop and use a more optimized version of this contract
 contract OevSearcherMulticall is IOevSearcherMulticall, Ownable {
     receive() external payable {}
 
