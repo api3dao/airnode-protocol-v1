@@ -2,7 +2,7 @@
 pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./interfaces/IOevSearcherMulticall.sol";
+import "./interfaces/IOevSearcherMulticallV1.sol";
 
 /// @title Contract that enables the owner OEV searcher to make batched calls
 /// to external, trusted accounts to facilitate value extraction
@@ -11,7 +11,7 @@ import "./interfaces/IOevSearcherMulticall.sol";
 /// allowed to receive funds in case this is required during value extraction.
 /// @dev OEV searchers that will be targeting the same contracts repeatedly are
 /// recommended to develop and use an optimized version of this contract
-contract OevSearcherMulticall is Ownable, IOevSearcherMulticall {
+contract OevSearcherMulticallV1 is Ownable, IOevSearcherMulticallV1 {
     receive() external payable {}
 
     /// @notice Called by the owner OEV searcher to batch calls with value to

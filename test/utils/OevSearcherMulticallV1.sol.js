@@ -2,15 +2,15 @@ const { ethers } = require('hardhat');
 const helpers = require('@nomicfoundation/hardhat-network-helpers');
 const { expect } = require('chai');
 
-describe('OevSearcherMulticall', function () {
+describe('OevSearcherMulticallV1', function () {
   async function deploy() {
     const accounts = await ethers.getSigners();
     const roles = {
       deployer: accounts[0],
       randomUser: accounts[1],
     };
-    const OevSearcherMulticallFactory = await ethers.getContractFactory('OevSearcherMulticall', roles.deployer);
-    const oevSearcherMulticall = await OevSearcherMulticallFactory.deploy();
+    const OevSearcherMulticallV1Factory = await ethers.getContractFactory('OevSearcherMulticallV1', roles.deployer);
+    const oevSearcherMulticallV1 = await OevSearcherMulticallV1Factory.deploy();
     const MockMulticallTargetFactory = await ethers.getContractFactory('MockMulticallTarget', roles.deployer);
     const multicallTargets = {
       multicallTarget: await MockMulticallTargetFactory.deploy(),
@@ -19,7 +19,7 @@ describe('OevSearcherMulticall', function () {
     };
     return {
       roles,
-      oevSearcherMulticall,
+      oevSearcherMulticallV1,
       multicallTargets,
     };
   }
@@ -31,7 +31,7 @@ describe('OevSearcherMulticall', function () {
           context('None of the calls reverts', function () {
             context('Calls multiple separate contracts', function () {
               it('multicall does not revert', async function () {
-                const { oevSearcherMulticall, multicallTargets, roles } = await helpers.loadFixture(deploy);
+                const { oevSearcherMulticallV1, multicallTargets, roles } = await helpers.loadFixture(deploy);
                 const multicallTarget = multicallTargets.multicallTarget;
                 const multicallTarget1 = multicallTargets.multicallTarget1;
                 const multicallTarget2 = multicallTargets.multicallTarget2;
@@ -43,7 +43,7 @@ describe('OevSearcherMulticall', function () {
                 ];
                 const values = [100, 200, 300];
                 const totalValue = values.reduce((a, b) => a + b, 0);
-                const returndata = await oevSearcherMulticall
+                const returndata = await oevSearcherMulticallV1
                   .connect(roles.deployer)
                   .callStatic.externalMulticallWithValue(targets, data, values, {
                     value: totalValue,
@@ -52,7 +52,7 @@ describe('OevSearcherMulticall', function () {
                 expect(ethers.utils.defaultAbiCoder.decode(['int256'], returndata[1])[0]).to.equal(-2);
                 expect(ethers.utils.defaultAbiCoder.decode(['int256'], returndata[2])[0]).to.equal(-3);
                 await expect(
-                  oevSearcherMulticall
+                  oevSearcherMulticallV1
                     .connect(roles.deployer)
                     .externalMulticallWithValue(targets, data, values, { value: totalValue })
                 ).to.not.be.reverted;
@@ -69,7 +69,7 @@ describe('OevSearcherMulticall', function () {
             });
             context('Calls a single contract', function () {
               it('multicall does not revert', async function () {
-                const { oevSearcherMulticall, multicallTargets, roles } = await helpers.loadFixture(deploy);
+                const { oevSearcherMulticallV1, multicallTargets, roles } = await helpers.loadFixture(deploy);
                 const multicallTarget = multicallTargets.multicallTarget;
                 const targets = [multicallTarget.address, multicallTarget.address, multicallTarget.address];
                 const data = [
@@ -79,7 +79,7 @@ describe('OevSearcherMulticall', function () {
                 ];
                 const values = [100, 200, 300];
                 const totalValue = values.reduce((a, b) => a + b, 0);
-                const returndata = await oevSearcherMulticall
+                const returndata = await oevSearcherMulticallV1
                   .connect(roles.deployer)
                   .callStatic.externalMulticallWithValue(targets, data, values, {
                     value: totalValue,
@@ -88,7 +88,7 @@ describe('OevSearcherMulticall', function () {
                 expect(ethers.utils.defaultAbiCoder.decode(['int256'], returndata[1])[0]).to.equal(-2);
                 expect(ethers.utils.defaultAbiCoder.decode(['int256'], returndata[2])[0]).to.equal(-3);
                 await expect(
-                  oevSearcherMulticall
+                  oevSearcherMulticallV1
                     .connect(roles.deployer)
                     .externalMulticallWithValue(targets, data, values, { value: totalValue })
                 ).to.not.be.reverted;
@@ -101,7 +101,7 @@ describe('OevSearcherMulticall', function () {
           context('One of the calls reverts', function () {
             context('Call reverts with string', function () {
               it('multicall reverts by bubbling up the revert string', async function () {
-                const { oevSearcherMulticall, multicallTargets, roles } = await helpers.loadFixture(deploy);
+                const { oevSearcherMulticallV1, multicallTargets, roles } = await helpers.loadFixture(deploy);
                 const multicallTarget = multicallTargets.multicallTarget;
                 const targets = [multicallTarget.address, multicallTarget.address, multicallTarget.address];
                 const data = [
@@ -112,7 +112,7 @@ describe('OevSearcherMulticall', function () {
                 const values = [100, 0, 300];
                 const totalValue = values.reduce((a, b) => a + b, 0);
                 await expect(
-                  oevSearcherMulticall
+                  oevSearcherMulticallV1
                     .connect(roles.deployer)
                     .externalMulticallWithValue(targets, data, values, { value: totalValue })
                 ).to.be.revertedWith('Reverted with string');
@@ -121,7 +121,7 @@ describe('OevSearcherMulticall', function () {
             });
             context('Call reverts with custom error', function () {
               it('multicall reverts by bubbling up the custom error', async function () {
-                const { oevSearcherMulticall, multicallTargets, roles } = await helpers.loadFixture(deploy);
+                const { oevSearcherMulticallV1, multicallTargets, roles } = await helpers.loadFixture(deploy);
                 const multicallTarget = multicallTargets.multicallTarget;
                 const targets = [multicallTarget.address, multicallTarget.address, multicallTarget.address];
                 const data = [
@@ -132,7 +132,7 @@ describe('OevSearcherMulticall', function () {
                 const values = [100, 0, 300];
                 const totalValue = values.reduce((a, b) => a + b, 0);
                 await expect(
-                  oevSearcherMulticall
+                  oevSearcherMulticallV1
                     .connect(roles.deployer)
                     .externalMulticallWithValue(targets, data, values, { value: totalValue })
                 ).to.be.revertedWithCustomError(multicallTarget, 'MyError');
@@ -141,7 +141,7 @@ describe('OevSearcherMulticall', function () {
             });
             context('Call reverts with no data', function () {
               it('multicall reverts with no data', async function () {
-                const { oevSearcherMulticall, multicallTargets, roles } = await helpers.loadFixture(deploy);
+                const { oevSearcherMulticallV1, multicallTargets, roles } = await helpers.loadFixture(deploy);
                 const multicallTarget = multicallTargets.multicallTarget;
                 const targets = [multicallTarget.address, multicallTarget.address, multicallTarget.address];
                 const data = [
@@ -152,7 +152,7 @@ describe('OevSearcherMulticall', function () {
                 const values = [100, 200, 300];
                 const totalValue = values.reduce((a, b) => a + b, 0);
                 await expect(
-                  oevSearcherMulticall
+                  oevSearcherMulticallV1
                     .connect(roles.deployer)
                     .externalMulticallWithValue(targets, data, values, { value: totalValue })
                 ).to.be.revertedWith('Multicall: No revert string');
@@ -163,7 +163,7 @@ describe('OevSearcherMulticall', function () {
         });
         context('Value sent with the call is insufficient', function () {
           it('multicall reverts', async function () {
-            const { oevSearcherMulticall, multicallTargets, roles } = await helpers.loadFixture(deploy);
+            const { oevSearcherMulticallV1, multicallTargets, roles } = await helpers.loadFixture(deploy);
             const multicallTarget = multicallTargets.multicallTarget;
             const targets = [multicallTarget.address, multicallTarget.address, multicallTarget.address];
             const data = [
@@ -173,7 +173,7 @@ describe('OevSearcherMulticall', function () {
             ];
             const values = [100, 200, 300];
             await expect(
-              oevSearcherMulticall
+              oevSearcherMulticallV1
                 .connect(roles.deployer)
                 .externalMulticallWithValue(targets, data, values, { value: 100 })
             ).to.be.revertedWith('Multicall: Insufficient balance');
@@ -183,7 +183,7 @@ describe('OevSearcherMulticall', function () {
       });
       context('Target and data parameter lengths do not match', function () {
         it('multicall reverts', async function () {
-          const { oevSearcherMulticall, multicallTargets, roles } = await helpers.loadFixture(deploy);
+          const { oevSearcherMulticallV1, multicallTargets, roles } = await helpers.loadFixture(deploy);
           const multicallTarget = multicallTargets.multicallTarget;
           const targets = [multicallTarget.address, multicallTarget.address, multicallTarget.address];
           const data = [
@@ -193,7 +193,7 @@ describe('OevSearcherMulticall', function () {
           const values = [100, 200, 300];
           const totalValue = values.reduce((a, b) => a + b, 0);
           await expect(
-            oevSearcherMulticall
+            oevSearcherMulticallV1
               .connect(roles.deployer)
               .externalMulticallWithValue(targets, data, values, { value: totalValue })
           ).to.be.revertedWith('Parameter length mismatch');
@@ -203,7 +203,7 @@ describe('OevSearcherMulticall', function () {
     });
     context('Caller is not the owner', function () {
       it('multicall reverts', async function () {
-        const { oevSearcherMulticall, multicallTargets, roles } = await helpers.loadFixture(deploy);
+        const { oevSearcherMulticallV1, multicallTargets, roles } = await helpers.loadFixture(deploy);
         const multicallTarget = multicallTargets.multicallTarget;
         const targets = [multicallTarget.address, multicallTarget.address, multicallTarget.address];
         const data = [
@@ -213,14 +213,14 @@ describe('OevSearcherMulticall', function () {
         ];
         const values = [100, 200, 300];
         const totalValue = values.reduce((a, b) => a + b, 0);
-        const returndata = await oevSearcherMulticall.callStatic.externalMulticallWithValue(targets, data, values, {
+        const returndata = await oevSearcherMulticallV1.callStatic.externalMulticallWithValue(targets, data, values, {
           value: totalValue,
         });
         expect(ethers.utils.defaultAbiCoder.decode(['int256'], returndata[0])[0]).to.equal(-1);
         expect(ethers.utils.defaultAbiCoder.decode(['int256'], returndata[1])[0]).to.equal(-2);
         expect(ethers.utils.defaultAbiCoder.decode(['int256'], returndata[2])[0]).to.equal(-3);
         await expect(
-          oevSearcherMulticall
+          oevSearcherMulticallV1
             .connect(roles.randomUser)
             .externalMulticallWithValue(targets, data, values, { value: totalValue })
         ).to.be.revertedWith('Ownable: caller is not the owner');
