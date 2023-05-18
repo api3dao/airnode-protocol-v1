@@ -39,5 +39,13 @@ module.exports = async ({ getUnnamedAccounts, deployments }) => {
       ],
     });
   }
+
+  if (hre.network.name === 'ethereum' || hre.network.name === 'ethereum-goerli-testnet') {
+    const RequesterAuthorizerWithErc721 = await deployments.get('RequesterAuthorizerWithErc721');
+    await hre.run('verify:verify', {
+      address: RequesterAuthorizerWithErc721.address,
+      constructorArguments: [AccessControlRegistry.address, 'RequesterAuthorizerWithErc721 admin'],
+    });
+  }
 };
 module.exports.tags = ['verify'];

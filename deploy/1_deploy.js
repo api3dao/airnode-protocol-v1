@@ -66,5 +66,15 @@ module.exports = async ({ getUnnamedAccounts, deployments }) => {
     });
     log(`Deployed PrepaymentDepository (OEV Relay) at ${prepaymentDepository.address}`);
   }
+
+  if (network.name === 'ethereum' || network.name === 'ethereum-goerli-testnet') {
+    const requesterAuthorizerWithErc721 = await deploy('RequesterAuthorizerWithErc721', {
+      from: accounts[0],
+      args: [accessControlRegistry.address, 'RequesterAuthorizerWithErc721 admin'],
+      log: true,
+      deterministicDeployment: process.env.DETERMINISTIC ? ethers.constants.HashZero : undefined,
+    });
+    log(`Deployed RequesterAuthorizerWithErc721 at ${requesterAuthorizerWithErc721.address}`);
+  }
 };
 module.exports.tags = ['deploy'];
