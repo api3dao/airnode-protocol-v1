@@ -9,7 +9,7 @@ describe('OevSearcherMulticall', function () {
       deployer: accounts[0],
       randomUser: accounts[1],
     };
-    const OevSearcherMulticallFactory = await ethers.getContractFactory('MockOevSearcherMulticall', roles.deployer);
+    const OevSearcherMulticallFactory = await ethers.getContractFactory('OevSearcherMulticall', roles.deployer);
     const oevSearcherMulticall = await OevSearcherMulticallFactory.deploy();
     const MockMulticallTargetFactory = await ethers.getContractFactory('MockMulticallTarget', roles.deployer);
     const multicallTargets = {
