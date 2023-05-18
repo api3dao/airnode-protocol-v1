@@ -6,22 +6,22 @@ import "./interfaces/IOevSearcherMulticall.sol";
 
 /// @title Contract that enables the owner OEV searcher to make batched calls
 /// to external, trusted accounts to facilitate value extraction
-/// @notice Any of the batched calls failing will result in the transaction to
-/// be reverted. Batched calls are allowed to send values. The contract is
+/// @notice Any of the batched calls reverting will result in the transaction
+/// to be reverted. Batched calls are allowed to send values. The contract is
 /// allowed to receive funds in case this is required during value extraction.
 /// @dev OEV searchers that will be targeting the same contracts repeatedly are
-/// recommended to develop and use a more optimized version of this contract
+/// recommended to develop and use an optimized version of this contract
 contract OevSearcherMulticall is Ownable, IOevSearcherMulticall {
     receive() external payable {}
 
-    /// @notice Batches calls to external contracts with value and reverts as soon as one
-    /// of the batched calls reverts
+    /// @notice Called by the owner OEV searcher to batch calls with value to
+    /// external, trusted accounts. Any of these calls reverting causes this
+    /// function to revert.
     /// @dev Calls made to non-contract accounts do not revert. This can be
-    /// used to sweep the funds in the balance.
+    /// used to sweep the funds in the contract.
     /// @param targets Array of target addresses of batched calls
     /// @param data Array of calldata of batched calls
-    /// @param values Array of values to send with each call
-    /// @dev Can only be called by the contract owner
+    /// @param values Array of values of batched calls
     /// @return returndata Array of returndata of batched calls
     function externalMulticallWithValue(
         address[] calldata targets,
@@ -54,8 +54,7 @@ contract OevSearcherMulticall is Ownable, IOevSearcherMulticall {
                     }
                 } else {
                     // Attempt to make sense of the silent revert after the
-                    // fact rather than checking before the call, which would
-                    // make the happy path more expensive
+                    // fact to optimize for the happy path
                     require(
                         address(this).balance >= values[ind],
                         "Multicall: Insufficient balance"
