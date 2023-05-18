@@ -4,8 +4,8 @@ pragma solidity 0.8.17;
 import "./interfaces/IOevSearcherMulticall.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-/// @title Contract that enables an OEV searcher to make batched calls to
-/// external, trusted accounts to facilitate value extraction
+/// @title Contract that enables the owner OEV searcher to make batched calls
+/// to external, trusted accounts to facilitate value extraction
 /// @notice Any of the batched calls failing will result in the transaction to
 /// be reverted. Batched calls are allowed to send values. The contract is
 /// allowed to receive funds in case this is required during value extraction.
