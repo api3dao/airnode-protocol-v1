@@ -16,6 +16,7 @@ contract OevSearcherMulticall is Ownable, IOevSearcherMulticall {
 
     /// @notice Batches calls to external contracts with value and reverts as soon as one
     /// of the batched calls reverts
+    /// @dev Calls made to non-contract accounts do not revert
     /// @param targets Array of target addresses of batched calls
     /// @param data Array of calldata of batched calls
     /// @param values Array of values to send with each call
@@ -36,10 +37,6 @@ contract OevSearcherMulticall is Ownable, IOevSearcherMulticall {
         for (uint256 ind = 0; ind < callCount; ) {
             accumulatedValue += values[ind];
             require(msg.value >= accumulatedValue, "Insufficient value");
-            require(
-                targets[ind].code.length > 0,
-                "Multicall target not contract"
-            );
             bool success;
             // solhint-disable-next-line avoid-low-level-calls
             (success, returndata[ind]) = targets[ind].call{value: values[ind]}(
