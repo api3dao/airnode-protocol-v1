@@ -16,7 +16,8 @@ contract OevSearcherMulticall is Ownable, IOevSearcherMulticall {
 
     /// @notice Batches calls to external contracts with value and reverts as soon as one
     /// of the batched calls reverts
-    /// @dev Calls made to non-contract accounts do not revert
+    /// @dev Calls made to non-contract accounts do not revert. This can be
+    /// used to sweep the funds in the balance.
     /// @param targets Array of target addresses of batched calls
     /// @param data Array of calldata of batched calls
     /// @param values Array of values to send with each call
@@ -63,14 +64,5 @@ contract OevSearcherMulticall is Ownable, IOevSearcherMulticall {
             }
         }
         require(msg.value == accumulatedValue, "Excess value");
-    }
-
-    /// @notice Withdraws the entire balance held by the contract to the owner
-    /// @dev Can only be called by the contract owner
-    function withdrawBalance() external override onlyOwner {
-        uint256 contractBalance = address(this).balance;
-        require(contractBalance > 0, "No funds to withdraw");
-        (bool sent, ) = payable(msg.sender).call{value: contractBalance}("");
-        require(sent, "Withdraw failed");
     }
 }
