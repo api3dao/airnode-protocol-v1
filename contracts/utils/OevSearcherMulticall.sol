@@ -63,6 +63,5 @@ contract OevSearcherMulticall is Ownable, IOevSearcherMulticall {
                 ind++;
             }
         }
-        require(msg.value == accumulatedValue, "Excess value");
     }
 }
