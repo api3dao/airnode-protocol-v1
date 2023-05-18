@@ -32,7 +32,7 @@ contract MockMulticallTarget {
 
     function convertsPositiveArgumentToNegative(
         int256 argPositive
-    ) external returns (int256) {
+    ) external payable returns (int256) {
         require(argPositive > 0, "Argument not positive");
         _argumentHistory.push(argPositive);
         return -argPositive;
