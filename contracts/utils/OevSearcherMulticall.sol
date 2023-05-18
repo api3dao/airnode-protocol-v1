@@ -33,11 +33,8 @@ contract OevSearcherMulticall is Ownable, IOevSearcherMulticall {
             callCount == data.length && callCount == values.length,
             "Parameter length mismatch"
         );
-        uint256 accumulatedValue = 0;
         returndata = new bytes[](callCount);
         for (uint256 ind = 0; ind < callCount; ) {
-            accumulatedValue += values[ind];
-            require(msg.value >= accumulatedValue, "Insufficient value");
             bool success;
             // solhint-disable-next-line avoid-low-level-calls
             (success, returndata[ind]) = targets[ind].call{value: values[ind]}(
@@ -56,6 +53,13 @@ contract OevSearcherMulticall is Ownable, IOevSearcherMulticall {
                         )
                     }
                 } else {
+                    // Attempt to make sense of the silent revert after the
+                    // fact rather than checking before the call, which would
+                    // make the happy path more expensive
+                    require(
+                        address(this).balance >= values[ind],
+                        "Multicall: Insufficient balance"
+                    );
                     revert("Multicall: No revert string");
                 }
             }

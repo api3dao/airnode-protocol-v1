@@ -176,7 +176,7 @@ describe('OevSearcherMulticall', function () {
               oevSearcherMulticall
                 .connect(roles.deployer)
                 .externalMulticallWithValue(targets, data, values, { value: 100 })
-            ).to.be.revertedWith('Insufficient value');
+            ).to.be.revertedWith('Multicall: Insufficient balance');
             expect(await ethers.provider.getBalance(multicallTarget.address)).to.equal(0);
           });
         });
