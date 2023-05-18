@@ -25,7 +25,7 @@ contract OevSearcherMulticall is Ownable, IOevSearcherMulticall {
         address[] calldata targets,
         bytes[] calldata data,
         uint256[] calldata values
-    ) public payable virtual onlyOwner returns (bytes[] memory returndata) {
+    ) public payable onlyOwner returns (bytes[] memory returndata) {
         uint256 callCount = targets.length;
         require(
             callCount == data.length && callCount == values.length,
@@ -70,7 +70,7 @@ contract OevSearcherMulticall is Ownable, IOevSearcherMulticall {
 
     /// @notice Withdraws the entire balance held by the contract to the owner
     /// @dev Can only be called by the contract owner
-    function withdrawBalance() public virtual onlyOwner {
+    function withdrawBalance() public onlyOwner {
         uint256 contractBalance = address(this).balance;
         require(contractBalance > 0, "No funds to withdraw");
         (bool sent, ) = payable(msg.sender).call{value: contractBalance}("");
