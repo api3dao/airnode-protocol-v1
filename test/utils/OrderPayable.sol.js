@@ -383,8 +383,8 @@ describe('OrderPayable', function () {
   });
 
   describe('withdraw', function () {
-    context('Caller is manager', function () {
-      it('emits Withdrew event and transfers balance to recipient', async function () {
+    context('Sender is the manager', function () {
+      it('withdraws', async function () {
         const { roles, orderPayable } = await deploy();
 
         const orderId = ethers.utils.id('testOrder');
@@ -417,8 +417,8 @@ describe('OrderPayable', function () {
         expect(finalContractBalance).to.equal(0);
       });
     });
-    context('Caller is withdrawer', function () {
-      it('emits Withdrew event and transfers balance to recipient', async function () {
+    context('Sender is a withdrawer', function () {
+      it('withdraws', async function () {
         const { roles, orderPayable } = await deploy();
 
         const orderId = ethers.utils.id('testOrder');
@@ -451,8 +451,8 @@ describe('OrderPayable', function () {
         expect(finalContractBalance).to.equal(0);
       });
     });
-    context('Caller is not manager or withdrawer', function () {
-      it('target function reverts', async function () {
+    context('Sender is not the manager or a withdrawer', function () {
+      it('reverts', async function () {
         const { roles, orderPayable } = await deploy();
 
         const orderId = ethers.utils.id('testOrder');
