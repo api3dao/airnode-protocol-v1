@@ -1,4 +1,9 @@
 const hre = require('hardhat');
+const {
+  chainsSupportedByApi3Market,
+  chainsSupportedByChainApi,
+  chainsSupportedByOevRelay,
+} = require('../src/supported-chains');
 
 module.exports = async ({ getUnnamedAccounts, deployments }) => {
   const accounts = await getUnnamedAccounts();
@@ -26,8 +31,8 @@ module.exports = async ({ getUnnamedAccounts, deployments }) => {
     constructorArguments: [Api3ServerV1.address],
   });
 
-  if (hre.network.name === 'ethereum') {
-    const usdcAddress = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+  if (chainsSupportedByOevRelay.includes(hre.network.name)) {
+    const usdcAddress = { ethereum: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' };
     const PrepaymentDepository = await deployments.get('PrepaymentDepository');
     await hre.run('verify:verify', {
       address: PrepaymentDepository.address,
@@ -35,16 +40,28 @@ module.exports = async ({ getUnnamedAccounts, deployments }) => {
         AccessControlRegistry.address,
         'PrepaymentDepository admin (OEV Relay)',
         OwnableCallForwarder.address,
-        usdcAddress,
+        usdcAddress[hre.network.name],
       ],
     });
   }
 
-  if (hre.network.name === 'ethereum' || hre.network.name === 'ethereum-goerli-testnet') {
+  if (chainsSupportedByChainApi.includes(hre.network.name)) {
     const RequesterAuthorizerWithErc721 = await deployments.get('RequesterAuthorizerWithErc721');
     await hre.run('verify:verify', {
       address: RequesterAuthorizerWithErc721.address,
       constructorArguments: [AccessControlRegistry.address, 'RequesterAuthorizerWithErc721 admin'],
+    });
+  }
+
+  if (chainsSupportedByApi3Market.includes(hre.network.name)) {
+    const OrderPayable = await deployments.get('OrderPayable');
+    await hre.run('verify:verify', {
+      address: OrderPayable.address,
+      constructorArguments: [
+        AccessControlRegistry.address,
+        'OrderPayable admin (API3 Market)',
+        OwnableCallForwarder.address,
+      ],
     });
   }
 };

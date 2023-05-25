@@ -1,6 +1,11 @@
 const fs = require('fs');
 const path = require('path');
 const hre = require('hardhat');
+const {
+  chainsSupportedByApi3Market,
+  chainsSupportedByChainApi,
+  chainsSupportedByOevRelay,
+} = require('../src/supported-chains');
 
 module.exports = async () => {
   const networks = fs
@@ -14,6 +19,7 @@ module.exports = async () => {
     'ProxyFactory',
     'PrepaymentDepository',
     'RequesterAuthorizerWithErc721',
+    'OrderPayable',
   ];
   const references = {};
   references.chainNames = {};
@@ -23,14 +29,13 @@ module.exports = async () => {
   for (const contractName of contractNames) {
     references[contractName] = {};
     for (const network of networks) {
-      if (contractName === 'PrepaymentDepository' && network !== 'ethereum') {
+      if (contractName === 'PrepaymentDepository' && !chainsSupportedByOevRelay.includes(network)) {
         continue;
       }
-      if (
-        contractName === 'RequesterAuthorizerWithErc721' &&
-        network !== 'ethereum' &&
-        network !== 'ethereum-goerli-testnet'
-      ) {
+      if (contractName === 'RequesterAuthorizerWithErc721' && !chainsSupportedByChainApi.includes(network)) {
+        continue;
+      }
+      if (contractName === 'OrderPayable' && !chainsSupportedByApi3Market.includes(network)) {
         continue;
       }
       const deployment = JSON.parse(fs.readFileSync(path.join('deployments', network, `${contractName}.json`), 'utf8'));
@@ -41,14 +46,13 @@ module.exports = async () => {
   for (const contractName of contractNames) {
     deploymentBlockNumbers[contractName] = {};
     for (const network of networks) {
-      if (contractName === 'PrepaymentDepository' && network !== 'ethereum') {
+      if (contractName === 'PrepaymentDepository' && !chainsSupportedByOevRelay.includes(network)) {
         continue;
       }
-      if (
-        contractName === 'RequesterAuthorizerWithErc721' &&
-        network !== 'ethereum' &&
-        network !== 'ethereum-goerli-testnet'
-      ) {
+      if (contractName === 'RequesterAuthorizerWithErc721' && !chainsSupportedByChainApi.includes(network)) {
+        continue;
+      }
+      if (contractName === 'OrderPayable' && !chainsSupportedByApi3Market.includes(network)) {
         continue;
       }
       const deployment = JSON.parse(fs.readFileSync(path.join('deployments', network, `${contractName}.json`), 'utf8'));
