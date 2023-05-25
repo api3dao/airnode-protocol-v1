@@ -133,23 +133,15 @@ describe('OrderPayable', function () {
                   const timestamp = await helpers.time.latest();
                   const expirationTimestamp = timestamp + 60;
                   const paymentAmount = ethers.utils.parseEther('1');
-                  const orderSignerAddress = roles.manager.address;
+                  const orderSigner = roles.manager;
 
-                  const chainId = (await orderPayable.provider.getNetwork()).chainId;
-
-                  const hashedMessage = ethers.utils.solidityKeccak256(
-                    ['uint256', 'address', 'bytes32', 'uint256', 'uint256'],
-                    [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
-                  );
-
-                  const hash = ethers.utils.arrayify(hashedMessage);
-
-                  const signature = await roles.orderSigner.signMessage(ethers.utils.arrayify(hash));
-
-                  const encodedData = ethers.utils.defaultAbiCoder.encode(
-                    ['bytes32', 'uint256', 'address', 'bytes'],
-                    [orderId, expirationTimestamp, orderSignerAddress, signature]
-                  );
+                  const encodedData = await signAndEncodeOrder({
+                    orderPayable,
+                    orderId,
+                    expirationTimestamp,
+                    paymentAmount: paymentAmount.add(1),
+                    orderSigner,
+                  });
 
                   await expect(
                     orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
