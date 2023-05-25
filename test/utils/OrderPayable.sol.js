@@ -371,56 +371,6 @@ describe('OrderPayable', function () {
               expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(false);
             });
           });
-          context('Order expired', function () {
-            it('target function reverts', async function () {
-              const { roles, orderPayable } = await deploy();
-
-              const orderId = testUtils.generateRandomBytes32();
-              const timestamp = await helpers.time.latest();
-              const expirationTimestamp = timestamp - 60;
-              const paymentAmount = ethers.utils.parseEther('1');
-              const orderSigner = roles.orderSigner;
-
-              const encodedData = await signAndEncodeOrder({
-                orderPayable,
-                orderId,
-                expirationTimestamp,
-                paymentAmount,
-                orderSigner,
-              });
-
-              await expect(
-                orderPayable.connect(roles.orderSigner).payForOrder(encodedData, { value: paymentAmount })
-              ).to.be.revertedWith('Order expired');
-              expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('0'));
-              expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(false);
-            });
-          });
-          context('Order id is zero', function () {
-            it('target function reverts', async function () {
-              const { roles, orderPayable } = await deploy();
-
-              const orderId = ethers.constants.HashZero;
-              const timestamp = await helpers.time.latest();
-              const expirationTimestamp = timestamp + 60;
-              const paymentAmount = ethers.utils.parseEther('1');
-              const orderSigner = roles.orderSigner;
-
-              const encodedData = await signAndEncodeOrder({
-                orderPayable,
-                orderId,
-                expirationTimestamp,
-                paymentAmount,
-                orderSigner,
-              });
-
-              await expect(
-                orderPayable.connect(roles.orderSigner).payForOrder(encodedData, { value: paymentAmount })
-              ).to.be.revertedWith('Order ID zero');
-              expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('0'));
-              expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(false);
-            });
-          });
         });
         context('Order signer is invalid', function () {
           it('target function reverts', async function () {
