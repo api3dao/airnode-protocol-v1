@@ -81,5 +81,15 @@ module.exports = async ({ getUnnamedAccounts, deployments }) => {
     });
     log(`Deployed RequesterAuthorizerWithErc721 at ${requesterAuthorizerWithErc721.address}`);
   }
+
+  if (chainsSupportedByApi3Market.includes(network.name)) {
+    const orderPayable = await deploy('OrderPayable', {
+      from: accounts[0],
+      args: [accessControlRegistry.address, 'OrderPayable admin (API3 Market)', ownableCallForwarder.address],
+      log: true,
+      deterministicDeployment: process.env.DETERMINISTIC ? ethers.constants.HashZero : undefined,
+    });
+    log(`Deployed OrderPayable (API3 Market) at ${orderPayable.address}`);
+  }
 };
 module.exports.tags = ['deploy'];

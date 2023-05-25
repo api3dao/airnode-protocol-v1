@@ -19,6 +19,7 @@ module.exports = async () => {
     'ProxyFactory',
     'PrepaymentDepository',
     'RequesterAuthorizerWithErc721',
+    'OrderPayable',
   ];
   const references = {};
   references.chainNames = {};
@@ -34,6 +35,9 @@ module.exports = async () => {
       if (contractName === 'RequesterAuthorizerWithErc721' && !chainsSupportedByChainApi.includes(network)) {
         continue;
       }
+      if (contractName === 'OrderPayable' && !chainsSupportedByApi3Market.includes(network)) {
+        continue;
+      }
       const deployment = JSON.parse(fs.readFileSync(path.join('deployments', network, `${contractName}.json`), 'utf8'));
       references[contractName][hre.config.networks[network].chainId] = deployment.address;
     }
@@ -46,6 +50,9 @@ module.exports = async () => {
         continue;
       }
       if (contractName === 'RequesterAuthorizerWithErc721' && !chainsSupportedByChainApi.includes(network)) {
+        continue;
+      }
+      if (contractName === 'OrderPayable' && !chainsSupportedByApi3Market.includes(network)) {
         continue;
       }
       const deployment = JSON.parse(fs.readFileSync(path.join('deployments', network, `${contractName}.json`), 'utf8'));

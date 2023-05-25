@@ -52,5 +52,17 @@ module.exports = async ({ getUnnamedAccounts, deployments }) => {
       constructorArguments: [AccessControlRegistry.address, 'RequesterAuthorizerWithErc721 admin'],
     });
   }
+
+  if (chainsSupportedByApi3Market.includes(hre.network.name)) {
+    const OrderPayable = await deployments.get('OrderPayable');
+    await hre.run('verify:verify', {
+      address: OrderPayable.address,
+      constructorArguments: [
+        AccessControlRegistry.address,
+        'OrderPayable admin (API3 Market)',
+        OwnableCallForwarder.address,
+      ],
+    });
+  }
 };
 module.exports.tags = ['verify'];
