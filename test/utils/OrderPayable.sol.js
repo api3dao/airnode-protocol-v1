@@ -110,9 +110,17 @@ describe('OrderPayable', function () {
                     orderSigner,
                   });
 
-                  await expect(orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount }))
+                  await expect(
+                    orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
+                  )
                     .to.emit(orderPayable, 'PaidForOrder')
-                    .withArgs(orderId, expirationTimestamp, orderSigner.address, paymentAmount, roles.manager.address);
+                    .withArgs(
+                      orderId,
+                      expirationTimestamp,
+                      orderSigner.address,
+                      paymentAmount,
+                      roles.randomPerson.address
+                    );
                   expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(paymentAmount);
                   expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(true);
                 });
@@ -144,7 +152,7 @@ describe('OrderPayable', function () {
                   );
 
                   await expect(
-                    orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount })
+                    orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
                   ).to.be.revertedWith('Signature mismatch');
                   expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('0'));
                   expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(false);
@@ -169,14 +177,22 @@ describe('OrderPayable', function () {
                   orderSigner,
                 });
 
-                await expect(orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount }))
+                await expect(
+                  orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
+                )
                   .to.emit(orderPayable, 'PaidForOrder')
-                  .withArgs(orderId, expirationTimestamp, orderSigner.address, paymentAmount, roles.manager.address);
+                  .withArgs(
+                    orderId,
+                    expirationTimestamp,
+                    orderSigner.address,
+                    paymentAmount,
+                    roles.randomPerson.address
+                  );
                 expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('1'));
                 expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(true);
 
                 await expect(
-                  orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount })
+                  orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
                 ).to.be.revertedWith('Order already paid for');
                 expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('1'));
               });
@@ -201,7 +217,7 @@ describe('OrderPayable', function () {
               });
 
               await expect(
-                orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount })
+                orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
               ).to.be.revertedWith('Payment amount zero');
               expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('0'));
               expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(false);
@@ -230,7 +246,7 @@ describe('OrderPayable', function () {
                   });
 
                   await expect(
-                    orderPayable.connect(roles.orderSigner).payForOrder(encodedData, { value: paymentAmount })
+                    orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
                   )
                     .to.emit(orderPayable, 'PaidForOrder')
                     .withArgs(
@@ -238,7 +254,7 @@ describe('OrderPayable', function () {
                       expirationTimestamp,
                       orderSigner.address,
                       paymentAmount,
-                      roles.orderSigner.address
+                      roles.randomPerson.address
                     );
                   expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(paymentAmount);
                   expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(true);
@@ -271,7 +287,7 @@ describe('OrderPayable', function () {
                   );
 
                   await expect(
-                    orderPayable.connect(roles.orderSigner).payForOrder(encodedData, { value: paymentAmount })
+                    orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
                   ).to.be.revertedWith('Signature mismatch');
                   expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('0'));
                   expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(false);
@@ -296,20 +312,22 @@ describe('OrderPayable', function () {
                   orderSigner,
                 });
 
-                await expect(orderPayable.connect(roles.orderSigner).payForOrder(encodedData, { value: paymentAmount }))
+                await expect(
+                  orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
+                )
                   .to.emit(orderPayable, 'PaidForOrder')
                   .withArgs(
                     orderId,
                     expirationTimestamp,
                     orderSigner.address,
                     paymentAmount,
-                    roles.orderSigner.address
+                    roles.randomPerson.address
                   );
                 expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('1'));
                 expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(true);
 
                 await expect(
-                  orderPayable.connect(roles.orderSigner).payForOrder(encodedData, { value: paymentAmount })
+                  orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
                 ).to.be.revertedWith('Order already paid for');
                 expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('1'));
               });
@@ -334,7 +352,7 @@ describe('OrderPayable', function () {
               });
 
               await expect(
-                orderPayable.connect(roles.orderSigner).payForOrder(encodedData, { value: paymentAmount })
+                orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
               ).to.be.revertedWith('Payment amount zero');
               expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('0'));
               expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(false);
@@ -394,7 +412,7 @@ describe('OrderPayable', function () {
           });
 
           await expect(
-            orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount })
+            orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
           ).to.be.revertedWith('Order expired');
           expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('0'));
           expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(false);
@@ -420,7 +438,7 @@ describe('OrderPayable', function () {
         });
 
         await expect(
-          orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount })
+          orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
         ).to.be.revertedWith('Order ID zero');
         expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('0'));
         expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(false);
@@ -447,7 +465,7 @@ describe('OrderPayable', function () {
           orderSigner,
         });
 
-        await orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount });
+        await orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount });
 
         const initialRecipientBalance = await ethers.provider.getBalance(roles.recipient.address);
         const initialContractBalance = await ethers.provider.getBalance(orderPayable.address);
@@ -481,7 +499,7 @@ describe('OrderPayable', function () {
           orderSigner,
         });
 
-        await orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount });
+        await orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount });
 
         const initialRecipientBalance = await ethers.provider.getBalance(roles.recipient.address);
         const initialContractBalance = await ethers.provider.getBalance(orderPayable.address);
@@ -515,7 +533,7 @@ describe('OrderPayable', function () {
           orderSigner,
         });
 
-        await orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount });
+        await orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount });
 
         const initialRecipientBalance = await ethers.provider.getBalance(roles.recipient.address);
         const initialContractBalance = await ethers.provider.getBalance(orderPayable.address);
@@ -549,7 +567,7 @@ describe('OrderPayable', function () {
           orderSigner,
         });
 
-        await orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount });
+        await orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount });
 
         const initialRecipientBalance = await ethers.provider.getBalance(accessControlRegistry.address);
         const initialContractBalance = await ethers.provider.getBalance(orderPayable.address);
