@@ -58,14 +58,7 @@ describe('OrderPayable', function () {
     };
   }
 
-  async function createSignedOrderData({
-    orderSignerAddress,
-    roles,
-    orderPayable,
-    orderId,
-    expirationTimestamp,
-    paymentAmount,
-  }) {
+  async function createSignedOrderData({ orderSigner, orderPayable, orderId, expirationTimestamp, paymentAmount }) {
     const chainId = (await orderPayable.provider.getNetwork()).chainId;
 
     const hashedMessage = ethers.utils.solidityKeccak256(
@@ -75,11 +68,11 @@ describe('OrderPayable', function () {
 
     const hash = ethers.utils.arrayify(hashedMessage);
 
-    const signature = await roles.manager.signMessage(ethers.utils.arrayify(hash));
+    const signature = await orderSigner.signMessage(ethers.utils.arrayify(hash));
 
     const encodedData = ethers.utils.defaultAbiCoder.encode(
       ['bytes32', 'uint256', 'address', 'bytes'],
-      [orderId, expirationTimestamp, orderSignerAddress, signature]
+      [orderId, expirationTimestamp, orderSigner.address, signature]
     );
 
     return encodedData;
@@ -167,10 +160,10 @@ describe('OrderPayable', function () {
                   const timestamp = await helpers.time.latest();
                   const expirationTimestamp = timestamp + 60;
                   const paymentAmount = ethers.utils.parseEther('1');
-                  const orderSignerAddress = roles.manager.address;
+                  const orderSigner = roles.manager;
 
                   const encodedData = await createSignedOrderData({
-                    orderSignerAddress,
+                    orderSigner,
                     roles,
                     orderPayable,
                     orderId,
@@ -180,7 +173,7 @@ describe('OrderPayable', function () {
 
                   await expect(orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount }))
                     .to.emit(orderPayable, 'PaidForOrder')
-                    .withArgs(orderId, expirationTimestamp, orderSignerAddress, paymentAmount, roles.manager.address);
+                    .withArgs(orderId, expirationTimestamp, orderSigner.address, paymentAmount, roles.manager.address);
                   expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(paymentAmount);
                   expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(true);
                 });
@@ -191,10 +184,10 @@ describe('OrderPayable', function () {
                   const timestamp = await helpers.time.latest();
                   const expirationTimestamp = timestamp + 60;
                   const paymentAmount = ethers.utils.parseEther('1');
-                  const orderSignerAddress = roles.manager.address;
+                  const orderSigner = roles.manager;
 
                   const encodedData = await createSignedOrderData({
-                    orderSignerAddress,
+                    orderSigner,
                     roles,
                     orderPayable,
                     orderId,
@@ -209,7 +202,7 @@ describe('OrderPayable', function () {
                     .withArgs(
                       orderId,
                       expirationTimestamp,
-                      orderSignerAddress,
+                      orderSigner.address,
                       paymentAmount,
                       roles.orderSigner.address
                     );
@@ -259,10 +252,10 @@ describe('OrderPayable', function () {
                 const timestamp = await helpers.time.latest();
                 const expirationTimestamp = timestamp + 60;
                 const paymentAmount = ethers.utils.parseEther('1');
-                const orderSignerAddress = roles.manager.address;
+                const orderSigner = roles.manager;
 
                 const encodedData = await createSignedOrderData({
-                  orderSignerAddress,
+                  orderSigner,
                   roles,
                   orderPayable,
                   orderId,
@@ -272,7 +265,7 @@ describe('OrderPayable', function () {
 
                 await expect(orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount }))
                   .to.emit(orderPayable, 'PaidForOrder')
-                  .withArgs(orderId, expirationTimestamp, orderSignerAddress, paymentAmount, roles.manager.address);
+                  .withArgs(orderId, expirationTimestamp, orderSigner.address, paymentAmount, roles.manager.address);
                 expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('1'));
                 expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(true);
 
@@ -291,10 +284,10 @@ describe('OrderPayable', function () {
               const timestamp = await helpers.time.latest();
               const expirationTimestamp = timestamp + 60;
               const paymentAmount = ethers.utils.parseEther('0');
-              const orderSignerAddress = roles.manager.address;
+              const orderSigner = roles.manager;
 
               const encodedData = await createSignedOrderData({
-                orderSignerAddress,
+                orderSigner,
                 roles,
                 orderPayable,
                 orderId,
@@ -318,10 +311,10 @@ describe('OrderPayable', function () {
             const timestamp = await helpers.time.latest();
             const expirationTimestamp = timestamp - 60;
             const paymentAmount = ethers.utils.parseEther('1');
-            const orderSignerAddress = roles.manager.address;
+            const orderSigner = roles.manager;
 
             const encodedData = await createSignedOrderData({
-              orderSignerAddress,
+              orderSigner,
               roles,
               orderPayable,
               orderId,
@@ -346,10 +339,10 @@ describe('OrderPayable', function () {
         const timestamp = await helpers.time.latest();
         const expirationTimestamp = timestamp + 60;
         const paymentAmount = ethers.utils.parseEther('1');
-        const orderSignerAddress = roles.manager.address;
+        const orderSigner = roles.manager;
 
         const encodedData = await createSignedOrderData({
-          orderSignerAddress,
+          orderSigner,
           roles,
           orderPayable,
           orderId,
@@ -582,10 +575,10 @@ describe('OrderPayable', function () {
         const timestamp = await helpers.time.latest();
         const expirationTimestamp = timestamp + 60;
         const paymentAmount = ethers.utils.parseEther('1');
-        const orderSignerAddress = roles.manager.address;
+        const orderSigner = roles.manager;
 
         const encodedData = await createSignedOrderData({
-          orderSignerAddress,
+          orderSigner,
           roles,
           orderPayable,
           orderId,
@@ -617,10 +610,10 @@ describe('OrderPayable', function () {
         const timestamp = await helpers.time.latest();
         const expirationTimestamp = timestamp + 60;
         const paymentAmount = ethers.utils.parseEther('1');
-        const orderSignerAddress = roles.manager.address;
+        const orderSigner = roles.manager;
 
         const encodedData = await createSignedOrderData({
-          orderSignerAddress,
+          orderSigner,
           roles,
           orderPayable,
           orderId,
@@ -652,10 +645,10 @@ describe('OrderPayable', function () {
         const timestamp = await helpers.time.latest();
         const expirationTimestamp = timestamp + 60;
         const paymentAmount = ethers.utils.parseEther('1');
-        const orderSignerAddress = roles.manager.address;
+        const orderSigner = roles.manager;
 
         const encodedData = await createSignedOrderData({
-          orderSignerAddress,
+          orderSigner,
           roles,
           orderPayable,
           orderId,
@@ -687,10 +680,10 @@ describe('OrderPayable', function () {
         const timestamp = await helpers.time.latest();
         const expirationTimestamp = timestamp + 60;
         const paymentAmount = ethers.utils.parseEther('1');
-        const orderSignerAddress = roles.manager.address;
+        const orderSigner = roles.manager;
 
         const encodedData = await createSignedOrderData({
-          orderSignerAddress,
+          orderSigner,
           roles,
           orderPayable,
           orderId,
