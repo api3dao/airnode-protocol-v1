@@ -397,45 +397,73 @@ describe('OrderPayable', function () {
 
   describe('withdraw', function () {
     context('Sender is the manager', function () {
-      it('withdraws', async function () {
-        const { roles, orderPayable } = await deploy();
+      context('Transfer call does not revert', function () {
+        it('withdraws', async function () {
+          const { roles, orderPayable } = await deploy();
 
-        const paymentAmount = ethers.utils.parseEther('1');
-        await payForAnOrder(orderPayable, paymentAmount, roles.orderSigner, roles.randomPerson);
+          const paymentAmount = ethers.utils.parseEther('1');
+          await payForAnOrder(orderPayable, paymentAmount, roles.orderSigner, roles.randomPerson);
 
-        const initialRecipientBalance = await ethers.provider.getBalance(roles.recipient.address);
-        const initialContractBalance = await ethers.provider.getBalance(orderPayable.address);
+          const initialRecipientBalance = await ethers.provider.getBalance(roles.recipient.address);
+          const initialContractBalance = await ethers.provider.getBalance(orderPayable.address);
 
-        await expect(orderPayable.connect(roles.manager).withdraw(roles.recipient.address))
-          .to.emit(orderPayable, 'Withdrew')
-          .withArgs(roles.recipient.address, initialContractBalance);
+          await expect(orderPayable.connect(roles.manager).withdraw(roles.recipient.address))
+            .to.emit(orderPayable, 'Withdrew')
+            .withArgs(roles.recipient.address, initialContractBalance);
 
-        const finalRecipientBalance = await ethers.provider.getBalance(roles.recipient.address);
-        const finalContractBalance = await ethers.provider.getBalance(orderPayable.address);
+          const finalRecipientBalance = await ethers.provider.getBalance(roles.recipient.address);
+          const finalContractBalance = await ethers.provider.getBalance(orderPayable.address);
 
-        expect(finalRecipientBalance).to.equal(initialRecipientBalance.add(initialContractBalance));
-        expect(finalContractBalance).to.equal(0);
+          expect(finalRecipientBalance).to.equal(initialRecipientBalance.add(initialContractBalance));
+          expect(finalContractBalance).to.equal(0);
+        });
+      });
+      context('Transfer call reverts', function () {
+        it('reverts', async function () {
+          const { roles, orderPayable, accessControlRegistry } = await deploy();
+
+          const paymentAmount = ethers.utils.parseEther('1');
+          await payForAnOrder(orderPayable, paymentAmount, roles.orderSigner, roles.randomPerson);
+
+          await expect(orderPayable.connect(roles.manager).withdraw(accessControlRegistry.address)).to.be.revertedWith(
+            'Transfer unsuccessful'
+          );
+        });
       });
     });
     context('Sender is a withdrawer', function () {
-      it('withdraws', async function () {
-        const { roles, orderPayable } = await deploy();
+      context('Transfer call does not revert', function () {
+        it('withdraws', async function () {
+          const { roles, orderPayable } = await deploy();
 
-        const paymentAmount = ethers.utils.parseEther('1');
-        await payForAnOrder(orderPayable, paymentAmount, roles.orderSigner, roles.randomPerson);
+          const paymentAmount = ethers.utils.parseEther('1');
+          await payForAnOrder(orderPayable, paymentAmount, roles.orderSigner, roles.randomPerson);
 
-        const initialRecipientBalance = await ethers.provider.getBalance(roles.recipient.address);
-        const initialContractBalance = await ethers.provider.getBalance(orderPayable.address);
+          const initialRecipientBalance = await ethers.provider.getBalance(roles.recipient.address);
+          const initialContractBalance = await ethers.provider.getBalance(orderPayable.address);
 
-        await expect(orderPayable.connect(roles.withdrawer).withdraw(roles.recipient.address))
-          .to.emit(orderPayable, 'Withdrew')
-          .withArgs(roles.recipient.address, initialContractBalance);
+          await expect(orderPayable.connect(roles.withdrawer).withdraw(roles.recipient.address))
+            .to.emit(orderPayable, 'Withdrew')
+            .withArgs(roles.recipient.address, initialContractBalance);
 
-        const finalRecipientBalance = await ethers.provider.getBalance(roles.recipient.address);
-        const finalContractBalance = await ethers.provider.getBalance(orderPayable.address);
+          const finalRecipientBalance = await ethers.provider.getBalance(roles.recipient.address);
+          const finalContractBalance = await ethers.provider.getBalance(orderPayable.address);
 
-        expect(finalRecipientBalance).to.equal(initialRecipientBalance.add(initialContractBalance));
-        expect(finalContractBalance).to.equal(0);
+          expect(finalRecipientBalance).to.equal(initialRecipientBalance.add(initialContractBalance));
+          expect(finalContractBalance).to.equal(0);
+        });
+      });
+      context('Transfer call reverts', function () {
+        it('reverts', async function () {
+          const { roles, orderPayable, accessControlRegistry } = await deploy();
+
+          const paymentAmount = ethers.utils.parseEther('1');
+          await payForAnOrder(orderPayable, paymentAmount, roles.orderSigner, roles.randomPerson);
+
+          await expect(
+            orderPayable.connect(roles.withdrawer).withdraw(accessControlRegistry.address)
+          ).to.be.revertedWith('Transfer unsuccessful');
+        });
       });
     });
     context('Sender is not the manager or a withdrawer', function () {
@@ -447,18 +475,6 @@ describe('OrderPayable', function () {
 
         await expect(orderPayable.connect(roles.randomPerson).withdraw(roles.recipient.address)).to.be.revertedWith(
           'Sender cannot withdraw'
-        );
-      });
-    });
-    context('Recipient does not accept value', function () {
-      it('target function reverts', async function () {
-        const { roles, orderPayable, accessControlRegistry } = await deploy();
-
-        const paymentAmount = ethers.utils.parseEther('1');
-        await payForAnOrder(orderPayable, paymentAmount, roles.orderSigner, roles.randomPerson);
-
-        await expect(orderPayable.connect(roles.withdrawer).withdraw(accessControlRegistry.address)).to.be.revertedWith(
-          'Transfer unsuccessful'
         );
       });
     });
