@@ -1,0 +1,967 @@
+{
+  "address": "0x8367a2a08e46e0BA57CF1a24412E5AF7b4236D93",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_accessControlRegistry",
+          "type": "address"
+        },
+        {
+          "internalType": "string",
+          "name": "_adminRoleDescription",
+          "type": "string"
+        },
+        {
+          "internalType": "address",
+          "name": "_manager",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "_token",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "recipient",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "sender",
+          "type": "address"
+        }
+      ],
+      "name": "Claimed",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "withdrawalLimit",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "sender",
+          "type": "address"
+        }
+      ],
+      "name": "DecreasedUserWithdrawalLimit",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "withdrawalLimit",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "sender",
+          "type": "address"
+        }
+      ],
+      "name": "Deposited",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "withdrawalLimit",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "sender",
+          "type": "address"
+        }
+      ],
+      "name": "IncreasedUserWithdrawalLimit",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "withdrawalDestination",
+          "type": "address"
+        }
+      ],
+      "name": "SetWithdrawalDestination",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "withdrawalHash",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "expirationTimestamp",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "withdrawalSigner",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "withdrawalDestination",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "withdrawalLimit",
+          "type": "uint256"
+        }
+      ],
+      "name": "Withdrew",
+      "type": "event"
+    },
+    {
+      "inputs": [],
+      "name": "CLAIMER_ROLE_DESCRIPTION",
+      "outputs": [
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "USER_WITHDRAWAL_LIMIT_DECREASER_ROLE_DESCRIPTION",
+      "outputs": [
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "USER_WITHDRAWAL_LIMIT_INCREASER_ROLE_DESCRIPTION",
+      "outputs": [
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "WITHDRAWAL_SIGNER_ROLE_DESCRIPTION",
+      "outputs": [
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "accessControlRegistry",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "adminRole",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "adminRoleDescription",
+      "outputs": [
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "deadline",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint8",
+          "name": "v",
+          "type": "uint8"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "r",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "s",
+          "type": "bytes32"
+        }
+      ],
+      "name": "applyPermitAndDeposit",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "withdrawalLimit",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "recipient",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "claim",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "claimerRole",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "decreaseUserWithdrawalLimit",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "withdrawalLimit",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "deposit",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "withdrawalLimit",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "increaseUserWithdrawalLimit",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "withdrawalLimit",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "manager",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes[]",
+          "name": "data",
+          "type": "bytes[]"
+        }
+      ],
+      "name": "multicall",
+      "outputs": [
+        {
+          "internalType": "bytes[]",
+          "name": "returndata",
+          "type": "bytes[]"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "withdrawalDestination",
+          "type": "address"
+        }
+      ],
+      "name": "setWithdrawalDestination",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "token",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes[]",
+          "name": "data",
+          "type": "bytes[]"
+        }
+      ],
+      "name": "tryMulticall",
+      "outputs": [
+        {
+          "internalType": "bool[]",
+          "name": "successes",
+          "type": "bool[]"
+        },
+        {
+          "internalType": "bytes[]",
+          "name": "returndata",
+          "type": "bytes[]"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "userToWithdrawalDestination",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "userToWithdrawalLimit",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "userWithdrawalLimitDecreaserRole",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "userWithdrawalLimitIncreaserRole",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "expirationTimestamp",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "withdrawalSigner",
+          "type": "address"
+        },
+        {
+          "internalType": "bytes",
+          "name": "signature",
+          "type": "bytes"
+        }
+      ],
+      "name": "withdraw",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "withdrawalDestination",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "withdrawalLimit",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "withdrawalSignerRole",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "name": "withdrawalWithHashIsExecuted",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "transactionHash": "0x7e3f8064548b88c09716ff86c082f9485acb386d53d5e3fb134104ed50caf267",
+  "receipt": {
+    "to": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
+    "from": "0x07b589f06bD0A5324c4E2376d66d2F4F25921DE1",
+    "contractAddress": null,
+    "transactionIndex": 131,
+    "gasUsed": "2040931",
+    "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "blockHash": "0x56f2fbc03eaddde2ccdde774eac4b216c0f6297cb043772050091344816033fa",
+    "transactionHash": "0x7e3f8064548b88c09716ff86c082f9485acb386d53d5e3fb134104ed50caf267",
+    "logs": [],
+    "blockNumber": 17173868,
+    "cumulativeGasUsed": "12331830",
+    "status": 1,
+    "byzantium": true
+  },
+  "args": [
+    "0x12D82f38a038A71b0843BD3256CD1E0A1De74834",
+    "PrepaymentDepository admin (OEV Relay)",
+    "0x81bc85f329cDB28936FbB239f734AE495121F9A6",
+    "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+  ],
+  "numDeployments": 1,
+  "solcInputHash": "8120b0965e5841e9c149e38a1b41bcef",
+  "metadata": "{\"compiler\":{\"version\":\"0.8.17+commit.8df45f5f\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_accessControlRegistry\",\"type\":\"address\"},{\"internalType\":\"string\",\"name\":\"_adminRoleDescription\",\"type\":\"string\"},{\"internalType\":\"address\",\"name\":\"_manager\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_token\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"}],\"name\":\"Claimed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"user\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"withdrawalLimit\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"}],\"name\":\"DecreasedUserWithdrawalLimit\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"user\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"withdrawalLimit\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"}],\"name\":\"Deposited\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"user\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"withdrawalLimit\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"}],\"name\":\"IncreasedUserWithdrawalLimit\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"user\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"withdrawalDestination\",\"type\":\"address\"}],\"name\":\"SetWithdrawalDestination\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"user\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"withdrawalHash\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"expirationTimestamp\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"withdrawalSigner\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"withdrawalDestination\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"withdrawalLimit\",\"type\":\"uint256\"}],\"name\":\"Withdrew\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"CLAIMER_ROLE_DESCRIPTION\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"USER_WITHDRAWAL_LIMIT_DECREASER_ROLE_DESCRIPTION\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"USER_WITHDRAWAL_LIMIT_INCREASER_ROLE_DESCRIPTION\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"WITHDRAWAL_SIGNER_ROLE_DESCRIPTION\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"accessControlRegistry\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"adminRole\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"adminRoleDescription\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"user\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"deadline\",\"type\":\"uint256\"},{\"internalType\":\"uint8\",\"name\":\"v\",\"type\":\"uint8\"},{\"internalType\":\"bytes32\",\"name\":\"r\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"s\",\"type\":\"bytes32\"}],\"name\":\"applyPermitAndDeposit\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"withdrawalLimit\",\"type\":\"uint256\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"claim\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"claimerRole\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"user\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"decreaseUserWithdrawalLimit\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"withdrawalLimit\",\"type\":\"uint256\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"user\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"deposit\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"withdrawalLimit\",\"type\":\"uint256\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"user\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"increaseUserWithdrawalLimit\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"withdrawalLimit\",\"type\":\"uint256\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"manager\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes[]\",\"name\":\"data\",\"type\":\"bytes[]\"}],\"name\":\"multicall\",\"outputs\":[{\"internalType\":\"bytes[]\",\"name\":\"returndata\",\"type\":\"bytes[]\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"user\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"withdrawalDestination\",\"type\":\"address\"}],\"name\":\"setWithdrawalDestination\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"token\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes[]\",\"name\":\"data\",\"type\":\"bytes[]\"}],\"name\":\"tryMulticall\",\"outputs\":[{\"internalType\":\"bool[]\",\"name\":\"successes\",\"type\":\"bool[]\"},{\"internalType\":\"bytes[]\",\"name\":\"returndata\",\"type\":\"bytes[]\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"userToWithdrawalDestination\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"userToWithdrawalLimit\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"userWithdrawalLimitDecreaserRole\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"userWithdrawalLimitIncreaserRole\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"expirationTimestamp\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"withdrawalSigner\",\"type\":\"address\"},{\"internalType\":\"bytes\",\"name\":\"signature\",\"type\":\"bytes\"}],\"name\":\"withdraw\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"withdrawalDestination\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"withdrawalLimit\",\"type\":\"uint256\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"withdrawalSignerRole\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"withdrawalWithHashIsExecuted\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{\"applyPermitAndDeposit(address,uint256,uint256,uint8,bytes32,bytes32)\":{\"params\":{\"amount\":\"Amount of tokens to deposit\",\"deadline\":\"Deadline of the permit\",\"r\":\"r component of the signature\",\"s\":\"s component of the signature\",\"user\":\"User address\",\"v\":\"v component of the signature\"},\"returns\":{\"withdrawalLimit\":\"Increased withdrawal limit\"}},\"claim(address,uint256)\":{\"params\":{\"amount\":\"Amount of tokens to claim\",\"recipient\":\"Recipient address\"}},\"constructor\":{\"params\":{\"_accessControlRegistry\":\"AccessControlRegistry contract address\",\"_adminRoleDescription\":\"Admin role description\",\"_manager\":\"Manager address\",\"_token\":\"Contract address of the ERC20 token that prepayments are made in\"}},\"decreaseUserWithdrawalLimit(address,uint256)\":{\"params\":{\"amount\":\"Amount to decrease the withdrawal limit by\",\"user\":\"User address\"},\"returns\":{\"withdrawalLimit\":\"Decreased withdrawal limit\"}},\"deposit(address,uint256)\":{\"params\":{\"amount\":\"Amount of tokens to deposit\",\"user\":\"User address\"},\"returns\":{\"withdrawalLimit\":\"Increased withdrawal limit\"}},\"increaseUserWithdrawalLimit(address,uint256)\":{\"details\":\"This function is intended to be used to revert faulty `decreaseUserWithdrawalLimit()` calls\",\"params\":{\"amount\":\"Amount to increase the withdrawal limit by\",\"user\":\"User address\"},\"returns\":{\"withdrawalLimit\":\"Increased withdrawal limit\"}},\"multicall(bytes[])\":{\"params\":{\"data\":\"Array of calldata of batched calls\"},\"returns\":{\"returndata\":\"Array of returndata of batched calls\"}},\"setWithdrawalDestination(address,address)\":{\"params\":{\"user\":\"User address\",\"withdrawalDestination\":\"Withdrawal destination\"}},\"tryMulticall(bytes[])\":{\"params\":{\"data\":\"Array of calldata of batched calls\"},\"returns\":{\"returndata\":\"Array of returndata of batched calls\",\"successes\":\"Array of success conditions of batched calls\"}},\"withdraw(uint256,uint256,address,bytes)\":{\"params\":{\"amount\":\"Amount of tokens to withdraw\",\"expirationTimestamp\":\"Expiration timestamp of the signature\",\"signature\":\"Withdrawal signature\",\"withdrawalSigner\":\"Address of the account that signed the withdrawal\"},\"returns\":{\"withdrawalDestination\":\"Withdrawal destination\",\"withdrawalLimit\":\"Decreased withdrawal limit\"}}},\"title\":\"Contract that enables micropayments to be prepaid in batch\",\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{\"CLAIMER_ROLE_DESCRIPTION()\":{\"notice\":\"Claimer role description\"},\"USER_WITHDRAWAL_LIMIT_DECREASER_ROLE_DESCRIPTION()\":{\"notice\":\"User withdrawal limit decreaser role description\"},\"USER_WITHDRAWAL_LIMIT_INCREASER_ROLE_DESCRIPTION()\":{\"notice\":\"User withdrawal limit increaser role description\"},\"WITHDRAWAL_SIGNER_ROLE_DESCRIPTION()\":{\"notice\":\"Withdrawal signer role description\"},\"accessControlRegistry()\":{\"notice\":\"AccessControlRegistry contract address\"},\"adminRole()\":{\"notice\":\"Admin role\"},\"adminRoleDescription()\":{\"notice\":\"Admin role description\"},\"applyPermitAndDeposit(address,uint256,uint256,uint8,bytes32,bytes32)\":{\"notice\":\"Called to apply a ERC2612 permit and deposit tokens on behalf of a user\"},\"claim(address,uint256)\":{\"notice\":\"Called to claim tokens\"},\"claimerRole()\":{\"notice\":\"Claimer role\"},\"decreaseUserWithdrawalLimit(address,uint256)\":{\"notice\":\"Called to decrease the withdrawal limit of the user\"},\"deposit(address,uint256)\":{\"notice\":\"Called to deposit tokens on behalf of a user\"},\"increaseUserWithdrawalLimit(address,uint256)\":{\"notice\":\"Called to increase the withdrawal limit of the user\"},\"manager()\":{\"notice\":\"Address of the manager that manages the related AccessControlRegistry roles\"},\"multicall(bytes[])\":{\"notice\":\"Batches calls to the inheriting contract and reverts as soon as one of the batched calls reverts\"},\"setWithdrawalDestination(address,address)\":{\"notice\":\"Called by the user that has not set a withdrawal destination to set a withdrawal destination, or called by the withdrawal destination of a user to set a new withdrawal destination\"},\"token()\":{\"notice\":\"Contract address of the ERC20 token that prepayments can be made in\"},\"tryMulticall(bytes[])\":{\"notice\":\"Batches calls to the inheriting contract but does not revert if any of the batched calls reverts\"},\"userToWithdrawalDestination(address)\":{\"notice\":\"Returns the withdrawal destination of the user\"},\"userToWithdrawalLimit(address)\":{\"notice\":\"Returns the withdrawal limit of the user\"},\"userWithdrawalLimitDecreaserRole()\":{\"notice\":\"User withdrawal limit decreaser role\"},\"userWithdrawalLimitIncreaserRole()\":{\"notice\":\"User withdrawal limit increaser role\"},\"withdraw(uint256,uint256,address,bytes)\":{\"notice\":\"Called by a user to withdraw tokens\"},\"withdrawalSignerRole()\":{\"notice\":\"Withdrawal signer role\"},\"withdrawalWithHashIsExecuted(bytes32)\":{\"notice\":\"Returns if the withdrawal with the hash is executed\"}},\"notice\":\"`manager` represents the payment recipient, and its various privileges can be delegated to other accounts through respective roles. `manager`, `userWithdrawalLimitIncreaser` and `claimer` roles should only be granted to a multisig or an equivalently decentralized account. `withdrawalSigner` issues ERC191 signatures, and thus has to be an EOA. It being compromised poses a risk in proportion to the redundancy in user withdrawal limits. Have a `userWithdrawalLimitDecreaser` decrease user withdrawal limits as necessary to mitigate this risk. The `userWithdrawalLimitDecreaser` role can be granted to an EOA, as it cannot cause irreversible harm. This contract accepts prepayments in an ERC20 token specified immutably during construction. Do not use tokens that are not fully ERC20-compliant. An optional `depositWithPermit()` function is added to provide ERC2612 support.\",\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/utils/PrepaymentDepository.sol\":\"PrepaymentDepository\"},\"evmVersion\":\"london\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\",\"useLiteralContent\":true},\"optimizer\":{\"enabled\":true,\"runs\":1000},\"remappings\":[]},\"sources\":{\"@openzeppelin/contracts/access/IAccessControl.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\n// OpenZeppelin Contracts v4.4.1 (access/IAccessControl.sol)\\n\\npragma solidity ^0.8.0;\\n\\n/**\\n * @dev External interface of AccessControl declared to support ERC165 detection.\\n */\\ninterface IAccessControl {\\n    /**\\n     * @dev Emitted when `newAdminRole` is set as ``role``'s admin role, replacing `previousAdminRole`\\n     *\\n     * `DEFAULT_ADMIN_ROLE` is the starting admin for all roles, despite\\n     * {RoleAdminChanged} not being emitted signaling this.\\n     *\\n     * _Available since v3.1._\\n     */\\n    event RoleAdminChanged(bytes32 indexed role, bytes32 indexed previousAdminRole, bytes32 indexed newAdminRole);\\n\\n    /**\\n     * @dev Emitted when `account` is granted `role`.\\n     *\\n     * `sender` is the account that originated the contract call, an admin role\\n     * bearer except when using {AccessControl-_setupRole}.\\n     */\\n    event RoleGranted(bytes32 indexed role, address indexed account, address indexed sender);\\n\\n    /**\\n     * @dev Emitted when `account` is revoked `role`.\\n     *\\n     * `sender` is the account that originated the contract call:\\n     *   - if using `revokeRole`, it is the admin role bearer\\n     *   - if using `renounceRole`, it is the role bearer (i.e. `account`)\\n     */\\n    event RoleRevoked(bytes32 indexed role, address indexed account, address indexed sender);\\n\\n    /**\\n     * @dev Returns `true` if `account` has been granted `role`.\\n     */\\n    function hasRole(bytes32 role, address account) external view returns (bool);\\n\\n    /**\\n     * @dev Returns the admin role that controls `role`. See {grantRole} and\\n     * {revokeRole}.\\n     *\\n     * To change a role's admin, use {AccessControl-_setRoleAdmin}.\\n     */\\n    function getRoleAdmin(bytes32 role) external view returns (bytes32);\\n\\n    /**\\n     * @dev Grants `role` to `account`.\\n     *\\n     * If `account` had not been already granted `role`, emits a {RoleGranted}\\n     * event.\\n     *\\n     * Requirements:\\n     *\\n     * - the caller must have ``role``'s admin role.\\n     */\\n    function grantRole(bytes32 role, address account) external;\\n\\n    /**\\n     * @dev Revokes `role` from `account`.\\n     *\\n     * If `account` had been granted `role`, emits a {RoleRevoked} event.\\n     *\\n     * Requirements:\\n     *\\n     * - the caller must have ``role``'s admin role.\\n     */\\n    function revokeRole(bytes32 role, address account) external;\\n\\n    /**\\n     * @dev Revokes `role` from the calling account.\\n     *\\n     * Roles are often managed via {grantRole} and {revokeRole}: this function's\\n     * purpose is to provide a mechanism for accounts to lose their privileges\\n     * if they are compromised (such as when a trusted device is misplaced).\\n     *\\n     * If the calling account had been granted `role`, emits a {RoleRevoked}\\n     * event.\\n     *\\n     * Requirements:\\n     *\\n     * - the caller must be `account`.\\n     */\\n    function renounceRole(bytes32 role, address account) external;\\n}\\n\",\"keccak256\":\"0x59ce320a585d7e1f163cd70390a0ef2ff9cec832e2aa544293a00692465a7a57\",\"license\":\"MIT\"},\"@openzeppelin/contracts/token/ERC20/IERC20.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\n// OpenZeppelin Contracts (last updated v4.6.0) (token/ERC20/IERC20.sol)\\n\\npragma solidity ^0.8.0;\\n\\n/**\\n * @dev Interface of the ERC20 standard as defined in the EIP.\\n */\\ninterface IERC20 {\\n    /**\\n     * @dev Emitted when `value` tokens are moved from one account (`from`) to\\n     * another (`to`).\\n     *\\n     * Note that `value` may be zero.\\n     */\\n    event Transfer(address indexed from, address indexed to, uint256 value);\\n\\n    /**\\n     * @dev Emitted when the allowance of a `spender` for an `owner` is set by\\n     * a call to {approve}. `value` is the new allowance.\\n     */\\n    event Approval(address indexed owner, address indexed spender, uint256 value);\\n\\n    /**\\n     * @dev Returns the amount of tokens in existence.\\n     */\\n    function totalSupply() external view returns (uint256);\\n\\n    /**\\n     * @dev Returns the amount of tokens owned by `account`.\\n     */\\n    function balanceOf(address account) external view returns (uint256);\\n\\n    /**\\n     * @dev Moves `amount` tokens from the caller's account to `to`.\\n     *\\n     * Returns a boolean value indicating whether the operation succeeded.\\n     *\\n     * Emits a {Transfer} event.\\n     */\\n    function transfer(address to, uint256 amount) external returns (bool);\\n\\n    /**\\n     * @dev Returns the remaining number of tokens that `spender` will be\\n     * allowed to spend on behalf of `owner` through {transferFrom}. This is\\n     * zero by default.\\n     *\\n     * This value changes when {approve} or {transferFrom} are called.\\n     */\\n    function allowance(address owner, address spender) external view returns (uint256);\\n\\n    /**\\n     * @dev Sets `amount` as the allowance of `spender` over the caller's tokens.\\n     *\\n     * Returns a boolean value indicating whether the operation succeeded.\\n     *\\n     * IMPORTANT: Beware that changing an allowance with this method brings the risk\\n     * that someone may use both the old and the new allowance by unfortunate\\n     * transaction ordering. One possible solution to mitigate this race\\n     * condition is to first reduce the spender's allowance to 0 and set the\\n     * desired value afterwards:\\n     * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729\\n     *\\n     * Emits an {Approval} event.\\n     */\\n    function approve(address spender, uint256 amount) external returns (bool);\\n\\n    /**\\n     * @dev Moves `amount` tokens from `from` to `to` using the\\n     * allowance mechanism. `amount` is then deducted from the caller's\\n     * allowance.\\n     *\\n     * Returns a boolean value indicating whether the operation succeeded.\\n     *\\n     * Emits a {Transfer} event.\\n     */\\n    function transferFrom(\\n        address from,\\n        address to,\\n        uint256 amount\\n    ) external returns (bool);\\n}\\n\",\"keccak256\":\"0x9750c6b834f7b43000631af5cc30001c5f547b3ceb3635488f140f60e897ea6b\",\"license\":\"MIT\"},\"@openzeppelin/contracts/token/ERC20/extensions/draft-IERC20Permit.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\n// OpenZeppelin Contracts v4.4.1 (token/ERC20/extensions/draft-IERC20Permit.sol)\\n\\npragma solidity ^0.8.0;\\n\\n/**\\n * @dev Interface of the ERC20 Permit extension allowing approvals to be made via signatures, as defined in\\n * https://eips.ethereum.org/EIPS/eip-2612[EIP-2612].\\n *\\n * Adds the {permit} method, which can be used to change an account's ERC20 allowance (see {IERC20-allowance}) by\\n * presenting a message signed by the account. By not relying on {IERC20-approve}, the token holder account doesn't\\n * need to send a transaction, and thus is not required to hold Ether at all.\\n */\\ninterface IERC20Permit {\\n    /**\\n     * @dev Sets `value` as the allowance of `spender` over ``owner``'s tokens,\\n     * given ``owner``'s signed approval.\\n     *\\n     * IMPORTANT: The same issues {IERC20-approve} has related to transaction\\n     * ordering also apply here.\\n     *\\n     * Emits an {Approval} event.\\n     *\\n     * Requirements:\\n     *\\n     * - `spender` cannot be the zero address.\\n     * - `deadline` must be a timestamp in the future.\\n     * - `v`, `r` and `s` must be a valid `secp256k1` signature from `owner`\\n     * over the EIP712-formatted function arguments.\\n     * - the signature must use ``owner``'s current nonce (see {nonces}).\\n     *\\n     * For more information on the signature format, see the\\n     * https://eips.ethereum.org/EIPS/eip-2612#specification[relevant EIP\\n     * section].\\n     */\\n    function permit(\\n        address owner,\\n        address spender,\\n        uint256 value,\\n        uint256 deadline,\\n        uint8 v,\\n        bytes32 r,\\n        bytes32 s\\n    ) external;\\n\\n    /**\\n     * @dev Returns the current nonce for `owner`. This value must be\\n     * included whenever a signature is generated for {permit}.\\n     *\\n     * Every successful call to {permit} increases ``owner``'s nonce by one. This\\n     * prevents a signature from being used multiple times.\\n     */\\n    function nonces(address owner) external view returns (uint256);\\n\\n    /**\\n     * @dev Returns the domain separator used in the encoding of the signature for {permit}, as defined by {EIP712}.\\n     */\\n    // solhint-disable-next-line func-name-mixedcase\\n    function DOMAIN_SEPARATOR() external view returns (bytes32);\\n}\\n\",\"keccak256\":\"0xf41ca991f30855bf80ffd11e9347856a517b977f0a6c2d52e6421a99b7840329\",\"license\":\"MIT\"},\"@openzeppelin/contracts/utils/Strings.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\n// OpenZeppelin Contracts (last updated v4.8.0) (utils/Strings.sol)\\n\\npragma solidity ^0.8.0;\\n\\nimport \\\"./math/Math.sol\\\";\\n\\n/**\\n * @dev String operations.\\n */\\nlibrary Strings {\\n    bytes16 private constant _SYMBOLS = \\\"0123456789abcdef\\\";\\n    uint8 private constant _ADDRESS_LENGTH = 20;\\n\\n    /**\\n     * @dev Converts a `uint256` to its ASCII `string` decimal representation.\\n     */\\n    function toString(uint256 value) internal pure returns (string memory) {\\n        unchecked {\\n            uint256 length = Math.log10(value) + 1;\\n            string memory buffer = new string(length);\\n            uint256 ptr;\\n            /// @solidity memory-safe-assembly\\n            assembly {\\n                ptr := add(buffer, add(32, length))\\n            }\\n            while (true) {\\n                ptr--;\\n                /// @solidity memory-safe-assembly\\n                assembly {\\n                    mstore8(ptr, byte(mod(value, 10), _SYMBOLS))\\n                }\\n                value /= 10;\\n                if (value == 0) break;\\n            }\\n            return buffer;\\n        }\\n    }\\n\\n    /**\\n     * @dev Converts a `uint256` to its ASCII `string` hexadecimal representation.\\n     */\\n    function toHexString(uint256 value) internal pure returns (string memory) {\\n        unchecked {\\n            return toHexString(value, Math.log256(value) + 1);\\n        }\\n    }\\n\\n    /**\\n     * @dev Converts a `uint256` to its ASCII `string` hexadecimal representation with fixed length.\\n     */\\n    function toHexString(uint256 value, uint256 length) internal pure returns (string memory) {\\n        bytes memory buffer = new bytes(2 * length + 2);\\n        buffer[0] = \\\"0\\\";\\n        buffer[1] = \\\"x\\\";\\n        for (uint256 i = 2 * length + 1; i > 1; --i) {\\n            buffer[i] = _SYMBOLS[value & 0xf];\\n            value >>= 4;\\n        }\\n        require(value == 0, \\\"Strings: hex length insufficient\\\");\\n        return string(buffer);\\n    }\\n\\n    /**\\n     * @dev Converts an `address` with fixed length of 20 bytes to its not checksummed ASCII `string` hexadecimal representation.\\n     */\\n    function toHexString(address addr) internal pure returns (string memory) {\\n        return toHexString(uint256(uint160(addr)), _ADDRESS_LENGTH);\\n    }\\n}\\n\",\"keccak256\":\"0xa4d1d62251f8574deb032a35fc948386a9b4de74b812d4f545a1ac120486b48a\",\"license\":\"MIT\"},\"@openzeppelin/contracts/utils/cryptography/ECDSA.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\n// OpenZeppelin Contracts (last updated v4.8.0) (utils/cryptography/ECDSA.sol)\\n\\npragma solidity ^0.8.0;\\n\\nimport \\\"../Strings.sol\\\";\\n\\n/**\\n * @dev Elliptic Curve Digital Signature Algorithm (ECDSA) operations.\\n *\\n * These functions can be used to verify that a message was signed by the holder\\n * of the private keys of a given address.\\n */\\nlibrary ECDSA {\\n    enum RecoverError {\\n        NoError,\\n        InvalidSignature,\\n        InvalidSignatureLength,\\n        InvalidSignatureS,\\n        InvalidSignatureV // Deprecated in v4.8\\n    }\\n\\n    function _throwError(RecoverError error) private pure {\\n        if (error == RecoverError.NoError) {\\n            return; // no error: do nothing\\n        } else if (error == RecoverError.InvalidSignature) {\\n            revert(\\\"ECDSA: invalid signature\\\");\\n        } else if (error == RecoverError.InvalidSignatureLength) {\\n            revert(\\\"ECDSA: invalid signature length\\\");\\n        } else if (error == RecoverError.InvalidSignatureS) {\\n            revert(\\\"ECDSA: invalid signature 's' value\\\");\\n        }\\n    }\\n\\n    /**\\n     * @dev Returns the address that signed a hashed message (`hash`) with\\n     * `signature` or error string. This address can then be used for verification purposes.\\n     *\\n     * The `ecrecover` EVM opcode allows for malleable (non-unique) signatures:\\n     * this function rejects them by requiring the `s` value to be in the lower\\n     * half order, and the `v` value to be either 27 or 28.\\n     *\\n     * IMPORTANT: `hash` _must_ be the result of a hash operation for the\\n     * verification to be secure: it is possible to craft signatures that\\n     * recover to arbitrary addresses for non-hashed data. A safe way to ensure\\n     * this is by receiving a hash of the original message (which may otherwise\\n     * be too long), and then calling {toEthSignedMessageHash} on it.\\n     *\\n     * Documentation for signature generation:\\n     * - with https://web3js.readthedocs.io/en/v1.3.4/web3-eth-accounts.html#sign[Web3.js]\\n     * - with https://docs.ethers.io/v5/api/signer/#Signer-signMessage[ethers]\\n     *\\n     * _Available since v4.3._\\n     */\\n    function tryRecover(bytes32 hash, bytes memory signature) internal pure returns (address, RecoverError) {\\n        if (signature.length == 65) {\\n            bytes32 r;\\n            bytes32 s;\\n            uint8 v;\\n            // ecrecover takes the signature parameters, and the only way to get them\\n            // currently is to use assembly.\\n            /// @solidity memory-safe-assembly\\n            assembly {\\n                r := mload(add(signature, 0x20))\\n                s := mload(add(signature, 0x40))\\n                v := byte(0, mload(add(signature, 0x60)))\\n            }\\n            return tryRecover(hash, v, r, s);\\n        } else {\\n            return (address(0), RecoverError.InvalidSignatureLength);\\n        }\\n    }\\n\\n    /**\\n     * @dev Returns the address that signed a hashed message (`hash`) with\\n     * `signature`. This address can then be used for verification purposes.\\n     *\\n     * The `ecrecover` EVM opcode allows for malleable (non-unique) signatures:\\n     * this function rejects them by requiring the `s` value to be in the lower\\n     * half order, and the `v` value to be either 27 or 28.\\n     *\\n     * IMPORTANT: `hash` _must_ be the result of a hash operation for the\\n     * verification to be secure: it is possible to craft signatures that\\n     * recover to arbitrary addresses for non-hashed data. A safe way to ensure\\n     * this is by receiving a hash of the original message (which may otherwise\\n     * be too long), and then calling {toEthSignedMessageHash} on it.\\n     */\\n    function recover(bytes32 hash, bytes memory signature) internal pure returns (address) {\\n        (address recovered, RecoverError error) = tryRecover(hash, signature);\\n        _throwError(error);\\n        return recovered;\\n    }\\n\\n    /**\\n     * @dev Overload of {ECDSA-tryRecover} that receives the `r` and `vs` short-signature fields separately.\\n     *\\n     * See https://eips.ethereum.org/EIPS/eip-2098[EIP-2098 short signatures]\\n     *\\n     * _Available since v4.3._\\n     */\\n    function tryRecover(\\n        bytes32 hash,\\n        bytes32 r,\\n        bytes32 vs\\n    ) internal pure returns (address, RecoverError) {\\n        bytes32 s = vs & bytes32(0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff);\\n        uint8 v = uint8((uint256(vs) >> 255) + 27);\\n        return tryRecover(hash, v, r, s);\\n    }\\n\\n    /**\\n     * @dev Overload of {ECDSA-recover} that receives the `r and `vs` short-signature fields separately.\\n     *\\n     * _Available since v4.2._\\n     */\\n    function recover(\\n        bytes32 hash,\\n        bytes32 r,\\n        bytes32 vs\\n    ) internal pure returns (address) {\\n        (address recovered, RecoverError error) = tryRecover(hash, r, vs);\\n        _throwError(error);\\n        return recovered;\\n    }\\n\\n    /**\\n     * @dev Overload of {ECDSA-tryRecover} that receives the `v`,\\n     * `r` and `s` signature fields separately.\\n     *\\n     * _Available since v4.3._\\n     */\\n    function tryRecover(\\n        bytes32 hash,\\n        uint8 v,\\n        bytes32 r,\\n        bytes32 s\\n    ) internal pure returns (address, RecoverError) {\\n        // EIP-2 still allows signature malleability for ecrecover(). Remove this possibility and make the signature\\n        // unique. Appendix F in the Ethereum Yellow paper (https://ethereum.github.io/yellowpaper/paper.pdf), defines\\n        // the valid range for s in (301): 0 < s < secp256k1n \\u00f7 2 + 1, and for v in (302): v \\u2208 {27, 28}. Most\\n        // signatures from current libraries generate a unique signature with an s-value in the lower half order.\\n        //\\n        // If your library generates malleable signatures, such as s-values in the upper range, calculate a new s-value\\n        // with 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141 - s1 and flip v from 27 to 28 or\\n        // vice versa. If your library also generates signatures with 0/1 for v instead 27/28, add 27 to v to accept\\n        // these malleable signatures as well.\\n        if (uint256(s) > 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0) {\\n            return (address(0), RecoverError.InvalidSignatureS);\\n        }\\n\\n        // If the signature is valid (and not malleable), return the signer address\\n        address signer = ecrecover(hash, v, r, s);\\n        if (signer == address(0)) {\\n            return (address(0), RecoverError.InvalidSignature);\\n        }\\n\\n        return (signer, RecoverError.NoError);\\n    }\\n\\n    /**\\n     * @dev Overload of {ECDSA-recover} that receives the `v`,\\n     * `r` and `s` signature fields separately.\\n     */\\n    function recover(\\n        bytes32 hash,\\n        uint8 v,\\n        bytes32 r,\\n        bytes32 s\\n    ) internal pure returns (address) {\\n        (address recovered, RecoverError error) = tryRecover(hash, v, r, s);\\n        _throwError(error);\\n        return recovered;\\n    }\\n\\n    /**\\n     * @dev Returns an Ethereum Signed Message, created from a `hash`. This\\n     * produces hash corresponding to the one signed with the\\n     * https://eth.wiki/json-rpc/API#eth_sign[`eth_sign`]\\n     * JSON-RPC method as part of EIP-191.\\n     *\\n     * See {recover}.\\n     */\\n    function toEthSignedMessageHash(bytes32 hash) internal pure returns (bytes32) {\\n        // 32 is the length in bytes of hash,\\n        // enforced by the type signature above\\n        return keccak256(abi.encodePacked(\\\"\\\\x19Ethereum Signed Message:\\\\n32\\\", hash));\\n    }\\n\\n    /**\\n     * @dev Returns an Ethereum Signed Message, created from `s`. This\\n     * produces hash corresponding to the one signed with the\\n     * https://eth.wiki/json-rpc/API#eth_sign[`eth_sign`]\\n     * JSON-RPC method as part of EIP-191.\\n     *\\n     * See {recover}.\\n     */\\n    function toEthSignedMessageHash(bytes memory s) internal pure returns (bytes32) {\\n        return keccak256(abi.encodePacked(\\\"\\\\x19Ethereum Signed Message:\\\\n\\\", Strings.toString(s.length), s));\\n    }\\n\\n    /**\\n     * @dev Returns an Ethereum Signed Typed Data, created from a\\n     * `domainSeparator` and a `structHash`. This produces hash corresponding\\n     * to the one signed with the\\n     * https://eips.ethereum.org/EIPS/eip-712[`eth_signTypedData`]\\n     * JSON-RPC method as part of EIP-712.\\n     *\\n     * See {recover}.\\n     */\\n    function toTypedDataHash(bytes32 domainSeparator, bytes32 structHash) internal pure returns (bytes32) {\\n        return keccak256(abi.encodePacked(\\\"\\\\x19\\\\x01\\\", domainSeparator, structHash));\\n    }\\n}\\n\",\"keccak256\":\"0xda898fa084aa1ddfdb346e6a40459e00a59d87071cce7c315a46d648dd71d0ba\",\"license\":\"MIT\"},\"@openzeppelin/contracts/utils/math/Math.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\n// OpenZeppelin Contracts (last updated v4.8.0) (utils/math/Math.sol)\\n\\npragma solidity ^0.8.0;\\n\\n/**\\n * @dev Standard math utilities missing in the Solidity language.\\n */\\nlibrary Math {\\n    enum Rounding {\\n        Down, // Toward negative infinity\\n        Up, // Toward infinity\\n        Zero // Toward zero\\n    }\\n\\n    /**\\n     * @dev Returns the largest of two numbers.\\n     */\\n    function max(uint256 a, uint256 b) internal pure returns (uint256) {\\n        return a > b ? a : b;\\n    }\\n\\n    /**\\n     * @dev Returns the smallest of two numbers.\\n     */\\n    function min(uint256 a, uint256 b) internal pure returns (uint256) {\\n        return a < b ? a : b;\\n    }\\n\\n    /**\\n     * @dev Returns the average of two numbers. The result is rounded towards\\n     * zero.\\n     */\\n    function average(uint256 a, uint256 b) internal pure returns (uint256) {\\n        // (a + b) / 2 can overflow.\\n        return (a & b) + (a ^ b) / 2;\\n    }\\n\\n    /**\\n     * @dev Returns the ceiling of the division of two numbers.\\n     *\\n     * This differs from standard division with `/` in that it rounds up instead\\n     * of rounding down.\\n     */\\n    function ceilDiv(uint256 a, uint256 b) internal pure returns (uint256) {\\n        // (a + b - 1) / b can overflow on addition, so we distribute.\\n        return a == 0 ? 0 : (a - 1) / b + 1;\\n    }\\n\\n    /**\\n     * @notice Calculates floor(x * y / denominator) with full precision. Throws if result overflows a uint256 or denominator == 0\\n     * @dev Original credit to Remco Bloemen under MIT license (https://xn--2-umb.com/21/muldiv)\\n     * with further edits by Uniswap Labs also under MIT license.\\n     */\\n    function mulDiv(\\n        uint256 x,\\n        uint256 y,\\n        uint256 denominator\\n    ) internal pure returns (uint256 result) {\\n        unchecked {\\n            // 512-bit multiply [prod1 prod0] = x * y. Compute the product mod 2^256 and mod 2^256 - 1, then use\\n            // use the Chinese Remainder Theorem to reconstruct the 512 bit result. The result is stored in two 256\\n            // variables such that product = prod1 * 2^256 + prod0.\\n            uint256 prod0; // Least significant 256 bits of the product\\n            uint256 prod1; // Most significant 256 bits of the product\\n            assembly {\\n                let mm := mulmod(x, y, not(0))\\n                prod0 := mul(x, y)\\n                prod1 := sub(sub(mm, prod0), lt(mm, prod0))\\n            }\\n\\n            // Handle non-overflow cases, 256 by 256 division.\\n            if (prod1 == 0) {\\n                return prod0 / denominator;\\n            }\\n\\n            // Make sure the result is less than 2^256. Also prevents denominator == 0.\\n            require(denominator > prod1);\\n\\n            ///////////////////////////////////////////////\\n            // 512 by 256 division.\\n            ///////////////////////////////////////////////\\n\\n            // Make division exact by subtracting the remainder from [prod1 prod0].\\n            uint256 remainder;\\n            assembly {\\n                // Compute remainder using mulmod.\\n                remainder := mulmod(x, y, denominator)\\n\\n                // Subtract 256 bit number from 512 bit number.\\n                prod1 := sub(prod1, gt(remainder, prod0))\\n                prod0 := sub(prod0, remainder)\\n            }\\n\\n            // Factor powers of two out of denominator and compute largest power of two divisor of denominator. Always >= 1.\\n            // See https://cs.stackexchange.com/q/138556/92363.\\n\\n            // Does not overflow because the denominator cannot be zero at this stage in the function.\\n            uint256 twos = denominator & (~denominator + 1);\\n            assembly {\\n                // Divide denominator by twos.\\n                denominator := div(denominator, twos)\\n\\n                // Divide [prod1 prod0] by twos.\\n                prod0 := div(prod0, twos)\\n\\n                // Flip twos such that it is 2^256 / twos. If twos is zero, then it becomes one.\\n                twos := add(div(sub(0, twos), twos), 1)\\n            }\\n\\n            // Shift in bits from prod1 into prod0.\\n            prod0 |= prod1 * twos;\\n\\n            // Invert denominator mod 2^256. Now that denominator is an odd number, it has an inverse modulo 2^256 such\\n            // that denominator * inv = 1 mod 2^256. Compute the inverse by starting with a seed that is correct for\\n            // four bits. That is, denominator * inv = 1 mod 2^4.\\n            uint256 inverse = (3 * denominator) ^ 2;\\n\\n            // Use the Newton-Raphson iteration to improve the precision. Thanks to Hensel's lifting lemma, this also works\\n            // in modular arithmetic, doubling the correct bits in each step.\\n            inverse *= 2 - denominator * inverse; // inverse mod 2^8\\n            inverse *= 2 - denominator * inverse; // inverse mod 2^16\\n            inverse *= 2 - denominator * inverse; // inverse mod 2^32\\n            inverse *= 2 - denominator * inverse; // inverse mod 2^64\\n            inverse *= 2 - denominator * inverse; // inverse mod 2^128\\n            inverse *= 2 - denominator * inverse; // inverse mod 2^256\\n\\n            // Because the division is now exact we can divide by multiplying with the modular inverse of denominator.\\n            // This will give us the correct result modulo 2^256. Since the preconditions guarantee that the outcome is\\n            // less than 2^256, this is the final result. We don't need to compute the high bits of the result and prod1\\n            // is no longer required.\\n            result = prod0 * inverse;\\n            return result;\\n        }\\n    }\\n\\n    /**\\n     * @notice Calculates x * y / denominator with full precision, following the selected rounding direction.\\n     */\\n    function mulDiv(\\n        uint256 x,\\n        uint256 y,\\n        uint256 denominator,\\n        Rounding rounding\\n    ) internal pure returns (uint256) {\\n        uint256 result = mulDiv(x, y, denominator);\\n        if (rounding == Rounding.Up && mulmod(x, y, denominator) > 0) {\\n            result += 1;\\n        }\\n        return result;\\n    }\\n\\n    /**\\n     * @dev Returns the square root of a number. If the number is not a perfect square, the value is rounded down.\\n     *\\n     * Inspired by Henry S. Warren, Jr.'s \\\"Hacker's Delight\\\" (Chapter 11).\\n     */\\n    function sqrt(uint256 a) internal pure returns (uint256) {\\n        if (a == 0) {\\n            return 0;\\n        }\\n\\n        // For our first guess, we get the biggest power of 2 which is smaller than the square root of the target.\\n        //\\n        // We know that the \\\"msb\\\" (most significant bit) of our target number `a` is a power of 2 such that we have\\n        // `msb(a) <= a < 2*msb(a)`. This value can be written `msb(a)=2**k` with `k=log2(a)`.\\n        //\\n        // This can be rewritten `2**log2(a) <= a < 2**(log2(a) + 1)`\\n        // \\u2192 `sqrt(2**k) <= sqrt(a) < sqrt(2**(k+1))`\\n        // \\u2192 `2**(k/2) <= sqrt(a) < 2**((k+1)/2) <= 2**(k/2 + 1)`\\n        //\\n        // Consequently, `2**(log2(a) / 2)` is a good first approximation of `sqrt(a)` with at least 1 correct bit.\\n        uint256 result = 1 << (log2(a) >> 1);\\n\\n        // At this point `result` is an estimation with one bit of precision. We know the true value is a uint128,\\n        // since it is the square root of a uint256. Newton's method converges quadratically (precision doubles at\\n        // every iteration). We thus need at most 7 iteration to turn our partial result with one bit of precision\\n        // into the expected uint128 result.\\n        unchecked {\\n            result = (result + a / result) >> 1;\\n            result = (result + a / result) >> 1;\\n            result = (result + a / result) >> 1;\\n            result = (result + a / result) >> 1;\\n            result = (result + a / result) >> 1;\\n            result = (result + a / result) >> 1;\\n            result = (result + a / result) >> 1;\\n            return min(result, a / result);\\n        }\\n    }\\n\\n    /**\\n     * @notice Calculates sqrt(a), following the selected rounding direction.\\n     */\\n    function sqrt(uint256 a, Rounding rounding) internal pure returns (uint256) {\\n        unchecked {\\n            uint256 result = sqrt(a);\\n            return result + (rounding == Rounding.Up && result * result < a ? 1 : 0);\\n        }\\n    }\\n\\n    /**\\n     * @dev Return the log in base 2, rounded down, of a positive value.\\n     * Returns 0 if given 0.\\n     */\\n    function log2(uint256 value) internal pure returns (uint256) {\\n        uint256 result = 0;\\n        unchecked {\\n            if (value >> 128 > 0) {\\n                value >>= 128;\\n                result += 128;\\n            }\\n            if (value >> 64 > 0) {\\n                value >>= 64;\\n                result += 64;\\n            }\\n            if (value >> 32 > 0) {\\n                value >>= 32;\\n                result += 32;\\n            }\\n            if (value >> 16 > 0) {\\n                value >>= 16;\\n                result += 16;\\n            }\\n            if (value >> 8 > 0) {\\n                value >>= 8;\\n                result += 8;\\n            }\\n            if (value >> 4 > 0) {\\n                value >>= 4;\\n                result += 4;\\n            }\\n            if (value >> 2 > 0) {\\n                value >>= 2;\\n                result += 2;\\n            }\\n            if (value >> 1 > 0) {\\n                result += 1;\\n            }\\n        }\\n        return result;\\n    }\\n\\n    /**\\n     * @dev Return the log in base 2, following the selected rounding direction, of a positive value.\\n     * Returns 0 if given 0.\\n     */\\n    function log2(uint256 value, Rounding rounding) internal pure returns (uint256) {\\n        unchecked {\\n            uint256 result = log2(value);\\n            return result + (rounding == Rounding.Up && 1 << result < value ? 1 : 0);\\n        }\\n    }\\n\\n    /**\\n     * @dev Return the log in base 10, rounded down, of a positive value.\\n     * Returns 0 if given 0.\\n     */\\n    function log10(uint256 value) internal pure returns (uint256) {\\n        uint256 result = 0;\\n        unchecked {\\n            if (value >= 10**64) {\\n                value /= 10**64;\\n                result += 64;\\n            }\\n            if (value >= 10**32) {\\n                value /= 10**32;\\n                result += 32;\\n            }\\n            if (value >= 10**16) {\\n                value /= 10**16;\\n                result += 16;\\n            }\\n            if (value >= 10**8) {\\n                value /= 10**8;\\n                result += 8;\\n            }\\n            if (value >= 10**4) {\\n                value /= 10**4;\\n                result += 4;\\n            }\\n            if (value >= 10**2) {\\n                value /= 10**2;\\n                result += 2;\\n            }\\n            if (value >= 10**1) {\\n                result += 1;\\n            }\\n        }\\n        return result;\\n    }\\n\\n    /**\\n     * @dev Return the log in base 10, following the selected rounding direction, of a positive value.\\n     * Returns 0 if given 0.\\n     */\\n    function log10(uint256 value, Rounding rounding) internal pure returns (uint256) {\\n        unchecked {\\n            uint256 result = log10(value);\\n            return result + (rounding == Rounding.Up && 10**result < value ? 1 : 0);\\n        }\\n    }\\n\\n    /**\\n     * @dev Return the log in base 256, rounded down, of a positive value.\\n     * Returns 0 if given 0.\\n     *\\n     * Adding one to the result gives the number of pairs of hex symbols needed to represent `value` as a hex string.\\n     */\\n    function log256(uint256 value) internal pure returns (uint256) {\\n        uint256 result = 0;\\n        unchecked {\\n            if (value >> 128 > 0) {\\n                value >>= 128;\\n                result += 16;\\n            }\\n            if (value >> 64 > 0) {\\n                value >>= 64;\\n                result += 8;\\n            }\\n            if (value >> 32 > 0) {\\n                value >>= 32;\\n                result += 4;\\n            }\\n            if (value >> 16 > 0) {\\n                value >>= 16;\\n                result += 2;\\n            }\\n            if (value >> 8 > 0) {\\n                result += 1;\\n            }\\n        }\\n        return result;\\n    }\\n\\n    /**\\n     * @dev Return the log in base 10, following the selected rounding direction, of a positive value.\\n     * Returns 0 if given 0.\\n     */\\n    function log256(uint256 value, Rounding rounding) internal pure returns (uint256) {\\n        unchecked {\\n            uint256 result = log256(value);\\n            return result + (rounding == Rounding.Up && 1 << (result * 8) < value ? 1 : 0);\\n        }\\n    }\\n}\\n\",\"keccak256\":\"0xa1e8e83cd0087785df04ac79fb395d9f3684caeaf973d9e2c71caef723a3a5d6\",\"license\":\"MIT\"},\"contracts/access-control-registry/AccessControlRegistryAdminned.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.0;\\n\\nimport \\\"../utils/SelfMulticall.sol\\\";\\nimport \\\"./RoleDeriver.sol\\\";\\nimport \\\"./interfaces/IAccessControlRegistryAdminned.sol\\\";\\nimport \\\"./interfaces/IAccessControlRegistry.sol\\\";\\n\\n/// @title Contract to be inherited by contracts whose adminship functionality\\n/// will be implemented using AccessControlRegistry\\ncontract AccessControlRegistryAdminned is\\n    SelfMulticall,\\n    RoleDeriver,\\n    IAccessControlRegistryAdminned\\n{\\n    /// @notice AccessControlRegistry contract address\\n    address public immutable override accessControlRegistry;\\n\\n    /// @notice Admin role description\\n    string public override adminRoleDescription;\\n\\n    bytes32 internal immutable adminRoleDescriptionHash;\\n\\n    /// @dev Contracts deployed with the same admin role descriptions will have\\n    /// the same roles, meaning that granting an account a role will authorize\\n    /// it in multiple contracts. Unless you want your deployed contract to\\n    /// share the role configuration of another contract, use a unique admin\\n    /// role description.\\n    /// @param _accessControlRegistry AccessControlRegistry contract address\\n    /// @param _adminRoleDescription Admin role description\\n    constructor(\\n        address _accessControlRegistry,\\n        string memory _adminRoleDescription\\n    ) {\\n        require(_accessControlRegistry != address(0), \\\"ACR address zero\\\");\\n        require(\\n            bytes(_adminRoleDescription).length > 0,\\n            \\\"Admin role description empty\\\"\\n        );\\n        accessControlRegistry = _accessControlRegistry;\\n        adminRoleDescription = _adminRoleDescription;\\n        adminRoleDescriptionHash = keccak256(\\n            abi.encodePacked(_adminRoleDescription)\\n        );\\n    }\\n\\n    /// @notice Derives the admin role for the specific manager address\\n    /// @param manager Manager address\\n    /// @return adminRole Admin role\\n    function _deriveAdminRole(\\n        address manager\\n    ) internal view returns (bytes32 adminRole) {\\n        adminRole = _deriveRole(\\n            _deriveRootRole(manager),\\n            adminRoleDescriptionHash\\n        );\\n    }\\n}\\n\",\"keccak256\":\"0x813755d99a9d8dd6298720da68fb5a6dd69329ea2dec91da1d09f715d4543c15\",\"license\":\"MIT\"},\"contracts/access-control-registry/AccessControlRegistryAdminnedWithManager.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.0;\\n\\nimport \\\"./AccessControlRegistryAdminned.sol\\\";\\nimport \\\"./interfaces/IAccessControlRegistryAdminnedWithManager.sol\\\";\\n\\n/// @title Contract to be inherited by contracts with manager whose adminship\\n/// functionality will be implemented using AccessControlRegistry\\n/// @notice The manager address here is expected to belong to an\\n/// AccessControlRegistry user that is a multisig/DAO\\ncontract AccessControlRegistryAdminnedWithManager is\\n    AccessControlRegistryAdminned,\\n    IAccessControlRegistryAdminnedWithManager\\n{\\n    /// @notice Address of the manager that manages the related\\n    /// AccessControlRegistry roles\\n    /// @dev The mutability of the manager role can be implemented by\\n    /// designating an OwnableCallForwarder contract as the manager. The\\n    /// ownership of this contract can then be transferred, effectively\\n    /// transferring managership.\\n    address public immutable override manager;\\n\\n    /// @notice Admin role\\n    /// @dev Since `manager` is immutable, so is `adminRole`\\n    bytes32 public immutable override adminRole;\\n\\n    /// @param _accessControlRegistry AccessControlRegistry contract address\\n    /// @param _adminRoleDescription Admin role description\\n    /// @param _manager Manager address\\n    constructor(\\n        address _accessControlRegistry,\\n        string memory _adminRoleDescription,\\n        address _manager\\n    )\\n        AccessControlRegistryAdminned(\\n            _accessControlRegistry,\\n            _adminRoleDescription\\n        )\\n    {\\n        require(_manager != address(0), \\\"Manager address zero\\\");\\n        manager = _manager;\\n        adminRole = _deriveAdminRole(_manager);\\n    }\\n}\\n\",\"keccak256\":\"0xbe5df884327dd7d4e236c105b6ef52cc6db20b452f4cdbe6c50fa506ed66cace\",\"license\":\"MIT\"},\"contracts/access-control-registry/RoleDeriver.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.0;\\n\\n/// @title Contract to be inherited by contracts that will derive\\n/// AccessControlRegistry roles\\n/// @notice If a contract interfaces with AccessControlRegistry and needs to\\n/// derive roles, it should inherit this contract instead of re-implementing\\n/// the logic\\ncontract RoleDeriver {\\n    /// @notice Derives the root role of the manager\\n    /// @param manager Manager address\\n    /// @return rootRole Root role\\n    function _deriveRootRole(\\n        address manager\\n    ) internal pure returns (bytes32 rootRole) {\\n        rootRole = keccak256(abi.encodePacked(manager));\\n    }\\n\\n    /// @notice Derives the role using its admin role and description\\n    /// @dev This implies that roles adminned by the same role cannot have the\\n    /// same description\\n    /// @param adminRole Admin role\\n    /// @param description Human-readable description of the role\\n    /// @return role Role\\n    function _deriveRole(\\n        bytes32 adminRole,\\n        string memory description\\n    ) internal pure returns (bytes32 role) {\\n        role = _deriveRole(adminRole, keccak256(abi.encodePacked(description)));\\n    }\\n\\n    /// @notice Derives the role using its admin role and description hash\\n    /// @dev This implies that roles adminned by the same role cannot have the\\n    /// same description\\n    /// @param adminRole Admin role\\n    /// @param descriptionHash Hash of the human-readable description of the\\n    /// role\\n    /// @return role Role\\n    function _deriveRole(\\n        bytes32 adminRole,\\n        bytes32 descriptionHash\\n    ) internal pure returns (bytes32 role) {\\n        role = keccak256(abi.encodePacked(adminRole, descriptionHash));\\n    }\\n}\\n\",\"keccak256\":\"0x488adb3cb7031415d4a195230753a0ac8f9f610e6db7a571529a350e29c97ed6\",\"license\":\"MIT\"},\"contracts/access-control-registry/interfaces/IAccessControlRegistry.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.0;\\n\\nimport \\\"@openzeppelin/contracts/access/IAccessControl.sol\\\";\\nimport \\\"../../utils/interfaces/IExpiringMetaTxForwarder.sol\\\";\\nimport \\\"../../utils/interfaces/ISelfMulticall.sol\\\";\\n\\ninterface IAccessControlRegistry is\\n    IAccessControl,\\n    IExpiringMetaTxForwarder,\\n    ISelfMulticall\\n{\\n    event InitializedManager(\\n        bytes32 indexed rootRole,\\n        address indexed manager,\\n        address sender\\n    );\\n\\n    event InitializedRole(\\n        bytes32 indexed role,\\n        bytes32 indexed adminRole,\\n        string description,\\n        address sender\\n    );\\n\\n    function initializeManager(address manager) external;\\n\\n    function initializeRoleAndGrantToSender(\\n        bytes32 adminRole,\\n        string calldata description\\n    ) external returns (bytes32 role);\\n}\\n\",\"keccak256\":\"0xfe3f55a43a4456091ab90f4c17d4feda383587a5bbd3b7313295d87d878d843b\",\"license\":\"MIT\"},\"contracts/access-control-registry/interfaces/IAccessControlRegistryAdminned.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.0;\\n\\nimport \\\"../../utils/interfaces/ISelfMulticall.sol\\\";\\n\\ninterface IAccessControlRegistryAdminned is ISelfMulticall {\\n    function accessControlRegistry() external view returns (address);\\n\\n    function adminRoleDescription() external view returns (string memory);\\n}\\n\",\"keccak256\":\"0xd71aae2566c019a9b2da5e1ec51421a62898495fa6fd08e2cc39451511dda334\",\"license\":\"MIT\"},\"contracts/access-control-registry/interfaces/IAccessControlRegistryAdminnedWithManager.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.0;\\n\\nimport \\\"./IAccessControlRegistryAdminned.sol\\\";\\n\\ninterface IAccessControlRegistryAdminnedWithManager is\\n    IAccessControlRegistryAdminned\\n{\\n    function manager() external view returns (address);\\n\\n    function adminRole() external view returns (bytes32);\\n}\\n\",\"keccak256\":\"0x8a8e1756fca81175305755b7a311536132e88173f60b2ac0fdeef92a6236afc5\",\"license\":\"MIT\"},\"contracts/utils/PrepaymentDepository.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity 0.8.17;\\n\\nimport \\\"../access-control-registry/AccessControlRegistryAdminnedWithManager.sol\\\";\\nimport \\\"./interfaces/IPrepaymentDepository.sol\\\";\\nimport \\\"@openzeppelin/contracts/utils/cryptography/ECDSA.sol\\\";\\nimport \\\"@openzeppelin/contracts/token/ERC20/IERC20.sol\\\";\\nimport \\\"@openzeppelin/contracts/token/ERC20/extensions/draft-IERC20Permit.sol\\\";\\n\\n/// @title Contract that enables micropayments to be prepaid in batch\\n/// @notice `manager` represents the payment recipient, and its various\\n/// privileges can be delegated to other accounts through respective roles.\\n/// `manager`, `userWithdrawalLimitIncreaser` and `claimer` roles should only\\n/// be granted to a multisig or an equivalently decentralized account.\\n/// `withdrawalSigner` issues ERC191 signatures, and thus has to be an EOA. It\\n/// being compromised poses a risk in proportion to the redundancy in user\\n/// withdrawal limits. Have a `userWithdrawalLimitDecreaser` decrease user\\n/// withdrawal limits as necessary to mitigate this risk.\\n/// The `userWithdrawalLimitDecreaser` role can be granted to an EOA, as it\\n/// cannot cause irreversible harm.\\n/// This contract accepts prepayments in an ERC20 token specified immutably\\n/// during construction. Do not use tokens that are not fully ERC20-compliant.\\n/// An optional `depositWithPermit()` function is added to provide ERC2612\\n/// support.\\ncontract PrepaymentDepository is\\n    AccessControlRegistryAdminnedWithManager,\\n    IPrepaymentDepository\\n{\\n    using ECDSA for bytes32;\\n\\n    /// @notice Withdrawal signer role description\\n    string public constant override WITHDRAWAL_SIGNER_ROLE_DESCRIPTION =\\n        \\\"Withdrawal signer\\\";\\n    /// @notice User withdrawal limit increaser role description\\n    string\\n        public constant\\n        override USER_WITHDRAWAL_LIMIT_INCREASER_ROLE_DESCRIPTION =\\n        \\\"User withdrawal limit increaser\\\";\\n    /// @notice User withdrawal limit decreaser role description\\n    string\\n        public constant\\n        override USER_WITHDRAWAL_LIMIT_DECREASER_ROLE_DESCRIPTION =\\n        \\\"User withdrawal limit decreaser\\\";\\n    /// @notice Claimer role description\\n    string public constant override CLAIMER_ROLE_DESCRIPTION = \\\"Claimer\\\";\\n\\n    // We prefer revert strings over custom errors because not all chains and\\n    // block explorers support custom errors\\n    string private constant AMOUNT_ZERO_REVERT_STRING = \\\"Amount zero\\\";\\n    string private constant AMOUNT_EXCEEDS_LIMIT_REVERT_STRING =\\n        \\\"Amount exceeds limit\\\";\\n    string private constant TRANSFER_UNSUCCESSFUL_REVERT_STRING =\\n        \\\"Transfer unsuccessful\\\";\\n\\n    /// @notice Withdrawal signer role\\n    bytes32 public immutable override withdrawalSignerRole;\\n    /// @notice User withdrawal limit increaser role\\n    bytes32 public immutable override userWithdrawalLimitIncreaserRole;\\n    /// @notice User withdrawal limit decreaser role\\n    bytes32 public immutable override userWithdrawalLimitDecreaserRole;\\n    /// @notice Claimer role\\n    bytes32 public immutable override claimerRole;\\n\\n    /// @notice Contract address of the ERC20 token that prepayments can be\\n    /// made in\\n    address public immutable override token;\\n\\n    /// @notice Returns the withdrawal destination of the user\\n    mapping(address => address) public userToWithdrawalDestination;\\n\\n    /// @notice Returns the withdrawal limit of the user\\n    mapping(address => uint256) public userToWithdrawalLimit;\\n\\n    /// @notice Returns if the withdrawal with the hash is executed\\n    mapping(bytes32 => bool) public withdrawalWithHashIsExecuted;\\n\\n    /// @param user User address\\n    /// @param amount Amount\\n    /// @dev Reverts if user address or amount is zero\\n    modifier onlyNonZeroUserAddressAndAmount(address user, uint256 amount) {\\n        require(user != address(0), \\\"User address zero\\\");\\n        require(amount != 0, AMOUNT_ZERO_REVERT_STRING);\\n        _;\\n    }\\n\\n    /// @param _accessControlRegistry AccessControlRegistry contract address\\n    /// @param _adminRoleDescription Admin role description\\n    /// @param _manager Manager address\\n    /// @param _token Contract address of the ERC20 token that prepayments are\\n    /// made in\\n    constructor(\\n        address _accessControlRegistry,\\n        string memory _adminRoleDescription,\\n        address _manager,\\n        address _token\\n    )\\n        AccessControlRegistryAdminnedWithManager(\\n            _accessControlRegistry,\\n            _adminRoleDescription,\\n            _manager\\n        )\\n    {\\n        require(_token != address(0), \\\"Token address zero\\\");\\n        token = _token;\\n        withdrawalSignerRole = _deriveRole(\\n            _deriveAdminRole(manager),\\n            WITHDRAWAL_SIGNER_ROLE_DESCRIPTION\\n        );\\n        userWithdrawalLimitIncreaserRole = _deriveRole(\\n            _deriveAdminRole(manager),\\n            USER_WITHDRAWAL_LIMIT_INCREASER_ROLE_DESCRIPTION\\n        );\\n        userWithdrawalLimitDecreaserRole = _deriveRole(\\n            _deriveAdminRole(manager),\\n            USER_WITHDRAWAL_LIMIT_DECREASER_ROLE_DESCRIPTION\\n        );\\n        claimerRole = _deriveRole(\\n            _deriveAdminRole(manager),\\n            CLAIMER_ROLE_DESCRIPTION\\n        );\\n    }\\n\\n    /// @notice Called by the user that has not set a withdrawal destination to\\n    /// set a withdrawal destination, or called by the withdrawal destination\\n    /// of a user to set a new withdrawal destination\\n    /// @param user User address\\n    /// @param withdrawalDestination Withdrawal destination\\n    function setWithdrawalDestination(\\n        address user,\\n        address withdrawalDestination\\n    ) external override {\\n        require(user != withdrawalDestination, \\\"Same user and destination\\\");\\n        require(\\n            (msg.sender == user &&\\n                userToWithdrawalDestination[user] == address(0)) ||\\n                (msg.sender == userToWithdrawalDestination[user]),\\n            \\\"Sender not destination\\\"\\n        );\\n        userToWithdrawalDestination[user] = withdrawalDestination;\\n        emit SetWithdrawalDestination(user, withdrawalDestination);\\n    }\\n\\n    /// @notice Called to increase the withdrawal limit of the user\\n    /// @dev This function is intended to be used to revert faulty\\n    /// `decreaseUserWithdrawalLimit()` calls\\n    /// @param user User address\\n    /// @param amount Amount to increase the withdrawal limit by\\n    /// @return withdrawalLimit Increased withdrawal limit\\n    function increaseUserWithdrawalLimit(\\n        address user,\\n        uint256 amount\\n    )\\n        external\\n        override\\n        onlyNonZeroUserAddressAndAmount(user, amount)\\n        returns (uint256 withdrawalLimit)\\n    {\\n        require(\\n            msg.sender == manager ||\\n                IAccessControlRegistry(accessControlRegistry).hasRole(\\n                    userWithdrawalLimitIncreaserRole,\\n                    msg.sender\\n                ),\\n            \\\"Cannot increase withdrawal limit\\\"\\n        );\\n        withdrawalLimit = userToWithdrawalLimit[user] + amount;\\n        userToWithdrawalLimit[user] = withdrawalLimit;\\n        emit IncreasedUserWithdrawalLimit(\\n            user,\\n            amount,\\n            withdrawalLimit,\\n            msg.sender\\n        );\\n    }\\n\\n    /// @notice Called to decrease the withdrawal limit of the user\\n    /// @param user User address\\n    /// @param amount Amount to decrease the withdrawal limit by\\n    /// @return withdrawalLimit Decreased withdrawal limit\\n    function decreaseUserWithdrawalLimit(\\n        address user,\\n        uint256 amount\\n    )\\n        external\\n        override\\n        onlyNonZeroUserAddressAndAmount(user, amount)\\n        returns (uint256 withdrawalLimit)\\n    {\\n        require(\\n            msg.sender == manager ||\\n                IAccessControlRegistry(accessControlRegistry).hasRole(\\n                    userWithdrawalLimitDecreaserRole,\\n                    msg.sender\\n                ),\\n            \\\"Cannot decrease withdrawal limit\\\"\\n        );\\n        uint256 oldWithdrawalLimit = userToWithdrawalLimit[user];\\n        require(\\n            amount <= oldWithdrawalLimit,\\n            AMOUNT_EXCEEDS_LIMIT_REVERT_STRING\\n        );\\n        withdrawalLimit = oldWithdrawalLimit - amount;\\n        userToWithdrawalLimit[user] = withdrawalLimit;\\n        emit DecreasedUserWithdrawalLimit(\\n            user,\\n            amount,\\n            withdrawalLimit,\\n            msg.sender\\n        );\\n    }\\n\\n    /// @notice Called to claim tokens\\n    /// @param recipient Recipient address\\n    /// @param amount Amount of tokens to claim\\n    function claim(address recipient, uint256 amount) external override {\\n        require(recipient != address(0), \\\"Recipient address zero\\\");\\n        require(amount != 0, AMOUNT_ZERO_REVERT_STRING);\\n        require(\\n            msg.sender == manager ||\\n                IAccessControlRegistry(accessControlRegistry).hasRole(\\n                    claimerRole,\\n                    msg.sender\\n                ),\\n            \\\"Cannot claim\\\"\\n        );\\n        emit Claimed(recipient, amount, msg.sender);\\n        require(\\n            IERC20(token).transfer(recipient, amount),\\n            TRANSFER_UNSUCCESSFUL_REVERT_STRING\\n        );\\n    }\\n\\n    /// @notice Called to deposit tokens on behalf of a user\\n    /// @param user User address\\n    /// @param amount Amount of tokens to deposit\\n    /// @return withdrawalLimit Increased withdrawal limit\\n    function deposit(\\n        address user,\\n        uint256 amount\\n    )\\n        public\\n        override\\n        onlyNonZeroUserAddressAndAmount(user, amount)\\n        returns (uint256 withdrawalLimit)\\n    {\\n        withdrawalLimit = userToWithdrawalLimit[user] + amount;\\n        userToWithdrawalLimit[user] = withdrawalLimit;\\n        emit Deposited(user, amount, withdrawalLimit, msg.sender);\\n        require(\\n            IERC20(token).transferFrom(msg.sender, address(this), amount),\\n            TRANSFER_UNSUCCESSFUL_REVERT_STRING\\n        );\\n    }\\n\\n    /// @notice Called to apply a ERC2612 permit and deposit tokens on behalf\\n    /// of a user\\n    /// @param user User address\\n    /// @param amount Amount of tokens to deposit\\n    /// @param deadline Deadline of the permit\\n    /// @param v v component of the signature\\n    /// @param r r component of the signature\\n    /// @param s s component of the signature\\n    /// @return withdrawalLimit Increased withdrawal limit\\n    function applyPermitAndDeposit(\\n        address user,\\n        uint256 amount,\\n        uint256 deadline,\\n        uint8 v,\\n        bytes32 r,\\n        bytes32 s\\n    ) external override returns (uint256 withdrawalLimit) {\\n        IERC20Permit(token).permit(\\n            msg.sender,\\n            address(this),\\n            amount,\\n            deadline,\\n            v,\\n            r,\\n            s\\n        );\\n        withdrawalLimit = deposit(user, amount);\\n    }\\n\\n    /// @notice Called by a user to withdraw tokens\\n    /// @param amount Amount of tokens to withdraw\\n    /// @param expirationTimestamp Expiration timestamp of the signature\\n    /// @param withdrawalSigner Address of the account that signed the\\n    /// withdrawal\\n    /// @param signature Withdrawal signature\\n    /// @return withdrawalDestination Withdrawal destination\\n    /// @return withdrawalLimit Decreased withdrawal limit\\n    function withdraw(\\n        uint256 amount,\\n        uint256 expirationTimestamp,\\n        address withdrawalSigner,\\n        bytes calldata signature\\n    )\\n        external\\n        override\\n        returns (address withdrawalDestination, uint256 withdrawalLimit)\\n    {\\n        require(amount != 0, AMOUNT_ZERO_REVERT_STRING);\\n        require(block.timestamp < expirationTimestamp, \\\"Signature expired\\\");\\n        bytes32 withdrawalHash = keccak256(\\n            abi.encodePacked(\\n                block.chainid,\\n                address(this),\\n                msg.sender,\\n                amount,\\n                expirationTimestamp\\n            )\\n        );\\n        require(\\n            !withdrawalWithHashIsExecuted[withdrawalHash],\\n            \\\"Withdrawal already executed\\\"\\n        );\\n        require(\\n            withdrawalSigner == manager ||\\n                IAccessControlRegistry(accessControlRegistry).hasRole(\\n                    withdrawalSignerRole,\\n                    withdrawalSigner\\n                ),\\n            \\\"Cannot sign withdrawal\\\"\\n        );\\n        require(\\n            (withdrawalHash.toEthSignedMessageHash()).recover(signature) ==\\n                withdrawalSigner,\\n            \\\"Signature mismatch\\\"\\n        );\\n        withdrawalWithHashIsExecuted[withdrawalHash] = true;\\n        uint256 oldWithdrawalLimit = userToWithdrawalLimit[msg.sender];\\n        require(\\n            amount <= oldWithdrawalLimit,\\n            AMOUNT_EXCEEDS_LIMIT_REVERT_STRING\\n        );\\n        withdrawalLimit = oldWithdrawalLimit - amount;\\n        userToWithdrawalLimit[msg.sender] = withdrawalLimit;\\n        if (userToWithdrawalDestination[msg.sender] == address(0)) {\\n            withdrawalDestination = msg.sender;\\n        } else {\\n            withdrawalDestination = userToWithdrawalDestination[msg.sender];\\n        }\\n        emit Withdrew(\\n            msg.sender,\\n            withdrawalHash,\\n            amount,\\n            expirationTimestamp,\\n            withdrawalSigner,\\n            withdrawalDestination,\\n            withdrawalLimit\\n        );\\n        require(\\n            IERC20(token).transfer(withdrawalDestination, amount),\\n            TRANSFER_UNSUCCESSFUL_REVERT_STRING\\n        );\\n    }\\n}\\n\",\"keccak256\":\"0x74314a7fbed41c4bb318a24b7c2cb104f2fea2211f43d03f76aead2ad3858052\",\"license\":\"MIT\"},\"contracts/utils/SelfMulticall.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.0;\\n\\nimport \\\"./interfaces/ISelfMulticall.sol\\\";\\n\\n/// @title Contract that enables calls to the inheriting contract to be batched\\n/// @notice Implements two ways of batching, one requires none of the calls to\\n/// revert and the other tolerates individual calls reverting\\n/// @dev This implementation uses delegatecall for individual function calls.\\n/// Since delegatecall is a message call, it can only be made to functions that\\n/// are externally visible. This means that a contract cannot multicall its own\\n/// functions that use internal/private visibility modifiers.\\n/// Refer to OpenZeppelin's Multicall.sol for a similar implementation.\\ncontract SelfMulticall is ISelfMulticall {\\n    /// @notice Batches calls to the inheriting contract and reverts as soon as\\n    /// one of the batched calls reverts\\n    /// @param data Array of calldata of batched calls\\n    /// @return returndata Array of returndata of batched calls\\n    function multicall(\\n        bytes[] calldata data\\n    ) external override returns (bytes[] memory returndata) {\\n        uint256 callCount = data.length;\\n        returndata = new bytes[](callCount);\\n        for (uint256 ind = 0; ind < callCount; ) {\\n            bool success;\\n            // solhint-disable-next-line avoid-low-level-calls\\n            (success, returndata[ind]) = address(this).delegatecall(data[ind]);\\n            if (!success) {\\n                bytes memory returndataWithRevertData = returndata[ind];\\n                if (returndataWithRevertData.length > 0) {\\n                    // Adapted from OpenZeppelin's Address.sol\\n                    // solhint-disable-next-line no-inline-assembly\\n                    assembly {\\n                        let returndata_size := mload(returndataWithRevertData)\\n                        revert(\\n                            add(32, returndataWithRevertData),\\n                            returndata_size\\n                        )\\n                    }\\n                } else {\\n                    revert(\\\"Multicall: No revert string\\\");\\n                }\\n            }\\n            unchecked {\\n                ind++;\\n            }\\n        }\\n    }\\n\\n    /// @notice Batches calls to the inheriting contract but does not revert if\\n    /// any of the batched calls reverts\\n    /// @param data Array of calldata of batched calls\\n    /// @return successes Array of success conditions of batched calls\\n    /// @return returndata Array of returndata of batched calls\\n    function tryMulticall(\\n        bytes[] calldata data\\n    )\\n        external\\n        override\\n        returns (bool[] memory successes, bytes[] memory returndata)\\n    {\\n        uint256 callCount = data.length;\\n        successes = new bool[](callCount);\\n        returndata = new bytes[](callCount);\\n        for (uint256 ind = 0; ind < callCount; ) {\\n            // solhint-disable-next-line avoid-low-level-calls\\n            (successes[ind], returndata[ind]) = address(this).delegatecall(\\n                data[ind]\\n            );\\n            unchecked {\\n                ind++;\\n            }\\n        }\\n    }\\n}\\n\",\"keccak256\":\"0xb466760f7b5d05a91fb168224952f29db9aa3308f0b83535fd697f3c30281740\",\"license\":\"MIT\"},\"contracts/utils/interfaces/IExpiringMetaTxForwarder.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.0;\\n\\ninterface IExpiringMetaTxForwarder {\\n    event ExecutedMetaTx(bytes32 indexed metaTxHash);\\n\\n    event CanceledMetaTx(bytes32 indexed metaTxHash);\\n\\n    struct ExpiringMetaTx {\\n        address from;\\n        address to;\\n        bytes data;\\n        uint256 expirationTimestamp;\\n    }\\n\\n    function execute(\\n        ExpiringMetaTx calldata metaTx,\\n        bytes calldata signature\\n    ) external returns (bytes memory returndata);\\n\\n    function cancel(ExpiringMetaTx calldata metaTx) external;\\n\\n    function metaTxWithHashIsExecutedOrCanceled(\\n        bytes32 metaTxHash\\n    ) external returns (bool);\\n}\\n\",\"keccak256\":\"0x07dd88733178b59486717a0b8a2027afcf3fbb5cc475166ee75327a683c7fa45\",\"license\":\"MIT\"},\"contracts/utils/interfaces/IPrepaymentDepository.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.0;\\n\\nimport \\\"../../access-control-registry/interfaces/IAccessControlRegistryAdminnedWithManager.sol\\\";\\n\\ninterface IPrepaymentDepository is IAccessControlRegistryAdminnedWithManager {\\n    event SetWithdrawalDestination(\\n        address indexed user,\\n        address withdrawalDestination\\n    );\\n\\n    event IncreasedUserWithdrawalLimit(\\n        address indexed user,\\n        uint256 amount,\\n        uint256 withdrawalLimit,\\n        address sender\\n    );\\n\\n    event DecreasedUserWithdrawalLimit(\\n        address indexed user,\\n        uint256 amount,\\n        uint256 withdrawalLimit,\\n        address sender\\n    );\\n\\n    event Claimed(address recipient, uint256 amount, address sender);\\n\\n    event Deposited(\\n        address indexed user,\\n        uint256 amount,\\n        uint256 withdrawalLimit,\\n        address sender\\n    );\\n\\n    event Withdrew(\\n        address indexed user,\\n        bytes32 indexed withdrawalHash,\\n        uint256 amount,\\n        uint256 expirationTimestamp,\\n        address withdrawalSigner,\\n        address withdrawalDestination,\\n        uint256 withdrawalLimit\\n    );\\n\\n    function setWithdrawalDestination(\\n        address user,\\n        address withdrawalDestination\\n    ) external;\\n\\n    function increaseUserWithdrawalLimit(\\n        address user,\\n        uint256 amount\\n    ) external returns (uint256 withdrawalLimit);\\n\\n    function decreaseUserWithdrawalLimit(\\n        address user,\\n        uint256 amount\\n    ) external returns (uint256 withdrawalLimit);\\n\\n    function claim(address recipient, uint256 amount) external;\\n\\n    function deposit(\\n        address user,\\n        uint256 amount\\n    ) external returns (uint256 withdrawalLimit);\\n\\n    function applyPermitAndDeposit(\\n        address user,\\n        uint256 amount,\\n        uint256 deadline,\\n        uint8 v,\\n        bytes32 r,\\n        bytes32 s\\n    ) external returns (uint256 withdrawalLimit);\\n\\n    function withdraw(\\n        uint256 amount,\\n        uint256 expirationTimestamp,\\n        address withdrawalSigner,\\n        bytes calldata signature\\n    ) external returns (address withdrawalDestination, uint256 withdrawalLimit);\\n\\n    // solhint-disable-next-line func-name-mixedcase\\n    function WITHDRAWAL_SIGNER_ROLE_DESCRIPTION()\\n        external\\n        view\\n        returns (string memory);\\n\\n    // solhint-disable-next-line func-name-mixedcase\\n    function USER_WITHDRAWAL_LIMIT_INCREASER_ROLE_DESCRIPTION()\\n        external\\n        view\\n        returns (string memory);\\n\\n    // solhint-disable-next-line func-name-mixedcase\\n    function USER_WITHDRAWAL_LIMIT_DECREASER_ROLE_DESCRIPTION()\\n        external\\n        view\\n        returns (string memory);\\n\\n    // solhint-disable-next-line func-name-mixedcase\\n    function CLAIMER_ROLE_DESCRIPTION() external view returns (string memory);\\n\\n    function withdrawalSignerRole() external view returns (bytes32);\\n\\n    function userWithdrawalLimitIncreaserRole() external view returns (bytes32);\\n\\n    function userWithdrawalLimitDecreaserRole() external view returns (bytes32);\\n\\n    function claimerRole() external view returns (bytes32);\\n\\n    function token() external view returns (address);\\n}\\n\",\"keccak256\":\"0x15ec7b40b9be1ea7ca88b39d6a8a5a94f213977565c6b754ad4b2f5ffb7b9710\",\"license\":\"MIT\"},\"contracts/utils/interfaces/ISelfMulticall.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.0;\\n\\ninterface ISelfMulticall {\\n    function multicall(\\n        bytes[] calldata data\\n    ) external returns (bytes[] memory returndata);\\n\\n    function tryMulticall(\\n        bytes[] calldata data\\n    ) external returns (bool[] memory successes, bytes[] memory returndata);\\n}\\n\",\"keccak256\":\"0x50b27284f0d5acd8b340836c09d252138ebf059f426e5d90d3f7221e1b7d0817\",\"license\":\"MIT\"}},\"version\":1}",
+  "bytecode": "0x6101a06040523480156200001257600080fd5b50604051620029e2380380620029e2833981016040819052620000359162000468565b83838382826001600160a01b038216620000895760405162461bcd60e51b815260206004820152601060248201526f4143522061646472657373207a65726f60801b60448201526064015b60405180910390fd5b6000815111620000dc5760405162461bcd60e51b815260206004820152601c60248201527f41646d696e20726f6c65206465736372697074696f6e20656d70747900000000604482015260640162000080565b6001600160a01b0382166080526000620000f78282620005ea565b50806040516020016200010b9190620006b6565b60408051601f19818403018152919052805160209091012060a05250506001600160a01b038116620001805760405162461bcd60e51b815260206004820152601460248201527f4d616e616765722061646472657373207a65726f000000000000000000000000604482015260640162000080565b6001600160a01b03811660c052620001988162000326565b60e0525050506001600160a01b038116620001eb5760405162461bcd60e51b8152602060048201526012602482015271546f6b656e2061646472657373207a65726f60701b604482015260640162000080565b6001600160a01b0381166101805260c0516200023a906200020c9062000326565b6040805180820190915260118152702bb4ba34323930bbb0b61039b4b3b732b960791b6020820152620003a0565b6101005260c0516200028b90620002519062000326565b60408051808201909152601f81527f55736572207769746864726177616c206c696d697420696e63726561736572006020820152620003a0565b6101205260c051620002dc90620002a29062000326565b60408051808201909152601f81527f55736572207769746864726177616c206c696d697420646563726561736572006020820152620003a0565b6101405260c0516200031790620002f39062000326565b60408051808201909152600781526621b630b4b6b2b960c91b6020820152620003a0565b6101605250620006d492505050565b60006200039a6200036b836040516001600160601b0319606083901b166020820152600090603401604051602081830303815290604052805190602001209050919050565b60a051604080516020808201949094528082019290925280518083038201815260609092019052805191012090565b92915050565b6000620003dc8383604051602001620003ba9190620006b6565b60405160208183030381529060405280519060200120620003e360201b60201c565b9392505050565b604080516020808201949094528082019290925280518083038201815260609092019052805191012090565b80516001600160a01b03811681146200042757600080fd5b919050565b634e487b7160e01b600052604160045260246000fd5b60005b838110156200045f57818101518382015260200162000445565b50506000910152565b600080600080608085870312156200047f57600080fd5b6200048a856200040f565b60208601519094506001600160401b0380821115620004a857600080fd5b818701915087601f830112620004bd57600080fd5b815181811115620004d257620004d26200042c565b604051601f8201601f19908116603f01168101908382118183101715620004fd57620004fd6200042c565b816040528281528a60208487010111156200051757600080fd5b6200052a83602083016020880162000442565b809750505050505062000540604086016200040f565b915062000550606086016200040f565b905092959194509250565b600181811c908216806200057057607f821691505b6020821081036200059157634e487b7160e01b600052602260045260246000fd5b50919050565b601f821115620005e557600081815260208120601f850160051c81016020861015620005c05750805b601f850160051c820191505b81811015620005e157828155600101620005cc565b5050505b505050565b81516001600160401b038111156200060657620006066200042c565b6200061e816200061784546200055b565b8462000597565b602080601f8311600181146200065657600084156200063d5750858301515b600019600386901b1c1916600185901b178555620005e1565b600085815260208120601f198616915b82811015620006875788860151825594840194600190910190840162000666565b5085821015620006a65787850151600019600388901b60f8161c191681555b5050505050600190811b01905550565b60008251620006ca81846020870162000442565b9190910192915050565b60805160a05160c05160e0516101005161012051610140516101605161018051612230620007b2600039600081816105500152818161082b01528181610c8901528181610f3301526119d70152600081816103fd0152610dda0152600081816101e60152610a5b015260008181610367015261124a0152600081816103a101526116e4015260006101ac0152600081816102fc01528181610a2501528181610da401528181611214015261169c0152600050506000818161024001528181610a8701528181610e0601528181611276015261171a01526122306000f3fe608060405234801561001057600080fd5b50600436106101a25760003560e01c80639358e157116100ee578063c16ad0ea11610097578063ea6dfa4b11610071578063ea6dfa4b146104bd578063eeaf32c3146104ef578063f51ac6491461050f578063fc0c546a1461054b57600080fd5b8063c16ad0ea14610432578063e67b88411461046e578063e7fa22861461048157600080fd5b8063ac9650d8116100c8578063ac9650d8146103d8578063b5d4da10146103f8578063bc4ee9be1461041f57600080fd5b80639358e157146103895780639d2118581461039c578063aad3ec96146103c357600080fd5b806347e7ef24116101505780637d5fd8ac1161012a5780637d5fd8ac1461032657806381b8519e14610339578063879e25371461036257600080fd5b806347e7ef24146102e4578063481c6a75146102f75780634c8f1d8d1461031e57600080fd5b80631ce9ae07116101815780631ce9ae071461023b5780632e09739d1461027a578063437b9116146102c357600080fd5b80629f2f3c146101a7578063103606b6146101e1578063114df56414610208575b600080fd5b6101ce7f000000000000000000000000000000000000000000000000000000000000000081565b6040519081526020015b60405180910390f35b6101ce7f000000000000000000000000000000000000000000000000000000000000000081565b61022b610216366004611d8f565b60036020526000908152604090205460ff1681565b60405190151581526020016101d8565b6102627f000000000000000000000000000000000000000000000000000000000000000081565b6040516001600160a01b0390911681526020016101d8565b6102b66040518060400160405280601f81526020017f55736572207769746864726177616c206c696d6974206465637265617365720081525081565b6040516101d89190611dee565b6102d66102d1366004611e08565b610572565b6040516101d8929190611ed5565b6101ce6102f2366004611f4a565b6106d8565b6102627f000000000000000000000000000000000000000000000000000000000000000081565b6102b66108fd565b6101ce610334366004611f4a565b61098b565b610262610347366004611f74565b6001602052600090815260409020546001600160a01b031681565b6101ce7f000000000000000000000000000000000000000000000000000000000000000081565b6101ce610397366004611f8f565b610c2d565b6101ce7f000000000000000000000000000000000000000000000000000000000000000081565b6103d66103d1366004611f4a565b610d02565b005b6103eb6103e6366004611e08565b610ff9565b6040516101d89190611fef565b6101ce7f000000000000000000000000000000000000000000000000000000000000000081565b6101ce61042d366004611f4a565b61117a565b6102b66040518060400160405280601f81526020017f55736572207769746864726177616c206c696d697420696e637265617365720081525081565b6103d661047c366004612002565b6113c1565b6102b66040518060400160405280601181526020017f5769746864726177616c207369676e657200000000000000000000000000000081525081565b6104d06104cb366004612035565b611541565b604080516001600160a01b0390931683526020830191909152016101d8565b6101ce6104fd366004611f74565b60026020526000908152604090205481565b6102b66040518060400160405280600781526020017f436c61696d65720000000000000000000000000000000000000000000000000081525081565b6102627f000000000000000000000000000000000000000000000000000000000000000081565b606080828067ffffffffffffffff81111561058f5761058f6120c9565b6040519080825280602002602001820160405280156105b8578160200160208202803683370190505b5092508067ffffffffffffffff8111156105d4576105d46120c9565b60405190808252806020026020018201604052801561060757816020015b60608152602001906001900390816105f25790505b50915060005b818110156106cf5730868683818110610628576106286120df565b905060200281019061063a91906120f5565b60405161064892919061213c565b600060405180830381855af49150503d8060008114610683576040519150601f19603f3d011682016040523d82523d6000602084013e610688565b606091505b5085838151811061069b5761069b6120df565b602002602001018584815181106106b4576106b46120df565b6020908102919091010191909152901515905260010161060d565b50509250929050565b600082826001600160a01b03821661072b5760405162461bcd60e51b8152602060048201526011602482015270557365722061646472657373207a65726f60781b60448201526064015b60405180910390fd5b60408051808201909152600b81526a416d6f756e74207a65726f60a81b60208201528161076b5760405162461bcd60e51b81526004016107229190611dee565b506001600160a01b038516600090815260026020526040902054610790908590612162565b6001600160a01b03861660008181526002602090815260409182902084905581518881529081018490523381830152905192955090917fa49637e3f6491de6c2c23c5006bef69df603d0dba9d65c8b756fe46ac29810b99181900360600190a26040517f23b872dd000000000000000000000000000000000000000000000000000000008152336004820152306024820152604481018590527f00000000000000000000000000000000000000000000000000000000000000006001600160a01b0316906323b872dd906064016020604051808303816000875af115801561087c573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906108a09190612175565b6040518060400160405280601581526020017f5472616e7366657220756e7375636365737366756c0000000000000000000000815250906108f45760405162461bcd60e51b81526004016107229190611dee565b50505092915050565b6000805461090a90612197565b80601f016020809104026020016040519081016040528092919081815260200182805461093690612197565b80156109835780601f1061095857610100808354040283529160200191610983565b820191906000526020600020905b81548152906001019060200180831161096657829003601f168201915b505050505081565b600082826001600160a01b0382166109d95760405162461bcd60e51b8152602060048201526011602482015270557365722061646472657373207a65726f60781b6044820152606401610722565b60408051808201909152600b81526a416d6f756e74207a65726f60a81b602082015281610a195760405162461bcd60e51b81526004016107229190611dee565b50336001600160a01b037f0000000000000000000000000000000000000000000000000000000000000000161480610afa5750604051632474521560e21b81527f000000000000000000000000000000000000000000000000000000000000000060048201523360248201527f00000000000000000000000000000000000000000000000000000000000000006001600160a01b0316906391d1485490604401602060405180830381865afa158015610ad6573d6000803e3d6000fd5b505050506040513d601f19601f82011682018060405250810190610afa9190612175565b610b465760405162461bcd60e51b815260206004820181905260248201527f43616e6e6f74206465637265617365207769746864726177616c206c696d69746044820152606401610722565b6001600160a01b038516600090815260026020908152604091829020548251808401909352601483527f416d6f756e742065786365656473206c696d6974000000000000000000000000918301919091529081861115610bb95760405162461bcd60e51b81526004016107229190611dee565b50610bc485826121d1565b6001600160a01b03871660008181526002602090815260409182902084905581518981529081018490523381830152905192965090917f335d9b077520694d15541750c263be116d6ed7ac66a59598c98339fd182b68839181900360600190a250505092915050565b6040517fd505accf000000000000000000000000000000000000000000000000000000008152336004820152306024820152604481018690526064810185905260ff8416608482015260a4810183905260c481018290526000907f00000000000000000000000000000000000000000000000000000000000000006001600160a01b03169063d505accf9060e401600060405180830381600087803b158015610cd557600080fd5b505af1158015610ce9573d6000803e3d6000fd5b50505050610cf787876106d8565b979650505050505050565b6001600160a01b038216610d585760405162461bcd60e51b815260206004820152601660248201527f526563697069656e742061646472657373207a65726f000000000000000000006044820152606401610722565b60408051808201909152600b81526a416d6f756e74207a65726f60a81b602082015281610d985760405162461bcd60e51b81526004016107229190611dee565b50336001600160a01b037f0000000000000000000000000000000000000000000000000000000000000000161480610e795750604051632474521560e21b81527f000000000000000000000000000000000000000000000000000000000000000060048201523360248201527f00000000000000000000000000000000000000000000000000000000000000006001600160a01b0316906391d1485490604401602060405180830381865afa158015610e55573d6000803e3d6000fd5b505050506040513d601f19601f82011682018060405250810190610e799190612175565b610ec55760405162461bcd60e51b815260206004820152600c60248201527f43616e6e6f7420636c61696d00000000000000000000000000000000000000006044820152606401610722565b604080516001600160a01b038416815260208101839052338183015290517f7e6632ca16a0ac6cf28448500b1a17d96c8b8163ad4c4a9b44ef5386cc02779e9181900360600190a160405163a9059cbb60e01b81526001600160a01b038381166004830152602482018390527f0000000000000000000000000000000000000000000000000000000000000000169063a9059cbb906044016020604051808303816000875af1158015610f7c573d6000803e3d6000fd5b505050506040513d601f19601f82011682018060405250810190610fa09190612175565b6040518060400160405280601581526020017f5472616e7366657220756e7375636365737366756c000000000000000000000081525090610ff45760405162461bcd60e51b81526004016107229190611dee565b505050565b6060818067ffffffffffffffff811115611015576110156120c9565b60405190808252806020026020018201604052801561104857816020015b60608152602001906001900390816110335790505b50915060005b818110156111725760003086868481811061106b5761106b6120df565b905060200281019061107d91906120f5565b60405161108b92919061213c565b600060405180830381855af49150503d80600081146110c6576040519150601f19603f3d011682016040523d82523d6000602084013e6110cb565b606091505b508584815181106110de576110de6120df565b6020908102919091010152905080611169576000848381518110611104576111046120df565b602002602001015190506000815111156111215780518082602001fd5b60405162461bcd60e51b815260206004820152601b60248201527f4d756c746963616c6c3a204e6f2072657665727420737472696e6700000000006044820152606401610722565b5060010161104e565b505092915050565b600082826001600160a01b0382166111c85760405162461bcd60e51b8152602060048201526011602482015270557365722061646472657373207a65726f60781b6044820152606401610722565b60408051808201909152600b81526a416d6f756e74207a65726f60a81b6020820152816112085760405162461bcd60e51b81526004016107229190611dee565b50336001600160a01b037f00000000000000000000000000000000000000000000000000000000000000001614806112e95750604051632474521560e21b81527f000000000000000000000000000000000000000000000000000000000000000060048201523360248201527f00000000000000000000000000000000000000000000000000000000000000006001600160a01b0316906391d1485490604401602060405180830381865afa1580156112c5573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906112e99190612175565b6113355760405162461bcd60e51b815260206004820181905260248201527f43616e6e6f7420696e637265617365207769746864726177616c206c696d69746044820152606401610722565b6001600160a01b038516600090815260026020526040902054611359908590612162565b6001600160a01b03861660008181526002602090815260409182902084905581518881529081018490523381830152905192955090917f3b7d792e260458e1c177def1e07111f7f7830f011d2ff9621aced2f602f7b3e39181900360600190a2505092915050565b806001600160a01b0316826001600160a01b0316036114225760405162461bcd60e51b815260206004820152601960248201527f53616d65207573657220616e642064657374696e6174696f6e000000000000006044820152606401610722565b336001600160a01b03831614801561145257506001600160a01b0382811660009081526001602052604090205416155b8061147657506001600160a01b038281166000908152600160205260409020541633145b6114c25760405162461bcd60e51b815260206004820152601660248201527f53656e646572206e6f742064657374696e6174696f6e000000000000000000006044820152606401610722565b6001600160a01b0382811660008181526001602090815260409182902080547fffffffffffffffffffffffff0000000000000000000000000000000000000000169486169485179055905192835290917f9dd95d02717bf7571007d03882b61fe2f94cc2b7700b4b88b1d59a5b995414c9910160405180910390a25050565b60008086600014156040518060400160405280600b81526020016a416d6f756e74207a65726f60a81b8152509061158b5760405162461bcd60e51b81526004016107229190611dee565b508542106115db5760405162461bcd60e51b815260206004820152601160248201527f5369676e617475726520657870697265640000000000000000000000000000006044820152606401610722565b604080514660208201526bffffffffffffffffffffffff1930606090811b8216938301939093523390921b9091166054820152606881018890526088810187905260009060a80160408051601f1981840301815291815281516020928301206000818152600390935291205490915060ff161561169a5760405162461bcd60e51b815260206004820152601b60248201527f5769746864726177616c20616c726561647920657865637574656400000000006044820152606401610722565b7f00000000000000000000000000000000000000000000000000000000000000006001600160a01b0316866001600160a01b031614806117855750604051632474521560e21b81527f000000000000000000000000000000000000000000000000000000000000000060048201526001600160a01b0387811660248301527f000000000000000000000000000000000000000000000000000000000000000016906391d1485490604401602060405180830381865afa158015611761573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906117859190612175565b6117d15760405162461bcd60e51b815260206004820152601660248201527f43616e6e6f74207369676e207769746864726177616c000000000000000000006044820152606401610722565b856001600160a01b031661182686868080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152506118209250869150611aa59050565b90611af8565b6001600160a01b03161461187c5760405162461bcd60e51b815260206004820152601260248201527f5369676e6174757265206d69736d6174636800000000000000000000000000006044820152606401610722565b6000818152600360209081526040808320805460ff191660011790553383526002825291829020548251808401909352601483527f416d6f756e742065786365656473206c696d69740000000000000000000000009183019190915290818a11156118fa5760405162461bcd60e51b81526004016107229190611dee565b5061190589826121d1565b33600090815260026020908152604080832084905560019091529020549093506001600160a01b031661193a57339350611956565b336000908152600160205260409020546001600160a01b031693505b604080518a8152602081018a90526001600160a01b038981168284015286166060820152608081018590529051839133917f26b54a250815ecc9a950e4e58faf8b45be2340e5b1e3cab54f466cea24f1d5e89181900360a00190a360405163a9059cbb60e01b81526001600160a01b038581166004830152602482018b90527f0000000000000000000000000000000000000000000000000000000000000000169063a9059cbb906044016020604051808303816000875af1158015611a20573d6000803e3d6000fd5b505050506040513d601f19601f82011682018060405250810190611a449190612175565b6040518060400160405280601581526020017f5472616e7366657220756e7375636365737366756c000000000000000000000081525090611a985760405162461bcd60e51b81526004016107229190611dee565b5050509550959350505050565b6040517f19457468657265756d205369676e6564204d6573736167653a0a3332000000006020820152603c8101829052600090605c01604051602081830303815290604052805190602001209050919050565b6000806000611b078585611b1e565b91509150611b1481611b63565b5090505b92915050565b6000808251604103611b545760208301516040840151606085015160001a611b4887828585611ccb565b94509450505050611b5c565b506000905060025b9250929050565b6000816004811115611b7757611b776121e4565b03611b7f5750565b6001816004811115611b9357611b936121e4565b03611be05760405162461bcd60e51b815260206004820152601860248201527f45434453413a20696e76616c6964207369676e617475726500000000000000006044820152606401610722565b6002816004811115611bf457611bf46121e4565b03611c415760405162461bcd60e51b815260206004820152601f60248201527f45434453413a20696e76616c6964207369676e6174757265206c656e677468006044820152606401610722565b6003816004811115611c5557611c556121e4565b03611cc85760405162461bcd60e51b815260206004820152602260248201527f45434453413a20696e76616c6964207369676e6174757265202773272076616c60448201527f75650000000000000000000000000000000000000000000000000000000000006064820152608401610722565b50565b6000807f7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0831115611d025750600090506003611d86565b6040805160008082526020820180845289905260ff881692820192909252606081018690526080810185905260019060a0016020604051602081039080840390855afa158015611d56573d6000803e3d6000fd5b5050604051601f1901519150506001600160a01b038116611d7f57600060019250925050611d86565b9150600090505b94509492505050565b600060208284031215611da157600080fd5b5035919050565b6000815180845260005b81811015611dce57602081850181015186830182015201611db2565b506000602082860101526020601f19601f83011685010191505092915050565b602081526000611e016020830184611da8565b9392505050565b60008060208385031215611e1b57600080fd5b823567ffffffffffffffff80821115611e3357600080fd5b818501915085601f830112611e4757600080fd5b813581811115611e5657600080fd5b8660208260051b8501011115611e6b57600080fd5b60209290920196919550909350505050565b600082825180855260208086019550808260051b84010181860160005b84811015611ec857601f19868403018952611eb6838351611da8565b98840198925090830190600101611e9a565b5090979650505050505050565b604080825283519082018190526000906020906060840190828701845b82811015611f10578151151584529284019290840190600101611ef2565b50505083810382850152611f248186611e7d565b9695505050505050565b80356001600160a01b0381168114611f4557600080fd5b919050565b60008060408385031215611f5d57600080fd5b611f6683611f2e565b946020939093013593505050565b600060208284031215611f8657600080fd5b611e0182611f2e565b60008060008060008060c08789031215611fa857600080fd5b611fb187611f2e565b95506020870135945060408701359350606087013560ff81168114611fd557600080fd5b9598949750929560808101359460a0909101359350915050565b602081526000611e016020830184611e7d565b6000806040838503121561201557600080fd5b61201e83611f2e565b915061202c60208401611f2e565b90509250929050565b60008060008060006080868803121561204d57600080fd5b853594506020860135935061206460408701611f2e565b9250606086013567ffffffffffffffff8082111561208157600080fd5b818801915088601f83011261209557600080fd5b8135818111156120a457600080fd5b8960208285010111156120b657600080fd5b9699959850939650602001949392505050565b634e487b7160e01b600052604160045260246000fd5b634e487b7160e01b600052603260045260246000fd5b6000808335601e1984360301811261210c57600080fd5b83018035915067ffffffffffffffff82111561212757600080fd5b602001915036819003821315611b5c57600080fd5b8183823760009101908152919050565b634e487b7160e01b600052601160045260246000fd5b80820180821115611b1857611b1861214c565b60006020828403121561218757600080fd5b81518015158114611e0157600080fd5b600181811c908216806121ab57607f821691505b6020821081036121cb57634e487b7160e01b600052602260045260246000fd5b50919050565b81810381811115611b1857611b1861214c565b634e487b7160e01b600052602160045260246000fdfea2646970667358221220b1951b2346a2067d78e9b91c0e17e38ea6486fde9cf92d10cf25d6f03072fff064736f6c63430008110033",
+  "deployedBytecode": "0x608060405234801561001057600080fd5b50600436106101a25760003560e01c80639358e157116100ee578063c16ad0ea11610097578063ea6dfa4b11610071578063ea6dfa4b146104bd578063eeaf32c3146104ef578063f51ac6491461050f578063fc0c546a1461054b57600080fd5b8063c16ad0ea14610432578063e67b88411461046e578063e7fa22861461048157600080fd5b8063ac9650d8116100c8578063ac9650d8146103d8578063b5d4da10146103f8578063bc4ee9be1461041f57600080fd5b80639358e157146103895780639d2118581461039c578063aad3ec96146103c357600080fd5b806347e7ef24116101505780637d5fd8ac1161012a5780637d5fd8ac1461032657806381b8519e14610339578063879e25371461036257600080fd5b806347e7ef24146102e4578063481c6a75146102f75780634c8f1d8d1461031e57600080fd5b80631ce9ae07116101815780631ce9ae071461023b5780632e09739d1461027a578063437b9116146102c357600080fd5b80629f2f3c146101a7578063103606b6146101e1578063114df56414610208575b600080fd5b6101ce7f000000000000000000000000000000000000000000000000000000000000000081565b6040519081526020015b60405180910390f35b6101ce7f000000000000000000000000000000000000000000000000000000000000000081565b61022b610216366004611d8f565b60036020526000908152604090205460ff1681565b60405190151581526020016101d8565b6102627f000000000000000000000000000000000000000000000000000000000000000081565b6040516001600160a01b0390911681526020016101d8565b6102b66040518060400160405280601f81526020017f55736572207769746864726177616c206c696d6974206465637265617365720081525081565b6040516101d89190611dee565b6102d66102d1366004611e08565b610572565b6040516101d8929190611ed5565b6101ce6102f2366004611f4a565b6106d8565b6102627f000000000000000000000000000000000000000000000000000000000000000081565b6102b66108fd565b6101ce610334366004611f4a565b61098b565b610262610347366004611f74565b6001602052600090815260409020546001600160a01b031681565b6101ce7f000000000000000000000000000000000000000000000000000000000000000081565b6101ce610397366004611f8f565b610c2d565b6101ce7f000000000000000000000000000000000000000000000000000000000000000081565b6103d66103d1366004611f4a565b610d02565b005b6103eb6103e6366004611e08565b610ff9565b6040516101d89190611fef565b6101ce7f000000000000000000000000000000000000000000000000000000000000000081565b6101ce61042d366004611f4a565b61117a565b6102b66040518060400160405280601f81526020017f55736572207769746864726177616c206c696d697420696e637265617365720081525081565b6103d661047c366004612002565b6113c1565b6102b66040518060400160405280601181526020017f5769746864726177616c207369676e657200000000000000000000000000000081525081565b6104d06104cb366004612035565b611541565b604080516001600160a01b0390931683526020830191909152016101d8565b6101ce6104fd366004611f74565b60026020526000908152604090205481565b6102b66040518060400160405280600781526020017f436c61696d65720000000000000000000000000000000000000000000000000081525081565b6102627f000000000000000000000000000000000000000000000000000000000000000081565b606080828067ffffffffffffffff81111561058f5761058f6120c9565b6040519080825280602002602001820160405280156105b8578160200160208202803683370190505b5092508067ffffffffffffffff8111156105d4576105d46120c9565b60405190808252806020026020018201604052801561060757816020015b60608152602001906001900390816105f25790505b50915060005b818110156106cf5730868683818110610628576106286120df565b905060200281019061063a91906120f5565b60405161064892919061213c565b600060405180830381855af49150503d8060008114610683576040519150601f19603f3d011682016040523d82523d6000602084013e610688565b606091505b5085838151811061069b5761069b6120df565b602002602001018584815181106106b4576106b46120df565b6020908102919091010191909152901515905260010161060d565b50509250929050565b600082826001600160a01b03821661072b5760405162461bcd60e51b8152602060048201526011602482015270557365722061646472657373207a65726f60781b60448201526064015b60405180910390fd5b60408051808201909152600b81526a416d6f756e74207a65726f60a81b60208201528161076b5760405162461bcd60e51b81526004016107229190611dee565b506001600160a01b038516600090815260026020526040902054610790908590612162565b6001600160a01b03861660008181526002602090815260409182902084905581518881529081018490523381830152905192955090917fa49637e3f6491de6c2c23c5006bef69df603d0dba9d65c8b756fe46ac29810b99181900360600190a26040517f23b872dd000000000000000000000000000000000000000000000000000000008152336004820152306024820152604481018590527f00000000000000000000000000000000000000000000000000000000000000006001600160a01b0316906323b872dd906064016020604051808303816000875af115801561087c573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906108a09190612175565b6040518060400160405280601581526020017f5472616e7366657220756e7375636365737366756c0000000000000000000000815250906108f45760405162461bcd60e51b81526004016107229190611dee565b50505092915050565b6000805461090a90612197565b80601f016020809104026020016040519081016040528092919081815260200182805461093690612197565b80156109835780601f1061095857610100808354040283529160200191610983565b820191906000526020600020905b81548152906001019060200180831161096657829003601f168201915b505050505081565b600082826001600160a01b0382166109d95760405162461bcd60e51b8152602060048201526011602482015270557365722061646472657373207a65726f60781b6044820152606401610722565b60408051808201909152600b81526a416d6f756e74207a65726f60a81b602082015281610a195760405162461bcd60e51b81526004016107229190611dee565b50336001600160a01b037f0000000000000000000000000000000000000000000000000000000000000000161480610afa5750604051632474521560e21b81527f000000000000000000000000000000000000000000000000000000000000000060048201523360248201527f00000000000000000000000000000000000000000000000000000000000000006001600160a01b0316906391d1485490604401602060405180830381865afa158015610ad6573d6000803e3d6000fd5b505050506040513d601f19601f82011682018060405250810190610afa9190612175565b610b465760405162461bcd60e51b815260206004820181905260248201527f43616e6e6f74206465637265617365207769746864726177616c206c696d69746044820152606401610722565b6001600160a01b038516600090815260026020908152604091829020548251808401909352601483527f416d6f756e742065786365656473206c696d6974000000000000000000000000918301919091529081861115610bb95760405162461bcd60e51b81526004016107229190611dee565b50610bc485826121d1565b6001600160a01b03871660008181526002602090815260409182902084905581518981529081018490523381830152905192965090917f335d9b077520694d15541750c263be116d6ed7ac66a59598c98339fd182b68839181900360600190a250505092915050565b6040517fd505accf000000000000000000000000000000000000000000000000000000008152336004820152306024820152604481018690526064810185905260ff8416608482015260a4810183905260c481018290526000907f00000000000000000000000000000000000000000000000000000000000000006001600160a01b03169063d505accf9060e401600060405180830381600087803b158015610cd557600080fd5b505af1158015610ce9573d6000803e3d6000fd5b50505050610cf787876106d8565b979650505050505050565b6001600160a01b038216610d585760405162461bcd60e51b815260206004820152601660248201527f526563697069656e742061646472657373207a65726f000000000000000000006044820152606401610722565b60408051808201909152600b81526a416d6f756e74207a65726f60a81b602082015281610d985760405162461bcd60e51b81526004016107229190611dee565b50336001600160a01b037f0000000000000000000000000000000000000000000000000000000000000000161480610e795750604051632474521560e21b81527f000000000000000000000000000000000000000000000000000000000000000060048201523360248201527f00000000000000000000000000000000000000000000000000000000000000006001600160a01b0316906391d1485490604401602060405180830381865afa158015610e55573d6000803e3d6000fd5b505050506040513d601f19601f82011682018060405250810190610e799190612175565b610ec55760405162461bcd60e51b815260206004820152600c60248201527f43616e6e6f7420636c61696d00000000000000000000000000000000000000006044820152606401610722565b604080516001600160a01b038416815260208101839052338183015290517f7e6632ca16a0ac6cf28448500b1a17d96c8b8163ad4c4a9b44ef5386cc02779e9181900360600190a160405163a9059cbb60e01b81526001600160a01b038381166004830152602482018390527f0000000000000000000000000000000000000000000000000000000000000000169063a9059cbb906044016020604051808303816000875af1158015610f7c573d6000803e3d6000fd5b505050506040513d601f19601f82011682018060405250810190610fa09190612175565b6040518060400160405280601581526020017f5472616e7366657220756e7375636365737366756c000000000000000000000081525090610ff45760405162461bcd60e51b81526004016107229190611dee565b505050565b6060818067ffffffffffffffff811115611015576110156120c9565b60405190808252806020026020018201604052801561104857816020015b60608152602001906001900390816110335790505b50915060005b818110156111725760003086868481811061106b5761106b6120df565b905060200281019061107d91906120f5565b60405161108b92919061213c565b600060405180830381855af49150503d80600081146110c6576040519150601f19603f3d011682016040523d82523d6000602084013e6110cb565b606091505b508584815181106110de576110de6120df565b6020908102919091010152905080611169576000848381518110611104576111046120df565b602002602001015190506000815111156111215780518082602001fd5b60405162461bcd60e51b815260206004820152601b60248201527f4d756c746963616c6c3a204e6f2072657665727420737472696e6700000000006044820152606401610722565b5060010161104e565b505092915050565b600082826001600160a01b0382166111c85760405162461bcd60e51b8152602060048201526011602482015270557365722061646472657373207a65726f60781b6044820152606401610722565b60408051808201909152600b81526a416d6f756e74207a65726f60a81b6020820152816112085760405162461bcd60e51b81526004016107229190611dee565b50336001600160a01b037f00000000000000000000000000000000000000000000000000000000000000001614806112e95750604051632474521560e21b81527f000000000000000000000000000000000000000000000000000000000000000060048201523360248201527f00000000000000000000000000000000000000000000000000000000000000006001600160a01b0316906391d1485490604401602060405180830381865afa1580156112c5573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906112e99190612175565b6113355760405162461bcd60e51b815260206004820181905260248201527f43616e6e6f7420696e637265617365207769746864726177616c206c696d69746044820152606401610722565b6001600160a01b038516600090815260026020526040902054611359908590612162565b6001600160a01b03861660008181526002602090815260409182902084905581518881529081018490523381830152905192955090917f3b7d792e260458e1c177def1e07111f7f7830f011d2ff9621aced2f602f7b3e39181900360600190a2505092915050565b806001600160a01b0316826001600160a01b0316036114225760405162461bcd60e51b815260206004820152601960248201527f53616d65207573657220616e642064657374696e6174696f6e000000000000006044820152606401610722565b336001600160a01b03831614801561145257506001600160a01b0382811660009081526001602052604090205416155b8061147657506001600160a01b038281166000908152600160205260409020541633145b6114c25760405162461bcd60e51b815260206004820152601660248201527f53656e646572206e6f742064657374696e6174696f6e000000000000000000006044820152606401610722565b6001600160a01b0382811660008181526001602090815260409182902080547fffffffffffffffffffffffff0000000000000000000000000000000000000000169486169485179055905192835290917f9dd95d02717bf7571007d03882b61fe2f94cc2b7700b4b88b1d59a5b995414c9910160405180910390a25050565b60008086600014156040518060400160405280600b81526020016a416d6f756e74207a65726f60a81b8152509061158b5760405162461bcd60e51b81526004016107229190611dee565b508542106115db5760405162461bcd60e51b815260206004820152601160248201527f5369676e617475726520657870697265640000000000000000000000000000006044820152606401610722565b604080514660208201526bffffffffffffffffffffffff1930606090811b8216938301939093523390921b9091166054820152606881018890526088810187905260009060a80160408051601f1981840301815291815281516020928301206000818152600390935291205490915060ff161561169a5760405162461bcd60e51b815260206004820152601b60248201527f5769746864726177616c20616c726561647920657865637574656400000000006044820152606401610722565b7f00000000000000000000000000000000000000000000000000000000000000006001600160a01b0316866001600160a01b031614806117855750604051632474521560e21b81527f000000000000000000000000000000000000000000000000000000000000000060048201526001600160a01b0387811660248301527f000000000000000000000000000000000000000000000000000000000000000016906391d1485490604401602060405180830381865afa158015611761573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906117859190612175565b6117d15760405162461bcd60e51b815260206004820152601660248201527f43616e6e6f74207369676e207769746864726177616c000000000000000000006044820152606401610722565b856001600160a01b031661182686868080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152506118209250869150611aa59050565b90611af8565b6001600160a01b03161461187c5760405162461bcd60e51b815260206004820152601260248201527f5369676e6174757265206d69736d6174636800000000000000000000000000006044820152606401610722565b6000818152600360209081526040808320805460ff191660011790553383526002825291829020548251808401909352601483527f416d6f756e742065786365656473206c696d69740000000000000000000000009183019190915290818a11156118fa5760405162461bcd60e51b81526004016107229190611dee565b5061190589826121d1565b33600090815260026020908152604080832084905560019091529020549093506001600160a01b031661193a57339350611956565b336000908152600160205260409020546001600160a01b031693505b604080518a8152602081018a90526001600160a01b038981168284015286166060820152608081018590529051839133917f26b54a250815ecc9a950e4e58faf8b45be2340e5b1e3cab54f466cea24f1d5e89181900360a00190a360405163a9059cbb60e01b81526001600160a01b038581166004830152602482018b90527f0000000000000000000000000000000000000000000000000000000000000000169063a9059cbb906044016020604051808303816000875af1158015611a20573d6000803e3d6000fd5b505050506040513d601f19601f82011682018060405250810190611a449190612175565b6040518060400160405280601581526020017f5472616e7366657220756e7375636365737366756c000000000000000000000081525090611a985760405162461bcd60e51b81526004016107229190611dee565b5050509550959350505050565b6040517f19457468657265756d205369676e6564204d6573736167653a0a3332000000006020820152603c8101829052600090605c01604051602081830303815290604052805190602001209050919050565b6000806000611b078585611b1e565b91509150611b1481611b63565b5090505b92915050565b6000808251604103611b545760208301516040840151606085015160001a611b4887828585611ccb565b94509450505050611b5c565b506000905060025b9250929050565b6000816004811115611b7757611b776121e4565b03611b7f5750565b6001816004811115611b9357611b936121e4565b03611be05760405162461bcd60e51b815260206004820152601860248201527f45434453413a20696e76616c6964207369676e617475726500000000000000006044820152606401610722565b6002816004811115611bf457611bf46121e4565b03611c415760405162461bcd60e51b815260206004820152601f60248201527f45434453413a20696e76616c6964207369676e6174757265206c656e677468006044820152606401610722565b6003816004811115611c5557611c556121e4565b03611cc85760405162461bcd60e51b815260206004820152602260248201527f45434453413a20696e76616c6964207369676e6174757265202773272076616c60448201527f75650000000000000000000000000000000000000000000000000000000000006064820152608401610722565b50565b6000807f7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0831115611d025750600090506003611d86565b6040805160008082526020820180845289905260ff881692820192909252606081018690526080810185905260019060a0016020604051602081039080840390855afa158015611d56573d6000803e3d6000fd5b5050604051601f1901519150506001600160a01b038116611d7f57600060019250925050611d86565b9150600090505b94509492505050565b600060208284031215611da157600080fd5b5035919050565b6000815180845260005b81811015611dce57602081850181015186830182015201611db2565b506000602082860101526020601f19601f83011685010191505092915050565b602081526000611e016020830184611da8565b9392505050565b60008060208385031215611e1b57600080fd5b823567ffffffffffffffff80821115611e3357600080fd5b818501915085601f830112611e4757600080fd5b813581811115611e5657600080fd5b8660208260051b8501011115611e6b57600080fd5b60209290920196919550909350505050565b600082825180855260208086019550808260051b84010181860160005b84811015611ec857601f19868403018952611eb6838351611da8565b98840198925090830190600101611e9a565b5090979650505050505050565b604080825283519082018190526000906020906060840190828701845b82811015611f10578151151584529284019290840190600101611ef2565b50505083810382850152611f248186611e7d565b9695505050505050565b80356001600160a01b0381168114611f4557600080fd5b919050565b60008060408385031215611f5d57600080fd5b611f6683611f2e565b946020939093013593505050565b600060208284031215611f8657600080fd5b611e0182611f2e565b60008060008060008060c08789031215611fa857600080fd5b611fb187611f2e565b95506020870135945060408701359350606087013560ff81168114611fd557600080fd5b9598949750929560808101359460a0909101359350915050565b602081526000611e016020830184611e7d565b6000806040838503121561201557600080fd5b61201e83611f2e565b915061202c60208401611f2e565b90509250929050565b60008060008060006080868803121561204d57600080fd5b853594506020860135935061206460408701611f2e565b9250606086013567ffffffffffffffff8082111561208157600080fd5b818801915088601f83011261209557600080fd5b8135818111156120a457600080fd5b8960208285010111156120b657600080fd5b9699959850939650602001949392505050565b634e487b7160e01b600052604160045260246000fd5b634e487b7160e01b600052603260045260246000fd5b6000808335601e1984360301811261210c57600080fd5b83018035915067ffffffffffffffff82111561212757600080fd5b602001915036819003821315611b5c57600080fd5b8183823760009101908152919050565b634e487b7160e01b600052601160045260246000fd5b80820180821115611b1857611b1861214c565b60006020828403121561218757600080fd5b81518015158114611e0157600080fd5b600181811c908216806121ab57607f821691505b6020821081036121cb57634e487b7160e01b600052602260045260246000fd5b50919050565b81810381811115611b1857611b1861214c565b634e487b7160e01b600052602160045260246000fdfea2646970667358221220b1951b2346a2067d78e9b91c0e17e38ea6486fde9cf92d10cf25d6f03072fff064736f6c63430008110033",
+  "devdoc": {
+    "kind": "dev",
+    "methods": {
+      "applyPermitAndDeposit(address,uint256,uint256,uint8,bytes32,bytes32)": {
+        "params": {
+          "amount": "Amount of tokens to deposit",
+          "deadline": "Deadline of the permit",
+          "r": "r component of the signature",
+          "s": "s component of the signature",
+          "user": "User address",
+          "v": "v component of the signature"
+        },
+        "returns": {
+          "withdrawalLimit": "Increased withdrawal limit"
+        }
+      },
+      "claim(address,uint256)": {
+        "params": {
+          "amount": "Amount of tokens to claim",
+          "recipient": "Recipient address"
+        }
+      },
+      "constructor": {
+        "params": {
+          "_accessControlRegistry": "AccessControlRegistry contract address",
+          "_adminRoleDescription": "Admin role description",
+          "_manager": "Manager address",
+          "_token": "Contract address of the ERC20 token that prepayments are made in"
+        }
+      },
+      "decreaseUserWithdrawalLimit(address,uint256)": {
+        "params": {
+          "amount": "Amount to decrease the withdrawal limit by",
+          "user": "User address"
+        },
+        "returns": {
+          "withdrawalLimit": "Decreased withdrawal limit"
+        }
+      },
+      "deposit(address,uint256)": {
+        "params": {
+          "amount": "Amount of tokens to deposit",
+          "user": "User address"
+        },
+        "returns": {
+          "withdrawalLimit": "Increased withdrawal limit"
+        }
+      },
+      "increaseUserWithdrawalLimit(address,uint256)": {
+        "details": "This function is intended to be used to revert faulty `decreaseUserWithdrawalLimit()` calls",
+        "params": {
+          "amount": "Amount to increase the withdrawal limit by",
+          "user": "User address"
+        },
+        "returns": {
+          "withdrawalLimit": "Increased withdrawal limit"
+        }
+      },
+      "multicall(bytes[])": {
+        "params": {
+          "data": "Array of calldata of batched calls"
+        },
+        "returns": {
+          "returndata": "Array of returndata of batched calls"
+        }
+      },
+      "setWithdrawalDestination(address,address)": {
+        "params": {
+          "user": "User address",
+          "withdrawalDestination": "Withdrawal destination"
+        }
+      },
+      "tryMulticall(bytes[])": {
+        "params": {
+          "data": "Array of calldata of batched calls"
+        },
+        "returns": {
+          "returndata": "Array of returndata of batched calls",
+          "successes": "Array of success conditions of batched calls"
+        }
+      },
+      "withdraw(uint256,uint256,address,bytes)": {
+        "params": {
+          "amount": "Amount of tokens to withdraw",
+          "expirationTimestamp": "Expiration timestamp of the signature",
+          "signature": "Withdrawal signature",
+          "withdrawalSigner": "Address of the account that signed the withdrawal"
+        },
+        "returns": {
+          "withdrawalDestination": "Withdrawal destination",
+          "withdrawalLimit": "Decreased withdrawal limit"
+        }
+      }
+    },
+    "title": "Contract that enables micropayments to be prepaid in batch",
+    "version": 1
+  },
+  "userdoc": {
+    "kind": "user",
+    "methods": {
+      "CLAIMER_ROLE_DESCRIPTION()": {
+        "notice": "Claimer role description"
+      },
+      "USER_WITHDRAWAL_LIMIT_DECREASER_ROLE_DESCRIPTION()": {
+        "notice": "User withdrawal limit decreaser role description"
+      },
+      "USER_WITHDRAWAL_LIMIT_INCREASER_ROLE_DESCRIPTION()": {
+        "notice": "User withdrawal limit increaser role description"
+      },
+      "WITHDRAWAL_SIGNER_ROLE_DESCRIPTION()": {
+        "notice": "Withdrawal signer role description"
+      },
+      "accessControlRegistry()": {
+        "notice": "AccessControlRegistry contract address"
+      },
+      "adminRole()": {
+        "notice": "Admin role"
+      },
+      "adminRoleDescription()": {
+        "notice": "Admin role description"
+      },
+      "applyPermitAndDeposit(address,uint256,uint256,uint8,bytes32,bytes32)": {
+        "notice": "Called to apply a ERC2612 permit and deposit tokens on behalf of a user"
+      },
+      "claim(address,uint256)": {
+        "notice": "Called to claim tokens"
+      },
+      "claimerRole()": {
+        "notice": "Claimer role"
+      },
+      "decreaseUserWithdrawalLimit(address,uint256)": {
+        "notice": "Called to decrease the withdrawal limit of the user"
+      },
+      "deposit(address,uint256)": {
+        "notice": "Called to deposit tokens on behalf of a user"
+      },
+      "increaseUserWithdrawalLimit(address,uint256)": {
+        "notice": "Called to increase the withdrawal limit of the user"
+      },
+      "manager()": {
+        "notice": "Address of the manager that manages the related AccessControlRegistry roles"
+      },
+      "multicall(bytes[])": {
+        "notice": "Batches calls to the inheriting contract and reverts as soon as one of the batched calls reverts"
+      },
+      "setWithdrawalDestination(address,address)": {
+        "notice": "Called by the user that has not set a withdrawal destination to set a withdrawal destination, or called by the withdrawal destination of a user to set a new withdrawal destination"
+      },
+      "token()": {
+        "notice": "Contract address of the ERC20 token that prepayments can be made in"
+      },
+      "tryMulticall(bytes[])": {
+        "notice": "Batches calls to the inheriting contract but does not revert if any of the batched calls reverts"
+      },
+      "userToWithdrawalDestination(address)": {
+        "notice": "Returns the withdrawal destination of the user"
+      },
+      "userToWithdrawalLimit(address)": {
+        "notice": "Returns the withdrawal limit of the user"
+      },
+      "userWithdrawalLimitDecreaserRole()": {
+        "notice": "User withdrawal limit decreaser role"
+      },
+      "userWithdrawalLimitIncreaserRole()": {
+        "notice": "User withdrawal limit increaser role"
+      },
+      "withdraw(uint256,uint256,address,bytes)": {
+        "notice": "Called by a user to withdraw tokens"
+      },
+      "withdrawalSignerRole()": {
+        "notice": "Withdrawal signer role"
+      },
+      "withdrawalWithHashIsExecuted(bytes32)": {
+        "notice": "Returns if the withdrawal with the hash is executed"
+      }
+    },
+    "notice": "`manager` represents the payment recipient, and its various privileges can be delegated to other accounts through respective roles. `manager`, `userWithdrawalLimitIncreaser` and `claimer` roles should only be granted to a multisig or an equivalently decentralized account. `withdrawalSigner` issues ERC191 signatures, and thus has to be an EOA. It being compromised poses a risk in proportion to the redundancy in user withdrawal limits. Have a `userWithdrawalLimitDecreaser` decrease user withdrawal limits as necessary to mitigate this risk. The `userWithdrawalLimitDecreaser` role can be granted to an EOA, as it cannot cause irreversible harm. This contract accepts prepayments in an ERC20 token specified immutably during construction. Do not use tokens that are not fully ERC20-compliant. An optional `depositWithPermit()` function is added to provide ERC2612 support.",
+    "version": 1
+  },
+  "storageLayout": {
+    "storage": [
+      {
+        "astId": 3798,
+        "contract": "contracts/utils/PrepaymentDepository.sol:PrepaymentDepository",
+        "label": "adminRoleDescription",
+        "offset": 0,
+        "slot": "0",
+        "type": "t_string_storage"
+      },
+      {
+        "astId": 13434,
+        "contract": "contracts/utils/PrepaymentDepository.sol:PrepaymentDepository",
+        "label": "userToWithdrawalDestination",
+        "offset": 0,
+        "slot": "1",
+        "type": "t_mapping(t_address,t_address)"
+      },
+      {
+        "astId": 13439,
+        "contract": "contracts/utils/PrepaymentDepository.sol:PrepaymentDepository",
+        "label": "userToWithdrawalLimit",
+        "offset": 0,
+        "slot": "2",
+        "type": "t_mapping(t_address,t_uint256)"
+      },
+      {
+        "astId": 13444,
+        "contract": "contracts/utils/PrepaymentDepository.sol:PrepaymentDepository",
+        "label": "withdrawalWithHashIsExecuted",
+        "offset": 0,
+        "slot": "3",
+        "type": "t_mapping(t_bytes32,t_bool)"
+      }
+    ],
+    "types": {
+      "t_address": {
+        "encoding": "inplace",
+        "label": "address",
+        "numberOfBytes": "20"
+      },
+      "t_bool": {
+        "encoding": "inplace",
+        "label": "bool",
+        "numberOfBytes": "1"
+      },
+      "t_bytes32": {
+        "encoding": "inplace",
+        "label": "bytes32",
+        "numberOfBytes": "32"
+      },
+      "t_mapping(t_address,t_address)": {
+        "encoding": "mapping",
+        "key": "t_address",
+        "label": "mapping(address => address)",
+        "numberOfBytes": "32",
+        "value": "t_address"
+      },
+      "t_mapping(t_address,t_uint256)": {
+        "encoding": "mapping",
+        "key": "t_address",
+        "label": "mapping(address => uint256)",
+        "numberOfBytes": "32",
+        "value": "t_uint256"
+      },
+      "t_mapping(t_bytes32,t_bool)": {
+        "encoding": "mapping",
+        "key": "t_bytes32",
+        "label": "mapping(bytes32 => bool)",
+        "numberOfBytes": "32",
+        "value": "t_bool"
+      },
+      "t_string_storage": {
+        "encoding": "bytes",
+        "label": "string",
+        "numberOfBytes": "32"
+      },
+      "t_uint256": {
+        "encoding": "inplace",
+        "label": "uint256",
+        "numberOfBytes": "32"
+      }
+    }
+  }
+}
