@@ -87,12 +87,12 @@ describe('OrderPayable', function () {
   });
 
   describe('payForOrder', function () {
-    context('Order id is not zero', function () {
-      context('Order did not expired', function () {
-        context('Order signer is manager', function () {
+    context('Order ID is not zero', function () {
+      context('Order has not expired', function () {
+        context('Order signer is the manager', function () {
           context('Payment amount is not zero', function () {
-            context('Order did not paid before', function () {
-              context('Signatures match', function () {
+            context('Order is not paid for', function () {
+              context('Signature matches', function () {
                 it('pays for order', async function () {
                   const { roles, orderPayable } = await deploy();
 
@@ -148,8 +148,8 @@ describe('OrderPayable', function () {
                   expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(true);
                 });
               });
-              context('Signatures mismatch', function () {
-                it('target function reverts', async function () {
+              context('Signature does not match', function () {
+                it('reverts', async function () {
                   const { roles, orderPayable } = await deploy();
 
                   const orderId = testUtils.generateRandomBytes32();
@@ -182,8 +182,8 @@ describe('OrderPayable', function () {
                 });
               });
             });
-            context('Order paid before', function () {
-              it('target function reverts', async function () {
+            context('Order is already paid for', function () {
+              it('reverts', async function () {
                 const { roles, orderPayable } = await deploy();
 
                 const orderId = testUtils.generateRandomBytes32();
@@ -214,7 +214,7 @@ describe('OrderPayable', function () {
             });
           });
           context('Payment amount is zero', function () {
-            it('target function reverts', async function () {
+            it('reverts', async function () {
               const { roles, orderPayable } = await deploy();
 
               const orderId = testUtils.generateRandomBytes32();
@@ -241,8 +241,8 @@ describe('OrderPayable', function () {
         });
         context('Order signer is an order signer', function () {
           context('Payment amount is not zero', function () {
-            context('Order did not paid before', function () {
-              context('Signatures match', function () {
+            context('Order is not paid for', function () {
+              context('Signature matches', function () {
                 it('pays for order', async function () {
                   const { roles, orderPayable } = await deploy();
 
@@ -275,8 +275,8 @@ describe('OrderPayable', function () {
                   expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(true);
                 });
               });
-              context('Signatures mismatch', function () {
-                it('target function reverts', async function () {
+              context('Signature does not match', function () {
+                it('reverts', async function () {
                   const { roles, orderPayable } = await deploy();
 
                   const orderId = testUtils.generateRandomBytes32();
@@ -309,8 +309,8 @@ describe('OrderPayable', function () {
                 });
               });
             });
-            context('Order paid before', function () {
-              it('target function reverts', async function () {
+            context('Order is already paid for', function () {
+              it('reverts', async function () {
                 const { roles, orderPayable } = await deploy();
 
                 const orderId = testUtils.generateRandomBytes32();
@@ -347,7 +347,7 @@ describe('OrderPayable', function () {
             });
           });
           context('Payment amount is zero', function () {
-            it('target function reverts', async function () {
+            it('reverts', async function () {
               const { roles, orderPayable } = await deploy();
 
               const orderId = testUtils.generateRandomBytes32();
@@ -372,8 +372,8 @@ describe('OrderPayable', function () {
             });
           });
         });
-        context('Order signer is invalid', function () {
-          it('target function reverts', async function () {
+        context('Order signer is not the manager or an order signer', function () {
+          it('reverts', async function () {
             const { roles, orderPayable } = await deploy();
 
             const orderId = testUtils.generateRandomBytes32();
@@ -406,8 +406,8 @@ describe('OrderPayable', function () {
           });
         });
       });
-      context('Order expired', function () {
-        it('target function reverts', async function () {
+      context('Order has expired', function () {
+        it('reverts', async function () {
           const { roles, orderPayable } = await deploy();
 
           const orderId = testUtils.generateRandomBytes32();
@@ -432,8 +432,8 @@ describe('OrderPayable', function () {
         });
       });
     });
-    context('Order id is zero', function () {
-      it('target function reverts', async function () {
+    context('Order ID is zero', function () {
+      it('reverts', async function () {
         const { roles, orderPayable } = await deploy();
 
         const orderId = ethers.constants.HashZero;
