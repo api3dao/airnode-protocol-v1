@@ -60,22 +60,16 @@ describe('OrderPayable', function () {
 
   async function signAndEncodeOrder({ orderPayable, orderId, expirationTimestamp, paymentAmount, orderSigner }) {
     const chainId = (await orderPayable.provider.getNetwork()).chainId;
-
     const hashedMessage = ethers.utils.solidityKeccak256(
       ['uint256', 'address', 'bytes32', 'uint256', 'uint256'],
       [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
     );
-
     const hash = ethers.utils.arrayify(hashedMessage);
-
     const signature = await orderSigner.signMessage(ethers.utils.arrayify(hash));
-
-    const encodedData = ethers.utils.defaultAbiCoder.encode(
+    return ethers.utils.defaultAbiCoder.encode(
       ['bytes32', 'uint256', 'address', 'bytes'],
       [orderId, expirationTimestamp, orderSigner.address, signature]
     );
-
-    return encodedData;
   }
 
   describe('constructor', function () {
