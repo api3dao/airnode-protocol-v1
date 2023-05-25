@@ -58,58 +58,31 @@ describe('OrderPayable', function () {
     };
   }
 
-  async function createSignedOrderData({
-    orderSignerAddress,
-    roles,
-    orderPayable,
-    orderId,
-    expirationTimestamp,
-    paymentAmount,
-  }) {
+  async function signAndEncodeOrder({ orderPayable, orderId, expirationTimestamp, paymentAmount, orderSigner }) {
     const chainId = (await orderPayable.provider.getNetwork()).chainId;
-
     const hashedMessage = ethers.utils.solidityKeccak256(
       ['uint256', 'address', 'bytes32', 'uint256', 'uint256'],
       [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
     );
-
     const hash = ethers.utils.arrayify(hashedMessage);
-
-    const signature = await roles.manager.signMessage(ethers.utils.arrayify(hash));
-
-    const encodedData = ethers.utils.defaultAbiCoder.encode(
+    const signature = await orderSigner.signMessage(ethers.utils.arrayify(hash));
+    return ethers.utils.defaultAbiCoder.encode(
       ['bytes32', 'uint256', 'address', 'bytes'],
-      [orderId, expirationTimestamp, orderSignerAddress, signature]
+      [orderId, expirationTimestamp, orderSigner.address, signature]
     );
-
-    return encodedData;
   }
 
-  async function createSignedOrderDataForOrderSigner({
-    orderSignerAddress,
-    roles,
-    orderPayable,
-    orderId,
-    expirationTimestamp,
-    paymentAmount,
-  }) {
-    const chainId = (await orderPayable.provider.getNetwork()).chainId;
-
-    const hashedMessage = ethers.utils.solidityKeccak256(
-      ['uint256', 'address', 'bytes32', 'uint256', 'uint256'],
-      [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
-    );
-
-    const hash = ethers.utils.arrayify(hashedMessage);
-
-    const signature = await roles.orderSigner.signMessage(ethers.utils.arrayify(hash));
-
-    const encodedData = ethers.utils.defaultAbiCoder.encode(
-      ['bytes32', 'uint256', 'address', 'bytes'],
-      [orderId, expirationTimestamp, orderSignerAddress, signature]
-    );
-
-    return encodedData;
+  async function payForAnOrder(orderPayable, paymentAmount, orderSigner, payer) {
+    const orderId = testUtils.generateRandomBytes32();
+    const expirationTimestamp = (await helpers.time.latest()) + 60;
+    const encodedData = await signAndEncodeOrder({
+      orderPayable,
+      orderId,
+      expirationTimestamp,
+      paymentAmount,
+      orderSigner,
+    });
+    await orderPayable.connect(payer).payForOrder(encodedData, { value: paymentAmount });
   }
 
   describe('constructor', function () {
@@ -124,42 +97,15 @@ describe('OrderPayable', function () {
       expect(await orderPayable.orderIdToPaymentStatus(testUtils.generateRandomBytes32())).to.equal(false);
       expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.constants.Zero);
     });
-    it('reverts', async function () {
-      const { roles, accessControlRegistry, adminRoleDescription } = await helpers.loadFixture(deploy);
-
-      await expect(
-        (
-          await ethers.getContractFactory('OrderPayable', roles.deployer)
-        ).deploy(accessControlRegistry.address, adminRoleDescription, '0x0000000000000000000000000000000000000000')
-      ).to.be.revertedWith('Manager address zero');
-    });
-    it('reverts', async function () {
-      const { roles, adminRoleDescription } = await helpers.loadFixture(deploy);
-
-      await expect(
-        (
-          await ethers.getContractFactory('OrderPayable', roles.deployer)
-        ).deploy('0x0000000000000000000000000000000000000000', adminRoleDescription, roles.manager.address)
-      ).to.be.revertedWith('ACR address zero');
-    });
-    it('reverts', async function () {
-      const { roles, accessControlRegistry } = await helpers.loadFixture(deploy);
-
-      await expect(
-        (
-          await ethers.getContractFactory('OrderPayable', roles.deployer)
-        ).deploy(accessControlRegistry.address, '', roles.manager.address)
-      ).to.be.revertedWith('Admin role description empty');
-    });
   });
 
   describe('payForOrder', function () {
-    context('Order id is not zero', function () {
-      context('Order did not expired', function () {
-        context('Order signer is manager', function () {
+    context('Order ID is not zero', function () {
+      context('Order has not expired', function () {
+        context('Order signer is the manager', function () {
           context('Payment amount is not zero', function () {
-            context('Order did not paid before', function () {
-              context('Signatures match', function () {
+            context('Order is not paid for', function () {
+              context('Signature matches', function () {
                 it('pays for order', async function () {
                   const { roles, orderPayable } = await deploy();
 
@@ -167,552 +113,369 @@ describe('OrderPayable', function () {
                   const timestamp = await helpers.time.latest();
                   const expirationTimestamp = timestamp + 60;
                   const paymentAmount = ethers.utils.parseEther('1');
-                  const orderSignerAddress = roles.manager.address;
+                  const orderSigner = roles.manager;
 
-                  const encodedData = await createSignedOrderData({
-                    orderSignerAddress,
-                    roles,
+                  const encodedData = await signAndEncodeOrder({
                     orderPayable,
                     orderId,
                     expirationTimestamp,
                     paymentAmount,
-                  });
-
-                  await expect(orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount }))
-                    .to.emit(orderPayable, 'PaidForOrder')
-                    .withArgs(orderId, expirationTimestamp, orderSignerAddress, paymentAmount, roles.manager.address);
-                  expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(paymentAmount);
-                  expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(true);
-                });
-                it('pays for order', async function () {
-                  const { roles, orderPayable } = await deploy();
-
-                  const orderId = testUtils.generateRandomBytes32();
-                  const timestamp = await helpers.time.latest();
-                  const expirationTimestamp = timestamp + 60;
-                  const paymentAmount = ethers.utils.parseEther('1');
-                  const orderSignerAddress = roles.manager.address;
-
-                  const encodedData = await createSignedOrderData({
-                    orderSignerAddress,
-                    roles,
-                    orderPayable,
-                    orderId,
-                    expirationTimestamp,
-                    paymentAmount,
+                    orderSigner,
                   });
 
                   await expect(
-                    orderPayable.connect(roles.orderSigner).payForOrder(encodedData, { value: paymentAmount })
+                    orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
                   )
                     .to.emit(orderPayable, 'PaidForOrder')
                     .withArgs(
                       orderId,
                       expirationTimestamp,
-                      orderSignerAddress,
+                      orderSigner.address,
                       paymentAmount,
-                      roles.orderSigner.address
+                      roles.randomPerson.address
                     );
                   expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(paymentAmount);
                   expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(true);
                 });
               });
-              context('Signatures mismatch', function () {
-                it('target function reverts', async function () {
+              context('Signature does not match', function () {
+                it('reverts', async function () {
                   const { roles, orderPayable } = await deploy();
 
                   const orderId = testUtils.generateRandomBytes32();
                   const timestamp = await helpers.time.latest();
                   const expirationTimestamp = timestamp + 60;
                   const paymentAmount = ethers.utils.parseEther('1');
-                  const orderSignerAddress = roles.manager.address;
+                  const orderSigner = roles.manager;
 
-                  const chainId = (await orderPayable.provider.getNetwork()).chainId;
-
-                  const hashedMessage = ethers.utils.solidityKeccak256(
-                    ['uint256', 'address', 'bytes32', 'uint256', 'uint256'],
-                    [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
-                  );
-
-                  const hash = ethers.utils.arrayify(hashedMessage);
-
-                  const signature = await roles.orderSigner.signMessage(ethers.utils.arrayify(hash));
-
-                  const encodedData = ethers.utils.defaultAbiCoder.encode(
-                    ['bytes32', 'uint256', 'address', 'bytes'],
-                    [orderId, expirationTimestamp, orderSignerAddress, signature]
-                  );
+                  const encodedData = await signAndEncodeOrder({
+                    orderPayable,
+                    orderId,
+                    expirationTimestamp,
+                    paymentAmount: paymentAmount.add(1),
+                    orderSigner,
+                  });
 
                   await expect(
-                    orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount })
+                    orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
                   ).to.be.revertedWith('Signature mismatch');
-                  expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('0'));
-                  expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(false);
                 });
               });
             });
-            context('Order paid before', function () {
-              it('target function reverts', async function () {
+            context('Order is already paid for', function () {
+              it('reverts', async function () {
                 const { roles, orderPayable } = await deploy();
 
                 const orderId = testUtils.generateRandomBytes32();
                 const timestamp = await helpers.time.latest();
                 const expirationTimestamp = timestamp + 60;
                 const paymentAmount = ethers.utils.parseEther('1');
-                const orderSignerAddress = roles.manager.address;
+                const orderSigner = roles.manager;
 
-                const encodedData = await createSignedOrderData({
-                  orderSignerAddress,
-                  roles,
+                const encodedData = await signAndEncodeOrder({
                   orderPayable,
                   orderId,
                   expirationTimestamp,
                   paymentAmount,
+                  orderSigner,
                 });
 
-                await expect(orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount }))
-                  .to.emit(orderPayable, 'PaidForOrder')
-                  .withArgs(orderId, expirationTimestamp, orderSignerAddress, paymentAmount, roles.manager.address);
-                expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('1'));
-                expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(true);
+                await orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount });
 
                 await expect(
-                  orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount })
+                  orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
                 ).to.be.revertedWith('Order already paid for');
-                expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('1'));
               });
             });
           });
           context('Payment amount is zero', function () {
-            it('target function reverts', async function () {
+            it('reverts', async function () {
               const { roles, orderPayable } = await deploy();
 
               const orderId = testUtils.generateRandomBytes32();
               const timestamp = await helpers.time.latest();
               const expirationTimestamp = timestamp + 60;
               const paymentAmount = ethers.utils.parseEther('0');
-              const orderSignerAddress = roles.manager.address;
+              const orderSigner = roles.manager;
 
-              const encodedData = await createSignedOrderData({
-                orderSignerAddress,
-                roles,
+              const encodedData = await signAndEncodeOrder({
                 orderPayable,
                 orderId,
                 expirationTimestamp,
                 paymentAmount,
+                orderSigner,
               });
 
               await expect(
-                orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount })
+                orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
               ).to.be.revertedWith('Payment amount zero');
-              expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('0'));
-              expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(false);
             });
           });
         });
-        context('Order expired', function () {
-          it('target function reverts', async function () {
-            const { roles, orderPayable } = await deploy();
+        context('Order signer is an order signer', function () {
+          context('Payment amount is not zero', function () {
+            context('Order is not paid for', function () {
+              context('Signature matches', function () {
+                it('pays for order', async function () {
+                  const { roles, orderPayable } = await deploy();
 
-            const orderId = testUtils.generateRandomBytes32();
-            const timestamp = await helpers.time.latest();
-            const expirationTimestamp = timestamp - 60;
-            const paymentAmount = ethers.utils.parseEther('1');
-            const orderSignerAddress = roles.manager.address;
+                  const orderId = testUtils.generateRandomBytes32();
+                  const timestamp = await helpers.time.latest();
+                  const expirationTimestamp = timestamp + 60;
+                  const paymentAmount = ethers.utils.parseEther('1');
+                  const orderSigner = roles.orderSigner;
 
-            const encodedData = await createSignedOrderData({
-              orderSignerAddress,
-              roles,
-              orderPayable,
-              orderId,
-              expirationTimestamp,
-              paymentAmount,
+                  const encodedData = await signAndEncodeOrder({
+                    orderPayable,
+                    orderId,
+                    expirationTimestamp,
+                    paymentAmount,
+                    orderSigner,
+                  });
+
+                  await expect(
+                    orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
+                  )
+                    .to.emit(orderPayable, 'PaidForOrder')
+                    .withArgs(
+                      orderId,
+                      expirationTimestamp,
+                      orderSigner.address,
+                      paymentAmount,
+                      roles.randomPerson.address
+                    );
+                  expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(paymentAmount);
+                  expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(true);
+                });
+              });
+              context('Signature does not match', function () {
+                it('reverts', async function () {
+                  const { roles, orderPayable } = await deploy();
+
+                  const orderId = testUtils.generateRandomBytes32();
+                  const timestamp = await helpers.time.latest();
+                  const expirationTimestamp = timestamp + 60;
+                  const paymentAmount = ethers.utils.parseEther('1');
+                  const orderSigner = roles.orderSigner;
+
+                  const encodedData = await signAndEncodeOrder({
+                    orderPayable,
+                    orderId,
+                    expirationTimestamp,
+                    paymentAmount: paymentAmount.add(1),
+                    orderSigner,
+                  });
+
+                  await expect(
+                    orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
+                  ).to.be.revertedWith('Signature mismatch');
+                });
+              });
             });
+            context('Order is already paid for', function () {
+              it('reverts', async function () {
+                const { roles, orderPayable } = await deploy();
 
-            await expect(
-              orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount })
-            ).to.be.revertedWith('Order expired');
-            expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('0'));
-            expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(false);
+                const orderId = testUtils.generateRandomBytes32();
+                const timestamp = await helpers.time.latest();
+                const expirationTimestamp = timestamp + 60;
+                const paymentAmount = ethers.utils.parseEther('1');
+                const orderSigner = roles.orderSigner;
+
+                const encodedData = await signAndEncodeOrder({
+                  orderPayable,
+                  orderId,
+                  expirationTimestamp,
+                  paymentAmount,
+                  orderSigner,
+                });
+
+                await orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount });
+
+                await expect(
+                  orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
+                ).to.be.revertedWith('Order already paid for');
+              });
+            });
           });
-        });
-      });
-    });
-    context('Order id is zero', function () {
-      it('target function reverts', async function () {
-        const { roles, orderPayable } = await deploy();
-
-        const orderId = ethers.constants.HashZero;
-        const timestamp = await helpers.time.latest();
-        const expirationTimestamp = timestamp + 60;
-        const paymentAmount = ethers.utils.parseEther('1');
-        const orderSignerAddress = roles.manager.address;
-
-        const encodedData = await createSignedOrderData({
-          orderSignerAddress,
-          roles,
-          orderPayable,
-          orderId,
-          expirationTimestamp,
-          paymentAmount,
-        });
-
-        await expect(
-          orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount })
-        ).to.be.revertedWith('Order ID zero');
-        expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('0'));
-        expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(false);
-      });
-    });
-    context('Order signer is an order signer', function () {
-      context('Payment amount is not zero', function () {
-        context('Order did not paid before', function () {
-          context('Signatures match', function () {
-            it('pays for order', async function () {
+          context('Payment amount is zero', function () {
+            it('reverts', async function () {
               const { roles, orderPayable } = await deploy();
 
               const orderId = testUtils.generateRandomBytes32();
               const timestamp = await helpers.time.latest();
               const expirationTimestamp = timestamp + 60;
-              const paymentAmount = ethers.utils.parseEther('1');
-              const orderSignerAddress = roles.orderSigner.address;
+              const paymentAmount = ethers.utils.parseEther('0');
+              const orderSigner = roles.orderSigner;
 
-              const encodedData = await createSignedOrderDataForOrderSigner({
-                orderSignerAddress,
-                roles,
+              const encodedData = await signAndEncodeOrder({
                 orderPayable,
                 orderId,
                 expirationTimestamp,
                 paymentAmount,
+                orderSigner,
               });
 
-              await expect(orderPayable.connect(roles.orderSigner).payForOrder(encodedData, { value: paymentAmount }))
-                .to.emit(orderPayable, 'PaidForOrder')
-                .withArgs(orderId, expirationTimestamp, orderSignerAddress, paymentAmount, roles.orderSigner.address);
-              expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(paymentAmount);
-              expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(true);
-            });
-          });
-          context('Signatures mismatch', function () {
-            it('target function reverts', async function () {
-              const { roles, orderPayable } = await deploy();
-
-              const orderId = testUtils.generateRandomBytes32();
-              const timestamp = await helpers.time.latest();
-              const expirationTimestamp = timestamp + 60;
-              const paymentAmount = ethers.utils.parseEther('1');
-              const orderSignerAddress = roles.orderSigner.address;
-
-              const chainId = (await orderPayable.provider.getNetwork()).chainId;
-
-              const hashedMessage = ethers.utils.solidityKeccak256(
-                ['uint256', 'address', 'bytes32', 'uint256', 'uint256'],
-                [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
-              );
-
-              const hash = ethers.utils.arrayify(hashedMessage);
-
-              const signature = await roles.manager.signMessage(ethers.utils.arrayify(hash));
-
-              const encodedData = ethers.utils.defaultAbiCoder.encode(
-                ['bytes32', 'uint256', 'address', 'bytes'],
-                [orderId, expirationTimestamp, orderSignerAddress, signature]
-              );
-
               await expect(
-                orderPayable.connect(roles.orderSigner).payForOrder(encodedData, { value: paymentAmount })
-              ).to.be.revertedWith('Signature mismatch');
-              expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('0'));
-              expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(false);
+                orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
+              ).to.be.revertedWith('Payment amount zero');
             });
           });
         });
-        context('Order paid before', function () {
-          it('target function reverts', async function () {
+        context('Order signer is not the manager or an order signer', function () {
+          it('reverts', async function () {
             const { roles, orderPayable } = await deploy();
 
             const orderId = testUtils.generateRandomBytes32();
             const timestamp = await helpers.time.latest();
             const expirationTimestamp = timestamp + 60;
             const paymentAmount = ethers.utils.parseEther('1');
-            const orderSignerAddress = roles.orderSigner.address;
+            const orderSigner = roles.randomPerson;
 
-            const encodedData = await createSignedOrderDataForOrderSigner({
-              orderSignerAddress,
-              roles,
+            const encodedData = await signAndEncodeOrder({
               orderPayable,
               orderId,
               expirationTimestamp,
               paymentAmount,
+              orderSigner,
             });
 
-            await expect(orderPayable.connect(roles.orderSigner).payForOrder(encodedData, { value: paymentAmount }))
-              .to.emit(orderPayable, 'PaidForOrder')
-              .withArgs(orderId, expirationTimestamp, orderSignerAddress, paymentAmount, roles.orderSigner.address);
-            expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('1'));
-            expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(true);
-
             await expect(
-              orderPayable.connect(roles.orderSigner).payForOrder(encodedData, { value: paymentAmount })
-            ).to.be.revertedWith('Order already paid for');
-            expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('1'));
+              orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
+            ).to.be.revertedWith('Invalid order signer');
           });
         });
       });
-      context('Payment amount is zero', function () {
-        it('target function reverts', async function () {
-          const { roles, orderPayable } = await deploy();
-
-          const orderId = testUtils.generateRandomBytes32();
-          const timestamp = await helpers.time.latest();
-          const expirationTimestamp = timestamp + 60;
-          const paymentAmount = ethers.utils.parseEther('0');
-          const orderSignerAddress = roles.orderSigner.address;
-
-          const encodedData = await createSignedOrderDataForOrderSigner({
-            orderSignerAddress,
-            roles,
-            orderPayable,
-            orderId,
-            expirationTimestamp,
-            paymentAmount,
-          });
-
-          await expect(
-            orderPayable.connect(roles.orderSigner).payForOrder(encodedData, { value: paymentAmount })
-          ).to.be.revertedWith('Payment amount zero');
-          expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('0'));
-          expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(false);
-        });
-      });
-      context('Order expired', function () {
-        it('target function reverts', async function () {
+      context('Order has expired', function () {
+        it('reverts', async function () {
           const { roles, orderPayable } = await deploy();
 
           const orderId = testUtils.generateRandomBytes32();
           const timestamp = await helpers.time.latest();
           const expirationTimestamp = timestamp - 60;
           const paymentAmount = ethers.utils.parseEther('1');
-          const orderSignerAddress = roles.orderSigner.address;
+          const orderSigner = roles.manager;
 
-          const encodedData = await createSignedOrderDataForOrderSigner({
-            orderSignerAddress,
-            roles,
+          const encodedData = await signAndEncodeOrder({
             orderPayable,
             orderId,
             expirationTimestamp,
             paymentAmount,
+            orderSigner,
           });
 
           await expect(
-            orderPayable.connect(roles.orderSigner).payForOrder(encodedData, { value: paymentAmount })
+            orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
           ).to.be.revertedWith('Order expired');
-          expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('0'));
-          expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(false);
-        });
-      });
-      context('Order id is zero', function () {
-        it('target function reverts', async function () {
-          const { roles, orderPayable } = await deploy();
-
-          const orderId = ethers.constants.HashZero;
-          const timestamp = await helpers.time.latest();
-          const expirationTimestamp = timestamp + 60;
-          const paymentAmount = ethers.utils.parseEther('1');
-          const orderSignerAddress = roles.orderSigner.address;
-
-          const encodedData = await createSignedOrderDataForOrderSigner({
-            orderSignerAddress,
-            roles,
-            orderPayable,
-            orderId,
-            expirationTimestamp,
-            paymentAmount,
-          });
-
-          await expect(
-            orderPayable.connect(roles.orderSigner).payForOrder(encodedData, { value: paymentAmount })
-          ).to.be.revertedWith('Order ID zero');
-          expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('0'));
-          expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(false);
         });
       });
     });
-    context('Order signer is invalid', function () {
-      it('target function reverts', async function () {
+    context('Order ID is zero', function () {
+      it('reverts', async function () {
         const { roles, orderPayable } = await deploy();
 
-        const orderId = testUtils.generateRandomBytes32();
+        const orderId = ethers.constants.HashZero;
         const timestamp = await helpers.time.latest();
         const expirationTimestamp = timestamp + 60;
         const paymentAmount = ethers.utils.parseEther('1');
-        const orderSignerAddress = roles.randomPerson.address;
+        const orderSigner = roles.manager;
 
-        const chainId = (await orderPayable.provider.getNetwork()).chainId;
-
-        const hashedMessage = ethers.utils.solidityKeccak256(
-          ['uint256', 'address', 'bytes32', 'uint256', 'uint256'],
-          [chainId, orderPayable.address, orderId, expirationTimestamp, paymentAmount]
-        );
-
-        const hash = ethers.utils.arrayify(hashedMessage);
-
-        const signature = await roles.randomPerson.signMessage(ethers.utils.arrayify(hash));
-
-        const encodedData = ethers.utils.defaultAbiCoder.encode(
-          ['bytes32', 'uint256', 'address', 'bytes'],
-          [orderId, expirationTimestamp, orderSignerAddress, signature]
-        );
+        const encodedData = await signAndEncodeOrder({
+          orderPayable,
+          orderId,
+          expirationTimestamp,
+          paymentAmount,
+          orderSigner,
+        });
 
         await expect(
           orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
-        ).to.be.revertedWith('Invalid order signer');
-        expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('0'));
-        expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(false);
+        ).to.be.revertedWith('Order ID zero');
       });
     });
   });
 
   describe('withdraw', function () {
-    context('Caller is manager', function () {
-      it('emits Withdrew event and transfers balance to recipient', async function () {
-        const { roles, orderPayable } = await deploy();
+    context('Sender is the manager', function () {
+      context('Transfer call does not revert', function () {
+        it('withdraws', async function () {
+          const { roles, orderPayable } = await deploy();
 
-        const orderId = ethers.utils.id('testOrder');
-        const timestamp = await helpers.time.latest();
-        const expirationTimestamp = timestamp + 60;
-        const paymentAmount = ethers.utils.parseEther('1');
-        const orderSignerAddress = roles.manager.address;
+          const paymentAmount = ethers.utils.parseEther('1');
+          await payForAnOrder(orderPayable, paymentAmount, roles.orderSigner, roles.randomPerson);
 
-        const encodedData = await createSignedOrderData({
-          orderSignerAddress,
-          roles,
-          orderPayable,
-          orderId,
-          expirationTimestamp,
-          paymentAmount,
+          const initialRecipientBalance = await ethers.provider.getBalance(roles.recipient.address);
+          const initialContractBalance = await ethers.provider.getBalance(orderPayable.address);
+
+          await expect(orderPayable.connect(roles.manager).withdraw(roles.recipient.address))
+            .to.emit(orderPayable, 'Withdrew')
+            .withArgs(roles.recipient.address, initialContractBalance);
+
+          const finalRecipientBalance = await ethers.provider.getBalance(roles.recipient.address);
+          const finalContractBalance = await ethers.provider.getBalance(orderPayable.address);
+
+          expect(finalRecipientBalance).to.equal(initialRecipientBalance.add(initialContractBalance));
+          expect(finalContractBalance).to.equal(0);
         });
+      });
+      context('Transfer call reverts', function () {
+        it('reverts', async function () {
+          const { roles, orderPayable, accessControlRegistry } = await deploy();
 
-        await orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount });
+          const paymentAmount = ethers.utils.parseEther('1');
+          await payForAnOrder(orderPayable, paymentAmount, roles.orderSigner, roles.randomPerson);
 
-        const initialRecipientBalance = await ethers.provider.getBalance(roles.recipient.address);
-        const initialContractBalance = await ethers.provider.getBalance(orderPayable.address);
-
-        await expect(orderPayable.connect(roles.manager).withdraw(roles.recipient.address))
-          .to.emit(orderPayable, 'Withdrew')
-          .withArgs(roles.recipient.address, initialContractBalance);
-
-        const finalRecipientBalance = await ethers.provider.getBalance(roles.recipient.address);
-        const finalContractBalance = await ethers.provider.getBalance(orderPayable.address);
-
-        expect(finalRecipientBalance).to.equal(initialRecipientBalance.add(initialContractBalance));
-        expect(finalContractBalance).to.equal(0);
+          await expect(orderPayable.connect(roles.manager).withdraw(accessControlRegistry.address)).to.be.revertedWith(
+            'Transfer unsuccessful'
+          );
+        });
       });
     });
-    context('Caller is withdrawer', function () {
-      it('emits Withdrew event and transfers balance to recipient', async function () {
-        const { roles, orderPayable } = await deploy();
+    context('Sender is a withdrawer', function () {
+      context('Transfer call does not revert', function () {
+        it('withdraws', async function () {
+          const { roles, orderPayable } = await deploy();
 
-        const orderId = ethers.utils.id('testOrder');
-        const timestamp = await helpers.time.latest();
-        const expirationTimestamp = timestamp + 60;
-        const paymentAmount = ethers.utils.parseEther('1');
-        const orderSignerAddress = roles.manager.address;
+          const paymentAmount = ethers.utils.parseEther('1');
+          await payForAnOrder(orderPayable, paymentAmount, roles.orderSigner, roles.randomPerson);
 
-        const encodedData = await createSignedOrderData({
-          orderSignerAddress,
-          roles,
-          orderPayable,
-          orderId,
-          expirationTimestamp,
-          paymentAmount,
+          const initialRecipientBalance = await ethers.provider.getBalance(roles.recipient.address);
+          const initialContractBalance = await ethers.provider.getBalance(orderPayable.address);
+
+          await expect(orderPayable.connect(roles.withdrawer).withdraw(roles.recipient.address))
+            .to.emit(orderPayable, 'Withdrew')
+            .withArgs(roles.recipient.address, initialContractBalance);
+
+          const finalRecipientBalance = await ethers.provider.getBalance(roles.recipient.address);
+          const finalContractBalance = await ethers.provider.getBalance(orderPayable.address);
+
+          expect(finalRecipientBalance).to.equal(initialRecipientBalance.add(initialContractBalance));
+          expect(finalContractBalance).to.equal(0);
         });
+      });
+      context('Transfer call reverts', function () {
+        it('reverts', async function () {
+          const { roles, orderPayable, accessControlRegistry } = await deploy();
 
-        await orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount });
+          const paymentAmount = ethers.utils.parseEther('1');
+          await payForAnOrder(orderPayable, paymentAmount, roles.orderSigner, roles.randomPerson);
 
-        const initialRecipientBalance = await ethers.provider.getBalance(roles.recipient.address);
-        const initialContractBalance = await ethers.provider.getBalance(orderPayable.address);
-
-        await expect(orderPayable.connect(roles.withdrawer).withdraw(roles.recipient.address))
-          .to.emit(orderPayable, 'Withdrew')
-          .withArgs(roles.recipient.address, initialContractBalance);
-
-        const finalRecipientBalance = await ethers.provider.getBalance(roles.recipient.address);
-        const finalContractBalance = await ethers.provider.getBalance(orderPayable.address);
-
-        expect(finalRecipientBalance).to.equal(initialRecipientBalance.add(initialContractBalance));
-        expect(finalContractBalance).to.equal(0);
+          await expect(
+            orderPayable.connect(roles.withdrawer).withdraw(accessControlRegistry.address)
+          ).to.be.revertedWith('Transfer unsuccessful');
+        });
       });
     });
-    context('Caller is not manager or withdrawer', function () {
-      it('target function reverts', async function () {
+    context('Sender is not the manager or a withdrawer', function () {
+      it('reverts', async function () {
         const { roles, orderPayable } = await deploy();
 
-        const orderId = ethers.utils.id('testOrder');
-        const timestamp = await helpers.time.latest();
-        const expirationTimestamp = timestamp + 60;
         const paymentAmount = ethers.utils.parseEther('1');
-        const orderSignerAddress = roles.manager.address;
-
-        const encodedData = await createSignedOrderData({
-          orderSignerAddress,
-          roles,
-          orderPayable,
-          orderId,
-          expirationTimestamp,
-          paymentAmount,
-        });
-
-        await orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount });
-
-        const initialRecipientBalance = await ethers.provider.getBalance(roles.recipient.address);
-        const initialContractBalance = await ethers.provider.getBalance(orderPayable.address);
+        await payForAnOrder(orderPayable, paymentAmount, roles.orderSigner, roles.randomPerson);
 
         await expect(orderPayable.connect(roles.randomPerson).withdraw(roles.recipient.address)).to.be.revertedWith(
           'Sender cannot withdraw'
         );
-
-        const finalRecipientBalance = await ethers.provider.getBalance(roles.recipient.address);
-        const finalContractBalance = await ethers.provider.getBalance(orderPayable.address);
-
-        expect(finalRecipientBalance).to.equal(initialRecipientBalance);
-        expect(finalContractBalance).to.equal(initialContractBalance);
-      });
-    });
-    context('Recipient does not accept value', function () {
-      it('target function reverts', async function () {
-        const { roles, orderPayable, accessControlRegistry } = await deploy();
-
-        const orderId = ethers.utils.id('testOrder');
-        const timestamp = await helpers.time.latest();
-        const expirationTimestamp = timestamp + 60;
-        const paymentAmount = ethers.utils.parseEther('1');
-        const orderSignerAddress = roles.manager.address;
-
-        const encodedData = await createSignedOrderData({
-          orderSignerAddress,
-          roles,
-          orderPayable,
-          orderId,
-          expirationTimestamp,
-          paymentAmount,
-        });
-
-        await orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount });
-
-        const initialRecipientBalance = await ethers.provider.getBalance(accessControlRegistry.address);
-        const initialContractBalance = await ethers.provider.getBalance(orderPayable.address);
-
-        await expect(orderPayable.connect(roles.withdrawer).withdraw(accessControlRegistry.address)).to.be.revertedWith(
-          'Transfer unsuccessful'
-        );
-
-        const finalRecipientBalance = await ethers.provider.getBalance(accessControlRegistry.address);
-        const finalContractBalance = await ethers.provider.getBalance(orderPayable.address);
-
-        expect(finalRecipientBalance).to.equal(initialRecipientBalance);
-        expect(finalContractBalance).to.equal(initialContractBalance);
-        expect(finalRecipientBalance).to.equal(0);
       });
     });
   });
