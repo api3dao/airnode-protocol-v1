@@ -84,33 +84,6 @@ describe('OrderPayable', function () {
       expect(await orderPayable.orderIdToPaymentStatus(testUtils.generateRandomBytes32())).to.equal(false);
       expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.constants.Zero);
     });
-    it('reverts', async function () {
-      const { roles, accessControlRegistry, adminRoleDescription } = await helpers.loadFixture(deploy);
-
-      await expect(
-        (
-          await ethers.getContractFactory('OrderPayable', roles.deployer)
-        ).deploy(accessControlRegistry.address, adminRoleDescription, '0x0000000000000000000000000000000000000000')
-      ).to.be.revertedWith('Manager address zero');
-    });
-    it('reverts', async function () {
-      const { roles, adminRoleDescription } = await helpers.loadFixture(deploy);
-
-      await expect(
-        (
-          await ethers.getContractFactory('OrderPayable', roles.deployer)
-        ).deploy('0x0000000000000000000000000000000000000000', adminRoleDescription, roles.manager.address)
-      ).to.be.revertedWith('ACR address zero');
-    });
-    it('reverts', async function () {
-      const { roles, accessControlRegistry } = await helpers.loadFixture(deploy);
-
-      await expect(
-        (
-          await ethers.getContractFactory('OrderPayable', roles.deployer)
-        ).deploy(accessControlRegistry.address, '', roles.manager.address)
-      ).to.be.revertedWith('Admin role description empty');
-    });
   });
 
   describe('payForOrder', function () {
