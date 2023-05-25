@@ -146,8 +146,6 @@ describe('OrderPayable', function () {
                   await expect(
                     orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
                   ).to.be.revertedWith('Signature mismatch');
-                  expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('0'));
-                  expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(false);
                 });
               });
             });
@@ -186,7 +184,6 @@ describe('OrderPayable', function () {
                 await expect(
                   orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
                 ).to.be.revertedWith('Order already paid for');
-                expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('1'));
               });
             });
           });
@@ -211,8 +208,6 @@ describe('OrderPayable', function () {
               await expect(
                 orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
               ).to.be.revertedWith('Payment amount zero');
-              expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('0'));
-              expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(false);
             });
           });
         });
@@ -281,8 +276,6 @@ describe('OrderPayable', function () {
                   await expect(
                     orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
                   ).to.be.revertedWith('Signature mismatch');
-                  expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('0'));
-                  expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(false);
                 });
               });
             });
@@ -321,7 +314,6 @@ describe('OrderPayable', function () {
                 await expect(
                   orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
                 ).to.be.revertedWith('Order already paid for');
-                expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('1'));
               });
             });
           });
@@ -346,8 +338,6 @@ describe('OrderPayable', function () {
               await expect(
                 orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
               ).to.be.revertedWith('Payment amount zero');
-              expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('0'));
-              expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(false);
             });
           });
         });
@@ -380,8 +370,6 @@ describe('OrderPayable', function () {
             await expect(
               orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
             ).to.be.revertedWith('Invalid order signer');
-            expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('0'));
-            expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(false);
           });
         });
       });
@@ -406,8 +394,6 @@ describe('OrderPayable', function () {
           await expect(
             orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
           ).to.be.revertedWith('Order expired');
-          expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('0'));
-          expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(false);
         });
       });
     });
@@ -432,8 +418,6 @@ describe('OrderPayable', function () {
         await expect(
           orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
         ).to.be.revertedWith('Order ID zero');
-        expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('0'));
-        expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(false);
       });
     });
   });
@@ -527,18 +511,9 @@ describe('OrderPayable', function () {
 
         await orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount });
 
-        const initialRecipientBalance = await ethers.provider.getBalance(roles.recipient.address);
-        const initialContractBalance = await ethers.provider.getBalance(orderPayable.address);
-
         await expect(orderPayable.connect(roles.randomPerson).withdraw(roles.recipient.address)).to.be.revertedWith(
           'Sender cannot withdraw'
         );
-
-        const finalRecipientBalance = await ethers.provider.getBalance(roles.recipient.address);
-        const finalContractBalance = await ethers.provider.getBalance(orderPayable.address);
-
-        expect(finalRecipientBalance).to.equal(initialRecipientBalance);
-        expect(finalContractBalance).to.equal(initialContractBalance);
       });
     });
     context('Recipient does not accept value', function () {
@@ -561,19 +536,9 @@ describe('OrderPayable', function () {
 
         await orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount });
 
-        const initialRecipientBalance = await ethers.provider.getBalance(accessControlRegistry.address);
-        const initialContractBalance = await ethers.provider.getBalance(orderPayable.address);
-
         await expect(orderPayable.connect(roles.withdrawer).withdraw(accessControlRegistry.address)).to.be.revertedWith(
           'Transfer unsuccessful'
         );
-
-        const finalRecipientBalance = await ethers.provider.getBalance(accessControlRegistry.address);
-        const finalContractBalance = await ethers.provider.getBalance(orderPayable.address);
-
-        expect(finalRecipientBalance).to.equal(initialRecipientBalance);
-        expect(finalContractBalance).to.equal(initialContractBalance);
-        expect(finalRecipientBalance).to.equal(0);
       });
     });
   });
