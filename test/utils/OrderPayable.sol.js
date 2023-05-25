@@ -167,19 +167,7 @@ describe('OrderPayable', function () {
                   orderSigner,
                 });
 
-                await expect(
-                  orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
-                )
-                  .to.emit(orderPayable, 'PaidForOrder')
-                  .withArgs(
-                    orderId,
-                    expirationTimestamp,
-                    orderSigner.address,
-                    paymentAmount,
-                    roles.randomPerson.address
-                  );
-                expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('1'));
-                expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(true);
+                await orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount });
 
                 await expect(
                   orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
@@ -297,19 +285,7 @@ describe('OrderPayable', function () {
                   orderSigner,
                 });
 
-                await expect(
-                  orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
-                )
-                  .to.emit(orderPayable, 'PaidForOrder')
-                  .withArgs(
-                    orderId,
-                    expirationTimestamp,
-                    orderSigner.address,
-                    paymentAmount,
-                    roles.randomPerson.address
-                  );
-                expect(await ethers.provider.getBalance(orderPayable.address)).to.equal(ethers.utils.parseEther('1'));
-                expect(await orderPayable.orderIdToPaymentStatus(orderId)).to.equal(true);
+                await orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount });
 
                 await expect(
                   orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount })
