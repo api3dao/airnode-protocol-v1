@@ -58,7 +58,7 @@ describe('OrderPayable', function () {
     };
   }
 
-  async function signAndEncodeOrder({ orderSigner, orderPayable, orderId, expirationTimestamp, paymentAmount }) {
+  async function signAndEncodeOrder({ orderPayable, orderId, expirationTimestamp, paymentAmount, orderSigner }) {
     const chainId = (await orderPayable.provider.getNetwork()).chainId;
 
     const hashedMessage = ethers.utils.solidityKeccak256(
@@ -136,12 +136,11 @@ describe('OrderPayable', function () {
                   const orderSigner = roles.manager;
 
                   const encodedData = await signAndEncodeOrder({
-                    orderSigner,
-                    roles,
                     orderPayable,
                     orderId,
                     expirationTimestamp,
                     paymentAmount,
+                    orderSigner,
                   });
 
                   await expect(orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount }))
@@ -160,12 +159,11 @@ describe('OrderPayable', function () {
                   const orderSigner = roles.manager;
 
                   const encodedData = await signAndEncodeOrder({
-                    orderSigner,
-                    roles,
                     orderPayable,
                     orderId,
                     expirationTimestamp,
                     paymentAmount,
+                    orderSigner,
                   });
 
                   await expect(
@@ -228,12 +226,11 @@ describe('OrderPayable', function () {
                 const orderSigner = roles.manager;
 
                 const encodedData = await signAndEncodeOrder({
-                  orderSigner,
-                  roles,
                   orderPayable,
                   orderId,
                   expirationTimestamp,
                   paymentAmount,
+                  orderSigner,
                 });
 
                 await expect(orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount }))
@@ -260,12 +257,11 @@ describe('OrderPayable', function () {
               const orderSigner = roles.manager;
 
               const encodedData = await signAndEncodeOrder({
-                orderSigner,
-                roles,
                 orderPayable,
                 orderId,
                 expirationTimestamp,
                 paymentAmount,
+                orderSigner,
               });
 
               await expect(
@@ -287,12 +283,11 @@ describe('OrderPayable', function () {
             const orderSigner = roles.manager;
 
             const encodedData = await signAndEncodeOrder({
-              orderSigner,
-              roles,
               orderPayable,
               orderId,
               expirationTimestamp,
               paymentAmount,
+              orderSigner,
             });
 
             await expect(
@@ -315,12 +310,11 @@ describe('OrderPayable', function () {
         const orderSigner = roles.manager;
 
         const encodedData = await signAndEncodeOrder({
-          orderSigner,
-          roles,
           orderPayable,
           orderId,
           expirationTimestamp,
           paymentAmount,
+          orderSigner,
         });
 
         await expect(
@@ -344,12 +338,11 @@ describe('OrderPayable', function () {
               const orderSigner = roles.orderSigner;
 
               const encodedData = await signAndEncodeOrder({
-                orderSigner,
-                roles,
                 orderPayable,
                 orderId,
                 expirationTimestamp,
                 paymentAmount,
+                orderSigner,
               });
 
               await expect(orderPayable.connect(roles.orderSigner).payForOrder(encodedData, { value: paymentAmount }))
@@ -404,12 +397,11 @@ describe('OrderPayable', function () {
             const orderSigner = roles.orderSigner;
 
             const encodedData = await signAndEncodeOrder({
-              orderSigner,
-              roles,
               orderPayable,
               orderId,
               expirationTimestamp,
               paymentAmount,
+              orderSigner,
             });
 
             await expect(orderPayable.connect(roles.orderSigner).payForOrder(encodedData, { value: paymentAmount }))
@@ -436,12 +428,11 @@ describe('OrderPayable', function () {
           const orderSigner = roles.orderSigner;
 
           const encodedData = await signAndEncodeOrder({
-            orderSigner,
-            roles,
             orderPayable,
             orderId,
             expirationTimestamp,
             paymentAmount,
+            orderSigner,
           });
 
           await expect(
@@ -462,12 +453,11 @@ describe('OrderPayable', function () {
           const orderSigner = roles.orderSigner;
 
           const encodedData = await signAndEncodeOrder({
-            orderSigner,
-            roles,
             orderPayable,
             orderId,
             expirationTimestamp,
             paymentAmount,
+            orderSigner,
           });
 
           await expect(
@@ -488,12 +478,11 @@ describe('OrderPayable', function () {
           const orderSigner = roles.orderSigner;
 
           const encodedData = await signAndEncodeOrder({
-            orderSigner,
-            roles,
             orderPayable,
             orderId,
             expirationTimestamp,
             paymentAmount,
+            orderSigner,
           });
 
           await expect(
@@ -551,12 +540,11 @@ describe('OrderPayable', function () {
         const orderSigner = roles.manager;
 
         const encodedData = await signAndEncodeOrder({
-          orderSigner,
-          roles,
           orderPayable,
           orderId,
           expirationTimestamp,
           paymentAmount,
+          orderSigner,
         });
 
         await orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount });
@@ -586,12 +574,11 @@ describe('OrderPayable', function () {
         const orderSigner = roles.manager;
 
         const encodedData = await signAndEncodeOrder({
-          orderSigner,
-          roles,
           orderPayable,
           orderId,
           expirationTimestamp,
           paymentAmount,
+          orderSigner,
         });
 
         await orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount });
@@ -621,12 +608,11 @@ describe('OrderPayable', function () {
         const orderSigner = roles.manager;
 
         const encodedData = await signAndEncodeOrder({
-          orderSigner,
-          roles,
           orderPayable,
           orderId,
           expirationTimestamp,
           paymentAmount,
+          orderSigner,
         });
 
         await orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount });
@@ -656,12 +642,11 @@ describe('OrderPayable', function () {
         const orderSigner = roles.manager;
 
         const encodedData = await signAndEncodeOrder({
-          orderSigner,
-          roles,
           orderPayable,
           orderId,
           expirationTimestamp,
           paymentAmount,
+          orderSigner,
         });
 
         await orderPayable.connect(roles.manager).payForOrder(encodedData, { value: paymentAmount });
