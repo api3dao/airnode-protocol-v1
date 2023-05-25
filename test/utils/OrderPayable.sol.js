@@ -72,6 +72,19 @@ describe('OrderPayable', function () {
     );
   }
 
+  async function payForAnOrder(orderPayable, paymentAmount, orderSigner, payer) {
+    const orderId = testUtils.generateRandomBytes32();
+    const expirationTimestamp = (await helpers.time.latest()) + 60;
+    const encodedData = await signAndEncodeOrder({
+      orderPayable,
+      orderId,
+      expirationTimestamp,
+      paymentAmount,
+      orderSigner,
+    });
+    await orderPayable.connect(payer).payForOrder(encodedData, { value: paymentAmount });
+  }
+
   describe('constructor', function () {
     it('constructs', async function () {
       const { roles, orderSignerRole, withdrawerRole, orderPayable, accessControlRegistry, adminRoleDescription } =
@@ -387,21 +400,8 @@ describe('OrderPayable', function () {
       it('withdraws', async function () {
         const { roles, orderPayable } = await deploy();
 
-        const orderId = ethers.utils.id('testOrder');
-        const timestamp = await helpers.time.latest();
-        const expirationTimestamp = timestamp + 60;
         const paymentAmount = ethers.utils.parseEther('1');
-        const orderSigner = roles.manager;
-
-        const encodedData = await signAndEncodeOrder({
-          orderPayable,
-          orderId,
-          expirationTimestamp,
-          paymentAmount,
-          orderSigner,
-        });
-
-        await orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount });
+        await payForAnOrder(orderPayable, paymentAmount, roles.orderSigner, roles.randomPerson);
 
         const initialRecipientBalance = await ethers.provider.getBalance(roles.recipient.address);
         const initialContractBalance = await ethers.provider.getBalance(orderPayable.address);
@@ -421,21 +421,8 @@ describe('OrderPayable', function () {
       it('withdraws', async function () {
         const { roles, orderPayable } = await deploy();
 
-        const orderId = ethers.utils.id('testOrder');
-        const timestamp = await helpers.time.latest();
-        const expirationTimestamp = timestamp + 60;
         const paymentAmount = ethers.utils.parseEther('1');
-        const orderSigner = roles.manager;
-
-        const encodedData = await signAndEncodeOrder({
-          orderPayable,
-          orderId,
-          expirationTimestamp,
-          paymentAmount,
-          orderSigner,
-        });
-
-        await orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount });
+        await payForAnOrder(orderPayable, paymentAmount, roles.orderSigner, roles.randomPerson);
 
         const initialRecipientBalance = await ethers.provider.getBalance(roles.recipient.address);
         const initialContractBalance = await ethers.provider.getBalance(orderPayable.address);
@@ -455,21 +442,8 @@ describe('OrderPayable', function () {
       it('reverts', async function () {
         const { roles, orderPayable } = await deploy();
 
-        const orderId = ethers.utils.id('testOrder');
-        const timestamp = await helpers.time.latest();
-        const expirationTimestamp = timestamp + 60;
         const paymentAmount = ethers.utils.parseEther('1');
-        const orderSigner = roles.manager;
-
-        const encodedData = await signAndEncodeOrder({
-          orderPayable,
-          orderId,
-          expirationTimestamp,
-          paymentAmount,
-          orderSigner,
-        });
-
-        await orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount });
+        await payForAnOrder(orderPayable, paymentAmount, roles.orderSigner, roles.randomPerson);
 
         await expect(orderPayable.connect(roles.randomPerson).withdraw(roles.recipient.address)).to.be.revertedWith(
           'Sender cannot withdraw'
@@ -480,21 +454,8 @@ describe('OrderPayable', function () {
       it('target function reverts', async function () {
         const { roles, orderPayable, accessControlRegistry } = await deploy();
 
-        const orderId = ethers.utils.id('testOrder');
-        const timestamp = await helpers.time.latest();
-        const expirationTimestamp = timestamp + 60;
         const paymentAmount = ethers.utils.parseEther('1');
-        const orderSigner = roles.manager;
-
-        const encodedData = await signAndEncodeOrder({
-          orderPayable,
-          orderId,
-          expirationTimestamp,
-          paymentAmount,
-          orderSigner,
-        });
-
-        await orderPayable.connect(roles.randomPerson).payForOrder(encodedData, { value: paymentAmount });
+        await payForAnOrder(orderPayable, paymentAmount, roles.orderSigner, roles.randomPerson);
 
         await expect(orderPayable.connect(roles.withdrawer).withdraw(accessControlRegistry.address)).to.be.revertedWith(
           'Transfer unsuccessful'
