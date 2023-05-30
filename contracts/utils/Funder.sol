@@ -24,6 +24,9 @@ contract Funder is SelfMulticall, IFunder {
             new FunderDepository{salt: bytes32(0)}(owner, root)
         );
         ownerToRootToFunderDepositoryAddress[owner][root] = funderDepository;
+        // We could have not stored this and used computeFunderDepositoryAddress() on the
+        // fly whenever we needed it, but doing so requires handling the FunderDepository
+        // bytecode, which ends up being more expensive than reading a bytes32 from storage
         emit DeployedFunderDepository(funderDepository, owner, root);
     }
 
