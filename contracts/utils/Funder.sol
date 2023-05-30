@@ -89,7 +89,7 @@ contract Funder is SelfMulticall {
         FunderDepository(funderDepository).withdraw(recipient, amount);
     }
 
-    // This needs to be adapted for zksync, but at least we've done that before for ProxyFactory
+    // This needs to be adapted for zksync but at least we've done that before for ProxyFactory
     function computeFunderDepositoryAddress(
         address owner,
         bytes32 root

@@ -2,9 +2,9 @@
 pragma solidity 0.8.17;
 
 // This contract should always be deployed by calling deployFunderDepository() at Funder.
-// Owner and root are immutable. If the owner wants to update the owner or the root, they can
+// owner and root are immutable. If the owner wants to update the owner or the root, they can
 // have a new FunderDepository deployed and call withdrawAll() at Funder to transfer the
-// funds there
+// funds there.
 contract FunderDepository {
     address public immutable funder;
     address public immutable owner;
