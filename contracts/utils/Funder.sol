@@ -7,6 +7,24 @@ import "@openzeppelin/contracts/utils/Create2.sol";
 import "./FunderDepository.sol";
 
 contract Funder is SelfMulticall {
+    event DeployedFunderDepository(
+        address indexed funderDepository,
+        address owner,
+        bytes32 root
+    );
+
+    event Funded(
+        address indexed funderDepository,
+        address recipient,
+        uint256 amount
+    );
+
+    event Withdrew(
+        address indexed funderDepository,
+        address recipient,
+        uint256 amount
+    );
+
     mapping(address => mapping(bytes32 => address payable))
         public ownerToRootToFunderDepositoryAddress;
 
@@ -22,7 +40,7 @@ contract Funder is SelfMulticall {
             new FunderDepository{salt: bytes32(0)}(owner, root)
         );
         ownerToRootToFunderDepositoryAddress[owner][root] = funderDepository;
-        // Emit event
+        emit DeployedFunderDepository(funderDepository, owner, root);
     }
 
     // Called by the owner
@@ -34,8 +52,8 @@ contract Funder is SelfMulticall {
         ][root];
         require(funderDepository != address(0), "No such FunderDepository");
         require(funderDepository.balance >= amount, "Insufficient balance");
-        // Emit event
         FunderDepository(funderDepository).withdraw(recipient, amount);
+        emit Withdrew(funderDepository, recipient, amount);
     }
 
     // fund() calls will keep withdrawing from FunderDepository so it may be difficult to
@@ -85,8 +103,10 @@ contract Funder is SelfMulticall {
             ? amountNeededToTopUp
             : balance;
         require(amount != 0, "Amount zero");
-        // Emit event
         FunderDepository(funderDepository).withdraw(recipient, amount);
+        // Even though the call above is external, it is to a trusted contract so the
+        // event can be emitted after it returns
+        emit Funded(funderDepository, recipient, amount);
     }
 
     // This needs to be adapted for zksync but at least we've done that before for ProxyFactory

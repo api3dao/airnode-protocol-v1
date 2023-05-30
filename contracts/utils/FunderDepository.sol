@@ -25,5 +25,6 @@ contract FunderDepository {
         // Funder checks for balance so FunderDepository does not need to
         (bool success, ) = recipient.call{value: amount}("");
         require(success, "Transfer unsuccessful");
+        // Funder emits event so FunderDepository does not need to
     }
 }
