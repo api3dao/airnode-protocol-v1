@@ -4,9 +4,9 @@ pragma solidity 0.8.17;
 import "./SelfMulticall.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/Create2.sol";
-import "./FunderDepositoryV2.sol";
+import "./FunderDepository.sol";
 
-contract FunderV2 is SelfMulticall {
+contract Funder is SelfMulticall {
     mapping(address => mapping(bytes32 => address payable))
         public ownerToRootToFunderDepositoryAddress;
 
@@ -19,7 +19,7 @@ contract FunderV2 is SelfMulticall {
         // Owner allowed to be zero
         require(root != bytes32(0), "Root zero");
         funderDepository = payable(
-            new FunderDepositoryV2{salt: bytes32(0)}(owner, root)
+            new FunderDepository{salt: bytes32(0)}(owner, root)
         );
         ownerToRootToFunderDepositoryAddress[owner][root] = funderDepository;
         // Emit event
@@ -35,10 +35,10 @@ contract FunderV2 is SelfMulticall {
         require(funderDepository != address(0), "No such FunderDepository");
         require(funderDepository.balance >= amount, "Insufficient balance");
         // Emit event
-        FunderDepositoryV2(funderDepository).withdraw(recipient, amount);
+        FunderDepository(funderDepository).withdraw(recipient, amount);
     }
 
-    // fund() calls will keep withdrawing from FunderDepositoryV2 so it may be difficult to
+    // fund() calls will keep withdrawing from FunderDepository so it may be difficult to
     // withdraw the entire balance. I provided a convenience function for that.
     function withdrawAll(bytes32 root, address recipient) external {
         withdraw(
@@ -86,7 +86,7 @@ contract FunderV2 is SelfMulticall {
             : balance;
         require(amount != 0, "Amount zero");
         // Emit event
-        FunderDepositoryV2(funderDepository).withdraw(recipient, amount);
+        FunderDepository(funderDepository).withdraw(recipient, amount);
     }
 
     // This needs to be adapted for zksync, but at least we've done that before for ProxyFactory
@@ -99,7 +99,7 @@ contract FunderV2 is SelfMulticall {
             bytes32(0),
             keccak256(
                 abi.encodePacked(
-                    type(FunderDepositoryV2).creationCode,
+                    type(FunderDepository).creationCode,
                     abi.encode(owner, root)
                 )
             )
