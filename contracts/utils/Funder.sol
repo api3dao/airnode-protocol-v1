@@ -7,9 +7,6 @@ import "@openzeppelin/contracts/utils/Create2.sol";
 import "./FunderDepository.sol";
 
 contract Funder is SelfMulticall {
-    mapping(address => mapping(bytes32 => address payable))
-        public ownerToRootToFunderDepositoryAddress;
-
     receive() external payable {}
 
     function deployFunderDepository(
@@ -21,7 +18,6 @@ contract Funder is SelfMulticall {
         funderDepository = payable(
             new FunderDepository{salt: bytes32(0)}(owner, root)
         );
-        ownerToRootToFunderDepositoryAddress[owner][root] = funderDepository;
         // Emit event
     }
 
@@ -29,10 +25,9 @@ contract Funder is SelfMulticall {
     function withdraw(bytes32 root, address recipient, uint256 amount) public {
         require(recipient != address(0), "Recipient address zero");
         require(amount != 0, "Amount zero");
-        address payable funderDepository = ownerToRootToFunderDepositoryAddress[
-            msg.sender
-        ][root];
-        require(funderDepository != address(0), "No such FunderDepository");
+        address payable funderDepository = payable(
+            computeFunderDepositoryAddress(msg.sender, root)
+        );
         require(funderDepository.balance >= amount, "Insufficient balance");
         // Emit event
         FunderDepository(funderDepository).withdraw(recipient, amount);
@@ -44,7 +39,7 @@ contract Funder is SelfMulticall {
         withdraw(
             root,
             recipient,
-            ownerToRootToFunderDepositoryAddress[msg.sender][root].balance
+            computeFunderDepositoryAddress(msg.sender, root).balance
         );
     }
 
@@ -73,13 +68,13 @@ contract Funder is SelfMulticall {
         // https://en.wikipedia.org/wiki/Hysteresis#In_engineering
         uint256 recipientBalance = recipient.balance;
         require(recipientBalance <= lowThreshold, "Balance not low enough");
-        address payable funderDepository = ownerToRootToFunderDepositoryAddress[
-            owner
-        ][root];
         uint256 amountNeededToTopUp;
         unchecked {
             amountNeededToTopUp = highThreshold - recipientBalance;
         }
+        address payable funderDepository = payable(
+            computeFunderDepositoryAddress(owner, root)
+        );
         uint256 balance = funderDepository.balance;
         uint256 amount = amountNeededToTopUp <= balance
             ? amountNeededToTopUp
@@ -93,7 +88,7 @@ contract Funder is SelfMulticall {
     function computeFunderDepositoryAddress(
         address owner,
         bytes32 root
-    ) external view returns (address funderDepository) {
+    ) public view returns (address funderDepository) {
         require(root != bytes32(0), "Root zero");
         funderDepository = Create2.computeAddress(
             bytes32(0),
