@@ -2,38 +2,22 @@
 pragma solidity 0.8.17;
 
 import "./SelfMulticall.sol";
+import "./interfaces/IFunder.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/Create2.sol";
 import "./FunderDepository.sol";
 
-contract Funder is SelfMulticall {
-    event DeployedFunderDepository(
-        address indexed funderDepository,
-        address owner,
-        bytes32 root
-    );
-
-    event Funded(
-        address indexed funderDepository,
-        address recipient,
-        uint256 amount
-    );
-
-    event Withdrew(
-        address indexed funderDepository,
-        address recipient,
-        uint256 amount
-    );
-
+contract Funder is SelfMulticall, IFunder {
     mapping(address => mapping(bytes32 => address payable))
-        public ownerToRootToFunderDepositoryAddress;
+        public
+        override ownerToRootToFunderDepositoryAddress;
 
     receive() external payable {}
 
     function deployFunderDepository(
         address owner,
         bytes32 root
-    ) external returns (address payable funderDepository) {
+    ) external override returns (address payable funderDepository) {
         // Owner allowed to be zero
         require(root != bytes32(0), "Root zero");
         funderDepository = payable(
@@ -51,7 +35,7 @@ contract Funder is SelfMulticall {
         address recipient,
         uint256 lowThreshold,
         uint256 highThreshold
-    ) external {
+    ) external override {
         require(recipient != address(0), "Recipient address zero");
         require(
             lowThreshold <= highThreshold,
@@ -87,7 +71,11 @@ contract Funder is SelfMulticall {
     }
 
     // Called by the owner
-    function withdraw(bytes32 root, address recipient, uint256 amount) public {
+    function withdraw(
+        bytes32 root,
+        address recipient,
+        uint256 amount
+    ) public override {
         require(recipient != address(0), "Recipient address zero");
         require(amount != 0, "Amount zero");
         address payable funderDepository = ownerToRootToFunderDepositoryAddress[
@@ -101,7 +89,7 @@ contract Funder is SelfMulticall {
 
     // fund() calls will keep withdrawing from FunderDepository so it may be difficult to
     // withdraw the entire balance. I provided a convenience function for that.
-    function withdrawAll(bytes32 root, address recipient) external {
+    function withdrawAll(bytes32 root, address recipient) external override {
         withdraw(
             root,
             recipient,
@@ -113,7 +101,7 @@ contract Funder is SelfMulticall {
     function computeFunderDepositoryAddress(
         address owner,
         bytes32 root
-    ) external view returns (address funderDepository) {
+    ) external view override returns (address funderDepository) {
         require(root != bytes32(0), "Root zero");
         funderDepository = Create2.computeAddress(
             bytes32(0),
