@@ -43,29 +43,6 @@ contract Funder is SelfMulticall {
         emit DeployedFunderDepository(funderDepository, owner, root);
     }
 
-    // Called by the owner
-    function withdraw(bytes32 root, address recipient, uint256 amount) public {
-        require(recipient != address(0), "Recipient address zero");
-        require(amount != 0, "Amount zero");
-        address payable funderDepository = ownerToRootToFunderDepositoryAddress[
-            msg.sender
-        ][root];
-        require(funderDepository != address(0), "No such FunderDepository");
-        require(funderDepository.balance >= amount, "Insufficient balance");
-        FunderDepository(funderDepository).withdraw(recipient, amount);
-        emit Withdrew(funderDepository, recipient, amount);
-    }
-
-    // fund() calls will keep withdrawing from FunderDepository so it may be difficult to
-    // withdraw the entire balance. I provided a convenience function for that.
-    function withdrawAll(bytes32 root, address recipient) external {
-        withdraw(
-            root,
-            recipient,
-            ownerToRootToFunderDepositoryAddress[msg.sender][root].balance
-        );
-    }
-
     // It's a bit heavy on the calldata but I don't see a way around it
     function fund(
         address owner,
@@ -107,6 +84,29 @@ contract Funder is SelfMulticall {
         // Even though the call above is external, it is to a trusted contract so the
         // event can be emitted after it returns
         emit Funded(funderDepository, recipient, amount);
+    }
+
+    // Called by the owner
+    function withdraw(bytes32 root, address recipient, uint256 amount) public {
+        require(recipient != address(0), "Recipient address zero");
+        require(amount != 0, "Amount zero");
+        address payable funderDepository = ownerToRootToFunderDepositoryAddress[
+            msg.sender
+        ][root];
+        require(funderDepository != address(0), "No such FunderDepository");
+        require(funderDepository.balance >= amount, "Insufficient balance");
+        FunderDepository(funderDepository).withdraw(recipient, amount);
+        emit Withdrew(funderDepository, recipient, amount);
+    }
+
+    // fund() calls will keep withdrawing from FunderDepository so it may be difficult to
+    // withdraw the entire balance. I provided a convenience function for that.
+    function withdrawAll(bytes32 root, address recipient) external {
+        withdraw(
+            root,
+            recipient,
+            ownerToRootToFunderDepositoryAddress[msg.sender][root].balance
+        );
     }
 
     // This needs to be adapted for zksync but at least we've done that before for ProxyFactory
