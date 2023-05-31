@@ -45,7 +45,7 @@ module.exports = async ({ getUnnamedAccounts, deployments }) => {
     });
   }
 
-  if (chainsSupportedByChainApi.includes(hre.network.name)) {
+  if (chainsSupportedByChainApi.includes(hre.network.name) || hre.network.name === 'ethereum-sepolia-testnet') {
     const RequesterAuthorizerWithErc721 = await deployments.get('RequesterAuthorizerWithErc721');
     await hre.run('verify:verify', {
       address: RequesterAuthorizerWithErc721.address,
