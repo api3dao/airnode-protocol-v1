@@ -4,7 +4,7 @@ const { expect } = require('chai');
 const testUtils = require('../test-utils');
 const { StandardMerkleTree } = require('@openzeppelin/merkle-tree');
 
-describe.only('Funder', function () {
+describe('Funder', function () {
   async function deploy() {
     const accounts = await ethers.getSigners();
     const roles = {
@@ -16,18 +16,26 @@ describe.only('Funder', function () {
 
     const Funder = await ethers.getContractFactory('Funder', roles.deployer);
     const funder = await Funder.deploy();
+    const AccessControlRegistry = await ethers.getContractFactory('AccessControlRegistry', roles.deployer);
+    const accessControlRegistry = await AccessControlRegistry.deploy();
 
     return {
       roles,
       funder,
+      accessControlRegistry,
     };
   }
 
   describe('deployFunderDepository', function () {
     context('Root is not zero', function () {
-      it('deploys the contract', async function () {
+      it('deploys the contract and updates the mapping', async function () {
         const { roles, funder } = await helpers.loadFixture(deploy);
         const randomBytes = testUtils.generateRandomBytes32();
+        const zeroAddress = '0x0000000000000000000000000000000000000000';
+
+        expect(await funder.ownerToRootToFunderDepositoryAddress(roles.owner.address, randomBytes)).to.equal(
+          zeroAddress
+        );
 
         const FunderDepositoryArtifact = await hre.artifacts.readArtifact('FunderDepository');
         const FunderDepositoryBytecode = FunderDepositoryArtifact.bytecode;
@@ -50,6 +58,9 @@ describe.only('Funder', function () {
         expect(await funderDepositoryContract.funder()).to.equal(funder.address);
         expect(await funderDepositoryContract.owner()).to.equal(roles.owner.address);
         expect(await funderDepositoryContract.root()).to.equal(randomBytes);
+        expect(await funder.ownerToRootToFunderDepositoryAddress(roles.owner.address, randomBytes)).to.equal(
+          funderDepository
+        );
       });
     });
     context('Root is zero', function () {
@@ -353,34 +364,87 @@ describe.only('Funder', function () {
 
   describe('withdrawAll', function () {
     context('Function gets called', function () {
-      it('withdraws', async function () {
-        const { roles, funder } = await helpers.loadFixture(deploy);
-        const recipientBalance = await ethers.provider.getBalance(roles.recipient.address);
-        const lowThreshold = recipientBalance + 300;
-        const highThreshold = recipientBalance + 600;
-        const values = [[roles.recipient.address, lowThreshold.toString(), highThreshold.toString()]];
-        const amount = ethers.utils.parseEther('1');
+      context('Sender is funder', function () {
+        context('Transfer successful', function () {
+          it('withdraws', async function () {
+            const { roles, funder } = await helpers.loadFixture(deploy);
+            const recipientBalance = await ethers.provider.getBalance(roles.recipient.address);
+            const lowThreshold = recipientBalance + 300;
+            const highThreshold = recipientBalance + 600;
+            const values = [[roles.recipient.address, lowThreshold.toString(), highThreshold.toString()]];
+            const amount = ethers.utils.parseEther('1');
 
-        const tree = StandardMerkleTree.of(values, ['address', 'uint256', 'uint256']);
+            const tree = StandardMerkleTree.of(values, ['address', 'uint256', 'uint256']);
 
-        const tx = await funder.connect(roles.owner).deployFunderDepository(roles.owner.address, tree.root);
-        const receipt = await tx.wait();
-        const event = receipt.events.find((e) => e.event === 'DeployedFunderDepository');
-        const funderDepository = event.args.funderDepository;
+            const tx = await funder.connect(roles.owner).deployFunderDepository(roles.owner.address, tree.root);
+            const receipt = await tx.wait();
+            const event = receipt.events.find((e) => e.event === 'DeployedFunderDepository');
+            const funderDepository = event.args.funderDepository;
 
-        await roles.owner.sendTransaction({ to: funderDepository, value: amount });
+            await roles.owner.sendTransaction({ to: funderDepository, value: amount });
 
-        const funderDepositoryBalance = await ethers.provider.getBalance(funderDepository);
+            const funderDepositoryBalance = await ethers.provider.getBalance(funderDepository);
 
-        await expect(funder.connect(roles.owner).withdrawAll(tree.root, roles.recipient.address))
-          .to.emit(funder, 'Withdrew')
-          .withArgs(funderDepository, roles.recipient.address, amount);
+            await expect(funder.connect(roles.owner).withdrawAll(tree.root, roles.recipient.address))
+              .to.emit(funder, 'Withdrew')
+              .withArgs(funderDepository, roles.recipient.address, amount);
 
-        const expectedRecipientBalance = recipientBalance.add(ethers.BigNumber.from(amount.toString()));
-        const expectedFunderDepositoryBalance = funderDepositoryBalance.sub(ethers.BigNumber.from(amount.toString()));
+            const expectedRecipientBalance = recipientBalance.add(ethers.BigNumber.from(amount.toString()));
+            const expectedFunderDepositoryBalance = funderDepositoryBalance.sub(
+              ethers.BigNumber.from(amount.toString())
+            );
 
-        expect(await ethers.provider.getBalance(roles.recipient.address)).to.equal(expectedRecipientBalance);
-        expect(await ethers.provider.getBalance(funderDepository)).to.equal(expectedFunderDepositoryBalance);
+            expect(await ethers.provider.getBalance(roles.recipient.address)).to.equal(expectedRecipientBalance);
+            expect(await ethers.provider.getBalance(funderDepository)).to.equal(expectedFunderDepositoryBalance);
+          });
+        });
+        context('Transfer unsuccessful', function () {
+          it('reverts', async function () {
+            const { roles, funder, accessControlRegistry } = await helpers.loadFixture(deploy);
+            const recipientBalance = await ethers.provider.getBalance(roles.recipient.address);
+            const lowThreshold = recipientBalance + 300;
+            const highThreshold = recipientBalance + 600;
+            const values = [[roles.recipient.address, lowThreshold.toString(), highThreshold.toString()]];
+            const amount = ethers.utils.parseEther('1');
+
+            const tree = StandardMerkleTree.of(values, ['address', 'uint256', 'uint256']);
+
+            const tx = await funder.connect(roles.owner).deployFunderDepository(roles.owner.address, tree.root);
+            const receipt = await tx.wait();
+            const event = receipt.events.find((e) => e.event === 'DeployedFunderDepository');
+            const funderDepository = event.args.funderDepository;
+
+            await roles.owner.sendTransaction({ to: funderDepository, value: amount });
+
+            await expect(
+              funder.connect(roles.owner).withdrawAll(tree.root, accessControlRegistry.address)
+            ).to.be.revertedWith('Transfer unsuccessful');
+          });
+        });
+      });
+      context('Sender is not the funder', function () {
+        it('reverts', async function () {
+          const { roles, funder } = await helpers.loadFixture(deploy);
+          const recipientBalance = await ethers.provider.getBalance(roles.recipient.address);
+          const lowThreshold = recipientBalance + 300;
+          const highThreshold = recipientBalance + 600;
+          const values = [[roles.recipient.address, lowThreshold.toString(), highThreshold.toString()]];
+          const amount = ethers.utils.parseEther('1');
+
+          const tree = StandardMerkleTree.of(values, ['address', 'uint256', 'uint256']);
+
+          const tx = await funder.connect(roles.owner).deployFunderDepository(roles.owner.address, tree.root);
+          const receipt = await tx.wait();
+          const event = receipt.events.find((e) => e.event === 'DeployedFunderDepository');
+          const funderDepository = event.args.funderDepository;
+          const funderDepositoryContract = await ethers.getContractAt('FunderDepository', funderDepository);
+
+          await roles.owner.sendTransaction({ to: funderDepository, value: amount });
+
+          await expect(
+            funderDepositoryContract.connect(roles.owner).withdraw(roles.recipient.address, amount)
+          ).to.be.revertedWith('Sender not Funder');
+        });
       });
     });
   });
