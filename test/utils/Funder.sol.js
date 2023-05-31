@@ -4,7 +4,7 @@ const { expect } = require('chai');
 const testUtils = require('../test-utils');
 const { StandardMerkleTree } = require('@openzeppelin/merkle-tree');
 
-describe('Funder', function () {
+describe.only('Funder', function () {
   async function deploy() {
     const accounts = await ethers.getSigners();
     const roles = {
@@ -247,16 +247,14 @@ describe('Funder', function () {
 
               const funderDepositoryBalance = await ethers.provider.getBalance(funderDepository);
 
-              await expect(
-                funder
-                  .connect(roles.owner)
-                  .withdraw(tree.root, roles.recipient.address, amount)
-              )
+              await expect(funder.connect(roles.owner).withdraw(tree.root, roles.recipient.address, amount))
                 .to.emit(funder, 'Withdrew')
                 .withArgs(funderDepository, roles.recipient.address, amount);
 
               const expectedRecipientBalance = recipientBalance.add(ethers.BigNumber.from(amount.toString()));
-              const expectedFunderDepositoryBalance = funderDepositoryBalance.sub(ethers.BigNumber.from(amount.toString()));     
+              const expectedFunderDepositoryBalance = funderDepositoryBalance.sub(
+                ethers.BigNumber.from(amount.toString())
+              );
 
               expect(await ethers.provider.getBalance(roles.recipient.address)).to.equal(expectedRecipientBalance);
               expect(await ethers.provider.getBalance(funderDepository)).to.equal(expectedFunderDepositoryBalance);
@@ -281,11 +279,8 @@ describe('Funder', function () {
               await roles.owner.sendTransaction({ to: funderDepository, value: ethers.utils.parseEther('1') });
 
               await expect(
-                funder
-                  .connect(roles.owner)
-                  .withdraw(tree.root, roles.recipient.address, amount)
-              )
-                .to.be.revertedWith('Insufficient balance');
+                funder.connect(roles.owner).withdraw(tree.root, roles.recipient.address, amount)
+              ).to.be.revertedWith('Insufficient balance');
             });
           });
         });
@@ -301,11 +296,8 @@ describe('Funder', function () {
             const tree = StandardMerkleTree.of(values, ['address', 'uint256', 'uint256']);
 
             await expect(
-              funder
-                .connect(roles.owner)
-                .withdraw(tree.root, roles.recipient.address, amount)
-            )
-              .to.be.revertedWith('No such FunderDepository');
+              funder.connect(roles.owner).withdraw(tree.root, roles.recipient.address, amount)
+            ).to.be.revertedWith('No such FunderDepository');
           });
         });
       });
@@ -328,11 +320,8 @@ describe('Funder', function () {
           await roles.owner.sendTransaction({ to: funderDepository, value: ethers.utils.parseEther('1') });
 
           await expect(
-            funder
-              .connect(roles.owner)
-              .withdraw(tree.root, roles.recipient.address, amount)
-          )
-            .to.be.revertedWith('Amount zero');
+            funder.connect(roles.owner).withdraw(tree.root, roles.recipient.address, amount)
+          ).to.be.revertedWith('Amount zero');
         });
       });
     });
@@ -355,12 +344,9 @@ describe('Funder', function () {
 
         await roles.owner.sendTransaction({ to: funderDepository, value: amount });
 
-        await expect(
-          funder
-            .connect(roles.owner)
-            .withdraw(tree.root, zeroAddress, amount)
-        )
-          .to.be.revertedWith('Recipient address zero');
+        await expect(funder.connect(roles.owner).withdraw(tree.root, zeroAddress, amount)).to.be.revertedWith(
+          'Recipient address zero'
+        );
       });
     });
   });
@@ -386,16 +372,12 @@ describe('Funder', function () {
 
         const funderDepositoryBalance = await ethers.provider.getBalance(funderDepository);
 
-        await expect(
-          funder
-            .connect(roles.owner)
-            .withdrawAll(tree.root, roles.recipient.address)
-        )
+        await expect(funder.connect(roles.owner).withdrawAll(tree.root, roles.recipient.address))
           .to.emit(funder, 'Withdrew')
           .withArgs(funderDepository, roles.recipient.address, amount);
 
         const expectedRecipientBalance = recipientBalance.add(ethers.BigNumber.from(amount.toString()));
-        const expectedFunderDepositoryBalance = funderDepositoryBalance.sub(ethers.BigNumber.from(amount.toString()));     
+        const expectedFunderDepositoryBalance = funderDepositoryBalance.sub(ethers.BigNumber.from(amount.toString()));
 
         expect(await ethers.provider.getBalance(roles.recipient.address)).to.equal(expectedRecipientBalance);
         expect(await ethers.provider.getBalance(funderDepository)).to.equal(expectedFunderDepositoryBalance);
@@ -404,8 +386,8 @@ describe('Funder', function () {
   });
 
   describe('computeFunderDepositoryAddress', function () {
-    context('Function gets called', function () {
-      it('withdraws', async function () {
+    context('Root is not zero', function () {
+      it('computes', async function () {
         const { roles, funder } = await helpers.loadFixture(deploy);
         const recipientBalance = await ethers.provider.getBalance(roles.recipient.address);
         const lowThreshold = recipientBalance + 300;
@@ -420,10 +402,19 @@ describe('Funder', function () {
         const funderDepository = event.args.funderDepository;
 
         const computedFunderDepositoryAddress = await funder
-            .connect(roles.owner)
-            .computeFunderDepositoryAddress(roles.owner.address, tree.root);     
+          .connect(roles.owner)
+          .computeFunderDepositoryAddress(roles.owner.address, tree.root);
 
         expect(computedFunderDepositoryAddress).to.equal(funderDepository);
+      });
+    });
+    context('Root is zero', function () {
+      it('reverts', async function () {
+        const { roles, funder } = await helpers.loadFixture(deploy);
+
+        await expect(
+          funder.connect(roles.owner).computeFunderDepositoryAddress(roles.owner.address, ethers.constants.HashZero)
+        ).to.be.revertedWith('Root zero');
       });
     });
   });
