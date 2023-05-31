@@ -18,3 +18,5 @@ src/contracts
 dist
 
 .idea
+
+.DS_Store
