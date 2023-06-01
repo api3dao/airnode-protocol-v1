@@ -1,4 +1,5 @@
 const { ethers } = require('hardhat');
+const hre = require('hardhat');
 const helpers = require('@nomicfoundation/hardhat-network-helpers');
 const { expect } = require('chai');
 const testUtils = require('../test-utils');
