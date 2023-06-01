@@ -32,7 +32,11 @@ module.exports = async () => {
       if (contractName === 'PrepaymentDepository' && !chainsSupportedByOevRelay.includes(network)) {
         continue;
       }
-      if (contractName === 'RequesterAuthorizerWithErc721' && !chainsSupportedByChainApi.includes(network)) {
+      if (
+        contractName === 'RequesterAuthorizerWithErc721' &&
+        !chainsSupportedByChainApi.includes(network) &&
+        network.name !== 'ethereum-sepolia-testnet'
+      ) {
         continue;
       }
       if (contractName === 'OrderPayable' && !chainsSupportedByApi3Market.includes(network)) {
@@ -49,7 +53,11 @@ module.exports = async () => {
       if (contractName === 'PrepaymentDepository' && !chainsSupportedByOevRelay.includes(network)) {
         continue;
       }
-      if (contractName === 'RequesterAuthorizerWithErc721' && !chainsSupportedByChainApi.includes(network)) {
+      if (
+        contractName === 'RequesterAuthorizerWithErc721' &&
+        !chainsSupportedByChainApi.includes(network) &&
+        network.name !== 'ethereum-sepolia-testnet'
+      ) {
         continue;
       }
       if (contractName === 'OrderPayable' && !chainsSupportedByApi3Market.includes(network)) {

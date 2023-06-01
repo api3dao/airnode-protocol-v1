@@ -72,7 +72,7 @@ module.exports = async ({ getUnnamedAccounts, deployments }) => {
     log(`Deployed PrepaymentDepository (OEV Relay) at ${prepaymentDepository.address}`);
   }
 
-  if (chainsSupportedByChainApi.includes(network.name)) {
+  if (chainsSupportedByChainApi.includes(network.name) || network.name === 'ethereum-sepolia-testnet') {
     const requesterAuthorizerWithErc721 = await deploy('RequesterAuthorizerWithErc721', {
       from: accounts[0],
       args: [accessControlRegistry.address, 'RequesterAuthorizerWithErc721 admin'],
