@@ -5,7 +5,7 @@ const { expect } = require('chai');
 const testUtils = require('../test-utils');
 const { StandardMerkleTree } = require('@openzeppelin/merkle-tree');
 
-describe('Funder', function () {
+describe.only('Funder', function () {
   async function deploy() {
     const accounts = await ethers.getSigners();
     const roles = {
@@ -85,9 +85,9 @@ describe('Funder', function () {
                 it('funds', async function () {
                   const { roles, funder } = await helpers.loadFixture(deploy);
                   const recipientBalance = await ethers.provider.getBalance(roles.recipient.address);
-                  const lowThreshold = recipientBalance + 300;
-                  const highThreshold = recipientBalance + 600;
-                  const values = [[roles.recipient.address, lowThreshold.toString(), highThreshold.toString()]];
+                  const lowThreshold = ethers.BigNumber.from(recipientBalance).add('3');
+                  const highThreshold = ethers.BigNumber.from(recipientBalance).add('6');
+                  const values = [[roles.recipient.address, lowThreshold, highThreshold]];
 
                   const tree = StandardMerkleTree.of(values, ['address', 'uint256', 'uint256']);
                   const proof = tree.getProof(0);
@@ -99,11 +99,7 @@ describe('Funder', function () {
 
                   await roles.owner.sendTransaction({ to: funderDepository, value: ethers.utils.parseEther('1') });
 
-                  const funderDepositoryBalance = await ethers.provider.getBalance(funderDepository);
                   const amountNeededToTopUp = ethers.BigNumber.from(highThreshold).sub(recipientBalance);
-                  const amount = amountNeededToTopUp.lte(funderDepositoryBalance)
-                    ? amountNeededToTopUp
-                    : funderDepositoryBalance;
 
                   await expect(
                     funder
@@ -111,9 +107,9 @@ describe('Funder', function () {
                       .fund(roles.owner.address, tree.root, proof, roles.recipient.address, lowThreshold, highThreshold)
                   )
                     .to.emit(funder, 'Funded')
-                    .withArgs(funderDepository, roles.recipient.address, amount);
+                    .withArgs(funderDepository, roles.recipient.address, amountNeededToTopUp);
 
-                  const expectedBalance = recipientBalance.add(ethers.BigNumber.from(amount.toString()));
+                  const expectedBalance = ethers.BigNumber.from(recipientBalance).add(amountNeededToTopUp);
 
                   expect(await ethers.provider.getBalance(roles.recipient.address)).to.equal(expectedBalance);
                 });
@@ -122,9 +118,9 @@ describe('Funder', function () {
                 it('reverts', async function () {
                   const { roles, funder } = await helpers.loadFixture(deploy);
                   const recipientBalance = await ethers.provider.getBalance(roles.recipient.address);
-                  const lowThreshold = recipientBalance + 300;
-                  const highThreshold = recipientBalance + 600;
-                  const values = [[roles.recipient.address, lowThreshold.toString(), highThreshold.toString()]];
+                  const lowThreshold = ethers.BigNumber.from(recipientBalance).add('3');
+                  const highThreshold = ethers.BigNumber.from(recipientBalance).add('6');
+                  const values = [[roles.recipient.address, lowThreshold, highThreshold]];
 
                   const tree = StandardMerkleTree.of(values, ['address', 'uint256', 'uint256']);
                   const proof = tree.getProof(0);
@@ -141,9 +137,9 @@ describe('Funder', function () {
               it('reverts', async function () {
                 const { roles, funder } = await helpers.loadFixture(deploy);
                 const recipientBalance = await ethers.provider.getBalance(roles.recipient.address);
-                const lowThreshold = 300;
-                const highThreshold = recipientBalance + 600;
-                const values = [[roles.recipient.address, lowThreshold.toString(), highThreshold.toString()]];
+                const lowThreshold = ethers.BigNumber.from('3');
+                const highThreshold = ethers.BigNumber.from(recipientBalance).add('6');
+                const values = [[roles.recipient.address, lowThreshold, highThreshold]];
 
                 const tree = StandardMerkleTree.of(values, ['address', 'uint256', 'uint256']);
                 const proof = tree.getProof(0);
@@ -160,9 +156,9 @@ describe('Funder', function () {
             it('reverts', async function () {
               const { roles, funder } = await helpers.loadFixture(deploy);
               const recipientBalance = await ethers.provider.getBalance(roles.recipient.address);
-              const lowThreshold = recipientBalance + 300;
-              const highThreshold = recipientBalance + 600;
-              const values = [[roles.random.address, 300, 600]];
+              const lowThreshold = ethers.BigNumber.from(recipientBalance).add('3');
+              const highThreshold = ethers.BigNumber.from(recipientBalance).add('6');
+              const values = [[roles.random.address, 3, 6]];
 
               const tree = StandardMerkleTree.of(values, ['address', 'uint256', 'uint256']);
               const proof = tree.getProof(0);
@@ -181,7 +177,7 @@ describe('Funder', function () {
 
             const lowThreshold = 0;
             const highThreshold = 0;
-            const values = [[roles.recipient.address, lowThreshold.toString(), highThreshold.toString()]];
+            const values = [[roles.recipient.address, lowThreshold, highThreshold]];
 
             const tree = StandardMerkleTree.of(values, ['address', 'uint256', 'uint256']);
             const proof = tree.getProof(0);
@@ -198,9 +194,9 @@ describe('Funder', function () {
         it('reverts', async function () {
           const { roles, funder } = await helpers.loadFixture(deploy);
 
-          const lowThreshold = 600;
-          const highThreshold = 300;
-          const values = [[roles.recipient.address, lowThreshold.toString(), highThreshold.toString()]];
+          const lowThreshold = ethers.BigNumber.from('6');
+          const highThreshold = ethers.BigNumber.from('3');
+          const values = [[roles.recipient.address, lowThreshold, highThreshold]];
 
           const tree = StandardMerkleTree.of(values, ['address', 'uint256', 'uint256']);
           const proof = tree.getProof(0);
@@ -217,11 +213,11 @@ describe('Funder', function () {
       it('reverts', async function () {
         const { roles, funder } = await helpers.loadFixture(deploy);
 
-        const lowThreshold = 300;
-        const highThreshold = 600;
+        const lowThreshold = ethers.BigNumber.from('3');
+        const highThreshold = ethers.BigNumber.from('6');
         const zeroAddress = '0x0000000000000000000000000000000000000000';
 
-        const values = [[zeroAddress, lowThreshold.toString(), highThreshold.toString()]];
+        const values = [[zeroAddress, lowThreshold, highThreshold]];
 
         const tree = StandardMerkleTree.of(values, ['address', 'uint256', 'uint256']);
         const proof = tree.getProof(0);
@@ -243,9 +239,9 @@ describe('Funder', function () {
             it('withdraws', async function () {
               const { roles, funder } = await helpers.loadFixture(deploy);
               const recipientBalance = await ethers.provider.getBalance(roles.recipient.address);
-              const lowThreshold = recipientBalance + 300;
-              const highThreshold = recipientBalance + 600;
-              const values = [[roles.recipient.address, lowThreshold.toString(), highThreshold.toString()]];
+              const lowThreshold = ethers.BigNumber.from(recipientBalance).add('3');
+              const highThreshold = ethers.BigNumber.from(recipientBalance).add('6');
+              const values = [[roles.recipient.address, lowThreshold, highThreshold]];
               const amount = ethers.utils.parseEther('1');
 
               const tree = StandardMerkleTree.of(values, ['address', 'uint256', 'uint256']);
@@ -263,10 +259,8 @@ describe('Funder', function () {
                 .to.emit(funder, 'Withdrew')
                 .withArgs(funderDepository, roles.recipient.address, amount);
 
-              const expectedRecipientBalance = recipientBalance.add(ethers.BigNumber.from(amount.toString()));
-              const expectedFunderDepositoryBalance = funderDepositoryBalance.sub(
-                ethers.BigNumber.from(amount.toString())
-              );
+              const expectedRecipientBalance = recipientBalance.add(ethers.BigNumber.from(amount));
+              const expectedFunderDepositoryBalance = funderDepositoryBalance.sub(ethers.BigNumber.from(amount));
 
               expect(await ethers.provider.getBalance(roles.recipient.address)).to.equal(expectedRecipientBalance);
               expect(await ethers.provider.getBalance(funderDepository)).to.equal(expectedFunderDepositoryBalance);
@@ -276,9 +270,9 @@ describe('Funder', function () {
             it('reverts', async function () {
               const { roles, funder } = await helpers.loadFixture(deploy);
               const recipientBalance = await ethers.provider.getBalance(roles.recipient.address);
-              const lowThreshold = recipientBalance + 300;
-              const highThreshold = recipientBalance + 600;
-              const values = [[roles.recipient.address, lowThreshold.toString(), highThreshold.toString()]];
+              const lowThreshold = ethers.BigNumber.from(recipientBalance).add('3');
+              const highThreshold = ethers.BigNumber.from(recipientBalance).add('6');
+              const values = [[roles.recipient.address, lowThreshold, highThreshold]];
               const amount = ethers.utils.parseEther('3');
 
               const tree = StandardMerkleTree.of(values, ['address', 'uint256', 'uint256']);
@@ -300,9 +294,9 @@ describe('Funder', function () {
           it('reverts', async function () {
             const { roles, funder } = await helpers.loadFixture(deploy);
             const recipientBalance = await ethers.provider.getBalance(roles.recipient.address);
-            const lowThreshold = recipientBalance + 300;
-            const highThreshold = recipientBalance + 600;
-            const values = [[roles.recipient.address, lowThreshold.toString(), highThreshold.toString()]];
+            const lowThreshold = ethers.BigNumber.from(recipientBalance).add('3');
+            const highThreshold = ethers.BigNumber.from(recipientBalance).add('6');
+            const values = [[roles.recipient.address, lowThreshold, highThreshold]];
             const amount = ethers.utils.parseEther('1');
 
             const tree = StandardMerkleTree.of(values, ['address', 'uint256', 'uint256']);
@@ -317,9 +311,9 @@ describe('Funder', function () {
         it('reverts', async function () {
           const { roles, funder } = await helpers.loadFixture(deploy);
           const recipientBalance = await ethers.provider.getBalance(roles.recipient.address);
-          const lowThreshold = recipientBalance + 300;
-          const highThreshold = recipientBalance + 600;
-          const values = [[roles.recipient.address, lowThreshold.toString(), highThreshold.toString()]];
+          const lowThreshold = ethers.BigNumber.from(recipientBalance).add('3');
+          const highThreshold = ethers.BigNumber.from(recipientBalance).add('6');
+          const values = [[roles.recipient.address, lowThreshold, highThreshold]];
           const amount = 0;
 
           const tree = StandardMerkleTree.of(values, ['address', 'uint256', 'uint256']);
@@ -341,9 +335,9 @@ describe('Funder', function () {
       it('reverts', async function () {
         const { roles, funder } = await helpers.loadFixture(deploy);
         const recipientBalance = await ethers.provider.getBalance(roles.recipient.address);
-        const lowThreshold = recipientBalance + 300;
-        const highThreshold = recipientBalance + 600;
-        const values = [[roles.recipient.address, lowThreshold.toString(), highThreshold.toString()]];
+        const lowThreshold = ethers.BigNumber.from(recipientBalance).add('3');
+        const highThreshold = ethers.BigNumber.from(recipientBalance).add('6');
+        const values = [[roles.recipient.address, lowThreshold, highThreshold]];
         const amount = ethers.utils.parseEther('1');
         const zeroAddress = '0x0000000000000000000000000000000000000000';
 
@@ -370,9 +364,9 @@ describe('Funder', function () {
           it('withdraws', async function () {
             const { roles, funder } = await helpers.loadFixture(deploy);
             const recipientBalance = await ethers.provider.getBalance(roles.recipient.address);
-            const lowThreshold = recipientBalance + 300;
-            const highThreshold = recipientBalance + 600;
-            const values = [[roles.recipient.address, lowThreshold.toString(), highThreshold.toString()]];
+            const lowThreshold = ethers.BigNumber.from(recipientBalance).add('3');
+            const highThreshold = ethers.BigNumber.from(recipientBalance).add('6');
+            const values = [[roles.recipient.address, lowThreshold, highThreshold]];
             const amount = ethers.utils.parseEther('1');
 
             const tree = StandardMerkleTree.of(values, ['address', 'uint256', 'uint256']);
@@ -390,10 +384,8 @@ describe('Funder', function () {
               .to.emit(funder, 'Withdrew')
               .withArgs(funderDepository, roles.recipient.address, amount);
 
-            const expectedRecipientBalance = recipientBalance.add(ethers.BigNumber.from(amount.toString()));
-            const expectedFunderDepositoryBalance = funderDepositoryBalance.sub(
-              ethers.BigNumber.from(amount.toString())
-            );
+            const expectedRecipientBalance = recipientBalance.add(ethers.BigNumber.from(amount));
+            const expectedFunderDepositoryBalance = funderDepositoryBalance.sub(ethers.BigNumber.from(amount));
 
             expect(await ethers.provider.getBalance(roles.recipient.address)).to.equal(expectedRecipientBalance);
             expect(await ethers.provider.getBalance(funderDepository)).to.equal(expectedFunderDepositoryBalance);
@@ -403,9 +395,9 @@ describe('Funder', function () {
           it('reverts', async function () {
             const { roles, funder, accessControlRegistry } = await helpers.loadFixture(deploy);
             const recipientBalance = await ethers.provider.getBalance(roles.recipient.address);
-            const lowThreshold = recipientBalance + 300;
-            const highThreshold = recipientBalance + 600;
-            const values = [[roles.recipient.address, lowThreshold.toString(), highThreshold.toString()]];
+            const lowThreshold = ethers.BigNumber.from(recipientBalance).add('3');
+            const highThreshold = ethers.BigNumber.from(recipientBalance).add('6');
+            const values = [[roles.recipient.address, lowThreshold, highThreshold]];
             const amount = ethers.utils.parseEther('1');
 
             const tree = StandardMerkleTree.of(values, ['address', 'uint256', 'uint256']);
@@ -427,9 +419,9 @@ describe('Funder', function () {
         it('reverts', async function () {
           const { roles, funder } = await helpers.loadFixture(deploy);
           const recipientBalance = await ethers.provider.getBalance(roles.recipient.address);
-          const lowThreshold = recipientBalance + 300;
-          const highThreshold = recipientBalance + 600;
-          const values = [[roles.recipient.address, lowThreshold.toString(), highThreshold.toString()]];
+          const lowThreshold = ethers.BigNumber.from(recipientBalance).add('3');
+          const highThreshold = ethers.BigNumber.from(recipientBalance).add('6');
+          const values = [[roles.recipient.address, lowThreshold, highThreshold]];
           const amount = ethers.utils.parseEther('1');
 
           const tree = StandardMerkleTree.of(values, ['address', 'uint256', 'uint256']);
@@ -455,9 +447,9 @@ describe('Funder', function () {
       it('computes', async function () {
         const { roles, funder } = await helpers.loadFixture(deploy);
         const recipientBalance = await ethers.provider.getBalance(roles.recipient.address);
-        const lowThreshold = recipientBalance + 300;
-        const highThreshold = recipientBalance + 600;
-        const values = [[roles.recipient.address, lowThreshold.toString(), highThreshold.toString()]];
+        const lowThreshold = ethers.BigNumber.from(recipientBalance).add('3');
+        const highThreshold = ethers.BigNumber.from(recipientBalance).add('6');
+        const values = [[roles.recipient.address, lowThreshold, highThreshold]];
 
         const tree = StandardMerkleTree.of(values, ['address', 'uint256', 'uint256']);
 
