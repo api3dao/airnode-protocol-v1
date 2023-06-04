@@ -5,7 +5,7 @@ const { expect } = require('chai');
 const testUtils = require('../test-utils');
 const { StandardMerkleTree } = require('@openzeppelin/merkle-tree');
 
-describe.only('Funder', function () {
+describe('Funder', function () {
   async function deploy() {
     const accounts = await ethers.getSigners();
     const roles = {
