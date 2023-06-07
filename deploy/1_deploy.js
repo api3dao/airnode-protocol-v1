@@ -11,7 +11,14 @@ module.exports = async ({ getUnnamedAccounts, deployments }) => {
   const { deploy, log } = deployments;
   const accounts = await getUnnamedAccounts();
 
-  if (chainsSupportedByDapis.includes(network.name) || chainsSupportedByChainApi.includes(network.name)) {
+  if (
+    [
+      ...chainsSupportedByDapis,
+      ...chainsSupportedByChainApi,
+      'ethereum-goerli-testnet',
+      'ethereum-sepolia-testnet',
+    ].includes(network.name)
+  ) {
     const accessControlRegistry = await deploy('AccessControlRegistry', {
       from: accounts[0],
       log: true,
@@ -19,7 +26,7 @@ module.exports = async ({ getUnnamedAccounts, deployments }) => {
     });
     log(`Deployed AccessControlRegistry at ${accessControlRegistry.address}`);
 
-    if (chainsSupportedByDapis.includes(network.name)) {
+    if ([...chainsSupportedByDapis, 'ethereum-goerli-testnet', 'ethereum-sepolia-testnet'].includes(network.name)) {
       const { address: ownableCallForwarderAddress, abi: ownableCallForwarderAbi } = await deploy(
         'OwnableCallForwarder',
         {
@@ -62,7 +69,7 @@ module.exports = async ({ getUnnamedAccounts, deployments }) => {
       });
       log(`Deployed ProxyFactory at ${proxyFactory.address}`);
 
-      if (chainsSupportedByOevRelay.includes(network.name)) {
+      if ([...chainsSupportedByOevRelay].includes(network.name)) {
         const usdcAddress = { ethereum: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' };
         const prepaymentDepository = await deploy('PrepaymentDepository', {
           from: accounts[0],
@@ -78,7 +85,9 @@ module.exports = async ({ getUnnamedAccounts, deployments }) => {
         log(`Deployed PrepaymentDepository (OEV Relay) at ${prepaymentDepository.address}`);
       }
 
-      if (chainsSupportedByApi3Market.includes(network.name)) {
+      if (
+        [...chainsSupportedByApi3Market, 'ethereum-goerli-testnet', 'ethereum-sepolia-testnet'].includes(network.name)
+      ) {
         const orderPayable = await deploy('OrderPayable', {
           from: accounts[0],
           args: [accessControlRegistry.address, 'OrderPayable admin (API3 Market)', ownableCallForwarder.address],
@@ -88,7 +97,8 @@ module.exports = async ({ getUnnamedAccounts, deployments }) => {
         log(`Deployed OrderPayable (API3 Market) at ${orderPayable.address}`);
       }
     }
-    if (chainsSupportedByChainApi.includes(network.name) || network.name === 'ethereum-sepolia-testnet') {
+
+    if ([...chainsSupportedByChainApi, 'ethereum-goerli-testnet', 'ethereum-sepolia-testnet'].includes(network.name)) {
       const requesterAuthorizerWithErc721 = await deploy('RequesterAuthorizerWithErc721', {
         from: accounts[0],
         args: [accessControlRegistry.address, 'RequesterAuthorizerWithErc721 admin'],

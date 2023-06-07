@@ -10,13 +10,20 @@ const {
 module.exports = async ({ getUnnamedAccounts, deployments }) => {
   const accounts = await getUnnamedAccounts();
 
-  if (chainsSupportedByDapis.includes(network.name) || chainsSupportedByChainApi.includes(network.name)) {
+  if (
+    [
+      ...chainsSupportedByDapis,
+      ...chainsSupportedByChainApi,
+      'ethereum-goerli-testnet',
+      'ethereum-sepolia-testnet',
+    ].includes(network.name)
+  ) {
     const AccessControlRegistry = await deployments.get('AccessControlRegistry');
     await hre.run('verify:verify', {
       address: AccessControlRegistry.address,
     });
 
-    if (chainsSupportedByDapis.includes(network.name)) {
+    if ([...chainsSupportedByDapis, 'ethereum-goerli-testnet', 'ethereum-sepolia-testnet'].includes(network.name)) {
       const OwnableCallForwarder = await deployments.get('OwnableCallForwarder');
       await hre.run('verify:verify', {
         address: OwnableCallForwarder.address,
@@ -35,7 +42,7 @@ module.exports = async ({ getUnnamedAccounts, deployments }) => {
         constructorArguments: [Api3ServerV1.address],
       });
 
-      if (chainsSupportedByOevRelay.includes(network.name)) {
+      if ([...chainsSupportedByOevRelay].includes(network.name)) {
         const usdcAddress = { ethereum: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' };
         const PrepaymentDepository = await deployments.get('PrepaymentDepository');
         await hre.run('verify:verify', {
@@ -49,7 +56,9 @@ module.exports = async ({ getUnnamedAccounts, deployments }) => {
         });
       }
 
-      if (chainsSupportedByApi3Market.includes(network.name)) {
+      if (
+        [...chainsSupportedByApi3Market, 'ethereum-goerli-testnet', 'ethereum-sepolia-testnet'].includes(network.name)
+      ) {
         const OrderPayable = await deployments.get('OrderPayable');
         await hre.run('verify:verify', {
           address: OrderPayable.address,
@@ -61,7 +70,8 @@ module.exports = async ({ getUnnamedAccounts, deployments }) => {
         });
       }
     }
-    if (chainsSupportedByChainApi.includes(network.name) || network.name === 'ethereum-sepolia-testnet') {
+
+    if ([...chainsSupportedByChainApi, 'ethereum-goerli-testnet', 'ethereum-sepolia-testnet'].includes(network.name)) {
       const RequesterAuthorizerWithErc721 = await deployments.get('RequesterAuthorizerWithErc721');
       await hre.run('verify:verify', {
         address: RequesterAuthorizerWithErc721.address,
