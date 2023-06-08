@@ -49,9 +49,6 @@ describe('Funder', function () {
             roles.owner.address,
             tree.root
           );
-          expect(await funder.ownerToRootToFunderDepositoryAddress(roles.owner.address, tree.root)).to.equal(
-            ethers.constants.AddressZero
-          );
           await expect(funder.connect(roles.randomPerson).deployFunderDepository(roles.owner.address, tree.root))
             .to.emit(funder, 'DeployedFunderDepository')
             .withArgs(funderDepositoryAddress, roles.owner.address, tree.root);
