@@ -17,13 +17,10 @@ describe('Funder', function () {
 
     const Funder = await ethers.getContractFactory('Funder', roles.deployer);
     const funder = await Funder.deploy();
-    const AccessControlRegistry = await ethers.getContractFactory('AccessControlRegistry', roles.deployer);
-    const accessControlRegistry = await AccessControlRegistry.deploy();
 
     return {
       roles,
       funder,
-      accessControlRegistry,
     };
   }
 
@@ -393,7 +390,7 @@ describe('Funder', function () {
         });
         context('Transfer unsuccessful', function () {
           it('reverts', async function () {
-            const { roles, funder, accessControlRegistry } = await helpers.loadFixture(deploy);
+            const { roles, funder } = await helpers.loadFixture(deploy);
             const recipientBalance = await ethers.provider.getBalance(roles.recipient.address);
             const lowThreshold = ethers.BigNumber.from(recipientBalance).add('3');
             const highThreshold = ethers.BigNumber.from(recipientBalance).add('6');
@@ -409,9 +406,9 @@ describe('Funder', function () {
 
             await roles.owner.sendTransaction({ to: funderDepository, value: amount });
 
-            await expect(
-              funder.connect(roles.owner).withdrawAll(tree.root, accessControlRegistry.address)
-            ).to.be.revertedWith('Transfer unsuccessful');
+            await expect(funder.connect(roles.owner).withdrawAll(tree.root, funder.address)).to.be.revertedWith(
+              'Transfer unsuccessful'
+            );
           });
         });
       });
