@@ -113,34 +113,64 @@ describe('Funder', function () {
           context('Proof is valid', function () {
             context('Balance is low enough', function () {
               context('Amount is not zero', function () {
-                it('funds', async function () {
-                  const { roles, funder, tree, funderDepository } = await helpers.loadFixture(
-                    deployFunderAndFunderDepository
-                  );
-                  await Promise.all(
-                    tree.values.map(async (treeValue, treeValueIndex) => {
-                      const recipientBalance = await ethers.provider.getBalance(treeValue.value[0]);
-                      const amountNeededToTopUp = ethers.BigNumber.from(treeValue.value[2]).sub(recipientBalance);
-                      // Note that we use `tree.getProof(treeValueIndex)` and not `tree.getProof(treeValue.treeIndex)`
-                      await expect(
-                        funder
-                          .connect(roles.randomPerson)
-                          .fund(
-                            roles.owner.address,
-                            tree.root,
-                            tree.getProof(treeValueIndex),
-                            treeValue.value[0],
-                            treeValue.value[1],
-                            treeValue.value[2]
-                          )
-                      )
-                        .to.emit(funder, 'Funded')
-                        .withArgs(funderDepository.address, treeValue.value[0], amountNeededToTopUp);
-                      expect(await ethers.provider.getBalance(treeValue.value[0])).to.equal(
-                        recipientBalance.add(amountNeededToTopUp)
-                      );
-                    })
-                  );
+                context('Respective FunderDepository is deployed', function () {
+                  it('funds', async function () {
+                    const { roles, funder, tree, funderDepository } = await helpers.loadFixture(
+                      deployFunderAndFunderDepository
+                    );
+                    await Promise.all(
+                      tree.values.map(async (treeValue, treeValueIndex) => {
+                        const recipientBalance = await ethers.provider.getBalance(treeValue.value[0]);
+                        const amountNeededToTopUp = ethers.BigNumber.from(treeValue.value[2]).sub(recipientBalance);
+                        // Note that we use `tree.getProof(treeValueIndex)` and not `tree.getProof(treeValue.treeIndex)`
+                        await expect(
+                          funder
+                            .connect(roles.randomPerson)
+                            .fund(
+                              roles.owner.address,
+                              tree.root,
+                              tree.getProof(treeValueIndex),
+                              treeValue.value[0],
+                              treeValue.value[1],
+                              treeValue.value[2]
+                            )
+                        )
+                          .to.emit(funder, 'Funded')
+                          .withArgs(funderDepository.address, treeValue.value[0], amountNeededToTopUp);
+                        expect(await ethers.provider.getBalance(treeValue.value[0])).to.equal(
+                          recipientBalance.add(amountNeededToTopUp)
+                        );
+                      })
+                    );
+                  });
+                });
+                context('Respective FunderDepository is not deployed', function () {
+                  it('reverts', async function () {
+                    const { roles, funder, tree } = await helpers.loadFixture(deployFunder);
+                    const treeValueIndex = 0;
+                    const treeValue = tree.values[treeValueIndex];
+                    const funderDepositoryAddress = await deriveFunderDepositoryAddress(
+                      funder.address,
+                      roles.owner.address,
+                      tree.root
+                    );
+                    await roles.randomPerson.sendTransaction({
+                      to: funderDepositoryAddress,
+                      value: ethers.utils.parseEther('100'),
+                    });
+                    await expect(
+                      funder
+                        .connect(roles.randomPerson)
+                        .fund(
+                          roles.owner.address,
+                          tree.root,
+                          tree.getProof(treeValueIndex),
+                          treeValue.value[0],
+                          treeValue.value[1],
+                          treeValue.value[2]
+                        )
+                    ).to.be.revertedWith('FunderDepository not deployed');
+                  });
                 });
               });
               context('Amount is zero', function () {
