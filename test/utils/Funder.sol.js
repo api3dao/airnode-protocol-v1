@@ -41,26 +41,37 @@ describe('Funder', function () {
 
   describe('deployFunderDepository', function () {
     context('Root is not zero', function () {
-      it('deploys the contract and updates the mapping', async function () {
-        const { roles, funder, tree } = await helpers.loadFixture(deploy);
-        const funderDepositoryAddress = await deriveFunderDepositoryAddress(
-          funder.address,
-          roles.owner.address,
-          tree.root
-        );
-        expect(await funder.ownerToRootToFunderDepositoryAddress(roles.owner.address, tree.root)).to.equal(
-          ethers.constants.AddressZero
-        );
-        await expect(funder.connect(roles.owner).deployFunderDepository(roles.owner.address, tree.root))
-          .to.emit(funder, 'DeployedFunderDepository')
-          .withArgs(funderDepositoryAddress, roles.owner.address, tree.root);
-        expect(await funder.ownerToRootToFunderDepositoryAddress(roles.owner.address, tree.root)).to.equal(
-          funderDepositoryAddress
-        );
-        const funderDepository = await ethers.getContractAt('FunderDepository', funderDepositoryAddress);
-        expect(await funderDepository.funder()).to.equal(funder.address);
-        expect(await funderDepository.owner()).to.equal(roles.owner.address);
-        expect(await funderDepository.root()).to.equal(tree.root);
+      context('FunderDepository has not been deployed before', function () {
+        it('deploys FunderDepository', async function () {
+          const { roles, funder, tree } = await helpers.loadFixture(deploy);
+          const funderDepositoryAddress = await deriveFunderDepositoryAddress(
+            funder.address,
+            roles.owner.address,
+            tree.root
+          );
+          expect(await funder.ownerToRootToFunderDepositoryAddress(roles.owner.address, tree.root)).to.equal(
+            ethers.constants.AddressZero
+          );
+          await expect(funder.connect(roles.owner).deployFunderDepository(roles.owner.address, tree.root))
+            .to.emit(funder, 'DeployedFunderDepository')
+            .withArgs(funderDepositoryAddress, roles.owner.address, tree.root);
+          expect(await funder.ownerToRootToFunderDepositoryAddress(roles.owner.address, tree.root)).to.equal(
+            funderDepositoryAddress
+          );
+          const funderDepository = await ethers.getContractAt('FunderDepository', funderDepositoryAddress);
+          expect(await funderDepository.funder()).to.equal(funder.address);
+          expect(await funderDepository.owner()).to.equal(roles.owner.address);
+          expect(await funderDepository.root()).to.equal(tree.root);
+        });
+      });
+      context('FunderDepository has been deployed before', function () {
+        it('reverts', async function () {
+          const { roles, funder, tree } = await helpers.loadFixture(deploy);
+          await funder.connect(roles.owner).deployFunderDepository(roles.owner.address, tree.root);
+          await expect(
+            funder.connect(roles.owner).deployFunderDepository(roles.owner.address, tree.root)
+          ).to.be.revertedWithoutReason;
+        });
       });
     });
     context('Root is zero', function () {
