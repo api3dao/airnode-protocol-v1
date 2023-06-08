@@ -74,9 +74,9 @@ describe('Funder', function () {
           const { roles, funderDepository } = await helpers.loadFixture(deploy);
           const amount = ethers.utils.parseEther('1');
           await roles.randomPerson.sendTransaction({ to: funderDepository.address, value: amount });
-          const balanceBefore = await ethers.provider.getBalance(roles.randomPerson.address); 
+          const balanceBefore = await ethers.provider.getBalance(roles.randomPerson.address);
           await funderDepository.connect(roles.funder).withdraw(roles.randomPerson.address, amount);
-          const balanceAfter = await ethers.provider.getBalance(roles.randomPerson.address); 
+          const balanceAfter = await ethers.provider.getBalance(roles.randomPerson.address);
           expect(balanceAfter.sub(balanceBefore)).to.equal(amount);
         });
       });
@@ -85,7 +85,7 @@ describe('Funder', function () {
           const { roles, funderDepository } = await helpers.loadFixture(deploy);
           const amount = ethers.utils.parseEther('1');
           await expect(
-             funderDepository.connect(roles.funder).withdraw(roles.randomPerson.address, amount)
+            funderDepository.connect(roles.funder).withdraw(roles.randomPerson.address, amount)
           ).to.be.revertedWith('Transfer unsuccessful');
         });
       });
