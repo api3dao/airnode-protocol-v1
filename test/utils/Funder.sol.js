@@ -52,7 +52,7 @@ describe('Funder', function () {
           expect(await funder.ownerToRootToFunderDepositoryAddress(roles.owner.address, tree.root)).to.equal(
             ethers.constants.AddressZero
           );
-          await expect(funder.connect(roles.owner).deployFunderDepository(roles.owner.address, tree.root))
+          await expect(funder.connect(roles.randomPerson).deployFunderDepository(roles.owner.address, tree.root))
             .to.emit(funder, 'DeployedFunderDepository')
             .withArgs(funderDepositoryAddress, roles.owner.address, tree.root);
           expect(await funder.ownerToRootToFunderDepositoryAddress(roles.owner.address, tree.root)).to.equal(
@@ -67,9 +67,9 @@ describe('Funder', function () {
       context('FunderDepository has been deployed before', function () {
         it('reverts', async function () {
           const { roles, funder, tree } = await helpers.loadFixture(deploy);
-          await funder.connect(roles.owner).deployFunderDepository(roles.owner.address, tree.root);
+          await funder.connect(roles.randomPerson).deployFunderDepository(roles.owner.address, tree.root);
           await expect(
-            funder.connect(roles.owner).deployFunderDepository(roles.owner.address, tree.root)
+            funder.connect(roles.randomPerson).deployFunderDepository(roles.owner.address, tree.root)
           ).to.be.revertedWithoutReason;
         });
       });
