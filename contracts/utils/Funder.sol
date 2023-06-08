@@ -62,10 +62,9 @@ contract Funder is SelfMulticall, IFunder {
         unchecked {
             amountNeededToTopUp = highThreshold - recipientBalance;
         }
-        uint256 balance = funderDepository.balance;
-        uint256 amount = amountNeededToTopUp <= balance
+        uint256 amount = amountNeededToTopUp <= funderDepository.balance
             ? amountNeededToTopUp
-            : balance;
+            : funderDepository.balance;
         require(amount != 0, "Amount zero");
         FunderDepository(funderDepository).withdraw(recipient, amount);
         // Even though the call above is external, it is to a trusted contract so the
