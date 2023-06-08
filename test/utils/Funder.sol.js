@@ -201,7 +201,7 @@ describe('Funder', function () {
                           treeValue.value[1],
                           treeValue.value[2]
                         )
-                    ).to.be.revertedWith('FunderDepository not deployed');
+                    ).to.be.revertedWith('No such FunderDepository');
                   });
                 });
               });

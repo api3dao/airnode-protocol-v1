@@ -56,10 +56,7 @@ contract Funder is SelfMulticall, IFunder {
         address payable funderDepository = ownerToRootToFunderDepositoryAddress[
             owner
         ][root];
-        require(
-            funderDepository != address(0),
-            "FunderDepository not deployed"
-        );
+        require(funderDepository != address(0), "No such FunderDepository");
         uint256 amountNeededToTopUp;
         unchecked {
             amountNeededToTopUp = highThreshold - recipientBalance;
