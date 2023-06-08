@@ -29,10 +29,9 @@ describe('Funder', function () {
       it('deploys the contract and updates the mapping', async function () {
         const { roles, funder } = await helpers.loadFixture(deploy);
         const randomBytes = testUtils.generateRandomBytes32();
-        const zeroAddress = '0x0000000000000000000000000000000000000000';
 
         expect(await funder.ownerToRootToFunderDepositoryAddress(roles.owner.address, randomBytes)).to.equal(
-          zeroAddress
+          ethers.constants.AddressZero
         );
 
         const FunderDepositoryArtifact = await hre.artifacts.readArtifact('FunderDepository');
@@ -212,9 +211,8 @@ describe('Funder', function () {
 
         const lowThreshold = ethers.BigNumber.from('3');
         const highThreshold = ethers.BigNumber.from('6');
-        const zeroAddress = '0x0000000000000000000000000000000000000000';
 
-        const values = [[zeroAddress, lowThreshold, highThreshold]];
+        const values = [[ethers.constants.AddressZero, lowThreshold, highThreshold]];
 
         const tree = StandardMerkleTree.of(values, ['address', 'uint256', 'uint256']);
         const proof = tree.getProof(0);
@@ -222,7 +220,7 @@ describe('Funder', function () {
         await expect(
           funder
             .connect(roles.owner)
-            .fund(roles.owner.address, tree.root, proof, zeroAddress, lowThreshold, highThreshold)
+            .fund(roles.owner.address, tree.root, proof, ethers.constants.AddressZero, lowThreshold, highThreshold)
         ).to.be.revertedWith('Recipient address zero');
       });
     });
@@ -336,7 +334,6 @@ describe('Funder', function () {
         const highThreshold = ethers.BigNumber.from(recipientBalance).add('6');
         const values = [[roles.recipient.address, lowThreshold, highThreshold]];
         const amount = ethers.utils.parseEther('1');
-        const zeroAddress = '0x0000000000000000000000000000000000000000';
 
         const tree = StandardMerkleTree.of(values, ['address', 'uint256', 'uint256']);
 
@@ -347,7 +344,7 @@ describe('Funder', function () {
 
         await roles.owner.sendTransaction({ to: funderDepository, value: amount });
 
-        await expect(funder.connect(roles.owner).withdraw(tree.root, zeroAddress, amount)).to.be.revertedWith(
+        await expect(funder.connect(roles.owner).withdraw(tree.root, ethers.constants.AddressZero, amount)).to.be.revertedWith(
           'Recipient address zero'
         );
       });
