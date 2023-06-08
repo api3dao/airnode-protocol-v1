@@ -1,9 +1,9 @@
 const { ethers } = require('hardhat');
 const hre = require('hardhat');
 const helpers = require('@nomicfoundation/hardhat-network-helpers');
+const { StandardMerkleTree } = require('@openzeppelin/merkle-tree');
 const { expect } = require('chai');
 const testUtils = require('../test-utils');
-const { StandardMerkleTree } = require('@openzeppelin/merkle-tree');
 
 describe('Funder', function () {
   async function deploy() {
