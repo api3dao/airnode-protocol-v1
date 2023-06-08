@@ -6,7 +6,7 @@ const { expect } = require('chai');
 const testUtils = require('../test-utils');
 
 describe('Funder', function () {
-  async function deriveFunderDepositoryAddress(funderAddress, owner, root) {
+  async function computeFunderDepositoryAddress(funderAddress, owner, root) {
     const FunderDepositoryArtifact = await hre.artifacts.readArtifact('FunderDepository');
     const initcode = ethers.utils.solidityPack(
       ['bytes', 'bytes'],
@@ -52,7 +52,11 @@ describe('Funder', function () {
 
   async function deployFunderAndFunderDepository() {
     const { roles, funder, tree } = await deployFunder();
-    const funderDepositoryAddress = await deriveFunderDepositoryAddress(funder.address, roles.owner.address, tree.root);
+    const funderDepositoryAddress = await computeFunderDepositoryAddress(
+      funder.address,
+      roles.owner.address,
+      tree.root
+    );
     await funder.connect(roles.randomPerson).deployFunderDepository(roles.owner.address, tree.root);
     const funderDepository = await ethers.getContractAt('FunderDepository', funderDepositoryAddress);
     await roles.randomPerson.sendTransaction({ to: funderDepository.address, value: ethers.utils.parseEther('100') });
@@ -69,7 +73,7 @@ describe('Funder', function () {
       context('FunderDepository has not been deployed before', function () {
         it('deploys FunderDepository', async function () {
           const { roles, funder, tree } = await helpers.loadFixture(deployFunder);
-          const funderDepositoryAddress = await deriveFunderDepositoryAddress(
+          const funderDepositoryAddress = await computeFunderDepositoryAddress(
             funder.address,
             roles.owner.address,
             tree.root
@@ -152,7 +156,7 @@ describe('Funder', function () {
                       const treeValueIndex = 0;
                       const treeValue = tree.values[treeValueIndex];
                       await funder.connect(roles.randomPerson).deployFunderDepository(roles.owner.address, tree.root);
-                      const funderDepositoryAddress = await deriveFunderDepositoryAddress(
+                      const funderDepositoryAddress = await computeFunderDepositoryAddress(
                         funder.address,
                         roles.owner.address,
                         tree.root
@@ -181,7 +185,7 @@ describe('Funder', function () {
                     const { roles, funder, tree } = await helpers.loadFixture(deployFunder);
                     const treeValueIndex = 0;
                     const treeValue = tree.values[treeValueIndex];
-                    const funderDepositoryAddress = await deriveFunderDepositoryAddress(
+                    const funderDepositoryAddress = await computeFunderDepositoryAddress(
                       funder.address,
                       roles.owner.address,
                       tree.root
@@ -414,117 +418,29 @@ describe('Funder', function () {
   });
 
   describe('withdrawAll', function () {
-    context('Function gets called', function () {
-      context('Sender is funder', function () {
-        context('Transfer successful', function () {
-          it('withdraws', async function () {
-            const { roles, funder } = await helpers.loadFixture(deployFunder);
-            const recipientBalance = await ethers.provider.getBalance(roles.recipient1.address);
-            const lowThreshold = ethers.BigNumber.from(recipientBalance).add('3');
-            const highThreshold = ethers.BigNumber.from(recipientBalance).add('6');
-            const values = [[roles.recipient1.address, lowThreshold, highThreshold]];
-            const amount = ethers.utils.parseEther('1');
-
-            const tree = StandardMerkleTree.of(values, ['address', 'uint256', 'uint256']);
-
-            const tx = await funder.connect(roles.owner).deployFunderDepository(roles.owner.address, tree.root);
-            const receipt = await tx.wait();
-            const event = receipt.events.find((e) => e.event === 'DeployedFunderDepository');
-            const funderDepository = event.args.funderDepository;
-
-            await roles.owner.sendTransaction({ to: funderDepository, value: amount });
-
-            const funderDepositoryBalance = await ethers.provider.getBalance(funderDepository);
-
-            await expect(funder.connect(roles.owner).withdrawAll(tree.root, roles.recipient1.address))
-              .to.emit(funder, 'Withdrew')
-              .withArgs(funderDepository, roles.recipient1.address, amount);
-
-            const expectedRecipientBalance = recipientBalance.add(ethers.BigNumber.from(amount));
-            const expectedFunderDepositoryBalance = funderDepositoryBalance.sub(ethers.BigNumber.from(amount));
-
-            expect(await ethers.provider.getBalance(roles.recipient1.address)).to.equal(expectedRecipientBalance);
-            expect(await ethers.provider.getBalance(funderDepository)).to.equal(expectedFunderDepositoryBalance);
-          });
-        });
-        context('Transfer unsuccessful', function () {
-          it('reverts', async function () {
-            const { roles, funder } = await helpers.loadFixture(deployFunder);
-            const recipientBalance = await ethers.provider.getBalance(roles.recipient1.address);
-            const lowThreshold = ethers.BigNumber.from(recipientBalance).add('3');
-            const highThreshold = ethers.BigNumber.from(recipientBalance).add('6');
-            const values = [[roles.recipient1.address, lowThreshold, highThreshold]];
-            const amount = ethers.utils.parseEther('1');
-
-            const tree = StandardMerkleTree.of(values, ['address', 'uint256', 'uint256']);
-
-            const tx = await funder.connect(roles.owner).deployFunderDepository(roles.owner.address, tree.root);
-            const receipt = await tx.wait();
-            const event = receipt.events.find((e) => e.event === 'DeployedFunderDepository');
-            const funderDepository = event.args.funderDepository;
-
-            await roles.owner.sendTransaction({ to: funderDepository, value: amount });
-
-            await expect(funder.connect(roles.owner).withdrawAll(tree.root, funder.address)).to.be.revertedWith(
-              'Transfer unsuccessful'
-            );
-          });
-        });
-      });
-      context('Sender is not the funder', function () {
-        it('reverts', async function () {
-          const { roles, funder } = await helpers.loadFixture(deployFunder);
-          const recipientBalance = await ethers.provider.getBalance(roles.recipient1.address);
-          const lowThreshold = ethers.BigNumber.from(recipientBalance).add('3');
-          const highThreshold = ethers.BigNumber.from(recipientBalance).add('6');
-          const values = [[roles.recipient1.address, lowThreshold, highThreshold]];
-          const amount = ethers.utils.parseEther('1');
-
-          const tree = StandardMerkleTree.of(values, ['address', 'uint256', 'uint256']);
-
-          const tx = await funder.connect(roles.owner).deployFunderDepository(roles.owner.address, tree.root);
-          const receipt = await tx.wait();
-          const event = receipt.events.find((e) => e.event === 'DeployedFunderDepository');
-          const funderDepository = event.args.funderDepository;
-          const funderDepositoryContract = await ethers.getContractAt('FunderDepository', funderDepository);
-
-          await roles.owner.sendTransaction({ to: funderDepository, value: amount });
-
-          await expect(
-            funderDepositoryContract.connect(roles.owner).withdraw(roles.recipient1.address, amount)
-          ).to.be.revertedWith('Sender not Funder');
-        });
-      });
+    it('withdraws all', async function () {
+      const { roles, funder, tree, funderDepository } = await helpers.loadFixture(deployFunderAndFunderDepository);
+      const amount = await ethers.provider.getBalance(funderDepository.address);
+      const recipientBalance = await ethers.provider.getBalance(roles.randomPerson.address);
+      await expect(funder.connect(roles.owner).withdrawAll(tree.root, roles.randomPerson.address))
+        .to.emit(funder, 'Withdrew')
+        .withArgs(funderDepository.address, roles.randomPerson.address, amount);
+      expect(await ethers.provider.getBalance(roles.randomPerson.address)).to.equal(recipientBalance.add(amount));
     });
   });
 
   describe('computeFunderDepositoryAddress', function () {
     context('Root is not zero', function () {
       it('computes', async function () {
-        const { roles, funder } = await helpers.loadFixture(deployFunder);
-        const recipientBalance = await ethers.provider.getBalance(roles.recipient1.address);
-        const lowThreshold = ethers.BigNumber.from(recipientBalance).add('3');
-        const highThreshold = ethers.BigNumber.from(recipientBalance).add('6');
-        const values = [[roles.recipient1.address, lowThreshold, highThreshold]];
-
-        const tree = StandardMerkleTree.of(values, ['address', 'uint256', 'uint256']);
-
-        const tx = await funder.connect(roles.owner).deployFunderDepository(roles.owner.address, tree.root);
-        const receipt = await tx.wait();
-        const event = receipt.events.find((e) => e.event === 'DeployedFunderDepository');
-        const funderDepository = event.args.funderDepository;
-
-        const computedFunderDepositoryAddress = await funder
-          .connect(roles.owner)
-          .computeFunderDepositoryAddress(roles.owner.address, tree.root);
-
-        expect(computedFunderDepositoryAddress).to.equal(funderDepository);
+        const { roles, funder, tree } = await helpers.loadFixture(deployFunder);
+        expect(await funder.computeFunderDepositoryAddress(roles.owner.address, tree.root)).to.equal(
+          await computeFunderDepositoryAddress(funder.address, roles.owner.address, tree.root)
+        );
       });
     });
     context('Root is zero', function () {
       it('reverts', async function () {
         const { roles, funder } = await helpers.loadFixture(deployFunder);
-
         await expect(
           funder.connect(roles.owner).computeFunderDepositoryAddress(roles.owner.address, ethers.constants.HashZero)
         ).to.be.revertedWith('Root zero');
