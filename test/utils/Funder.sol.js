@@ -163,7 +163,7 @@ describe('Funder', function () {
                       });
                       await expect(
                         funder
-                          .connect(roles.owner)
+                          .connect(roles.randomPerson)
                           .fund(
                             roles.owner.address,
                             tree.root,
@@ -241,7 +241,7 @@ describe('Funder', function () {
                 });
                 await expect(
                   funder
-                    .connect(roles.owner)
+                    .connect(roles.randomPerson)
                     .fund(
                       roles.owner.address,
                       tree.root,
@@ -261,7 +261,7 @@ describe('Funder', function () {
               const treeValue = tree.values[treeValueIndex];
               await expect(
                 funder
-                  .connect(roles.owner)
+                  .connect(roles.randomPerson)
                   .fund(
                     roles.owner.address,
                     tree.root,
@@ -283,7 +283,7 @@ describe('Funder', function () {
             await funder.connect(roles.randomPerson).deployFunderDepository(roles.owner.address, tree.root);
             await expect(
               funder
-                .connect(roles.owner)
+                .connect(roles.randomPerson)
                 .fund(
                   roles.owner.address,
                   tree.root,
@@ -305,7 +305,7 @@ describe('Funder', function () {
           await funder.connect(roles.randomPerson).deployFunderDepository(roles.owner.address, tree.root);
           await expect(
             funder
-              .connect(roles.owner)
+              .connect(roles.randomPerson)
               .fund(
                 roles.owner.address,
                 tree.root,
@@ -327,7 +327,7 @@ describe('Funder', function () {
         await funder.connect(roles.randomPerson).deployFunderDepository(roles.owner.address, tree.root);
         await expect(
           funder
-            .connect(roles.owner)
+            .connect(roles.randomPerson)
             .fund(
               roles.owner.address,
               tree.root,
