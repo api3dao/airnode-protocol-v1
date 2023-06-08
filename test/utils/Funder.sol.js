@@ -83,7 +83,7 @@ describe('Funder', function () {
 
   describe('fund', function () {
     context('Recipient address is not zero', function () {
-      context('High threshold is higher than low', function () {
+      context('Low threshold is not higher than high', function () {
         context('High threshold is not zero', function () {
           context('Proof is valid', function () {
             context('Balance is low enough', function () {
@@ -177,7 +177,7 @@ describe('Funder', function () {
             });
           });
         });
-        context('High threshold is  zero', function () {
+        context('High threshold is zero', function () {
           it('reverts', async function () {
             const { roles, funder } = await helpers.loadFixture(deploy);
 
