@@ -12,7 +12,7 @@ describe('Funder', function () {
       deployer: accounts[0],
       owner: accounts[1],
       recipient: accounts[2],
-      random: accounts[3],
+      randomPerson: accounts[9],
     };
 
     const Funder = await ethers.getContractFactory('Funder', roles.deployer);
@@ -155,7 +155,7 @@ describe('Funder', function () {
               const recipientBalance = await ethers.provider.getBalance(roles.recipient.address);
               const lowThreshold = ethers.BigNumber.from(recipientBalance).add('3');
               const highThreshold = ethers.BigNumber.from(recipientBalance).add('6');
-              const values = [[roles.random.address, 3, 6]];
+              const values = [[roles.randomPerson.address, 3, 6]];
 
               const tree = StandardMerkleTree.of(values, ['address', 'uint256', 'uint256']);
               const proof = tree.getProof(0);
