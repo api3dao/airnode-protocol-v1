@@ -3,9 +3,17 @@ const hre = require('hardhat');
 const helpers = require('@nomicfoundation/hardhat-network-helpers');
 const { StandardMerkleTree } = require('@openzeppelin/merkle-tree');
 const { expect } = require('chai');
-const testUtils = require('../test-utils');
 
 describe('Funder', function () {
+  async function deriveFunderDepositoryAddress(funderAddress, owner, root) {
+    const FunderDepositoryArtifact = await hre.artifacts.readArtifact('FunderDepository');
+    const initcode = ethers.utils.solidityPack(
+      ['bytes', 'bytes'],
+      [FunderDepositoryArtifact.bytecode, ethers.utils.defaultAbiCoder.encode(['address', 'bytes32'], [owner, root])]
+    );
+    return ethers.utils.getCreate2Address(funderAddress, ethers.constants.HashZero, ethers.utils.keccak256(initcode));
+  }
+
   async function deploy() {
     const accounts = await ethers.getSigners();
     const roles = {
@@ -18,54 +26,48 @@ describe('Funder', function () {
     const Funder = await ethers.getContractFactory('Funder', roles.deployer);
     const funder = await Funder.deploy();
 
+    const recipientBalance = await ethers.provider.getBalance(roles.recipient.address);
+    const lowThreshold = ethers.BigNumber.from(recipientBalance).add('3');
+    const highThreshold = ethers.BigNumber.from(recipientBalance).add('6');
+    const values = [[roles.recipient.address, lowThreshold, highThreshold]];
+    const tree = StandardMerkleTree.of(values, ['address', 'uint256', 'uint256']);
+
     return {
       roles,
       funder,
+      tree,
     };
   }
 
   describe('deployFunderDepository', function () {
     context('Root is not zero', function () {
       it('deploys the contract and updates the mapping', async function () {
-        const { roles, funder } = await helpers.loadFixture(deploy);
-        const randomBytes = testUtils.generateRandomBytes32();
-
-        expect(await funder.ownerToRootToFunderDepositoryAddress(roles.owner.address, randomBytes)).to.equal(
+        const { roles, funder, tree } = await helpers.loadFixture(deploy);
+        const funderDepositoryAddress = await deriveFunderDepositoryAddress(
+          funder.address,
+          roles.owner.address,
+          tree.root
+        );
+        expect(await funder.ownerToRootToFunderDepositoryAddress(roles.owner.address, tree.root)).to.equal(
           ethers.constants.AddressZero
         );
-
-        const FunderDepositoryArtifact = await hre.artifacts.readArtifact('FunderDepository');
-        const FunderDepositoryBytecode = FunderDepositoryArtifact.bytecode;
-        const encodedArgs = ethers.utils.defaultAbiCoder.encode(
-          ['address', 'bytes32'],
-          [roles.owner.address, randomBytes]
-        );
-        const initCode = FunderDepositoryBytecode + encodedArgs.slice(2);
-        const initCodeHash = ethers.utils.keccak256(initCode);
-        const salt = ethers.utils.hexZeroPad('0x0', 32);
-
-        const funderDepository = ethers.utils.getCreate2Address(funder.address, salt, initCodeHash);
-
-        await expect(funder.connect(roles.owner).deployFunderDepository(roles.owner.address, randomBytes))
+        await expect(funder.connect(roles.owner).deployFunderDepository(roles.owner.address, tree.root))
           .to.emit(funder, 'DeployedFunderDepository')
-          .withArgs(funderDepository, roles.owner.address, randomBytes);
-
-        const funderDepositoryContract = await ethers.getContractAt('FunderDepository', funderDepository);
-
-        expect(await funderDepositoryContract.funder()).to.equal(funder.address);
-        expect(await funderDepositoryContract.owner()).to.equal(roles.owner.address);
-        expect(await funderDepositoryContract.root()).to.equal(randomBytes);
-        expect(await funder.ownerToRootToFunderDepositoryAddress(roles.owner.address, randomBytes)).to.equal(
-          funderDepository
+          .withArgs(funderDepositoryAddress, roles.owner.address, tree.root);
+        expect(await funder.ownerToRootToFunderDepositoryAddress(roles.owner.address, tree.root)).to.equal(
+          funderDepositoryAddress
         );
+        const funderDepository = await ethers.getContractAt('FunderDepository', funderDepositoryAddress);
+        expect(await funderDepository.funder()).to.equal(funder.address);
+        expect(await funderDepository.owner()).to.equal(roles.owner.address);
+        expect(await funderDepository.root()).to.equal(tree.root);
       });
     });
     context('Root is zero', function () {
       it('reverts', async function () {
         const { roles, funder } = await helpers.loadFixture(deploy);
-        const randomAddress = testUtils.generateRandomAddress();
         await expect(
-          funder.connect(roles.owner).deployFunderDepository(randomAddress, ethers.constants.HashZero)
+          funder.connect(roles.owner).deployFunderDepository(roles.owner.address, ethers.constants.HashZero)
         ).to.be.revertedWith('Root zero');
       });
     });
@@ -344,9 +346,9 @@ describe('Funder', function () {
 
         await roles.owner.sendTransaction({ to: funderDepository, value: amount });
 
-        await expect(funder.connect(roles.owner).withdraw(tree.root, ethers.constants.AddressZero, amount)).to.be.revertedWith(
-          'Recipient address zero'
-        );
+        await expect(
+          funder.connect(roles.owner).withdraw(tree.root, ethers.constants.AddressZero, amount)
+        ).to.be.revertedWith('Recipient address zero');
       });
     });
   });
