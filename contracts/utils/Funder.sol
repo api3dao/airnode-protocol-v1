@@ -12,8 +12,6 @@ contract Funder is SelfMulticall, IFunder {
         public
         override ownerToRootToFunderDepositoryAddress;
 
-    receive() external payable {}
-
     function deployFunderDepository(
         address owner,
         bytes32 root
