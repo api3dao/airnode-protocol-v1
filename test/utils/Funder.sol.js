@@ -346,18 +346,29 @@ describe('Funder', function () {
       context('Amount is not zero', function () {
         context('FunderDepository is deployed', function () {
           context('Balance is sufficient', function () {
-            it('withdraws', async function () {
-              const { roles, funder, tree, funderDepository } = await helpers.loadFixture(
-                deployFunderAndFunderDepository
-              );
-              const amount = ethers.utils.parseEther('1');
-              const recipientBalance = await ethers.provider.getBalance(roles.randomPerson.address);
-              await expect(funder.connect(roles.owner).withdraw(tree.root, roles.randomPerson.address, amount))
-                .to.emit(funder, 'Withdrew')
-                .withArgs(funderDepository.address, roles.randomPerson.address, amount);
-              expect(await ethers.provider.getBalance(roles.randomPerson.address)).to.equal(
-                recipientBalance.add(amount)
-              );
+            context('Transfer is successful', function () {
+              it('withdraws', async function () {
+                const { roles, funder, tree, funderDepository } = await helpers.loadFixture(
+                  deployFunderAndFunderDepository
+                );
+                const amount = ethers.utils.parseEther('1');
+                const recipientBalance = await ethers.provider.getBalance(roles.randomPerson.address);
+                await expect(funder.connect(roles.owner).withdraw(tree.root, roles.randomPerson.address, amount))
+                  .to.emit(funder, 'Withdrew')
+                  .withArgs(funderDepository.address, roles.randomPerson.address, amount);
+                expect(await ethers.provider.getBalance(roles.randomPerson.address)).to.equal(
+                  recipientBalance.add(amount)
+                );
+              });
+            });
+            context('Transfer is not successful', function () {
+              it('reverts', async function () {
+                const { roles, funder, tree } = await helpers.loadFixture(deployFunderAndFunderDepository);
+                const amount = ethers.utils.parseEther('1');
+                await expect(
+                  funder.connect(roles.owner).withdraw(tree.root, funder.address, amount)
+                ).to.be.revertedWith('Transfer unsuccessful');
+              });
             });
           });
           context('Balance is insufficient', function () {
