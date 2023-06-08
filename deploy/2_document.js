@@ -4,58 +4,90 @@ const hre = require('hardhat');
 const {
   chainsSupportedByApi3Market,
   chainsSupportedByChainApi,
+  chainsSupportedByDapis,
   chainsSupportedByOevRelay,
 } = require('../src/supported-chains');
 
 module.exports = async () => {
-  const networks = fs
-    .readdirSync('deployments', { withFileTypes: true })
-    .filter((item) => item.isDirectory())
-    .map((item) => item.name);
-  const contractNames = [
-    'AccessControlRegistry',
-    'OwnableCallForwarder',
-    'Api3ServerV1',
-    'ProxyFactory',
-    'PrepaymentDepository',
-    'RequesterAuthorizerWithErc721',
-    'OrderPayable',
-  ];
   const references = {};
   references.chainNames = {};
-  for (const network of networks) {
+  for (const network of [
+    ...chainsSupportedByApi3Market,
+    ...chainsSupportedByChainApi,
+    ...chainsSupportedByDapis,
+    ...chainsSupportedByOevRelay,
+  ]) {
     references.chainNames[hre.config.networks[network].chainId] = network;
   }
-  for (const contractName of contractNames) {
+  const deploymentBlockNumbers = { chainNames: references.chainNames };
+
+  for (const contractName of ['AccessControlRegistry']) {
     references[contractName] = {};
-    for (const network of networks) {
-      if (contractName === 'PrepaymentDepository' && !chainsSupportedByOevRelay.includes(network)) {
-        continue;
-      }
-      if (contractName === 'RequesterAuthorizerWithErc721' && !chainsSupportedByChainApi.includes(network)) {
-        continue;
-      }
-      if (contractName === 'OrderPayable' && !chainsSupportedByApi3Market.includes(network)) {
-        continue;
-      }
+    deploymentBlockNumbers[contractName] = {};
+    for (const network of [
+      ...chainsSupportedByDapis,
+      ...chainsSupportedByChainApi,
+      'ethereum-goerli-testnet',
+      'ethereum-sepolia-testnet',
+    ]) {
       const deployment = JSON.parse(fs.readFileSync(path.join('deployments', network, `${contractName}.json`), 'utf8'));
       references[contractName][hre.config.networks[network].chainId] = deployment.address;
+      if (deployment.receipt) {
+        deploymentBlockNumbers[contractName][hre.config.networks[network].chainId] = deployment.receipt.blockNumber;
+      } else {
+        deploymentBlockNumbers[contractName][hre.config.networks[network].chainId] = 'MISSING';
+      }
     }
   }
-  const deploymentBlockNumbers = { chainNames: references.chainNames };
-  for (const contractName of contractNames) {
+
+  for (const contractName of ['OwnableCallForwarder', 'Api3ServerV1', 'ProxyFactory']) {
+    references[contractName] = {};
     deploymentBlockNumbers[contractName] = {};
-    for (const network of networks) {
-      if (contractName === 'PrepaymentDepository' && !chainsSupportedByOevRelay.includes(network)) {
-        continue;
-      }
-      if (contractName === 'RequesterAuthorizerWithErc721' && !chainsSupportedByChainApi.includes(network)) {
-        continue;
-      }
-      if (contractName === 'OrderPayable' && !chainsSupportedByApi3Market.includes(network)) {
-        continue;
-      }
+    for (const network of [...chainsSupportedByDapis, 'ethereum-goerli-testnet', 'ethereum-sepolia-testnet']) {
       const deployment = JSON.parse(fs.readFileSync(path.join('deployments', network, `${contractName}.json`), 'utf8'));
+      references[contractName][hre.config.networks[network].chainId] = deployment.address;
+      if (deployment.receipt) {
+        deploymentBlockNumbers[contractName][hre.config.networks[network].chainId] = deployment.receipt.blockNumber;
+      } else {
+        deploymentBlockNumbers[contractName][hre.config.networks[network].chainId] = 'MISSING';
+      }
+    }
+  }
+
+  for (const contractName of ['PrepaymentDepository']) {
+    references[contractName] = {};
+    deploymentBlockNumbers[contractName] = {};
+    for (const network of [...chainsSupportedByOevRelay]) {
+      const deployment = JSON.parse(fs.readFileSync(path.join('deployments', network, `${contractName}.json`), 'utf8'));
+      references[contractName][hre.config.networks[network].chainId] = deployment.address;
+      if (deployment.receipt) {
+        deploymentBlockNumbers[contractName][hre.config.networks[network].chainId] = deployment.receipt.blockNumber;
+      } else {
+        deploymentBlockNumbers[contractName][hre.config.networks[network].chainId] = 'MISSING';
+      }
+    }
+  }
+
+  for (const contractName of ['OrderPayable']) {
+    references[contractName] = {};
+    deploymentBlockNumbers[contractName] = {};
+    for (const network of [...chainsSupportedByApi3Market, 'ethereum-goerli-testnet', 'ethereum-sepolia-testnet']) {
+      const deployment = JSON.parse(fs.readFileSync(path.join('deployments', network, `${contractName}.json`), 'utf8'));
+      references[contractName][hre.config.networks[network].chainId] = deployment.address;
+      if (deployment.receipt) {
+        deploymentBlockNumbers[contractName][hre.config.networks[network].chainId] = deployment.receipt.blockNumber;
+      } else {
+        deploymentBlockNumbers[contractName][hre.config.networks[network].chainId] = 'MISSING';
+      }
+    }
+  }
+
+  for (const contractName of ['RequesterAuthorizerWithErc721']) {
+    references[contractName] = {};
+    deploymentBlockNumbers[contractName] = {};
+    for (const network of [...chainsSupportedByChainApi, 'ethereum-goerli-testnet', 'ethereum-sepolia-testnet']) {
+      const deployment = JSON.parse(fs.readFileSync(path.join('deployments', network, `${contractName}.json`), 'utf8'));
+      references[contractName][hre.config.networks[network].chainId] = deployment.address;
       if (deployment.receipt) {
         deploymentBlockNumbers[contractName][hre.config.networks[network].chainId] = deployment.receipt.blockNumber;
       } else {
