@@ -75,6 +75,7 @@ module.exports = async ({ getUnnamedAccounts, deployments }) => {
         if (!tokenAddress) {
           const mockErc20PermitToken = await deploy('MockErc20PermitToken', {
             from: accounts[0],
+            args: [accounts[0]],
             log: true,
             deterministicDeployment: process.env.DETERMINISTIC ? ethers.constants.HashZero : undefined,
           });

@@ -49,6 +49,7 @@ module.exports = async ({ getUnnamedAccounts, deployments }) => {
           const MockErc20PermitToken = await deployments.get('MockErc20PermitToken');
           await hre.run('verify:verify', {
             address: MockErc20PermitToken.address,
+            constructorArguments: [accounts[0]],
           });
           tokenAddress = MockErc20PermitToken.address;
         }
