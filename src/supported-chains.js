@@ -46,5 +46,5 @@ module.exports = {
     'zksync',
     'zksync-goerli-testnet',
   ],
-  chainsSupportedByOevRelay: ['ethereum'],
+  chainsSupportedByOevRelay: ['ethereum', 'ethereum-goerli-testnet', 'polygon-testnet'],
 };
