@@ -6,6 +6,7 @@ const {
   chainsSupportedByDapis,
   chainsSupportedByOevRelay,
 } = require('../src/supported-chains');
+const tokenAddresses = require('../src/token-addresses');
 
 module.exports = async ({ getUnnamedAccounts, deployments }) => {
   const accounts = await getUnnamedAccounts();
@@ -43,7 +44,16 @@ module.exports = async ({ getUnnamedAccounts, deployments }) => {
       });
 
       if ([...chainsSupportedByOevRelay].includes(network.name)) {
-        const usdcAddress = { ethereum: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' };
+        let tokenAddress = tokenAddresses.usdc[network.name];
+        if (!tokenAddress) {
+          const MockErc20PermitToken = await deployments.get('MockErc20PermitToken');
+          await hre.run('verify:verify', {
+            address: MockErc20PermitToken.address,
+            constructorArguments: [accounts[0]],
+          });
+          tokenAddress = MockErc20PermitToken.address;
+        }
+
         const PrepaymentDepository = await deployments.get('PrepaymentDepository');
         await hre.run('verify:verify', {
           address: PrepaymentDepository.address,
@@ -51,7 +61,7 @@ module.exports = async ({ getUnnamedAccounts, deployments }) => {
             AccessControlRegistry.address,
             'PrepaymentDepository admin (OEV Relay)',
             OwnableCallForwarder.address,
-            usdcAddress[hre.network.name],
+            tokenAddress,
           ],
         });
       }

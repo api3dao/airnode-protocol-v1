@@ -7,6 +7,7 @@ const {
   chainsSupportedByDapis,
   chainsSupportedByOevRelay,
 } = require('../src/supported-chains');
+const tokenAddresses = require('../src/token-addresses');
 
 module.exports = async () => {
   const references = {};
@@ -54,10 +55,13 @@ module.exports = async () => {
     }
   }
 
-  for (const contractName of ['PrepaymentDepository']) {
+  for (const contractName of ['MockErc20PermitToken', 'PrepaymentDepository']) {
     references[contractName] = {};
     deploymentBlockNumbers[contractName] = {};
     for (const network of [...chainsSupportedByOevRelay]) {
+      if (contractName === 'MockErc20PermitToken' && tokenAddresses.usdc[network]) {
+        continue;
+      }
       const deployment = JSON.parse(fs.readFileSync(path.join('deployments', network, `${contractName}.json`), 'utf8'));
       references[contractName][hre.config.networks[network].chainId] = deployment.address;
       if (deployment.receipt) {
