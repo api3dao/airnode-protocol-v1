@@ -14,7 +14,7 @@ describe('PrepaymentDepository', function () {
       await signer._signTypedData(
         {
           name: await token.name(),
-          version: '1',
+          version: '2',
           chainId: (await token.provider.getNetwork()).chainId,
           verifyingContract: token.address,
         },
