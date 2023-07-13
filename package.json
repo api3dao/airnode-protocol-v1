@@ -32,7 +32,7 @@
     "write-env-file-example": "yarn node scripts/write-env-file-example"
   },
   "devDependencies": {
-    "@api3/chains": "^1.4.0",
+    "@api3/chains": "^3.2.0",
     "@api3/promise-utils": "^0.3.0",
     "@ethersproject/abi": "^5.4.7",
     "@ethersproject/providers": "^5.4.7",
