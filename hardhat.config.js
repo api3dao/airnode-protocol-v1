@@ -3,7 +3,7 @@ require('@nomiclabs/hardhat-etherscan');
 require('solidity-coverage');
 require('hardhat-deploy');
 require('hardhat-gas-reporter');
-const hardhatConfig = require('@api3/chains');
+const { hardhatConfig } = require('@api3/chains');
 require('dotenv').config();
 
 module.exports = {
