@@ -2,10 +2,12 @@
 # yarn lockfile v1
 
 
-"@api3/chains@^1.4.0":
-  version "1.4.0"
-  resolved "https://registry.yarnpkg.com/@api3/chains/-/chains-1.4.0.tgz#4ee80048f439f3def09c5e3cf12957ba9544cc65"
-  integrity sha512-eSE84gQuvH+B5hQDxO8o6XNJVyPPNRSyLiJwYcltjzz1FqjHZbttYKe16hdIQbTDObp/aL1GtZojVOGkx2sblA==
+"@api3/chains@^3.2.0":
+  version "3.2.0"
+  resolved "https://registry.yarnpkg.com/@api3/chains/-/chains-3.2.0.tgz#0fd4f6c3b09f1f90a884a655ce4dc7de62b06860"
+  integrity sha512-Lyp4200wzmLDYdSwVhdPQdWoOnhdiwtbiButC5mk3HqpaSiu7om6PuIJNObf1i/402RDTVVtNmOIYnNJKFaUlQ==
+  dependencies:
+    zod "^3.21.4"
 
 "@api3/promise-utils@^0.3.0":
   version "0.3.0"
@@ -5412,3 +5414,8 @@ zksync-web3@^0.8.1:
   version "0.8.1"
   resolved "https://registry.yarnpkg.com/zksync-web3/-/zksync-web3-0.8.1.tgz#db289d8f6caf61f4d5ddc471fa3448d93208dc14"
   integrity sha512-1A4aHPQ3MyuGjpv5X/8pVEN+MdZqMjfVmiweQSRjOlklXYu65wT9BGEOtCmMs5d3gIvLp4ssfTeuR5OCKOD2kw==
+
+zod@^3.21.4:
+  version "3.21.4"
+  resolved "https://registry.yarnpkg.com/zod/-/zod-3.21.4.tgz#10882231d992519f0a10b5dd58a38c9dabbb64db"
+  integrity sha512-m46AKbrzKVzOzs/DZgVnG5H55N1sv1M8qZU3A8RIKbs3mrACDNeIOeilDymVb2HdmP8uwshOCF4uJ8uM9rCqJw==
