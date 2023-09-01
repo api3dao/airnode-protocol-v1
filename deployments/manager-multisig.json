@@ -16,6 +16,7 @@
   "gnosis": "0xd8eC2c4158a0Cb65Dd42E2d1C1da8EA11975Ba22",
   "kava-testnet": "0x14A9E40FcAdA95A273ce3c8d4ccF7EA3280BDd26",
   "linea-goerli-testnet": "0x14A9E40FcAdA95A273ce3c8d4ccF7EA3280BDd26",
+  "mantle": "0x14A9E40FcAdA95A273ce3c8d4ccF7EA3280BDd26",
   "mantle-goerli-testnet": "0x14A9E40FcAdA95A273ce3c8d4ccF7EA3280BDd26",
   "metis-goerli-testnet": "0x2ab9f26E18B64848cd349582ca3B55c2d06f507d",
   "metis": "0x33E6C2f5Fa6aA18254927F55b0C5b5B975Ec1358",
