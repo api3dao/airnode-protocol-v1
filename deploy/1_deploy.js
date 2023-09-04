@@ -62,13 +62,46 @@ module.exports = async ({ getUnnamedAccounts, deployments }) => {
       });
       log(`Deployed Api3ServerV1 at ${api3ServerV1.address}`);
 
-      const proxyFactory = await deploy('ProxyFactory', {
+      const { address: proxyFactoryAddress, abi: proxyFactoryAbi } = await deploy('ProxyFactory', {
         from: accounts[0],
         args: [api3ServerV1.address],
         log: true,
         deterministicDeployment: process.env.DETERMINISTIC ? ethers.constants.HashZero : undefined,
       });
-      log(`Deployed ProxyFactory at ${proxyFactory.address}`);
+      log(`Deployed ProxyFactory at ${proxyFactoryAddress}`);
+
+      const proxyFactory = new ethers.Contract(proxyFactoryAddress, proxyFactoryAbi, (await ethers.getSigners())[0]);
+      const nodaryEthUsdDataFeedId = '0x4385954e058fbe6b6a744f32a4f89d67aad099f8fb8b23e7ea8dd366ae88151d';
+      const expectedDataFeedProxyAddress = await proxyFactory.computeDataFeedProxyAddress(nodaryEthUsdDataFeedId, '0x');
+      if ((await ethers.provider.getCode(expectedDataFeedProxyAddress)) === '0x') {
+        await proxyFactory.deployDataFeedProxy(nodaryEthUsdDataFeedId, '0x');
+        log(`Deployed example DataFeedProxy at ${expectedDataFeedProxyAddress}`);
+      }
+      const ethUsdDapiName = ethers.utils.formatBytes32String('ETH/USD');
+      const expectedDapiProxyAddress = await proxyFactory.computeDapiProxyAddress(ethUsdDapiName, '0x');
+      if ((await ethers.provider.getCode(expectedDapiProxyAddress)) === '0x') {
+        await proxyFactory.deployDapiProxy(ethUsdDapiName, '0x');
+        log(`Deployed example DapiProxy at ${expectedDapiProxyAddress}`);
+      }
+      const exampleOevBeneficiaryAddress = (await ethers.getSigners())[0].address;
+      const expectedDataFeedProxyWithOevAddress = await proxyFactory.computeDataFeedProxyWithOevAddress(
+        nodaryEthUsdDataFeedId,
+        exampleOevBeneficiaryAddress,
+        '0x'
+      );
+      if ((await ethers.provider.getCode(expectedDataFeedProxyWithOevAddress)) === '0x') {
+        await proxyFactory.deployDataFeedProxyWithOev(nodaryEthUsdDataFeedId, exampleOevBeneficiaryAddress, '0x');
+        log(`Deployed example DataFeedProxyWithOev at ${expectedDataFeedProxyWithOevAddress}`);
+      }
+      const expectedDapiProxyWithOevAddress = await proxyFactory.computeDapiProxyWithOevAddress(
+        ethUsdDapiName,
+        exampleOevBeneficiaryAddress,
+        '0x'
+      );
+      if ((await ethers.provider.getCode(expectedDapiProxyWithOevAddress)) === '0x') {
+        await proxyFactory.deployDapiProxyWithOev(ethUsdDapiName, exampleOevBeneficiaryAddress, '0x');
+        log(`Deployed example DapiProxyWithOev at ${expectedDapiProxyWithOevAddress}`);
+      }
 
       if ([...chainsSupportedByOevRelay].includes(network.name)) {
         let tokenAddress = tokenAddresses.usdc[network.name];
