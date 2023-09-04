@@ -43,6 +43,47 @@ module.exports = async ({ getUnnamedAccounts, deployments }) => {
         constructorArguments: [Api3ServerV1.address],
       });
 
+      const proxyFactory = new hre.ethers.Contract(
+        ProxyFactory.address,
+        ProxyFactory.abi,
+        (await hre.ethers.getSigners())[0]
+      );
+      const nodaryEthUsdDataFeedId = '0x4385954e058fbe6b6a744f32a4f89d67aad099f8fb8b23e7ea8dd366ae88151d';
+      const expectedDataFeedProxyAddress = await proxyFactory.computeDataFeedProxyAddress(nodaryEthUsdDataFeedId, '0x');
+      await hre.run('verify:verify', {
+        address: expectedDataFeedProxyAddress,
+        constructorArguments: [Api3ServerV1.address, nodaryEthUsdDataFeedId],
+      });
+      const ethUsdDapiName = hre.ethers.utils.formatBytes32String('ETH/USD');
+      const expectedDapiProxyAddress = await proxyFactory.computeDapiProxyAddress(ethUsdDapiName, '0x');
+      await hre.run('verify:verify', {
+        address: expectedDapiProxyAddress,
+        constructorArguments: [Api3ServerV1.address, hre.ethers.utils.keccak256(ethUsdDapiName)],
+      });
+      const testOevBeneficiaryAddress = (await hre.ethers.getSigners())[0].address;
+      const expectedDataFeedProxyWithOevAddress = await proxyFactory.computeDataFeedProxyWithOevAddress(
+        nodaryEthUsdDataFeedId,
+        testOevBeneficiaryAddress,
+        '0x'
+      );
+      await hre.run('verify:verify', {
+        address: expectedDataFeedProxyWithOevAddress,
+        constructorArguments: [Api3ServerV1.address, nodaryEthUsdDataFeedId, testOevBeneficiaryAddress],
+      });
+      const expectedDapiProxyWithOevAddress = await proxyFactory.computeDapiProxyWithOevAddress(
+        ethUsdDapiName,
+        testOevBeneficiaryAddress,
+        '0x'
+      );
+      await hre.run('verify:verify', {
+        address: expectedDapiProxyWithOevAddress,
+        constructorArguments: [
+          Api3ServerV1.address,
+          hre.ethers.utils.keccak256(ethUsdDapiName),
+          testOevBeneficiaryAddress,
+        ],
+      });
+
       if ([...chainsSupportedByOevRelay].includes(network.name)) {
         let tokenAddress = tokenAddresses.usdc[network.name];
         if (!tokenAddress) {
