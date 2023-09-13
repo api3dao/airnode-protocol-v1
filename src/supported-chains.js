@@ -13,6 +13,7 @@ module.exports = {
     'optimism',
     'polygon',
     'polygon-zkevm',
+    'rsk',
   ],
   chainsSupportedByChainApi: ['ethereum', 'ethereum-goerli-testnet'],
   chainsSupportedByDapis: [
