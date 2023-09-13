@@ -29,7 +29,7 @@
     "test:gas": "REPORT_GAS=TRUE hardhat test",
     "verify-local": "hardhat run scripts/verify-local.js",
     "verify-local:network": "hardhat run scripts/verify-local.js --network $NETWORK",
-    "write-env-file-example": "yarn node scripts/write-env-file-example"
+    "write-env-file-example": "node scripts/write-env-file-example"
   },
   "devDependencies": {
     "@api3/chains": "^3.5.0",
