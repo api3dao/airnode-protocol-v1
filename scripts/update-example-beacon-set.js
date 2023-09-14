@@ -21,6 +21,12 @@ async function createRandomBeaconUpdateCalldata(airnodeWallet, templateId, api3S
   ]);
 }
 
+function createBeaconSetUpdateCalldata(airnodeAddress, templateIds, api3ServerV1Interface) {
+  return api3ServerV1Interface.encodeFunctionData('updateBeaconSetWithBeacons', [
+    templateIds.map((templateId) => deriveBeaconId(airnodeAddress, templateId)),
+  ]);
+}
+
 async function main() {
   const beaconCount = process.env.BEACON_COUNT ? process.env.BEACON_COUNT : 7;
   console.log(`Updating a Beacon set of ${beaconCount} Beacons`);
@@ -32,31 +38,37 @@ async function main() {
   const templateIds = Array(beaconCount)
     .fill()
     .map((_, ind) => ethers.utils.hexZeroPad(ethers.utils.hexlify(ind + 1), 32));
+  const beaconSetId = ethers.utils.solidityKeccak256(
+    ['bytes32[]'],
+    [templateIds.map((templateId) => deriveBeaconId(airnodeWallet.address, templateId))]
+  );
 
-  const beaconReads = await api3ServerV1.callStatic.tryMulticall(
-    templateIds.map((templateId) =>
-      api3ServerV1.interface.encodeFunctionData('readDataFeedWithId', [
-        deriveBeaconId(airnodeWallet.address, templateId),
-      ])
+  const dataFeedReads = await api3ServerV1.callStatic.tryMulticall(
+    [...templateIds.map((templateId) => deriveBeaconId(airnodeWallet.address, templateId)), beaconSetId].map(
+      (dataFeedId) => api3ServerV1.interface.encodeFunctionData('readDataFeedWithId', [dataFeedId])
     )
   );
-  const beaconInitializationCalldata = await Promise.all(
-    beaconReads.successes.reduce((acc, beaconReadSuccess, ind) => {
-      if (!beaconReadSuccess) {
-        acc.push(createRandomBeaconUpdateCalldata(airnodeWallet, templateIds[ind], api3ServerV1.interface));
+  const dataFeedInitializationCalldata = await Promise.all(
+    dataFeedReads.successes.reduce((acc, dataFeedReadSuccess, ind) => {
+      if (!dataFeedReadSuccess) {
+        if (ind === dataFeedReads.successes.length - 1) {
+          acc.push(createBeaconSetUpdateCalldata(airnodeWallet.address, templateIds, api3ServerV1.interface));
+        } else {
+          acc.push(createRandomBeaconUpdateCalldata(airnodeWallet, templateIds[ind], api3ServerV1.interface));
+        }
       }
       return acc;
     }, [])
   );
-  if (beaconInitializationCalldata.length > 0) {
-    console.log(`Initializing ${beaconInitializationCalldata.length} Beacons`);
-    const beaconUpdateReceipt = await api3ServerV1.tryMulticall(beaconInitializationCalldata);
+  if (dataFeedInitializationCalldata.length > 0) {
+    console.log(`Initializing ${dataFeedInitializationCalldata.length} data feeds`);
+    const beaconUpdateReceipt = await api3ServerV1.tryMulticall(dataFeedInitializationCalldata);
     await new Promise((resolve) =>
       ethers.provider.once(beaconUpdateReceipt.hash, () => {
         resolve();
       })
     );
-    console.log(`Initialized Beacons`);
+    console.log(`Initialized data feeds`);
   }
   const beaconSetUpdateCalldata = [
     ...(await Promise.all(
@@ -64,12 +76,10 @@ async function main() {
         createRandomBeaconUpdateCalldata(airnodeWallet, templateId, api3ServerV1.interface)
       )
     )),
-    api3ServerV1.interface.encodeFunctionData('updateBeaconSetWithBeacons', [
-      templateIds.map((templateId) => deriveBeaconId(airnodeWallet.address, templateId)),
-    ]),
+    createBeaconSetUpdateCalldata(airnodeWallet.address, templateIds, api3ServerV1.interface),
   ];
   const beaconSetUpdateReceipt = await api3ServerV1.tryMulticall(beaconSetUpdateCalldata);
-  console.log(`Sent transaction with hash ${beaconSetUpdateReceipt.hash} to update the Beacon set`);
+  console.log(`Sent transaction with hash ${beaconSetUpdateReceipt.hash} to update the Beacons and Beacon set`);
   await new Promise((resolve) =>
     ethers.provider.once(beaconSetUpdateReceipt.hash, () => {
       resolve();
