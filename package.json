@@ -27,6 +27,7 @@
     "test:extended": "EXTENDED_TEST=TRUE hardhat test --parallel",
     "test:coverage": "hardhat coverage",
     "test:gas": "REPORT_GAS=TRUE hardhat test",
+    "update-example-beacon-set": "hardhat run scripts/update-example-beacon-set.js --network $NETWORK",
     "verify-local": "hardhat run scripts/verify-local.js",
     "verify-local:network": "hardhat run scripts/verify-local.js --network $NETWORK",
     "write-env-file-example": "node scripts/write-env-file-example"
