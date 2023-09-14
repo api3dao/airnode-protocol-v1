@@ -38,9 +38,11 @@ async function main() {
   const templateIds = Array(beaconCount)
     .fill()
     .map((_, ind) => ethers.utils.hexZeroPad(ethers.utils.hexlify(ind + 1), 32));
-  const beaconSetId = ethers.utils.solidityKeccak256(
-    ['bytes32[]'],
-    [templateIds.map((templateId) => deriveBeaconId(airnodeWallet.address, templateId))]
+  const beaconSetId = ethers.utils.keccak256(
+    ethers.utils.defaultAbiCoder.encode(
+      ['bytes32[]'],
+      [templateIds.map((templateId) => deriveBeaconId(airnodeWallet.address, templateId))]
+    )
   );
 
   const dataFeedReads = await api3ServerV1.callStatic.tryMulticall(
