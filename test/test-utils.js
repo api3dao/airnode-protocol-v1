@@ -70,13 +70,17 @@ module.exports = {
       [adminRole, ethers.utils.solidityKeccak256(['string'], [roleDescription])]
     );
   },
-  expiringMetaTxDomain: async (expiringMetaTxForwarder) => {
+  buildEIP712Domain: (name, chainId, verifyingContract) => {
     return {
-      name: 'ExpiringMetaTxForwarder',
+      name,
       version: '1.0.0',
-      chainId: (await expiringMetaTxForwarder.provider.getNetwork()).chainId,
-      verifyingContract: expiringMetaTxForwarder.address,
+      chainId,
+      verifyingContract,
     };
+  },
+  expiringMetaTxDomain: async (expiringMetaTxForwarder) => {
+    const chainId = (await expiringMetaTxForwarder.provider.getNetwork()).chainId;
+    return module.exports.buildEIP712Domain('ExpiringMetaTxForwarder', chainId, expiringMetaTxForwarder.address);
   },
   expiringMetaTxTypes: () => {
     return {
