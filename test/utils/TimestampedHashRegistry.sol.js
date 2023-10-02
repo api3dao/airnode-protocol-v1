@@ -42,7 +42,7 @@ describe('TimestampedHashRegistry', function () {
     ];
     const tree = StandardMerkleTree.of(treeValues, ['bytes32', 'bytes32', 'address']);
     const root = tree.root;
-    const timestamp = Math.floor(Date.now() / 1000) + 3600;
+    const timestamp = Math.floor(Date.now() / 1000);
     const chainId = (await timestampedHashRegistry.provider.getNetwork()).chainId;
     const domain = buildEIP712Domain('TimestampedHashRegistry', chainId, timestampedHashRegistry.address);
     const types = {
@@ -52,7 +52,7 @@ describe('TimestampedHashRegistry', function () {
         { name: 'timestamp', type: 'uint256' },
       ],
     };
-    const dapiFallbackHashType = hre.ethers.utils.formatBytes32String('dAPI fallback merkle tree root');
+    const dapiFallbackHashType = hre.ethers.utils.formatBytes32String('dAPI fallback root');
     const values = {
       hashType: dapiFallbackHashType,
       hash: root,
@@ -63,7 +63,6 @@ describe('TimestampedHashRegistry', function () {
         async (rootSigner) => await rootSigner._signTypedData(domain, types, values)
       )
     );
-    const proof = tree.getProof(treeEntry);
 
     return {
       roles,
@@ -78,37 +77,12 @@ describe('TimestampedHashRegistry', function () {
       root,
       timestamp,
       signatures,
-      proof,
     };
   };
 
   describe('constructor', function () {
     it('constructs', async function () {
       const { roles, timestampedHashRegistry } = await helpers.loadFixture(deploy);
-      // expect(await timestampedHashRegistry.dapiFallbackHashType()).to.equal(
-      //   hre.ethers.utils.solidityKeccak256(
-      //     ['string'],
-      //     [await timestampedHashRegistry.DAPI_FALLBACK_HASH_TYPE_DESCRIPTION()]
-      //   )
-      // );
-      // expect(await timestampedHashRegistry.priceManagementHashType()).to.equal(
-      //   hre.ethers.utils.solidityKeccak256(
-      //     ['string'],
-      //     [await timestampedHashRegistry.PRICE_MANAGEMENT_HASH_TYPE_DESCRIPTION()]
-      //   )
-      // );
-      // expect(await timestampedHashRegistry.dapiManagementHashType()).to.equal(
-      //   hre.ethers.utils.solidityKeccak256(
-      //     ['string'],
-      //     [await timestampedHashRegistry.DAPI_MANAGEMENT_HASH_TYPE_DESCRIPTION()]
-      //   )
-      // );
-      // expect(await timestampedHashRegistry.apiManagementHashType()).to.equal(
-      //   hre.ethers.utils.solidityKeccak256(
-      //     ['string'],
-      //     [await timestampedHashRegistry.API_MANAGEMENT_HASH_TYPE_DESCRIPTION()]
-      //   )
-      // );
       expect(await timestampedHashRegistry.owner()).to.equal(roles.owner.address);
     });
   });
