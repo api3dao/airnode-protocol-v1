@@ -11,7 +11,7 @@ contract TimestampedHashRegistry is Ownable, EIP712, ITimestampedHashRegistry {
     using ECDSA for bytes32;
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    mapping(bytes32 => EnumerableSet.AddressSet) private _hashTypeHashToSigners;
+    mapping(bytes32 => EnumerableSet.AddressSet) private _hashTypeToSigners;
 
     mapping(bytes32 => SignedHash) public hashTypeToSignedHash;
 
@@ -29,7 +29,7 @@ contract TimestampedHashRegistry is Ownable, EIP712, ITimestampedHashRegistry {
         require(hashType != bytes32(0), "Hash is zero");
         require(signers.length != 0, "Signers length is empty");
         for (uint256 ind = 0; ind < signers.length; ind++) {
-            _hashTypeHashToSigners[hashType].add(signers[ind]);
+            _hashTypeToSigners[hashType].add(signers[ind]);
         }
         emit HashTypeSignersSet(hashType, signers);
     }
@@ -40,9 +40,7 @@ contract TimestampedHashRegistry is Ownable, EIP712, ITimestampedHashRegistry {
         bytes[] calldata signatures
     ) external {
         require(hashType != bytes32(0), "Hash type is zero");
-        EnumerableSet.AddressSet storage signers = _hashTypeHashToSigners[
-            hashType
-        ];
+        EnumerableSet.AddressSet storage signers = _hashTypeToSigners[hashType];
         require(signers.length() != 0, "Signers have not been set");
         require(
             signatures.length == signers.length(),
@@ -80,6 +78,6 @@ contract TimestampedHashRegistry is Ownable, EIP712, ITimestampedHashRegistry {
     function getSigners(
         bytes32 hashType
     ) external view returns (address[] memory signers) {
-        signers = _hashTypeHashToSigners[hashType].values();
+        signers = _hashTypeToSigners[hashType].values();
     }
 }
