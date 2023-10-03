@@ -9,8 +9,7 @@ interface ITimestampedHashRegistry {
     event RegisteredSignedHash(
         bytes32 indexed typeName,
         bytes32 hash,
-        uint256 timestamp,
-        bytes[] signatures
+        uint256 timestamp
     );
 
     struct SignedHash {

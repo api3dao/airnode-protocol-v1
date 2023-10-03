@@ -310,7 +310,7 @@ describe('TimestampedHashRegistry', function () {
                 )
               )
                 .to.emit(timestampedHashRegistry, 'RegisteredSignedHash')
-                .withArgs(dapiFallbackHashTypeName, root, timestamp, signatures);
+                .withArgs(dapiFallbackHashTypeName, root, timestamp);
               expect(
                 await timestampedHashRegistry.hashTypeToSignedHash(hre.ethers.utils.keccak256(dapiFallbackHashTypeName))
               ).to.contain(root, timestamp);

@@ -96,8 +96,7 @@ contract TimestampedHashRegistry is
         emit RegisteredSignedHash(
             typeName,
             signedHash.hash,
-            signedHash.timestamp,
-            signatures
+            signedHash.timestamp
         );
     }
 }
