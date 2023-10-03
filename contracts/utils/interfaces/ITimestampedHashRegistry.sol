@@ -2,9 +2,9 @@
 pragma solidity 0.8.17;
 
 interface ITimestampedHashRegistry {
-    event HashTypeSignersSet(bytes32 indexed hashType, address[] signers);
+    event SetHashTypeSigners(bytes32 indexed hashType, address[] signers);
 
-    event SignedHashRegistered(
+    event RegisteredSignedHash(
         bytes32 indexed hashType,
         bytes32 hash,
         uint256 timestamp,

@@ -31,7 +31,7 @@ contract TimestampedHashRegistry is Ownable, EIP712, ITimestampedHashRegistry {
         for (uint256 ind = 0; ind < signers.length; ind++) {
             _hashTypeToSigners[hashType].add(signers[ind]);
         }
-        emit HashTypeSignersSet(hashType, signers);
+        emit SetHashTypeSigners(hashType, signers);
     }
 
     function registerSignedHash(
@@ -67,7 +67,7 @@ contract TimestampedHashRegistry is Ownable, EIP712, ITimestampedHashRegistry {
             signedHash.hash,
             signedHash.timestamp
         );
-        emit SignedHashRegistered(
+        emit RegisteredSignedHash(
             hashType,
             signedHash.hash,
             signedHash.timestamp,

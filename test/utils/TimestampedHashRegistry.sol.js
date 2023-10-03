@@ -100,7 +100,7 @@ describe('TimestampedHashRegistry', function () {
             ];
             expect(await timestampedHashRegistry.getSigners(dapiFallbackHashType)).to.deep.equal([]);
             await expect(timestampedHashRegistry.connect(roles.owner).setHashTypeSigners(dapiFallbackHashType, signers))
-              .to.emit(timestampedHashRegistry, 'HashTypeSignersSet')
+              .to.emit(timestampedHashRegistry, 'SetHashTypeSigners')
               .withArgs(dapiFallbackHashType, signers);
             expect(await timestampedHashRegistry.getSigners(dapiFallbackHashType)).to.deep.equal(signers);
           });
@@ -155,7 +155,7 @@ describe('TimestampedHashRegistry', function () {
               await expect(
                 timestampedHashRegistry.registerSignedHash(dapiFallbackHashType, { hash: root, timestamp }, signatures)
               )
-                .to.emit(timestampedHashRegistry, 'SignedHashRegistered')
+                .to.emit(timestampedHashRegistry, 'RegisteredSignedHash')
                 .withArgs(dapiFallbackHashType, root, timestamp, signatures);
               expect(await timestampedHashRegistry.hashTypeToSignedHash(dapiFallbackHashType)).to.contain(
                 root,
