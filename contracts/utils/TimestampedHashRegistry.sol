@@ -17,30 +17,34 @@ contract TimestampedHashRegistry is Ownable, EIP712, ITimestampedHashRegistry {
 
     bytes32 private constant _SIGNED_HASH_TYPE_HASH =
         keccak256(
-            "SignedHash(bytes32 hashType,bytes32 hash,uint256 timestamp)"
+            "SignedHash(bytes32 typeName,bytes32 hash,uint256 timestamp)"
         );
 
     constructor() EIP712("TimestampedHashRegistry", "1.0.0") {}
 
     function setHashTypeSigners(
-        bytes32 hashType,
+        bytes32 typeName,
         address[] calldata signers
     ) external onlyOwner {
-        require(hashType != bytes32(0), "Hash is zero");
+        require(typeName != bytes32(0), "Type name is zero");
         require(signers.length != 0, "Signers length is empty");
         for (uint256 ind = 0; ind < signers.length; ind++) {
-            _hashTypeToSigners[hashType].add(signers[ind]);
+            _hashTypeToSigners[keccak256(abi.encodePacked(typeName))].add(
+                signers[ind]
+            );
         }
-        emit SetHashTypeSigners(hashType, signers);
+        emit SetHashTypeSigners(typeName, signers);
     }
 
     function registerSignedHash(
-        bytes32 hashType,
+        bytes32 typeName,
         SignedHash calldata signedHash,
         bytes[] calldata signatures
     ) external {
-        require(hashType != bytes32(0), "Hash type is zero");
-        EnumerableSet.AddressSet storage signers = _hashTypeToSigners[hashType];
+        require(typeName != bytes32(0), "Type name is zero");
+        EnumerableSet.AddressSet storage signers = _hashTypeToSigners[
+            keccak256(abi.encodePacked(typeName))
+        ];
         require(signers.length() != 0, "Signers have not been set");
         require(
             signatures.length == signers.length(),
@@ -53,7 +57,7 @@ contract TimestampedHashRegistry is Ownable, EIP712, ITimestampedHashRegistry {
                         keccak256(
                             abi.encode(
                                 _SIGNED_HASH_TYPE_HASH,
-                                hashType,
+                                typeName,
                                 signedHash.hash,
                                 signedHash.timestamp
                             )
@@ -63,12 +67,11 @@ contract TimestampedHashRegistry is Ownable, EIP712, ITimestampedHashRegistry {
                 "Signature mismatch"
             );
         }
-        hashTypeToSignedHash[hashType] = SignedHash(
-            signedHash.hash,
-            signedHash.timestamp
-        );
+        hashTypeToSignedHash[
+            keccak256(abi.encodePacked(typeName))
+        ] = SignedHash(signedHash.hash, signedHash.timestamp);
         emit RegisteredSignedHash(
-            hashType,
+            typeName,
             signedHash.hash,
             signedHash.timestamp,
             signatures
@@ -76,8 +79,9 @@ contract TimestampedHashRegistry is Ownable, EIP712, ITimestampedHashRegistry {
     }
 
     function getSigners(
-        bytes32 hashType
+        bytes32 typeName
     ) external view returns (address[] memory signers) {
-        signers = _hashTypeToSigners[hashType].values();
+        signers = _hashTypeToSigners[keccak256(abi.encodePacked(typeName))]
+            .values();
     }
 }
