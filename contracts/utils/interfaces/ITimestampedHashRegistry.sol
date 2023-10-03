@@ -2,7 +2,9 @@
 pragma solidity 0.8.17;
 
 interface ITimestampedHashRegistry {
-    event SetHashTypeSigners(bytes32 indexed typeName, address[] signers);
+    event AddedSigner(bytes32 indexed typeName, address signer);
+
+    event RemovedSigner(bytes32 indexed typeName, address signer);
 
     event RegisteredSignedHash(
         bytes32 indexed typeName,
@@ -16,20 +18,19 @@ interface ITimestampedHashRegistry {
         uint256 timestamp;
     }
 
-    function setHashTypeSigners(
-        bytes32 typeName,
-        address[] calldata signers
-    ) external;
+    function addSigner(bytes32 typeName, address signer) external;
+
+    function removeSigner(bytes32 typeName, address signer) external;
+
+    function getSigners(
+        bytes32 typeName
+    ) external view returns (address[] memory signers);
 
     function registerSignedHash(
         bytes32 typeName,
         SignedHash calldata signedHash,
         bytes[] calldata signatures
     ) external;
-
-    function getSigners(
-        bytes32 typeName
-    ) external view returns (address[] memory signers);
 
     function hashTypeToSignedHash(
         bytes32 typeName

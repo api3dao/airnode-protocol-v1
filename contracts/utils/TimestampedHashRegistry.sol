@@ -1,13 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
+// import "@api3/airnode-protocol-v1/contracts/utils/SelfMulticall.sol";
+import "../utils/SelfMulticall.sol"; // Uncomment line above and remove this line once this is moved to @api3/dapi-management
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "./interfaces/ITimestampedHashRegistry.sol";
 
-// TODO: would SelfMulticall be useful?
-contract TimestampedHashRegistry is Ownable, EIP712, ITimestampedHashRegistry {
+contract TimestampedHashRegistry is
+    Ownable,
+    EIP712,
+    SelfMulticall,
+    ITimestampedHashRegistry
+{
     using ECDSA for bytes32;
     using EnumerableSet for EnumerableSet.AddressSet;
 
@@ -22,18 +28,35 @@ contract TimestampedHashRegistry is Ownable, EIP712, ITimestampedHashRegistry {
 
     constructor() EIP712("TimestampedHashRegistry", "1.0.0") {}
 
-    function setHashTypeSigners(
-        bytes32 typeName,
-        address[] calldata signers
-    ) external onlyOwner {
+    function addSigner(bytes32 typeName, address signer) external onlyOwner {
         require(typeName != bytes32(0), "Type name is zero");
-        require(signers.length != 0, "Signers length is empty");
-        for (uint256 ind = 0; ind < signers.length; ind++) {
+        require(signer != address(0), "Signer is zero");
+        require(
             _hashTypeToSigners[keccak256(abi.encodePacked(typeName))].add(
-                signers[ind]
-            );
-        }
-        emit SetHashTypeSigners(typeName, signers);
+                signer
+            ),
+            "Signer already exists"
+        );
+        emit AddedSigner(typeName, signer);
+    }
+
+    function removeSigner(bytes32 typeName, address signer) external onlyOwner {
+        require(typeName != bytes32(0), "Type name is zero");
+        require(signer != address(0), "Signer is zero");
+        require(
+            _hashTypeToSigners[keccak256(abi.encodePacked(typeName))].remove(
+                signer
+            ),
+            "Signer does not exist"
+        );
+        emit RemovedSigner(typeName, signer);
+    }
+
+    function getSigners(
+        bytes32 typeName
+    ) external view returns (address[] memory signers) {
+        signers = _hashTypeToSigners[keccak256(abi.encodePacked(typeName))]
+            .values();
     }
 
     function registerSignedHash(
@@ -76,12 +99,5 @@ contract TimestampedHashRegistry is Ownable, EIP712, ITimestampedHashRegistry {
             signedHash.timestamp,
             signatures
         );
-    }
-
-    function getSigners(
-        bytes32 typeName
-    ) external view returns (address[] memory signers) {
-        signers = _hashTypeToSigners[keccak256(abi.encodePacked(typeName))]
-            .values();
     }
 }
