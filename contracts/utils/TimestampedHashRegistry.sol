@@ -71,22 +71,20 @@ contract TimestampedHashRegistry is
         require(signers.length() != 0, "Signers have not been set");
         require(
             signatures.length == signers.length(),
-            "Signatures length mismatch"
+            "Invalid number of signatures"
         );
-        for (uint256 ind = 0; ind < signatures.length; ind++) {
+        for (uint256 ind = 0; ind < signers.length(); ind++) {
             require(
-                signers.contains(
-                    _hashTypedDataV4(
-                        keccak256(
-                            abi.encode(
-                                _SIGNED_HASH_TYPE_HASH,
-                                hashType,
-                                signedHash.hash,
-                                signedHash.timestamp
-                            )
+                _hashTypedDataV4(
+                    keccak256(
+                        abi.encode(
+                            _SIGNED_HASH_TYPE_HASH,
+                            hashType,
+                            signedHash.hash,
+                            signedHash.timestamp
                         )
-                    ).recover(signatures[ind])
-                ),
+                    )
+                ).recover(signatures[ind]) == signers.at(ind),
                 "Signature mismatch"
             );
         }

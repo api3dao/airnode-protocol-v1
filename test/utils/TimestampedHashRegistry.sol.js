@@ -355,6 +355,22 @@ describe('TimestampedHashRegistry', function () {
                   ...signatures.slice(1),
                 ])
               ).to.be.revertedWith('Signature mismatch');
+              // All signatures are different
+              await expect(
+                timestampedHashRegistry.registerSignedHash(
+                  dapiFallbackHashType,
+                  { hash: root, timestamp },
+                  Array(3).fill(signatures[0])
+                )
+              ).to.be.revertedWith('Signature mismatch');
+              // All signatures are in the expected order
+              await expect(
+                timestampedHashRegistry.registerSignedHash(
+                  dapiFallbackHashType,
+                  { hash: root, timestamp },
+                  signatures.reverse()
+                )
+              ).to.be.revertedWith('Signature mismatch');
             });
           });
         });
@@ -380,7 +396,7 @@ describe('TimestampedHashRegistry', function () {
                 { hash: root, timestamp },
                 signatures.slice(1)
               )
-            ).to.be.revertedWith('Signatures length mismatch');
+            ).to.be.revertedWith('Invalid number of signatures');
           });
         });
       });
