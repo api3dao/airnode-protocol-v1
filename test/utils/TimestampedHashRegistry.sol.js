@@ -87,6 +87,55 @@ describe('TimestampedHashRegistry', function () {
     });
   });
 
+  describe('setupSigners', function () {
+    context('Signers is not emtpy', function () {
+      context('Hash type signers is empty', function () {
+        it('setup signers', async function () {
+          const { roles, timestampedHashRegistry, dapiFallbackHashType } = await helpers.loadFixture(deploy);
+          expect(await timestampedHashRegistry.getSigners(dapiFallbackHashType)).to.deep.equal([]);
+          const signers = [
+            roles.dapiFallbackRootSigner1.address,
+            roles.dapiFallbackRootSigner2.address,
+            roles.dapiFallbackRootSigner3.address,
+          ];
+          await expect(timestampedHashRegistry.connect(roles.owner).setupSigners(dapiFallbackHashType, signers))
+            .to.emit(timestampedHashRegistry, 'SetupSigners')
+            .withArgs(dapiFallbackHashType, signers);
+          expect(await timestampedHashRegistry.getSigners(dapiFallbackHashType)).to.deep.equal(signers);
+        });
+      });
+      context('Hash type signers is not empty', function () {
+        it('reverts', async function () {
+          const { roles, timestampedHashRegistry, dapiFallbackHashType } = await helpers.loadFixture(deploy);
+          expect(await timestampedHashRegistry.getSigners(dapiFallbackHashType)).to.deep.equal([]);
+          await expect(
+            timestampedHashRegistry
+              .connect(roles.owner)
+              .addSigner(dapiFallbackHashType, roles.dapiFallbackRootSigner1.address)
+          )
+            .to.emit(timestampedHashRegistry, 'AddedSigner')
+            .withArgs(dapiFallbackHashType, roles.dapiFallbackRootSigner1.address);
+          await expect(
+            timestampedHashRegistry
+              .connect(roles.owner)
+              .setupSigners(dapiFallbackHashType, [
+                roles.dapiFallbackRootSigner2.address,
+                roles.dapiFallbackRootSigner3.address,
+              ])
+          ).to.be.revertedWith('Hash type signers is not empty');
+        });
+      });
+    });
+    context('Signers is emtpy', function () {
+      it('reverts', async function () {
+        const { roles, timestampedHashRegistry } = await helpers.loadFixture(deploy);
+        await expect(
+          timestampedHashRegistry.connect(roles.owner).setupSigners(generateRandomBytes32(), [])
+        ).to.be.revertedWith('Signers is empty');
+      });
+    });
+  });
+
   describe('addSigner', function () {
     context('Sender is the owner', function () {
       context('Hash type is not zero', function () {

@@ -2,6 +2,8 @@
 pragma solidity 0.8.17;
 
 interface ITimestampedHashRegistry {
+    event SetupSigners(bytes32 indexed hashType, address[] signers);
+
     event AddedSigner(bytes32 indexed hashType, address signer);
 
     event RemovedSigner(bytes32 indexed hashType, address signer);
@@ -11,6 +13,11 @@ interface ITimestampedHashRegistry {
         bytes32 hash,
         uint256 timestamp
     );
+
+    function setupSigners(
+        bytes32 hashType,
+        address[] calldata signers
+    ) external;
 
     function addSigner(bytes32 hashType, address signer) external;
 

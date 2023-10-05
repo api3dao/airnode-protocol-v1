@@ -30,17 +30,42 @@ contract TimestampedHashRegistry is
 
     constructor() EIP712("TimestampedHashRegistry", "1.0.0") {}
 
-    function addSigner(bytes32 hashType, address signer) external onlyOwner {
+    function setupSigners(
+        bytes32 hashType,
+        address[] calldata signers
+    ) external override onlyOwner {
+        require(signers.length != 0, "Signers is empty");
+        require(
+            _hashTypeToSigners[hashType].length() == 0,
+            "Hash type signers is not empty"
+        );
+        for (uint256 ind = 0; ind < signers.length; ind++) {
+            _addSigner(hashType, signers[ind]);
+        }
+        emit SetupSigners(hashType, signers);
+    }
+
+    function _addSigner(bytes32 hashType, address signer) private {
         require(hashType != bytes32(0), "Hash type is zero");
         require(signer != address(0), "Signer is zero");
         require(
             _hashTypeToSigners[hashType].add(signer),
             "Signer already exists"
         );
+    }
+
+    function addSigner(
+        bytes32 hashType,
+        address signer
+    ) external override onlyOwner {
+        _addSigner(hashType, signer);
         emit AddedSigner(hashType, signer);
     }
 
-    function removeSigner(bytes32 hashType, address signer) external onlyOwner {
+    function removeSigner(
+        bytes32 hashType,
+        address signer
+    ) external override onlyOwner {
         require(hashType != bytes32(0), "Hash type is zero");
         require(signer != address(0), "Signer is zero");
         require(
@@ -52,7 +77,7 @@ contract TimestampedHashRegistry is
 
     function getSigners(
         bytes32 hashType
-    ) external view returns (address[] memory signers) {
+    ) external view override returns (address[] memory signers) {
         signers = _hashTypeToSigners[hashType].values();
     }
 
@@ -61,7 +86,7 @@ contract TimestampedHashRegistry is
         bytes32 hash,
         uint256 timestamp,
         bytes[] calldata signatures
-    ) external {
+    ) external override {
         require(hashType != bytes32(0), "Hash type is zero");
         EnumerableSet.AddressSet storage signers = _hashTypeToSigners[hashType];
         require(signers.length() != 0, "Signers have not been set");
