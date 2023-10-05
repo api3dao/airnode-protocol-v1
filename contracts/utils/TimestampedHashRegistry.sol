@@ -19,7 +19,9 @@ contract TimestampedHashRegistry is
 
     mapping(bytes32 => EnumerableSet.AddressSet) private _hashTypeToSigners;
 
-    mapping(bytes32 => SignedHash) public hashTypeToSignedHash;
+    mapping(bytes32 => bytes32) public hashTypeToHash;
+
+    mapping(bytes32 => uint256) public hashTypeToTimestamp;
 
     bytes32 private constant _SIGNED_HASH_TYPE_HASH =
         keccak256(
@@ -32,9 +34,7 @@ contract TimestampedHashRegistry is
         require(hashType != bytes32(0), "Hash type is zero");
         require(signer != address(0), "Signer is zero");
         require(
-            _hashTypeToSigners[keccak256(abi.encodePacked(hashType))].add(
-                signer
-            ),
+            _hashTypeToSigners[hashType].add(signer),
             "Signer already exists"
         );
         emit AddedSigner(hashType, signer);
@@ -44,9 +44,7 @@ contract TimestampedHashRegistry is
         require(hashType != bytes32(0), "Hash type is zero");
         require(signer != address(0), "Signer is zero");
         require(
-            _hashTypeToSigners[keccak256(abi.encodePacked(hashType))].remove(
-                signer
-            ),
+            _hashTypeToSigners[hashType].remove(signer),
             "Signer does not exist"
         );
         emit RemovedSigner(hashType, signer);
@@ -55,19 +53,17 @@ contract TimestampedHashRegistry is
     function getSigners(
         bytes32 hashType
     ) external view returns (address[] memory signers) {
-        signers = _hashTypeToSigners[keccak256(abi.encodePacked(hashType))]
-            .values();
+        signers = _hashTypeToSigners[hashType].values();
     }
 
-    function registerSignedHash(
+    function registerHash(
         bytes32 hashType,
-        SignedHash calldata signedHash,
+        bytes32 hash,
+        uint256 timestamp,
         bytes[] calldata signatures
     ) external {
         require(hashType != bytes32(0), "Hash type is zero");
-        EnumerableSet.AddressSet storage signers = _hashTypeToSigners[
-            keccak256(abi.encodePacked(hashType))
-        ];
+        EnumerableSet.AddressSet storage signers = _hashTypeToSigners[hashType];
         require(signers.length() != 0, "Signers have not been set");
         require(
             signatures.length == signers.length(),
@@ -80,21 +76,16 @@ contract TimestampedHashRegistry is
                         abi.encode(
                             _SIGNED_HASH_TYPE_HASH,
                             hashType,
-                            signedHash.hash,
-                            signedHash.timestamp
+                            hash,
+                            timestamp
                         )
                     )
                 ).recover(signatures[ind]) == signers.at(ind),
                 "Signature mismatch"
             );
         }
-        hashTypeToSignedHash[
-            keccak256(abi.encodePacked(hashType))
-        ] = SignedHash(signedHash.hash, signedHash.timestamp);
-        emit RegisteredSignedHash(
-            hashType,
-            signedHash.hash,
-            signedHash.timestamp
-        );
+        hashTypeToHash[hashType] = hash;
+        hashTypeToTimestamp[hashType] = timestamp;
+        emit RegisteredHash(hashType, hash, timestamp);
     }
 }

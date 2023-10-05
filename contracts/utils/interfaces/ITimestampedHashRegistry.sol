@@ -6,16 +6,11 @@ interface ITimestampedHashRegistry {
 
     event RemovedSigner(bytes32 indexed hashType, address signer);
 
-    event RegisteredSignedHash(
+    event RegisteredHash(
         bytes32 indexed hashType,
         bytes32 hash,
         uint256 timestamp
     );
-
-    struct SignedHash {
-        bytes32 hash; // i.e. merkle tree root
-        uint256 timestamp;
-    }
 
     function addSigner(bytes32 hashType, address signer) external;
 
@@ -25,13 +20,18 @@ interface ITimestampedHashRegistry {
         bytes32 hashType
     ) external view returns (address[] memory signers);
 
-    function registerSignedHash(
+    function registerHash(
         bytes32 hashType,
-        SignedHash calldata signedHash,
+        bytes32 hash,
+        uint256 timestamp,
         bytes[] calldata signatures
     ) external;
 
-    function hashTypeToSignedHash(
+    function hashTypeToHash(
         bytes32 hashType
-    ) external view returns (bytes32 hash, uint256 timestamp);
+    ) external view returns (bytes32 hash);
+
+    function hashTypeToTimestamp(
+        bytes32 hashType
+    ) external view returns (uint256 timestamp);
 }
