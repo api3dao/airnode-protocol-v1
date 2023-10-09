@@ -88,13 +88,18 @@ contract TimestampedHashRegistry is
         bytes[] calldata signatures
     ) external override {
         require(hashType != bytes32(0), "Hash type is zero");
-        EnumerableSet.AddressSet storage signers = _hashTypeToSigners[hashType];
-        require(signers.length() != 0, "Signers have not been set");
         require(
-            signatures.length == signers.length(),
+            timestamp > hashTypeToTimestamp[hashType],
+            "Timestamp is not newer"
+        );
+        EnumerableSet.AddressSet storage signers = _hashTypeToSigners[hashType];
+        uint256 signersCount = signers.length();
+        require(signersCount != 0, "Signers have not been set");
+        require(
+            signatures.length == signersCount,
             "Invalid number of signatures"
         );
-        for (uint256 ind = 0; ind < signers.length(); ind++) {
+        for (uint256 ind = 0; ind < signersCount; ind++) {
             require(
                 _hashTypedDataV4(
                     keccak256(
