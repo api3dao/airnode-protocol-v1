@@ -2,14 +2,9 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/IAccessControl.sol";
-import "../../utils/interfaces/IExpiringMetaTxForwarder.sol";
 import "../../utils/interfaces/ISelfMulticall.sol";
 
-interface IAccessControlRegistry is
-    IAccessControl,
-    IExpiringMetaTxForwarder,
-    ISelfMulticall
-{
+interface IAccessControlRegistry is IAccessControl, ISelfMulticall {
     event InitializedManager(
         bytes32 indexed rootRole,
         address indexed manager,
