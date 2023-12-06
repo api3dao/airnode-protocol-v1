@@ -17,7 +17,7 @@ const verifyDeployedBytecode = (deployedBytecode, generatedBytecode, contractNam
     return true;
   }
   // The compiler appends by default the IPFS hash of the metadata file to the end of the bytecode (the last 53 bytes/106 char)
-  // for reference: https://docs.soliditylang.org/en/v0.8.17/metadata.html#encoding-of-the-metadata-hash-in-the-bytecode
+  // for reference: https://docs.soliditylang.org/en/v0.8.18/metadata.html#encoding-of-the-metadata-hash-in-the-bytecode
   else if (deployedBytecode.slice(0, -106) === generatedBytecode.slice(0, -106)) {
     console.log(`⚠️ ${contractName} metadata is different from onchain value on ${networkName}!`);
     return true;

@@ -37,7 +37,7 @@ However, if you have your own proxy address derivation implementation, be aware 
 
 ## Solidity versions
 
-The current form of the repo is tested with Solidity version `0.8.17`. The complete contracts to be deployed are locked
+The current form of the repo is tested with Solidity version `0.8.18`. The complete contracts to be deployed are locked
 at this version, and the rest (interfaces, stub contracts, mock contracts) specify version `^0.8.0` to not limit their
 users. Some mock contracts use custom errors, which is why they specify version `^0.8.4`.
 
