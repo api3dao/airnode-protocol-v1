@@ -350,6 +350,9 @@
       "type": "function"
     }
   ],
+  "receipt": {
+    "blockNumber": 2505015
+  },
   "args": ["0x709944a48cAf83535e43471680fDA4905FB3920a"],
   "numDeployments": 1,
   "solcInputHash": "76975463642f13e8363e0f61bd6120e1",
