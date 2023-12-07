@@ -1,6 +1,23 @@
 // TODO: replace with https://github.com/api3dao/chains/issues/3
 module.exports = {
-  chainsSupportedByApi3Market: [],
+  chainsSupportedByApi3Market: [
+    'arbitrum',
+    'avalanche',
+    'base',
+    'bsc',
+    'ethereum',
+    'fantom',
+    'gnosis',
+    'kava',
+    'linea',
+    'mantle',
+    'moonbeam',
+    'moonriver',
+    'optimism',
+    'polygon',
+    'polygon-zkevm',
+    'rsk',
+  ],
   chainsSupportedByChainApi: [],
   chainsSupportedByDapis: [
     'arbitrum',
