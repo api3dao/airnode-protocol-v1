@@ -26,13 +26,6 @@ describe('AccessControlRegistry', function () {
     };
   }
 
-  describe('constructor', function () {
-    it('constructs', async function () {
-      const { accessControlRegistry } = await helpers.loadFixture(deploy);
-      expect(await accessControlRegistry.isTrustedForwarder(accessControlRegistry.address)).to.equal(true);
-    });
-  });
-
   describe('initializeManager', function () {
     context('Manager address is not zero', function () {
       context('Manager is not initialized', function () {
@@ -352,42 +345,6 @@ describe('AccessControlRegistry', function () {
       expect(await accessControlRegistry.getRoleAdmin(role12)).to.equal(role1);
       expect(await accessControlRegistry.hasRole(role12, roles.manager.address)).to.equal(true);
       expect(await accessControlRegistry.hasRole(role12, account12)).to.equal(true);
-    });
-  });
-
-  describe('Meta-tx', function () {
-    it('executes', async function () {
-      const { roles, accessControlRegistry, managerRootRole, roleDescription, role } = await helpers.loadFixture(
-        deploy
-      );
-      const expiringMetaTxDomain = await testUtils.expiringMetaTxDomain(accessControlRegistry);
-      const expiringMetaTxTypes = testUtils.expiringMetaTxTypes();
-      const latestTimestamp = await helpers.time.latest();
-      const nextTimestamp = latestTimestamp + 1;
-      await helpers.time.setNextBlockTimestamp(nextTimestamp);
-      const expiringMetaTxValue = {
-        from: roles.manager.address,
-        to: accessControlRegistry.address,
-        data: accessControlRegistry.interface.encodeFunctionData('initializeRoleAndGrantToSender', [
-          managerRootRole,
-          roleDescription,
-        ]),
-        expirationTimestamp: nextTimestamp + 60 * 60,
-      };
-      const signature = await roles.manager._signTypedData(
-        expiringMetaTxDomain,
-        expiringMetaTxTypes,
-        expiringMetaTxValue
-      );
-      expect(await accessControlRegistry.hasRole(managerRootRole, roles.manager.address)).to.equal(false);
-      expect(await accessControlRegistry.getRoleAdmin(role)).to.equal(ethers.constants.HashZero);
-      expect(await accessControlRegistry.hasRole(role, roles.manager.address)).to.equal(false);
-      await expect(accessControlRegistry.connect(roles.randomPerson).execute(expiringMetaTxValue, signature))
-        .to.emit(accessControlRegistry, 'InitializedRole')
-        .withArgs(role, managerRootRole, roleDescription, roles.manager.address);
-      expect(await accessControlRegistry.hasRole(managerRootRole, roles.manager.address)).to.equal(true);
-      expect(await accessControlRegistry.getRoleAdmin(role)).to.equal(managerRootRole);
-      expect(await accessControlRegistry.hasRole(role, roles.manager.address)).to.equal(true);
     });
   });
 });

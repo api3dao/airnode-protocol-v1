@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "../utils/ExpiringMetaTxForwarder.sol";
 import "../utils/SelfMulticall.sol";
 import "./RoleDeriver.sol";
 import "./interfaces/IAccessControlRegistry.sol";
@@ -18,16 +16,11 @@ import "./interfaces/IAccessControlRegistry.sol";
 /// roles and grant these to accounts. Each role has a description, and roles
 /// adminned by the same role cannot have the same description.
 contract AccessControlRegistry is
-    ERC2771Context,
     AccessControl,
-    ExpiringMetaTxForwarder,
     SelfMulticall,
     RoleDeriver,
     IAccessControlRegistry
 {
-    /// @dev AccessControlRegistry is its own trusted meta-tx forwarder
-    constructor() ERC2771Context(address(this)) {}
-
     /// @notice Initializes the manager by initializing its root role and
     /// granting it to them
     /// @dev Anyone can initialize a manager. An uninitialized manager
@@ -94,27 +87,5 @@ contract AccessControlRegistry is
             emit InitializedRole(role, adminRole, description, _msgSender());
         }
         grantRole(role, _msgSender());
-    }
-
-    /// @dev See Context.sol
-    function _msgSender()
-        internal
-        view
-        virtual
-        override(Context, ERC2771Context)
-        returns (address)
-    {
-        return ERC2771Context._msgSender();
-    }
-
-    /// @dev See Context.sol
-    function _msgData()
-        internal
-        view
-        virtual
-        override(Context, ERC2771Context)
-        returns (bytes calldata)
-    {
-        return ERC2771Context._msgData();
     }
 }

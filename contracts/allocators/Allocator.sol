@@ -39,7 +39,7 @@ abstract contract Allocator is IAllocator {
             bytes32(0)
         ) {
             _resetSlot(airnode, slotIndex);
-            emit ResetSlot(airnode, slotIndex, _msgSender());
+            emit ResetSlot(airnode, slotIndex, msg.sender);
         }
     }
 
@@ -70,7 +70,7 @@ abstract contract Allocator is IAllocator {
         _resetSlot(airnode, slotIndex);
         airnodeToSlotIndexToSlot[airnode][slotIndex] = Slot({
             subscriptionId: subscriptionId,
-            setter: _msgSender(),
+            setter: msg.sender,
             expirationTimestamp: expirationTimestamp
         });
         emit SetSlot(
@@ -78,7 +78,7 @@ abstract contract Allocator is IAllocator {
             slotIndex,
             subscriptionId,
             expirationTimestamp,
-            _msgSender()
+            msg.sender
         );
     }
 
@@ -87,12 +87,9 @@ abstract contract Allocator is IAllocator {
     /// @param slotIndex Index of the subscription slot to be reset
     function _resetSlot(address airnode, uint256 slotIndex) private {
         require(
-            slotCanBeResetByAccount(airnode, slotIndex, _msgSender()),
+            slotCanBeResetByAccount(airnode, slotIndex, msg.sender),
             "Cannot reset slot"
         );
         delete airnodeToSlotIndexToSlot[airnode][slotIndex];
     }
-
-    /// @dev See Context.sol
-    function _msgSender() internal view virtual returns (address sender);
 }

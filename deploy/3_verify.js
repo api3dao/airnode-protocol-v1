@@ -4,27 +4,18 @@ const {
   chainsSupportedByApi3Market,
   chainsSupportedByChainApi,
   chainsSupportedByDapis,
-  chainsSupportedByOevRelay,
 } = require('../src/supported-chains');
-const tokenAddresses = require('../src/token-addresses');
 
 module.exports = async ({ getUnnamedAccounts, deployments }) => {
   const accounts = await getUnnamedAccounts();
 
-  if (
-    [
-      ...chainsSupportedByDapis,
-      ...chainsSupportedByChainApi,
-      'ethereum-goerli-testnet',
-      'ethereum-sepolia-testnet',
-    ].includes(network.name)
-  ) {
+  if ([...chainsSupportedByDapis, ...chainsSupportedByChainApi].includes(network.name)) {
     const AccessControlRegistry = await deployments.get('AccessControlRegistry');
     await hre.run('verify:verify', {
       address: AccessControlRegistry.address,
     });
 
-    if ([...chainsSupportedByDapis, 'ethereum-goerli-testnet', 'ethereum-sepolia-testnet'].includes(network.name)) {
+    if (chainsSupportedByDapis.includes(network.name)) {
       const OwnableCallForwarder = await deployments.get('OwnableCallForwarder');
       await hre.run('verify:verify', {
         address: OwnableCallForwarder.address,
@@ -84,32 +75,7 @@ module.exports = async ({ getUnnamedAccounts, deployments }) => {
         ],
       });
 
-      if ([...chainsSupportedByOevRelay].includes(network.name)) {
-        let tokenAddress = tokenAddresses.usdc[network.name];
-        if (!tokenAddress) {
-          const MockErc20PermitToken = await deployments.get('MockErc20PermitToken');
-          await hre.run('verify:verify', {
-            address: MockErc20PermitToken.address,
-            constructorArguments: [accounts[0]],
-          });
-          tokenAddress = MockErc20PermitToken.address;
-        }
-
-        const PrepaymentDepository = await deployments.get('PrepaymentDepository');
-        await hre.run('verify:verify', {
-          address: PrepaymentDepository.address,
-          constructorArguments: [
-            AccessControlRegistry.address,
-            'PrepaymentDepository admin (OEV Relay)',
-            OwnableCallForwarder.address,
-            tokenAddress,
-          ],
-        });
-      }
-
-      if (
-        [...chainsSupportedByApi3Market, 'ethereum-goerli-testnet', 'ethereum-sepolia-testnet'].includes(network.name)
-      ) {
+      if (chainsSupportedByApi3Market.includes(network.name)) {
         const OrderPayable = await deployments.get('OrderPayable');
         await hre.run('verify:verify', {
           address: OrderPayable.address,
@@ -122,7 +88,7 @@ module.exports = async ({ getUnnamedAccounts, deployments }) => {
       }
     }
 
-    if ([...chainsSupportedByChainApi, 'ethereum-goerli-testnet', 'ethereum-sepolia-testnet'].includes(network.name)) {
+    if (chainsSupportedByChainApi.includes(network.name)) {
       const RequesterAuthorizerWithErc721 = await deployments.get('RequesterAuthorizerWithErc721');
       await hre.run('verify:verify', {
         address: RequesterAuthorizerWithErc721.address,

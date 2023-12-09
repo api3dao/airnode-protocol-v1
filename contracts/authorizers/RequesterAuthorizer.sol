@@ -64,7 +64,7 @@ abstract contract RequesterAuthorizer is IRequesterAuthorizer {
             airnode,
             requester,
             expirationTimestamp,
-            _msgSender()
+            msg.sender
         );
     }
 
@@ -88,7 +88,7 @@ abstract contract RequesterAuthorizer is IRequesterAuthorizer {
             airnode,
             requester,
             expirationTimestamp,
-            _msgSender()
+            msg.sender
         );
     }
 
@@ -112,11 +112,11 @@ abstract contract RequesterAuthorizer is IRequesterAuthorizer {
             status &&
             !airnodeToRequesterToSetterToIndefiniteAuthorizationStatus[airnode][
                 requester
-            ][_msgSender()]
+            ][msg.sender]
         ) {
             airnodeToRequesterToSetterToIndefiniteAuthorizationStatus[airnode][
                 requester
-            ][_msgSender()] = true;
+            ][msg.sender] = true;
             unchecked {
                 indefiniteAuthorizationCount++;
             }
@@ -126,11 +126,11 @@ abstract contract RequesterAuthorizer is IRequesterAuthorizer {
             !status &&
             airnodeToRequesterToSetterToIndefiniteAuthorizationStatus[airnode][
                 requester
-            ][_msgSender()]
+            ][msg.sender]
         ) {
             airnodeToRequesterToSetterToIndefiniteAuthorizationStatus[airnode][
                 requester
-            ][_msgSender()] = false;
+            ][msg.sender] = false;
             unchecked {
                 indefiniteAuthorizationCount--;
             }
@@ -142,7 +142,7 @@ abstract contract RequesterAuthorizer is IRequesterAuthorizer {
             requester,
             status,
             indefiniteAuthorizationCount,
-            _msgSender()
+            msg.sender
         );
     }
 
@@ -181,7 +181,7 @@ abstract contract RequesterAuthorizer is IRequesterAuthorizer {
                 requester,
                 setter,
                 indefiniteAuthorizationCount,
-                _msgSender()
+                msg.sender
             );
         }
     }
@@ -203,7 +203,4 @@ abstract contract RequesterAuthorizer is IRequesterAuthorizer {
             authorizationStatus.indefiniteAuthorizationCount > 0 ||
             authorizationStatus.expirationTimestamp > block.timestamp;
     }
-
-    /// @dev See Context.sol
-    function _msgSender() internal view virtual returns (address sender);
 }

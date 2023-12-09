@@ -5,19 +5,12 @@ const {
   chainsSupportedByApi3Market,
   chainsSupportedByChainApi,
   chainsSupportedByDapis,
-  chainsSupportedByOevRelay,
 } = require('../src/supported-chains');
-const tokenAddresses = require('../src/token-addresses');
 
 module.exports = async () => {
   const references = {};
   references.chainNames = {};
-  for (const network of [
-    ...chainsSupportedByApi3Market,
-    ...chainsSupportedByChainApi,
-    ...chainsSupportedByDapis,
-    ...chainsSupportedByOevRelay,
-  ]) {
+  for (const network of [...chainsSupportedByApi3Market, ...chainsSupportedByChainApi, ...chainsSupportedByDapis]) {
     references.chainNames[hre.config.networks[network].chainId] = network;
   }
   const deploymentBlockNumbers = { chainNames: references.chainNames };
@@ -25,12 +18,7 @@ module.exports = async () => {
   for (const contractName of ['AccessControlRegistry']) {
     references[contractName] = {};
     deploymentBlockNumbers[contractName] = {};
-    for (const network of [
-      ...chainsSupportedByDapis,
-      ...chainsSupportedByChainApi,
-      'ethereum-goerli-testnet',
-      'ethereum-sepolia-testnet',
-    ]) {
+    for (const network of [...chainsSupportedByDapis, ...chainsSupportedByChainApi]) {
       const deployment = JSON.parse(fs.readFileSync(path.join('deployments', network, `${contractName}.json`), 'utf8'));
       references[contractName][hre.config.networks[network].chainId] = deployment.address;
       if (deployment.receipt) {
@@ -44,24 +32,7 @@ module.exports = async () => {
   for (const contractName of ['OwnableCallForwarder', 'Api3ServerV1', 'ProxyFactory']) {
     references[contractName] = {};
     deploymentBlockNumbers[contractName] = {};
-    for (const network of [...chainsSupportedByDapis, 'ethereum-goerli-testnet', 'ethereum-sepolia-testnet']) {
-      const deployment = JSON.parse(fs.readFileSync(path.join('deployments', network, `${contractName}.json`), 'utf8'));
-      references[contractName][hre.config.networks[network].chainId] = deployment.address;
-      if (deployment.receipt) {
-        deploymentBlockNumbers[contractName][hre.config.networks[network].chainId] = deployment.receipt.blockNumber;
-      } else {
-        deploymentBlockNumbers[contractName][hre.config.networks[network].chainId] = 'MISSING';
-      }
-    }
-  }
-
-  for (const contractName of ['MockErc20PermitToken', 'PrepaymentDepository']) {
-    references[contractName] = {};
-    deploymentBlockNumbers[contractName] = {};
-    for (const network of [...chainsSupportedByOevRelay]) {
-      if (contractName === 'MockErc20PermitToken' && tokenAddresses.usdc[network]) {
-        continue;
-      }
+    for (const network of chainsSupportedByDapis) {
       const deployment = JSON.parse(fs.readFileSync(path.join('deployments', network, `${contractName}.json`), 'utf8'));
       references[contractName][hre.config.networks[network].chainId] = deployment.address;
       if (deployment.receipt) {
@@ -75,7 +46,7 @@ module.exports = async () => {
   for (const contractName of ['OrderPayable']) {
     references[contractName] = {};
     deploymentBlockNumbers[contractName] = {};
-    for (const network of [...chainsSupportedByApi3Market, 'ethereum-goerli-testnet', 'ethereum-sepolia-testnet']) {
+    for (const network of chainsSupportedByApi3Market) {
       const deployment = JSON.parse(fs.readFileSync(path.join('deployments', network, `${contractName}.json`), 'utf8'));
       references[contractName][hre.config.networks[network].chainId] = deployment.address;
       if (deployment.receipt) {
@@ -89,7 +60,7 @@ module.exports = async () => {
   for (const contractName of ['RequesterAuthorizerWithErc721']) {
     references[contractName] = {};
     deploymentBlockNumbers[contractName] = {};
-    for (const network of [...chainsSupportedByChainApi, 'ethereum-goerli-testnet', 'ethereum-sepolia-testnet']) {
+    for (const network of chainsSupportedByChainApi) {
       const deployment = JSON.parse(fs.readFileSync(path.join('deployments', network, `${contractName}.json`), 'utf8'));
       references[contractName][hre.config.networks[network].chainId] = deployment.address;
       if (deployment.receipt) {

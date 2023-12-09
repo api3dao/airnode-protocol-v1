@@ -55,11 +55,8 @@ describe('AllocatorWithAirnode', function () {
 
   describe('constructor', function () {
     it('constructs', async function () {
-      const { accessControlRegistry, allocatorWithAirnode, slotSetterRoleDescription } = await helpers.loadFixture(
-        deploy
-      );
+      const { allocatorWithAirnode, slotSetterRoleDescription } = await helpers.loadFixture(deploy);
       expect(await allocatorWithAirnode.SLOT_SETTER_ROLE_DESCRIPTION()).to.equal(slotSetterRoleDescription);
-      expect(await allocatorWithAirnode.isTrustedForwarder(accessControlRegistry.address)).to.equal(true);
     });
   });
 

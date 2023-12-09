@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 import "../access-control-registry/AccessControlRegistryAdminned.sol";
 import "./interfaces/IRequesterAuthorizerWithErc721.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
@@ -33,7 +32,6 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 /// the requester to be blocked can still be authorized via the instances that
 /// have not been updated.
 contract RequesterAuthorizerWithErc721 is
-    ERC2771Context,
     AccessControlRegistryAdminned,
     IRequesterAuthorizerWithErc721
 {
@@ -106,7 +104,6 @@ contract RequesterAuthorizerWithErc721 is
         address _accessControlRegistry,
         string memory _adminRoleDescription
     )
-        ERC2771Context(_accessControlRegistry)
         AccessControlRegistryAdminned(
             _accessControlRegistry,
             _adminRoleDescription
@@ -122,16 +119,16 @@ contract RequesterAuthorizerWithErc721 is
         uint32 withdrawalLeadTime
     ) external override {
         require(
-            airnode == _msgSender() ||
+            airnode == msg.sender ||
                 IAccessControlRegistry(accessControlRegistry).hasRole(
                     deriveWithdrawalLeadTimeSetterRole(airnode),
-                    _msgSender()
+                    msg.sender
                 ),
             "Sender cannot set lead time"
         );
         require(withdrawalLeadTime <= 30 days, "Lead time too long");
         airnodeToWithdrawalLeadTime[airnode] = withdrawalLeadTime;
-        emit SetWithdrawalLeadTime(airnode, withdrawalLeadTime, _msgSender());
+        emit SetWithdrawalLeadTime(airnode, withdrawalLeadTime, msg.sender);
     }
 
     /// @notice Called by the Airnode or its requester blockers to set
@@ -147,10 +144,10 @@ contract RequesterAuthorizerWithErc721 is
         bool status
     ) external override {
         require(
-            airnode == _msgSender() ||
+            airnode == msg.sender ||
                 IAccessControlRegistry(accessControlRegistry).hasRole(
                     deriveRequesterBlockerRole(airnode),
-                    _msgSender()
+                    msg.sender
                 ),
             "Sender cannot block requester"
         );
@@ -164,7 +161,7 @@ contract RequesterAuthorizerWithErc721 is
             requester,
             chainId,
             status,
-            _msgSender()
+            msg.sender
         );
     }
 
@@ -179,16 +176,16 @@ contract RequesterAuthorizerWithErc721 is
         bool status
     ) external override {
         require(
-            airnode == _msgSender() ||
+            airnode == msg.sender ||
                 IAccessControlRegistry(accessControlRegistry).hasRole(
                     deriveDepositorFreezerRole(airnode),
-                    _msgSender()
+                    msg.sender
                 ),
             "Sender cannot freeze depositor"
         );
         require(depositor != address(0), "Depositor address zero");
         airnodeToDepositorToFreezeStatus[airnode][depositor] = status;
-        emit SetDepositorFreezeStatus(airnode, depositor, status, _msgSender());
+        emit SetDepositorFreezeStatus(airnode, depositor, status, msg.sender);
     }
 
     /// @notice Called by the ERC721 contract upon `safeTransferFrom()` to this
@@ -226,7 +223,7 @@ contract RequesterAuthorizerWithErc721 is
         TokenDeposits
             storage tokenDeposits = airnodeToChainIdToRequesterToTokenAddressToTokenDeposits[
                 airnode
-            ][chainId][requester][_msgSender()];
+            ][chainId][requester][msg.sender];
         uint256 tokenDepositCount;
         unchecked {
             tokenDepositCount = ++tokenDeposits.count;
@@ -247,7 +244,7 @@ contract RequesterAuthorizerWithErc721 is
             requester,
             _from,
             chainId,
-            _msgSender(),
+            msg.sender,
             _tokenId,
             tokenDepositCount
         );
@@ -292,7 +289,7 @@ contract RequesterAuthorizerWithErc721 is
             "Next requester blocked"
         );
         require(
-            !airnodeToDepositorToFreezeStatus[airnode][_msgSender()],
+            !airnodeToDepositorToFreezeStatus[airnode][msg.sender],
             "Depositor frozen"
         );
         TokenDeposits
@@ -301,7 +298,7 @@ contract RequesterAuthorizerWithErc721 is
             ][chainIdPrevious][requesterPrevious][token];
         Deposit
             storage requesterPreviousDeposit = requesterPreviousTokenDeposits
-                .depositorToDeposit[_msgSender()];
+                .depositorToDeposit[msg.sender];
         if (requesterPreviousDeposit.state != DepositState.Active) {
             if (requesterPreviousDeposit.state == DepositState.Inactive) {
                 revert("Token not deposited");
@@ -314,7 +311,7 @@ contract RequesterAuthorizerWithErc721 is
                 airnode
             ][chainIdNext][requesterNext][token];
         require(
-            requesterNextTokenDeposits.depositorToDeposit[_msgSender()].state ==
+            requesterNextTokenDeposits.depositorToDeposit[msg.sender].state ==
                 DepositState.Inactive,
             "Token already deposited"
         );
@@ -326,14 +323,14 @@ contract RequesterAuthorizerWithErc721 is
         requesterPreviousTokenDeposits
             .count = requesterPreviousTokenDepositCount;
         uint256 tokenId = requesterPreviousDeposit.tokenId;
-        requesterNextTokenDeposits.depositorToDeposit[_msgSender()] = Deposit({
+        requesterNextTokenDeposits.depositorToDeposit[msg.sender] = Deposit({
             tokenId: tokenId,
             withdrawalLeadTime: requesterPreviousDeposit.withdrawalLeadTime,
             earliestWithdrawalTime: 0,
             state: DepositState.Active
         });
         requesterPreviousTokenDeposits.depositorToDeposit[
-            _msgSender()
+            msg.sender
         ] = Deposit({
             tokenId: 0,
             withdrawalLeadTime: 0,
@@ -343,7 +340,7 @@ contract RequesterAuthorizerWithErc721 is
         emit UpdatedDepositRequesterTo(
             airnode,
             requesterNext,
-            _msgSender(),
+            msg.sender,
             chainIdNext,
             token,
             tokenId,
@@ -352,7 +349,7 @@ contract RequesterAuthorizerWithErc721 is
         emit UpdatedDepositRequesterFrom(
             airnode,
             requesterPrevious,
-            _msgSender(),
+            msg.sender,
             chainIdPrevious,
             token,
             tokenId,
@@ -381,9 +378,7 @@ contract RequesterAuthorizerWithErc721 is
             storage tokenDeposits = airnodeToChainIdToRequesterToTokenAddressToTokenDeposits[
                 airnode
             ][chainId][requester][token];
-        Deposit storage deposit = tokenDeposits.depositorToDeposit[
-            _msgSender()
-        ];
+        Deposit storage deposit = tokenDeposits.depositorToDeposit[msg.sender];
         if (deposit.state != DepositState.Active) {
             if (deposit.state == DepositState.Inactive) {
                 revert("Token not deposited");
@@ -403,7 +398,7 @@ contract RequesterAuthorizerWithErc721 is
         emit InitiatedTokenWithdrawal(
             airnode,
             requester,
-            _msgSender(),
+            msg.sender,
             chainId,
             token,
             deposit.tokenId,
@@ -430,16 +425,14 @@ contract RequesterAuthorizerWithErc721 is
             "Requester blocked"
         );
         require(
-            !airnodeToDepositorToFreezeStatus[airnode][_msgSender()],
+            !airnodeToDepositorToFreezeStatus[airnode][msg.sender],
             "Depositor frozen"
         );
         TokenDeposits
             storage tokenDeposits = airnodeToChainIdToRequesterToTokenAddressToTokenDeposits[
                 airnode
             ][chainId][requester][token];
-        Deposit storage deposit = tokenDeposits.depositorToDeposit[
-            _msgSender()
-        ];
+        Deposit storage deposit = tokenDeposits.depositorToDeposit[msg.sender];
         require(deposit.state != DepositState.Inactive, "Token not deposited");
         uint256 tokenDepositCount;
         if (deposit.state == DepositState.Active) {
@@ -460,7 +453,7 @@ contract RequesterAuthorizerWithErc721 is
             }
         }
         uint256 tokenId = deposit.tokenId;
-        tokenDeposits.depositorToDeposit[_msgSender()] = Deposit({
+        tokenDeposits.depositorToDeposit[msg.sender] = Deposit({
             tokenId: 0,
             withdrawalLeadTime: 0,
             earliestWithdrawalTime: 0,
@@ -469,13 +462,13 @@ contract RequesterAuthorizerWithErc721 is
         emit WithdrewToken(
             airnode,
             requester,
-            _msgSender(),
+            msg.sender,
             chainId,
             token,
             tokenId,
             tokenDepositCount
         );
-        IERC721(token).safeTransferFrom(address(this), _msgSender(), tokenId);
+        IERC721(token).safeTransferFrom(address(this), msg.sender, tokenId);
     }
 
     /// @notice Called to revoke the token deposited to authorize a requester

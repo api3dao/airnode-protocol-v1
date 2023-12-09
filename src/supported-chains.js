@@ -1,4 +1,3 @@
-// TODO: replace with https://github.com/api3dao/chains/issues/3
 module.exports = {
   chainsSupportedByApi3Market: [
     'arbitrum',
@@ -18,7 +17,7 @@ module.exports = {
     'polygon-zkevm',
     'rsk',
   ],
-  chainsSupportedByChainApi: ['ethereum', 'ethereum-goerli-testnet'],
+  chainsSupportedByChainApi: [],
   chainsSupportedByDapis: [
     'arbitrum',
     'arbitrum-goerli-testnet',
@@ -42,10 +41,6 @@ module.exports = {
     'linea-goerli-testnet',
     'mantle',
     'mantle-goerli-testnet',
-    'metis',
-    'metis-goerli-testnet',
-    'milkomeda-c1',
-    'milkomeda-c1-testnet',
     'moonbeam',
     'moonbeam-testnet',
     'moonriver',
@@ -58,8 +53,5 @@ module.exports = {
     'rsk',
     'rsk-testnet',
     'scroll-goerli-testnet',
-    'zksync',
-    'zksync-goerli-testnet',
   ],
-  chainsSupportedByOevRelay: ['ethereum', 'ethereum-goerli-testnet', 'polygon-testnet'],
 };
