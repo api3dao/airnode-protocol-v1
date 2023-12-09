@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 import "../access-control-registry/AccessControlRegistryAdminnedWithManager.sol";
 import "./RequesterAuthorizer.sol";
 import "./interfaces/IRequesterAuthorizerWithManager.sol";
@@ -9,7 +8,6 @@ import "./interfaces/IRequesterAuthorizerWithManager.sol";
 /// @title Authorizer contract that the manager can use to temporarily or
 /// indefinitely authorize requesters for Airnodes
 contract RequesterAuthorizerWithManager is
-    ERC2771Context,
     AccessControlRegistryAdminnedWithManager,
     RequesterAuthorizer,
     IRequesterAuthorizerWithManager
@@ -31,7 +29,6 @@ contract RequesterAuthorizerWithManager is
         string memory _adminRoleDescription,
         address _manager
     )
-        ERC2771Context(_accessControlRegistry)
         AccessControlRegistryAdminnedWithManager(
             _accessControlRegistry,
             _adminRoleDescription,
@@ -73,7 +70,7 @@ contract RequesterAuthorizerWithManager is
         uint32 expirationTimestamp
     ) external override {
         require(
-            hasAuthorizationExpirationExtenderRoleOrIsManager(_msgSender()),
+            hasAuthorizationExpirationExtenderRoleOrIsManager(msg.sender),
             "Cannot extend expiration"
         );
         _extendAuthorizationExpiration(airnode, requester, expirationTimestamp);
@@ -92,7 +89,7 @@ contract RequesterAuthorizerWithManager is
         uint32 expirationTimestamp
     ) external override {
         require(
-            hasAuthorizationExpirationSetterRoleOrIsManager(_msgSender()),
+            hasAuthorizationExpirationSetterRoleOrIsManager(msg.sender),
             "Cannot set expiration"
         );
         _setAuthorizationExpiration(airnode, requester, expirationTimestamp);
@@ -109,7 +106,7 @@ contract RequesterAuthorizerWithManager is
         bool status
     ) external override {
         require(
-            hasIndefiniteAuthorizerRoleOrIsManager(_msgSender()),
+            hasIndefiniteAuthorizerRoleOrIsManager(msg.sender),
             "Cannot set indefinite status"
         );
         _setIndefiniteAuthorizationStatus(airnode, requester, status);
@@ -178,16 +175,5 @@ contract RequesterAuthorizerWithManager is
                 indefiniteAuthorizerRole,
                 account
             );
-    }
-
-    /// @dev See Context.sol
-    function _msgSender()
-        internal
-        view
-        virtual
-        override(RequesterAuthorizer, ERC2771Context)
-        returns (address)
-    {
-        return ERC2771Context._msgSender();
     }
 }

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 import "../access-control-registry/AccessControlRegistryAdminnedWithManager.sol";
 import "./Allocator.sol";
 import "./interfaces/IAllocatorWithManager.sol";
@@ -9,7 +8,6 @@ import "./interfaces/IAllocatorWithManager.sol";
 /// @title Contract that Airnode operators can use to temporarily
 /// allocate subscription slots for Airnodes
 contract AllocatorWithManager is
-    ERC2771Context,
     AccessControlRegistryAdminnedWithManager,
     Allocator,
     IAllocatorWithManager
@@ -25,7 +23,6 @@ contract AllocatorWithManager is
         string memory _adminRoleDescription,
         address _manager
     )
-        ERC2771Context(_accessControlRegistry)
         AccessControlRegistryAdminnedWithManager(
             _accessControlRegistry,
             _adminRoleDescription,
@@ -51,7 +48,7 @@ contract AllocatorWithManager is
         uint32 expirationTimestamp
     ) external override {
         require(
-            hasSlotSetterRoleOrIsManager(_msgSender()),
+            hasSlotSetterRoleOrIsManager(msg.sender),
             "Sender cannot set slot"
         );
         _setSlot(airnode, slotIndex, subscriptionId, expirationTimestamp);
@@ -83,16 +80,5 @@ contract AllocatorWithManager is
             !hasSlotSetterRoleOrIsManager(
                 airnodeToSlotIndexToSlot[airnode][slotIndex].setter
             );
-    }
-
-    /// @dev See Context.sol
-    function _msgSender()
-        internal
-        view
-        virtual
-        override(Allocator, ERC2771Context)
-        returns (address)
-    {
-        return ERC2771Context._msgSender();
     }
 }

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 import "../access-control-registry/AccessControlRegistryAdminned.sol";
 import "./RequesterAuthorizer.sol";
 import "./interfaces/IRequesterAuthorizerWithAirnode.sol";
@@ -9,7 +8,6 @@ import "./interfaces/IRequesterAuthorizerWithAirnode.sol";
 /// @title Authorizer contract that Airnode operators can use to temporarily or
 /// indefinitely authorize requesters for the respective Airnodes
 contract RequesterAuthorizerWithAirnode is
-    ERC2771Context,
     AccessControlRegistryAdminned,
     RequesterAuthorizer,
     IRequesterAuthorizerWithAirnode
@@ -35,7 +33,6 @@ contract RequesterAuthorizerWithAirnode is
         address _accessControlRegistry,
         string memory _adminRoleDescription
     )
-        ERC2771Context(_accessControlRegistry)
         AccessControlRegistryAdminned(
             _accessControlRegistry,
             _adminRoleDescription
@@ -57,7 +54,7 @@ contract RequesterAuthorizerWithAirnode is
         require(
             hasAuthorizationExpirationExtenderRoleOrIsAirnode(
                 airnode,
-                _msgSender()
+                msg.sender
             ),
             "Cannot extend expiration"
         );
@@ -79,7 +76,7 @@ contract RequesterAuthorizerWithAirnode is
         require(
             hasAuthorizationExpirationSetterRoleOrIsAirnode(
                 airnode,
-                _msgSender()
+                msg.sender
             ),
             "Cannot set expiration"
         );
@@ -97,7 +94,7 @@ contract RequesterAuthorizerWithAirnode is
         bool status
     ) external override {
         require(
-            hasIndefiniteAuthorizerRoleOrIsAirnode(airnode, _msgSender()),
+            hasIndefiniteAuthorizerRoleOrIsAirnode(airnode, msg.sender),
             "Cannot set indefinite status"
         );
         _setIndefiniteAuthorizationStatus(airnode, requester, status);
@@ -226,16 +223,5 @@ contract RequesterAuthorizerWithAirnode is
                 deriveIndefiniteAuthorizerRole(airnode),
                 account
             );
-    }
-
-    /// @dev See Context.sol
-    function _msgSender()
-        internal
-        view
-        virtual
-        override(RequesterAuthorizer, ERC2771Context)
-        returns (address)
-    {
-        return ERC2771Context._msgSender();
     }
 }

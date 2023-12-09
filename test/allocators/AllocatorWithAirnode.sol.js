@@ -59,7 +59,6 @@ describe('AllocatorWithAirnode', function () {
         deploy
       );
       expect(await allocatorWithAirnode.SLOT_SETTER_ROLE_DESCRIPTION()).to.equal(slotSetterRoleDescription);
-      expect(await allocatorWithAirnode.isTrustedForwarder(accessControlRegistry.address)).to.equal(true);
     });
   });
 
