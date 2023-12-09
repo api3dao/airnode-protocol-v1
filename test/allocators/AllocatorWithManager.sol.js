@@ -55,8 +55,7 @@ describe('AllocatorWithManager', function () {
 
   describe('constructor', function () {
     it('constructs', async function () {
-      const { accessControlRegistry, allocatorWithManager, slotSetterRoleDescription, slotSetterRole } =
-        await helpers.loadFixture(deploy);
+      const { allocatorWithManager, slotSetterRoleDescription, slotSetterRole } = await helpers.loadFixture(deploy);
       expect(await allocatorWithManager.SLOT_SETTER_ROLE_DESCRIPTION()).to.equal(slotSetterRoleDescription);
       expect(await allocatorWithManager.slotSetterRole()).to.equal(slotSetterRole);
     });

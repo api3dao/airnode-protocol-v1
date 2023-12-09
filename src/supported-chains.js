@@ -1,4 +1,3 @@
-// TODO: replace with https://github.com/api3dao/chains/issues/3
 module.exports = {
   chainsSupportedByApi3Market: [
     'arbitrum',
@@ -55,5 +54,4 @@ module.exports = {
     'rsk-testnet',
     'scroll-goerli-testnet',
   ],
-  chainsSupportedByOevRelay: [],
 };

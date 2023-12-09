@@ -4,9 +4,7 @@ const {
   chainsSupportedByApi3Market,
   chainsSupportedByChainApi,
   chainsSupportedByDapis,
-  chainsSupportedByOevRelay,
 } = require('../src/supported-chains');
-const tokenAddresses = require('../src/token-addresses');
 
 module.exports = async ({ getUnnamedAccounts, deployments }) => {
   const { deploy, log } = deployments;
@@ -94,33 +92,6 @@ module.exports = async ({ getUnnamedAccounts, deployments }) => {
       if ((await ethers.provider.getCode(expectedDapiProxyWithOevAddress)) === '0x') {
         await proxyFactory.deployDapiProxyWithOev(ethUsdDapiName, exampleOevBeneficiaryAddress, '0x');
         log(`Deployed example DapiProxyWithOev at ${expectedDapiProxyWithOevAddress}`);
-      }
-
-      if (chainsSupportedByOevRelay.includes(network.name)) {
-        let tokenAddress = tokenAddresses.usdc[network.name];
-        if (!tokenAddress) {
-          const mockErc20PermitToken = await deploy('MockErc20PermitToken', {
-            from: accounts[0],
-            args: [accounts[0]],
-            log: true,
-            deterministicDeployment: process.env.DETERMINISTIC ? ethers.constants.HashZero : undefined,
-          });
-          log(`Deployed MockErc20PermitToken at ${mockErc20PermitToken.address}`);
-          tokenAddress = mockErc20PermitToken.address;
-        }
-
-        const prepaymentDepository = await deploy('PrepaymentDepository', {
-          from: accounts[0],
-          args: [
-            accessControlRegistry.address,
-            'PrepaymentDepository admin (OEV Relay)',
-            ownableCallForwarder.address,
-            tokenAddress,
-          ],
-          log: true,
-          deterministicDeployment: process.env.DETERMINISTIC ? ethers.constants.HashZero : undefined,
-        });
-        log(`Deployed PrepaymentDepository (OEV Relay) at ${prepaymentDepository.address}`);
       }
 
       if (chainsSupportedByApi3Market.includes(network.name)) {

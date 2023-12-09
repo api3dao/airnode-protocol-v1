@@ -179,8 +179,6 @@
     "534353": 5856672,
     "11155111": 4840541
   },
-  "MockErc20PermitToken": {},
-  "PrepaymentDepository": {},
   "OrderPayable": {
     "1": 18735287,
     "10": 113182284,

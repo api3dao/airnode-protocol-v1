@@ -179,8 +179,6 @@
     "534353": "0x9EB9798Dc1b602067DFe5A57c3bfc914B965acFD",
     "11155111": "0x9EB9798Dc1b602067DFe5A57c3bfc914B965acFD"
   },
-  "MockErc20PermitToken": {},
-  "PrepaymentDepository": {},
   "OrderPayable": {
     "1": "0xA1939e84e3aa466a9A16153dC9C39411B50FD20C",
     "10": "0xA1939e84e3aa466a9A16153dC9C39411B50FD20C",

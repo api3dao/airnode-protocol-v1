@@ -5,19 +5,12 @@ const {
   chainsSupportedByApi3Market,
   chainsSupportedByChainApi,
   chainsSupportedByDapis,
-  chainsSupportedByOevRelay,
 } = require('../src/supported-chains');
-const tokenAddresses = require('../src/token-addresses');
 
 module.exports = async () => {
   const references = {};
   references.chainNames = {};
-  for (const network of [
-    ...chainsSupportedByApi3Market,
-    ...chainsSupportedByChainApi,
-    ...chainsSupportedByDapis,
-    ...chainsSupportedByOevRelay,
-  ]) {
+  for (const network of [...chainsSupportedByApi3Market, ...chainsSupportedByChainApi, ...chainsSupportedByDapis]) {
     references.chainNames[hre.config.networks[network].chainId] = network;
   }
   const deploymentBlockNumbers = { chainNames: references.chainNames };
@@ -40,23 +33,6 @@ module.exports = async () => {
     references[contractName] = {};
     deploymentBlockNumbers[contractName] = {};
     for (const network of chainsSupportedByDapis) {
-      const deployment = JSON.parse(fs.readFileSync(path.join('deployments', network, `${contractName}.json`), 'utf8'));
-      references[contractName][hre.config.networks[network].chainId] = deployment.address;
-      if (deployment.receipt) {
-        deploymentBlockNumbers[contractName][hre.config.networks[network].chainId] = deployment.receipt.blockNumber;
-      } else {
-        deploymentBlockNumbers[contractName][hre.config.networks[network].chainId] = 'MISSING';
-      }
-    }
-  }
-
-  for (const contractName of ['MockErc20PermitToken', 'PrepaymentDepository']) {
-    references[contractName] = {};
-    deploymentBlockNumbers[contractName] = {};
-    for (const network of chainsSupportedByOevRelay) {
-      if (contractName === 'MockErc20PermitToken' && tokenAddresses.usdc[network]) {
-        continue;
-      }
       const deployment = JSON.parse(fs.readFileSync(path.join('deployments', network, `${contractName}.json`), 'utf8'));
       references[contractName][hre.config.networks[network].chainId] = deployment.address;
       if (deployment.receipt) {
