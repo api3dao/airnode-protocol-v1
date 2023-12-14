@@ -197,5 +197,7 @@
     "43114": "0xA1939e84e3aa466a9A16153dC9C39411B50FD20C",
     "59144": "0xA1939e84e3aa466a9A16153dC9C39411B50FD20C"
   },
-  "RequesterAuthorizerWithErc721": {}
+  "RequesterAuthorizerWithErc721": {
+    "11155111": "0x8e0b4538f4f6D94D3dF9b30D17E31D4C3Be9dA30"
+  }
 }

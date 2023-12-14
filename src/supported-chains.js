@@ -17,7 +17,7 @@ module.exports = {
     'polygon-zkevm',
     'rsk',
   ],
-  chainsSupportedByChainApi: [],
+  chainsSupportedByChainApi: ['ethereum-sepolia-testnet'],
   chainsSupportedByDapis: [
     'arbitrum',
     'arbitrum-goerli-testnet',
