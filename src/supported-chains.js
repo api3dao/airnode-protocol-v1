@@ -44,6 +44,7 @@ module.exports = {
     'moonbeam',
     'moonbeam-testnet',
     'moonriver',
+    'oev-network-sepolia-testnet',
     'optimism',
     'optimism-goerli-testnet',
     'polygon',
