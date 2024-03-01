@@ -7,10 +7,10 @@
   resolved "https://registry.yarnpkg.com/@adraffy/ens-normalize/-/ens-normalize-1.10.0.tgz#d2a39395c587e092d77cbbc80acf956a54f38bf7"
   integrity sha512-nA9XHtlAkYfJxY7bce8DcN7eKxWWCWkU+1GR9d+U6MbNpfwQp8TI7vqOsBsMcHoT4mBu2kypKoSKnghEzOOq5Q==
 
-"@api3/chains@^4.6.0":
-  version "4.6.0"
-  resolved "https://registry.yarnpkg.com/@api3/chains/-/chains-4.6.0.tgz#5db8d8f4c7a923b21073bb9f1ab19e2bb0f3a3f7"
-  integrity sha512-xvPCK828aZPBNzUE7Ta2kMvvz4apXWxqgjMtjYX7rsYpoKDE5j7DYXPrJHpuA/nWuzrhlsRY8MqYaISyPU0XVw==
+"@api3/chains@^4.11.0":
+  version "4.11.0"
+  resolved "https://registry.yarnpkg.com/@api3/chains/-/chains-4.11.0.tgz#d519c6a018c6737999a910301d497c743924d853"
+  integrity sha512-hEtqsn1HGMS/TfsoViIpudNy2G8DaTvbVzH1rTWSGsQRFCKc0PqNYvEAVPvEY4Aec7lM76bdf6c5HsAD4LzuIw==
   dependencies:
     viem "^2.7.1"
     zod "^3.22.4"
