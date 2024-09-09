@@ -1,3 +1,8 @@
+> [!NOTE]  
+> As noted below, this repo originally housed the draft versions of Airnode protocol v1 contracts (RRPv1 and PSPv1).
+> Later on, data feed contracts (Api3ServerV1 and its dependencies) were added to it.
+> Since then, the data feed contracts are migrated to https://github.com/api3dao/contracts, and this repo is archived because Airnode protocol v1 contracts are not being actively maintained.
+
 # Airnode protocol v1
 
 This package temporarily houses the Airnode v1 protocol contracts. With the Airnode v1 release, these contracts will be
